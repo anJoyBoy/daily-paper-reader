@@ -6,71 +6,48 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-06-02
-- 运行时间：2026-06-02 23:02:10 UTC
+- 最新运行日期：2026-06-03
+- 运行时间：2026-06-03 21:43:11 UTC
 - 运行状态：成功
-- 本次总论文数：17
-- 精读区：6
-- 速读区：11
+- 本次总论文数：8
+- 精读区：4
+- 速读区：4
 
 ### 今日简报（AI）
-今日精读6篇、速读11篇，聚焦LLM双视角推荐理解和零样本实体链接框架。重点推荐《L2Rec》与《LELA》，分别探索个性化推荐中的LLM双视图理解与端到端实体链接的域自适应。建议关注LLM在推荐系统与信息抽取中的落地应用。
-- 详情：[/202606/02/README](/202606/02/README)
+今日推荐8篇论文，精读中《Snippet-Driven Supply Chain Discovery with LLMs》和《A Training-Free Mixture-of-Agents Framework for Multi-Document Summarization》均获9.0高分，聚焦供应链可视化和多文档摘要创新。
+
+最值得关注的是利用LLM实现供应链片断发现，以及免训练的多智能体+知识图谱摘要框架，两者在各自领域提供了高效、可扩展的解决方案。
+
+普通读者可优先了解高效RAG的意图感知检索与语义保持分块技术（7.0/10），并结合具体业务场景探索LLM在供应链排查或文档处理中的落地潜力。
+- 详情：[/202606/03/README](/202606/03/README)
 
 ### 精读区论文标签
-1. [L2Rec: Towards Dual-View Understanding of LLMs for Personalized Recommendation](/202606/02/2605.26717v1-l2rec-towards-dual-view-understanding-of-llms-for-personalized-recommendation)  
+1. [Snippet-Driven Supply Chain Discovery with LLMs: Scaling Visibility in China](/202606/03/2605.27845v1-snippet-driven-supply-chain-discovery-with-llms-scaling-visibility-in-china)  
+   标签：评分：9.0/10、query:llm-dm
+   evidence：基于LLM的片段驱动供应链知识图谱挖掘
+2. [A Training-Free Mixture-of-Agents Framework for Multi-Document Summarization using LLMs and Knowledge Graphs](/202606/03/2606.03867v1-a-training-free-mixture-of-agents-framework-for-multi-document-summarization-using-llms-and-knowledge-graphs)  
+   标签：评分：9.0/10、query:llm-dm
+   evidence：使用LLM和知识图谱进行多文档摘要，属于文本挖掘任务
+3. [Synthetic Data from Cross-Domain Events for Large-Scale Recommendation Systems](/202606/03/2606.00282v1-synthetic-data-from-cross-domain-events-for-large-scale-recommendation-systems)  
    标签：评分：8.0/10、query:llm-dm
-   evidence：基于LLM的个性化推荐，数据挖掘任务
-2. [LELA: An End-to-end LLM-based Entity Linking Framework with Zero-shot Domain Adaptation](/202606/02/2605.26956v1-lela-an-end-to-end-llm-based-entity-linking-framework-with-zero-shot-domain-adaptation)  
+   evidence：利用LLM生成合成数据用于推荐系统数据挖掘
+4. [On the Limits of LLM Adaptability: Impact of Model-Internalized Priors on Annotation Task Performance](/202606/03/2606.00467v1-on-the-limits-of-llm-adaptability-impact-of-model-internalized-priors-on-annotation-task-performance)  
    标签：评分：8.0/10、query:llm-dm
-   evidence：基于LLM的实体链接框架用于数据挖掘
-3. [Mixture-of-Experts Knowledge Graph Retrieval-Augmented Generation for Multi-Agent LLM-based Recommendation](/202606/02/2605.28175v2-mixture-of-experts-knowledge-graph-retrieval-augmented-generation-for-multi-agent-llm-based-recommendation)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：基于LLM的推荐系统结合KG检索增强生成，数据挖掘应用
-4. [HELEA: Hard-Negative Benchmark and LLM-based Reranking for Robust Entity Alignment](/202606/02/2605.28308v1-helea-hard-negative-benchmark-and-llm-based-reranking-for-robust-entity-alignment)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：基于LLM的重排序用于实体对齐，一项数据挖掘任务
-5. [DySem: Uncovering Dynamic Semantic Components via Multilingual Consensus for Calculating Semantic Textual Similarity](/202606/02/2605.29751v1-dysem-uncovering-dynamic-semantic-components-via-multilingual-consensus-for-calculating-semantic-textual-similarity)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：基于LLM的语义文本相似度方法
-6. [Semantic Triplet Restoration: A Novel Protocol for Hierarchical Table Understanding in Large Language Models](/202606/02/2605.31550v1-semantic-triplet-restoration-a-novel-protocol-for-hierarchical-table-understanding-in-large-language-models)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：基于LLM的层次化表格理解用于数据挖掘
+   evidence：LLM零样本文本标注用于毒性检测，属于文本挖掘
 
 ### 速读区论文标签
-1. [Agentic Clustering: Controllable Text Taxonomies via Multi-Agent Refinement](/202606/02/2606.01255v1-agentic-clustering-controllable-text-taxonomies-via-multi-agent-refinement)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：基于LLM的文本聚类方法
-2. [When Hard Negatives Hurt: Bridging the Generative-Discriminative Gap in Hard Negative Synthesis for Retrieval](/202606/02/2606.01304v1-when-hard-negatives-hurt-bridging-the-generative-discriminative-gap-in-hard-negative-synthesis-for-retrieval)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：基于LLM的硬负样本合成用于检索，属于数据挖掘任务
-3. [Hierarchical Synthetic Tabular Data Generation: A Hybrid Top-Down and Bottom-Up Framework](/202606/02/2605.28198v1-hierarchical-synthetic-tabular-data-generation-a-hybrid-top-down-and-bottom-up-framework)  
+1. [Efficient RAG with Intent-Aware Retrieval and Semantics-Preserving Chunking](/202606/03/2606.01240v1-efficient-rag-with-intent-aware-retrieval-and-semantics-preserving-chunking)  
    标签：评分：7.0/10、query:llm-dm
-   evidence：基于LLM的混合框架生成合成表格数据，辅助数据挖掘
-4. [GrepSeek: Training Search Agents for Direct Corpus Interaction](/202606/02/2605.29307v1-grepseek-training-search-agents-for-direct-corpus-interaction)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：LLM搜索代理直接与语料库交互，通过shell命令进行数据挖掘
-5. [DySem: Uncovering Dynamic Semantic Components of Large Language Models for Calculating Semantic Textual Similarity](/202606/02/2605.29751v2-dysem-uncovering-dynamic-semantic-components-of-large-language-models-for-calculating-semantic-textual-similarity)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：使用LLM计算语义文本相似度，是文本挖掘核心任务
-6. [Data filtering methods for training language models](/202606/02/2605.29807v1-data-filtering-methods-for-training-language-models)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：比较标签错误检测方法用于数据过滤，是数据挖掘中关键的数据预处理步骤。
-7. [Domain-Specific Data Synthesis for LLMs via Minimal Sufficient Representation Learning](/202606/02/2605.30039v2-domain-specific-data-synthesis-for-llms-via-minimal-sufficient-representation-learning)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：合成领域特定数据用于LLM微调，辅助数据挖掘任务。
-8. [AI for Monitoring and Classifying Data Used in Research Literature](/202606/02/2605.30582v1-ai-for-monitoring-and-classifying-data-used-in-research-literature)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：使用LLM分类和监控研究文献中的数据集提及，属于文本挖掘应用。
-9. [LRanker: LLM Ranker for Massive Candidates](/202606/02/2605.27810v1-lranker-llm-ranker-for-massive-candidates)  
+   evidence：面向文本挖掘的意图感知检索RAG
+2. [Guiding LLM Post-training Data Engineering with Model Internals from Sparse Autoencoders](/202606/03/2605.27354v1-guiding-llm-post-training-data-engineering-with-model-internals-from-sparse-autoencoders)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：使用LLM对大规模候选进行排序，助力数据挖掘中的检索排序
-10. [Prompting Is All You Need: Multi-view Prompting Large Language Models for Aspect-Based Sentiment Analysis](/202606/02/2605.28058v1-prompting-is-all-you-need-multi-view-prompting-large-language-models-for-aspect-based-sentiment-analysis)  
+   evidence：利用模型内部表示的数据工程方法，可应用于数据挖掘
+3. [Simorgh at SemEval-2026 task 7: Region-Aware Hybrid Retrieval for Low-Resource Cultural Reasoning in Multilingual Question Answering](/202606/03/2605.27636v1-simorgh-at-semeval-2026-task-7-region-aware-hybrid-retrieval-for-low-resource-cultural-reasoning-in-multilingual-question-answering)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：LLM提示用于方面级情感分析，属于大语言模型应用
-11. [Mixture-of-Experts Knowledge Graph Retrieval-Augmented Generation for Multi-Agent LLM-based Recommendation](/202606/02/2605.28175v1-mixture-of-experts-knowledge-graph-retrieval-augmented-generation-for-multi-agent-llm-based-recommendation)  
+   evidence：LLM检索用于多语言问答，属于文本挖掘
+4. [MIRA: Mid-training Rubric Anchoring for Source-Aware Data Selection](/202606/03/2605.30288v1-mira-mid-training-rubric-anchoring-for-source-aware-data-selection)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：使用知识图谱RAG增强推荐，LLM助力数据挖掘（推荐）
+   evidence：用于LLM中训阶段的数据选择方法，基于来源感知的评分锚定
 
 
 <div class="dpr-home-promo-card">
