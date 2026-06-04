@@ -1,0 +1,610 @@
+Title: FOLD: Fuzzy Online Deduplication for Very Large Evolving Datasets via Approximate Nearest Neighbor Search
+
+URL Source: https://arxiv.org/pdf/2606.03001v1
+
+Published Time: Wed, 03 Jun 2026 00:33:24 GMT
+
+Number of Pages: 18
+
+Markdown Content:
+# FOLD: Fuzzy Online Deduplication for Very Large Evolving Datasets via Approximate Nearest Neighbor Search 
+
+## Nelson Bore 1∗ Pritish Mishra 2 Constantin Adam 3 Eyal de Lara 2
+
+## Oana Balmau 1
+
+> 1
+
+McGill University 2University of Toronto 3IBM Research 
+
+# Abstract 
+
+Fuzzy deduplication is key to constructing large lan-guage model training corpora. However, classic Locality-Sensitive Hashing pipelines scale poorly as corpora grow and are ill-suited to continuous ingestion. We present FOLD (Fuzzy Online Deduplication), an online fuzzy deduplication system that delivers high recall and throughput for evolving datasets. FOLD maintains an incrementally updated HNSW index over admitted doc-uments, retrieving a small, high-quality candidate neigh-borhood for each incoming document instead of repeat-edly rebuilding global buckets or rescanning the accu-mulated corpus. To our knowledge, FOLD is the first online fuzzy deduplication system to use HNSW. How-ever, applying Jaccard similarity out of the box causes score crowding, making graph traversal unreliable within a small number of steps. FOLD addresses this with a bitmap representation that provides a more discrimina-tive, Jaccard-aligned signal during HNSW search. Across four LLM-scale datasets (LM1B, C4, RealNews, and Common Crawl), FOLD stays fast and accurate as the corpus grows: at the largest evaluated scales, it maintains 93–97% recall and achieves up to 2.09 × higher through-put than competing alternatives, whose best recall reaches only 76%. 
+
+# 1 Introduction 
+
+In large language model training, deduplicating the train-ing data improves model quality and training efficiency. Fuzzy deduplication [16, 18] is the dominant technique used to clean text-based corpora. Unlike exact deduplica-tion, which removes identical documents (or fragments of documents), fuzzy deduplication targets syntactic near-duplicates . These documents share substantial text but differ due to edits, formatting changes, or copied pas-sages. Prior work shows that fuzzy deduplication has a 
+
+> ∗Corresponding email: ( nelson.bore@mail.mcgill.ca ).
+
+beneficial effect on language model training, by removing redundant examples, reducing memorization, improving generalization, and lowering training cost [20, 28, 32, 43]. Despite its benefits, fuzzy deduplication is difficult to scale, in particular for large and continuously evolving corpora. The main challenge is posed by two factors: first, selecting a representative set of potential near-duplicate documents from terabyte-scale, increasing datasets (i.e., used by continuous model training [14, 33]), and second, efficiently computing the similarity between these docu-ments. This paper tackles the problem of fuzzy dedupli-cation scalability for text-based datasets, leveraging on the novel insight that graph-based approximate nearest-neighbor (ANN) search is a natural match for quickly 
+
+comparing against promising near-duplicates, at scale. On a high-level, fuzzy deduplication represents each document as a set of 𝑛 -grams extracted from the text (typically 𝑛 = 3–5 words [16]) and computes a similar-ity score between these sets. The dominating similarity metric in fuzzy deduplication algorithms is Jaccard sim-ilarity [23], defined as the cardinality of the set intersec-tion divided by the cardinality of the set union. Because this representation is based on token and 𝑛 -gram overlap rather than exact matches, fuzzy deduplication captures approximate textual resemblance 1. However, comput-ing Jaccard similarity over all document pairs in large datasets is expensive at scale [19]. To alleviate this issue, current fuzzy deduplication pipelines use n-gram hashing techniques [17], as well as coarse grouping of documents into clusters (also called bands, or buckets) so that only documents in the same cluster are verified [30, 32, 45]. Many pipelines provide support for fuzzy dedupli-cation, such as Data Prep Kit (IBM) [45], Data Trove (Hugging Face) [4], Data-Juicer and Model Scope (Al-ibaba) [3, 11], Red Pajama (Together AI) [5], NeMo-Curator (NVIDIA) [12], and Milvus [9]. All these sys-tems except from Milvus follow variations on the classic fuzzy deduplication pipeline described in Section 2.1. 
+
+> 1Note that this is a different problem from semantic equivalence, which we discuss in Section 7.
+
+1
+
+> arXiv:2606.03001v1 [cs.DC] 2 Jun 2026
+
+Milvus is a vector database system which recently pro-vided support for fuzzy deduplication using a custom flat vector index [9]. All the above solutions face several important limitations. We provide an in-depth analysis and show that, as datasets scale, there is a fundamental tradeoff between high, stable throughput and high re-call, illustrating this issue with IBM DPK and Milvus. As the dataset grows, document candidate buckets shift, triggering the need for re-computing the similarity be-tween n-grams (or n-gram hash signatures) with every incoming document. Indexed systems such as Milvus, partially mitigate this issue as they do not have to re-compute the buckets. However, they do not eliminate the recall–throughput tension. As we show in Section 3, Milvus’ recall directly depends on the candidate set re-trieved to compute near-duplicates. A larger candidate set yields higher recall, but in turn reduces throughput, as the search is done on a flat index. In this paper, we propose Fuzzy Online Deduplica-tion (FOLD), an efficient fuzzy deduplication system for large-scale evolving datasets. At its core, FOLD relies on a graph-indexed vector database to maintain the sim-ilarity relationships between the different documents in the dataset. The deduplication is done on the fly. When a new document is ingested, FOLD uses ANN search to retrieve a small high-affinity neighborhood checks dis-tances between documents only within that neighbor-hood, rather than comparing against the full corpus or rebuilding global buckets. Documents considered suffi-ciently different are then inserted into the index, allowing future batches to be checked against the accumulated cor-pus. To make this approach scalable with large datasets, FOLD relies on two novel techniques. First, FOLD main-tains a hierarchical navigable small world (HNSW) index, which is structurally different from prior fuzzy dedupli-cation solutions–including Milvus, which uses a vector database with a flat index. Intuitively, the search in an HNSW graph allows for millisecond-scale retrieval of candidate duplicates, as the neighbors are directly ob-tained from the graph, without additional verification. However, simply substituting a flat index with a graph-based index does not have a high recall out-of-the-box (as we show in Section 3). Simply using the Jaccard similarity score in a graph-based index can lead to score ties as the graph is built, which hinders graph exploration and thus leads to low recall (as we explain in detail in Section 4). To address this problem, we propose a novel bitmap-based document signature which both breaks ties when computing Jaccard similarity, and makes the dis-tance computation amenable to parallelization (e.g., using SIMD). Together, FOLD’s HNSW index combined with its novel bitmap document representation makes fuzzy deduplication scalable, while maintaining an almost per-fect recall. We evaluate FOLD against IBM DPK [45], Milvus [9], and the FAISS vector-search library using an out-of-the-box HNSW index [8]. Across four real-world datasets— LM1B [22], C4 [41], RealNews [49], and a Common Crawl snapshot [6]—FOLD sustains high DPK-relative recall with stable and high end-to-end throughput as the corpus grows.The key evaluation result is the scal-ing trajectory: FOLD remains in the high-throughput, high-recall regime as the corpus grows, while Milvus loses throughput under growing candidate and mainte-nance costs and FAISS (Jaccard) preserves speed only with lower recall. In summary, this paper makes the following contribu-tions: 1. We perform an in-depth analysis to identify challenges of fuzzy deduplication for large, continuously evolving datasets and show that existing approaches struggle to maintain either a stable throughput, or a high accuracy, or both (Section 3). 2. Based on the insights in Section 3, we design and implement FOLD, a fuzzy deduplication system for continuously evolving large-scale datasets. FOLD is the first system to use an HNSW index over admitted documents, avoiding repeated global bucket construc-tion or corpus candidate generation as new documents arrive. We then introduce a novel bitmap-based data representation with SIMD acceleration and cached statistics to keep document verification fast and ac-curate (Sections 4 and 5). 3. We empirically show that FOLD sustains high recall and stable throughput at scale, with targeted break-down experiments isolating the sources of speedup (Section 6). FOLD will be open sourced upon paper publication. 
+
+# 2 Background 
+
+First, we introduce the basics of fuzzy deduplication. Second, we review vector database indexing, focusing on graph-based approaches. Finally, we review exist-ing fuzzy deduplication frameworks used in our study in Section 3. 
+
+## 2.1 Fuzzy Deduplication Overview 
+
+Figure 1 shows a simple example of a state-of-the-art fuzzy deduplication workflow for three documents 𝐷 1,
+
+𝐷 2, 𝐷 3. The process consists of four steps: 
+
+1. Shingling: Each document is divided into overlapping n-grams, called shingles. In our example, the documents are split into 3-grams, where each 3-gram is built by shifting to the right by one word. 22. MinHash Signature Generation: A MinHash signa-ture [16] is generated per document. For each shingle 𝑆 𝑖 𝑗 
+
+in document 𝐷 𝑖 , fuzzy deduplication applies a collection of hash functions. Our example uses 3 hash functions 
+
+𝐹 1, 𝐹 2, 𝐹 3. In practice and in our implementation, 112 hash functions are used [45]. For each hash function, the lowest hash value is selected across all shingles (i.e., 
+
+𝑚𝑖𝑛 (𝐹 (𝑆 𝑖 𝑗 ), where 𝑗 ∈ 1, 2, 3). In Figure 1 we de-tail the MinHash Signature calculation for document 𝐷 1.The chosen values for each hash function are 𝐹 1(𝑆 11 ),
+
+𝐹 2(𝑆 11 ), and 𝐹 3(𝑆 13 ), highlighted in yellow. The signa-ture size only depends on the number of hash functions and their output size. 
+
+3. Locality-Sensitive Hashing (LSH): To reduce the search space, similar documents are then grouped into buckets by partitioning each MinHash signature into mul-tiple non-overlapping bands, each containing a subset of the hash values. In our example, Band A contains the first two hash values and Band B contains the third value. Documents sharing an identical band are placed in the same bucket and non-empty buckets are forwarded to Step 4. The number of comparisons in our example is reduced from 3 to 1, with only the pair 𝐷 1, 𝐷 2 passed to the next step. 
+
+4. Pair Verification: Within each bucket, documents are compared via the Jaccard similarity [23] of the MinHash signatures to identify near-duplicates. Finally, a prede-fined threshold is used to determine whether the similar-ity between two documents is high enough for them to be considered near-duplicates. We use a threshold of 0.5 in our example, and 𝐷 2 is identified as a duplicate. As datasets grow, each incoming document must be checked against the accumulated corpus, so candidate generation and Jaccard verification become increasingly expensive. This is the key reason why classic approaches such as DPK struggle with large, and evolving datasets. Vector databases, described below, offer a compelling way to support efficient candidate retrieval under contin-uous insertion. 
+
+## 2.2 Vector Databases 
+
+Vector databases store item embeddings and support sim-ilarity search at scale [37]. At the core of the vector database lies its main index structure, which can be im-plemented using different types of data structures. Each of these data structures provide a trade-off between read and insertion performance. The relevant issue for online fuzzy deduplication is how the index is able to retrieve similar documents to the newly ingested documents, as the corpus evolves. Flat indexes, such as FAISS Index Flat [8] and Milvus FLAT [10], compare a query against every stored item, giving exact results but requiring 𝑂 (𝑁 ) work per query. Partitioned indexes, such as IVF-style indexes [7, 10], reduce this cost by assigning items to clusters or buck-ets and probing only selected clusters whose centroids are closest to the incoming query. For large evolving corpora, these indexes are forced to either scan more data (reduc-ing throughput), and periodically rebuild the clusters to preserve recall. Graph-based indexes such as the Hierarchical Navi-gable Small World (HNSW), build a layered proxim-ity graph for low-latency approximate nearest-neighbor search and support online inserts [35]. Search greedily descends from sparse upper layers toward dense layers and then performs a bounded search in the bottom layer. Insertions connect each new item to its closest neighbors in the graph. HNSW graphs rely on three key parame-ters: (1) M controls the maximum number of neighbors per node, determining graph density, memory overhead, and recall; (2) efConstruction controls the number of can-didates explored during index construction, trading build time for index quality; (3) efSearch controls the number of candidates explored during query processing, trading latency for recall. HNSW is a natural fit for continu-ously evolving datasets, where each admitted document should immediately become searchable by future batches. However, as we show in Section 3, using HNSW out-of-the-box with Jaccard distance as the similarity metric (as required by fuzzy deduplication) does not yield a high throughput together with high accuracy. 
+
+## 2.3 Existing Fuzzy Deduplication Frame-works 
+
+There are three flavors of systems used to perform fuzzy deduplication. Most existing fuzzy deduplication systems generally follow the MinHash-LSH workflow described in Section 2.1. In the rest of the paper, we use IBM DPK [45] as an exponent of these frameworks. Second, classic set-similarity joins use frequency-ordered pre-fix filters to generate candidates before Jaccard verifica-tion [44, 46–48]. Finally, Milvus [9] recently introduced a custom fuzzy deduplication index, MINHASH LSH , that implements LSH-style candidate grouping inside the vec-tor database. Unlike FOLD, Milvus does not use graph-based ANN search for deduplication. Instead, it retrieves candidates from shared LSH bands, uses a Bloom filter to accelerate bucket-membership checks [15], and verifies candidates using Jaccard distance. This design moves fuzzy deduplication into an indexed retrieval system, but it still relies on flat bucketed candidate retrieval: a small candidate budget can miss near-duplicates outside the searched buckets, while a larger budget increases veri-fication work. We show the limitations of all types of solutions in the next section. 3Doc  Content                                                      
+
+> D1 Deduplication is
+> complex and fun
+> D2 Deduplication is
+> complex and great
+> D3 Interesting idea
+> worth to explore
+> Sample Documents
+> Doc Shingles
+> D1 {S 11 =“ Deduplication is complex ”,
+> S12 =“is complex and”,
+> S13 =“complex and fun” }
+> D2 {S 21 =“ Deduplication is complex ”,
+> S22 =“ is complex and ”,
+> S23 =“ complex and great ”}
+> D3 {S 31 =“ Interesting idea worth ”,
+> S32 =“ idea worth to ”, S 33 =“ worth
+> to explore ”}
+> Step 1: Shingling
+> D1 Hash F1 Hash F2 Hash F3
+> S11 F1( S11 )=1 F2( S11 )=0 F3( S11 )=9
+> S12 F1( S12 )=2 F2( S12 )=0 F3( S12 )=8
+> S13 F1( S13 )=3 F2( S13 )=0 F3( S13 )=7
+> Doc Signature
+> D1 {1,0,7 }
+> D2 {1,0,6}
+> D3 {5,1,3}
+> Step 2: MinHash Signature Generation
+> Doc Signature Bands
+> D1 {1,0,7 }[A:[1, 0], B:[7]]
+> D2 {1,0,6} [A:[1, 0], B:[6]]
+> D3 {5,1,3} [A:[5, 1], B:[3]]
+> Band Value Doc
+> A[1,0] D1,D2
+> B[7] D1
+> B[6]D2
+> A[5,1] D3
+> B[3]D3
+> Step 3: Band Clustering using Locality Sensitive Hashing
+> Jaccard (D1, D2) = 2/4 = 0.5
+> →Duplicate Documents IDs= [ D2]
+> →Remove D2
+> Step 4: Candidate Pair Verification
+
+Figure 1: Steps involved in state-of-the-art Fuzzy Dedu-plication frameworks using MinHash and LSH. 
+
+# 3 The Limitations of Current Fuzzy Deduplication Frameworks 
+
+In this section, we show that existing fuzzy deduplica-tion frameworks cannot maintain high throughput and recall under large, evolving datasets. We first analyze the approaches described in Section 2.1, and other pop-ular approaches relying on a flat index. We then explore the potential of HNSW graph-based approaches for fuzzy deduplication. We show that both their recall and scala-bility depend critically on the choice of the distance met-ric between graph nodes, as this is the core mechanism used to traverse the graph. 
+
+Hardware. We ran all experiments on the Google Cloud Platform, using a c3d-highmem (C3D high-memory) VM on the AMD Genoa CPU platform (x86 64). We used 32 CPU cores and 480 GB of memory. 
+
+Baselines. We evaluate five baselines grouped into two families: ”flat”-indexing systems (DPK, Prefix-Filter, Milvus), and graph-based systems (FAISS with HNSW indexing and two distance metrics). 
+
+• DPK [45] is an exponent of the DPK fuzzy-deduplication workflow described in Section 2.1. 2
+
+> 2
+
+For fairness, we augment the open-source IBM implementation with SIMD parallelization during the band processing and candidate-set intersection while preserving DPK’s candidate-generation and Jaccard-verification logic. 
+
+Table 1: Example runtime and recall on a 3M-document Common Crawl snapshot, using brute-force pairwise MinHash comparison at 𝐽 ≥ 0.7 as the ground truth. As brute-force requires 5 days to run even for a small dataset, we select DPK (the highest-recall baseline) as the practical recall reference for larger datasets. Additional workloads and larger datasets are presented in Section 6. 
+
+Brute Force DPK Prefix Filter FAISS Jaccard FAISS Hamming Milvus topK=4 Milvus topK=160 Time 5 days 2 hrs 9 hrs 2.33 hrs 0.66 hrs 1.57 hrs 3.04 hrs Recall 1.00 0.92 0.82 0.51 0.61 0.67 0.76 
+
+• Prefix-Filter is our implementation of prefix-filtering set-similarity joins [44, 46, 48]: documents are 5-word shingle-hash token sets, candidates are retrieved us-ing rare-token prefixes, and matches are verified with Jaccard similarity. 
+
+• Milvus [9] uses its custom MINHASH LSH flat index. 
+
+• FAISS (Hamming) is the out-of-the-box implementa-tion of the HNSW index from the FAISS library, using Hamming distance as the similarity metric between vertices. 
+
+• FAISS (Jaccard) is our modification of the baseline above, where we implemented the Jaccard similarity metric and use it instead of the Hamming distance. We include this baseline to measure the effectiveness of the Jaccard similarity metric used directly inside a graph-based system. 
+
+Experimental setting. Consider the input document batches 𝐷 1, 𝐷 2, . . . , an existing clean corpus 𝑈 and a threshold 𝜏 . Each incoming document 𝑑 ∈ 𝐷 𝑖 is dis-carded if some previously admitted document 𝑢 ∈ 𝑈 
+
+satisfies 𝐽 (𝑑, 𝑢 ) ≥ 𝜏 , where 𝐽 is the Jaccard similarity. Otherwise, 𝑑 is admitted and inserted into the corpus. We evaluate recall as the fraction of near-duplicates detected and throughput as input documents processed per second. We evaluate recall against the recall of IBM DPK. This is done because computing the exact ground truth (i.e., brute-forcing the pair-wise comparison of all documents for large datasets) is prohibitively time consuming. To validate IBM DPK as a good-enough ground truth, we perform a brute-force search over 3M-document sub-sets of our evaluated datasets. Table 1 reports the recall and runtime of each baseline against the brute-force ap-proach at 𝐽 ≥ 0.7 for Common Crawl Snapshot [1]. The dataset has a 40% fuzzy duplicate proportion, as shown in Table 2 in Section 6. DPK achieves the highest recall among scalable baselines (0.92) while reducing runtime from 5 days to 2 hours. Similar results were obtained for the other datasets we consider, but are omitted for brevity. Therefore, in the rest of the paper, recall is measured as the fraction of DPK-detected fuzzy duplicates that are also detected by each method. 
+
+Experiment runtime. We perform continuous inges-4Milvus(topK=4) Milvus(topK=160) Prefix-Filter           
+
+> DPK FAISS (Hamming) FAISS (Jaccard)
+> 12345
+> (a) Documents (Millions)
+> 0
+> 1025
+> 2050
+> Throughput
+> (Docs/Sec)
+> 12345
+> (b) Documents (Millions)
+> 0.00
+> 0.33
+> 0.67
+> 1.00
+> Recall relative
+> to DPK
+
+Figure 2: Throughput (left) and recall (right) for Com-mon Crawl, as the corpus grows to 5M documents .None of the baselines manage to maintain both high re-call and high throughput as the dataset grows. tion of documents in 500K-document cycles. We main-tain an on-disk base corpus of the unique documents seen thus far and an in-memory index containing the document signatures. We begin with an empty corpus. Each cycle follows a two-step process. First, we perform a bulk ingest phase that deduplicates the batch of doc-uments by filtering against the current base corpus, as well as within the incoming 400K document batch. Only unique documents are appended to the corpus. Second, after the 400K-document bulk-ingest phase, a streaming-evaluation phase processes the remaining 100K docu-ments and measures retrieval accuracy and throughput. Unless otherwise specified, indexed baselines retrieve the top 4 nearest neighbors. Throughput (documents/sec) is measured as 100K divided by the wall-clock time for the evaluation phase. Before advancing to the next cycle, each baseline adds the documents it classifies as unique to its corpus and index; this mirrors streaming deploy-ment but can favor baselines that miss duplicates, since those missed duplicates remain in the evolving state. We first discuss flat-indexing systems in Section 3.1, then turn to graph-based systems in Section 3.2. 
+
+## 3.1 Fuzzy deduplication using flat indexing 
+
+Figure 2 shows the throughput and recall (higher is better) for a 5M-document subset of Common Crawl. First, we note that DPK’s throughput drops sharply as the corpus grows: though the SIMD parallelism optimization helps when the dataset is small, each new batch must still be checked against an increasingly large corpus. Second, Prefix-Filter is even slower, starting at 101 documents/sec and dropping to 46 documents/sec, while its recall decreases from 0.87 to 0.80. Evolving token frequencies and growing candidate sets increase the cost of prefix-based retrieval and final Jaccard verification. Finally, Milvus provides the most stable through-put among the flat-indexed baselines, but it exposes a throughput–recall trade-off. Even increasing the candi-date neighbors set to topK=160 improves recall to only 70%, while reducing throughput by 50%. 
+
+Takeaway 1. We conclude that existing approaches do not simultaneously achieve both scalability and re-call under continuous ingestion: DPK-style pipelines preserve recall but slow down, Prefix-Filter is slow and loses recall, and Milvus trades recall for through-put. 
+
+## 3.2 Fuzzy deduplication with graph index-ing 
+
+Vector databases using graph indexes such as HNSW provide a compelling alternative to the techniques seen above, as the structure of the graph allows for more ef-ficient inserts of new documents, without having to re-compute the banding and buckets with each incoming document batch. Unfortunately, we show that such sys-tems cannot efficiently be run out of the box, even though they have high potential. First, we evaluate the default FAISS HNSW implemen-tation [8], which uses the Hamming distance to compute the similarity between graph nodes. While this solution is promising for throughput, outperforming the top flat-indexed baseline by 3x, its accuracy is not satisfactory. For the largest evaluated corpus, FAISS’ (Hamming) re-call drops to half that of DPK, i.e., similar to a random decision of whether a document is marked as a duplicate or not. This is unacceptable for deduplication because every missed near-duplicate is admitted into the corpus and can be repeatedly used during training, reducing the quality of the dataset. The low recall stems from the distance metric used by HNSW out-of-the-box to assess similarity between vertices representing document signatures. By default, FAISS uses the Hamming distance. For binary signa-tures, the Hamming distance ( 𝑑 𝐻 ) is the number of bit positions at which two signatures differ (i.e., the number of bit flips). Many retrieval systems therefore rank candi-dates by minimizing 𝑑 𝐻 . A tempting (but invalid) proxy is to simply use Hamming similarity to cut-off incoming nodes. For example, one might use 1 − 𝑑 𝐻 /𝐵 ≥ 0.7 as a proxy for a Jaccard 𝐽 ≥ 0.7 cutoff, where 𝐵 is the to-tal number of bits in the packed signature and 𝑑 𝐻 is the number of differing bits. However, the meaning of the two metrics is not the same. While Jaccard similarity depends on the fraction of 
+
+identical hash values, the Hamming distance counts bit differences within each hash value. As a result, two sig-natures can share no identical MinHash values, and there-fore have zero Jaccard agreement, while still appearing close under normalized Hamming similarity. This makes Hamming distance an unstable proxy for fuzzy dedupli-cation. We provide a concrete example illustrating this 5mismatch in Appendix A.1. We take our exploration a step further by adding an off-the-shelf implementation of Jaccard similarity to FAISS’ HNSW index. Surprisingly, FAISS (Jaccard) is not much better in terms of throughput than the flat-index base-lines seen in Section 3.1. Even more surprisingly, this implementation is also poor in terms of recall. The low throughput is caused by Jaccard similarity being signif-icantly more expensive to compute than Hamming dis-tance. While Jaccard similarity requires computations of set intersection and union, Hamming distance can be reduced to bitwise XOR operations. The explanation for the low recall is more subtle. While in the case of Milvus, the low recall was due to truncating the search results, in the FAISS (Jaccard) case the issue stems directly from the similarity metric. At a closer look at edge values inside the graph, we observed that the Jaccard similarity scores can become tie-heavy. In other words, many vertex pairs receive the same (or nearly the same) similarity score, making the graph harder to navigate reliably. To further validate this finding, we run a self-search sanity check. After distinct documents from the 100K-document evaluation batch are added to the index, we re-query using those same documents. Because every query document exists in the index, a well-constructed graph should consistently return the query’s own ID near the top of the result list. However, this self-search returns the query’s ID for only 4.19% of recently inserted documents, an unacceptably poor rate for exact matches. Together, these results indicate that the Jaccard simi-larity in its naive implementation is poorly calibrated for graph search, as it tends to treat candidates as either very similar or very dissimilar, with little meaningful structure in between. This approach works when all the signatures within a bucket are compared with each other. However, in duplicate-dense regions in the graph, this ranking sig-nal is too weak, making it difficult for the index greedy walk to reach the best neighbors. This explains both the low self-found rate and the degraded recall. 
+
+Takeaway 2. Graph-index behavior is dominated by the distance metric. The popular similarity met-rics for both HNSW and fuzzy deduplication cannot be used out-of-the-box. Hamming distance is fast but misaligned with MinHash/Jaccard deduplication, while naive Jaccard is aligned with the objective but too expensive and tie-heavy for reliable HNSW traversal. A good distance metric must be cheap enough to compute for graph fast traversal while still preserving the neighborhood structure needed for ac-curate fuzzy-duplicate retrieval. 
+
+# 4 FOLD System Design 
+
+The high-level idea in FOLD is to use an HNSW vector database to quickly detect near-duplicates while support-ing updates. To achieve high throughput and recall, we propose an approximation of the Jaccard distance metric using a novel bitmap signature. Thogether, these opti-mizations allow for efficient, SIMD-parallelized Jaccard-style distance computation, without sacrificing recall. 
+
+## 4.1 FOLD Workflow Overview 
+
+Our first contribution consists of the general fuzzy dedu-plication workflow enabled by using a graph-based vec-tor database. Figure 3 shows the end-to-end workflow of FOLD, consisting of the following high-level steps. 
+
+(➊) Document signature generation. Documents arrive to FOLD in batches. Each incoming document is shingled and a MinHash signature is generated, then packed into FOLD bitmap representation (Section 4.2). From this point onward, FOLD operates on bitmap sig-natures. 
+
+(➋) Input batch cleanup. FOLD removes near-duplicates within each incoming document batch. To speed up deduplication, we apply SIMD acceleration to band processing and candidate intersection computation (Section 5.1). A batch-based approach is suitable at this stage, as the incoming batches of documents are assumed to be small relative to the total size of the corpus. 
+
+(➌) Index search to retrieve closest neighbors. For each document in the clean input batch, FOLD queries the HNSW index. Index Search returns a small set of sim-ilar candidates together with their Jaccard-style distances for each input document in the cleaned batch. This step approximates the LSH banding from classic fuzzy dedu-plication (i.e., by selecting a promising neighborhood of potential near-duplicates), and the candidate pair verifi-cation (the distance between neighbors is automatically captured by the graph). 
+
+(➍) Input document filtering. Then, FOLD simply filters the returned neighbors using a fixed threshold 𝜏 
+
+(𝜏 ≥ 0.7 in our experiments). For each document in the cleaned input batch FOLD scans the returned neigh-bor list from the previous point. For each input doc-ument 𝑖 , if there is at least one neighbor 𝑛 such that Distance (doc 𝑖 , doc 𝑛 ) ≥ 𝜏 , then document 𝑖 is discarded, as the corpus already contains a document that is consid-ered close enough. 
+
+(➎) Add unique documents to the corpus. Finally, documents that pass both the in-batch deduplication and index search filters are considered unique. Their raw con-tent is written to local ext4 files, and their bitmap sig-natures are inserted into the vector database to keep the corpus up to date for future searches. This update path is 6Document  
+
+> Signature
+> Generation
+> Incoming
+> Document Batch Document
+> Signatures
+> In -Batch
+> Deduplication
+
+# +   
+
+> Unique
+> Signatures
+> Candidate
+> Filter
+> Add
+> Unique
+> Documents
+> Document
+> Repository
+> (on disk)
+> Band Signature
+> Calculation Band Signature
+> Grouping
+> Candidate
+> Intersection
+> Duplicate Filter (SIMD Accelerated)
+> Query + Result
+> Insert Unique
+> Signatures
+> Vector Database Filter
+> Index
+> Index
+> 12
+> 34
+> 5
+
+Figure 3: FOLD workflow. For each incoming document batch, the documents’ bitmap signatures are generated ( ➊). Then, FOLD removes near-duplicates inside the batch( ➋). Next, for each input document, the closest neighbors are retrieved from the corpus indexed via an HNSW graph ( ➌) and the duplicates are filtered out using a fixed threshold ( ➍). Finally, the remaining documents in the input batch are inserted into the corpus and the index, as they are considered unique ( ➎). central to FOLD: the index is maintained across batches, so future searches operate over the evolving admitted cor-pus without rebuilding the candidate-generation structure from scratch. 
+
+## 4.2 Data Representation: Bitmap Signa-tures 
+
+Our second contribution lies in the data format which enables high throughput and low recall for the workflow presented above. As discussed above, an ideal distance function is fast enough to compute for an efficient graph search, and adapted for fuzzy matching in a graph (i.e., re-spects the intuition behind Jaccard similarity, and avoids crowding). We showed that computing the Hamming distance of the MinHash signatures is fast and paral-lelizeable (SIMD- or GPU-friendly), but it is too fine-grained: small, arbitrary changes inside 32-bit signatures can dominate the distance and distort similarity. In con-trast, Jaccard similarity of MinHash signatures matches our deduplication objective, but computing it directly in-side a graph index (e.g., FAISS (Jaccard) in Section 3.2) is difficult to accelerate with parallelization techniques, and leads to signature crowding. To get the best of both worlds, FOLD uses a novel bitmap-based signature , de-riving a bitmap from the original MinHash signatures that enables both SIMD-friendly and accurate search in the HNSW index. 
+
+Bitmap signatures. Intuitively, a document signature and distance metric that achieve high recall need to: 1) preserve the meaning of the distance metric similar to that of Jaccard similarity to respect the fuzzy deduplication algorithm, and 2) provide enough score separation among near-tied candidates to guide HNSW traversal. Breaking ties between similar neighbors is a subtle is-sue arising during graph construction. We empirically observe that these ties arise in all datasets we analyze if the Jaccard similarity metric is used out-of-the-box 
+
+Figure 4: Example HNSW level-0 navigation with 
+
+efSearch = 6. Search begins at the query (star), where dashed edges represent neighbor evaluations that con-sume the efSearch budget, and red arrows denote the resulting expansion path toward the true closest neigh-bor 𝐼 (green). Classic Jaccard similarity (a) is unable to break ties, leading to breadth-like exploration that does not reach node 𝐼 before exhausting the 6-node explo-ration budget. Bitmap-Jaccard (b) separates candidates in bitmap space, giving HNSW a clearer ordering signal within the same exploration budget. during HNSW graph construction. Figure 4 shows an illustration of this phenomenon. The classic Jaccard sim-ilarity scores (Figure 4a) create multiple ties (e.g., 0 .5), forcing the exploration to follow a breadth-first search, as it cannot break ties between neighbors. Note that this would not be an issue if the entire graph was explored. However, in vector databases the search is capped to ef-Search nodes, to bound the read latency. Hence, the search runs out of the exploration budget (set to 6 nodes in this small example) before reaching the closest neigh-bor to 𝑄𝑢𝑒𝑟 𝑦 , which is 𝐼 . This is especially problematic at the beginning of the search, as the graph walk can-not arrive in the region of the graph containing the most similar nodes. As we explain in the rest of this section, FOLD’s bitmap signatures separate tied candidates, guid-ing a depth-first expansion to reach 𝐼 more reliably, within the same efSearch budget. Figure 5 shows a small example of how bitmap signa-tures are created in FOLD. First, shingling and MinHash-7MinHash Signature                           
+
+> 1001 2
+> 15 10 15 %8
+> 1111 21101 2
+> 13 10 910 13 %89%8
+> 710 510 110
+> Bitmap Signature(T= 8)
+> Grouped in 4 -bits
+> MinHash Values
+> H=[15,13,9]
+> Bitmap index:
+> b = h mod(%) T
+> Index 01234567
+> 0100010Bits 1
+> 01000101
+
+Figure 5: Example bitmap signature construction from a MinHash signature, with 𝐻 =3, 𝑇 =8, and 4-bit words. Each hash value ℎ maps to an index 𝑏 = ℎ mod 𝑇 ,and the bitmap sets 𝑥 [𝑏 ] ← 1. FOLD uses 𝑇 =4096 and 
+
+𝐻 =112 MinHash values, packed into 32- or 64-bit words. ing produce a fixed-length vector of 𝐻 MinHash values. We illustrate 𝐻 = 3 MinHashes: 15 , 13 , and 9 (in prac-tice, 𝐻 = 112). FOLD’s bitmap signature has size 𝑇 bits. 
+
+𝑇 = 8 in our example (in practice, 𝑇 = 4096), where each bit corresponds to a position that will be ”turned on” by each of the MinHashes. The bitmap is initialized to all zeros. Then, each MinHash value ℎ is mapped to a bitmap position ℎ mod 𝑇 . In the example, positions 1, 5, and 7 are turned on, to create the final bitmap signature 
+
+[0100 0101 ] (note that collisions are possible). This representation allows for the computation of the intersection and union of two MinHash signature sets us-ing bitwise operations. Given two signatures 𝐴 and 𝐵 ,the intersection is represented by the number of common positions that are set to 1 in both 𝐴 and 𝐵 . The union is represented by the total number of 1 bits in 𝐴 and 𝐵 . Note the Jaccard similarity approximation on the bitmaps stays close the meaning of the Jaccard similarity: if 𝐴 and 𝐵 
+
+have the same MinHash in their initial signature set, then they will both ”turn on” the same bit in the bitmap sig-natures. The total number of turned on bits across both bitmaps approximate the total number of distinct Min-Hash signatures for 𝐴 and 𝐵 . Though this approximation of the Jaccard similarity is amenable to parallelization, it also introduces the risk of collisions. This can arise from two sources: (1) two MinHashes in separate sig-natures accidentally turn on the same bit in the bitmap, and (2) two MinHashes in the same signature acciden-tally turn on the same bit in the bitmap. Maybe counter-intuitively, these collisions can help the search advance faster in the beginning of the exploration by reducing score crowding. Consider the following example, con-sisting of an incoming query 𝑄 , with its MinHash signa-ture [9, 13 , 15 , 18 , 22 , 27 ], and two neighbor documents 
+
+𝐴 and 𝐵 , with MinHash signatures [9, 13 , 15 , 18 , 14 , 28 ]
+
+and [9, 13 , 15 , 18 , 16 , 28 ], respectively. We consider 
+
+𝑇 = 8, as above. The MinHash-Jaccard similarity gives 𝐽 (𝑄, 𝐴 ) = 𝐽 (𝑄, 𝐵 ) = 0.5—a tie. However, af-ter folding the signatures into bitmaps, the bitmap-level score separates the pair: 𝐽 bitmap (𝑄, 𝐴 ) = 0.71 whereas 
+
+𝐽 bitmap (𝑄, 𝐵 ) = 0.5. In the above example, 𝐴 is not necessarily a closer neighbor than 𝐵 . Since the example is small, the varia-tion in the bitmap Jaccard similarity scores is significant. However, if 𝑇 is large enough to stay close enough to the Jaccard similarity value despite a few collisions (as we show below), then the collisions are useful to effectively break ties in the case of neighbors that are very similar and that would obtain the same Jaccard similarity value. Effectively, these collisions give FOLD a stronger order-ing signal during bounded HNSW traversal, making the search less breadth-first exploration and helping it reach more promising neighbors earlier. This is important, es-pecially at the beginning of the search, as HNSW graphs have an exploration budget (determined by the efSearch 
+
+parameter in the FAISS implementation). 
+
+Collision analysis for bitmap signatures. We provide a high-level analysis of why bitmap collisions do not sig-nificantly distort Jaccard-aligned scores at our operating scale, while still reducing score crowding during HNSW traversal. Appendix A provides the full proof. FOLD works with 4096-bit bitmaps ( 𝑇 = 4096) and 112 MinHash signatures. The analysis proceeds in two steps: within one document, we estimate how many dis-tinct bits are on and how many hashes collide; across un-related documents, we estimate how much overlap occurs by chance and whether it can exceed our deduplication threshold. For 𝑇 = 4096, a document has 𝑠 ≈ 110 .50 active bits on average, so only ≈ 1.50 of the 112 hashes collide within a document. Two unrelated documents share only about three active bits in expectation, giving a typical bitmap-Jaccard score around 0 .014. In con-trast, satisfying 𝐽 bitmap ≥ 0.7 requires roughly 91 shared bits; under the corresponding hypergeometric model, the probability of such accidental overlap is ≈ 5.95 × 10 −147 .Thus, random bitmap collisions are extremely unlikely to create false positives at our operating threshold. 
+
+# 5 Implementation and Optimiza-tions 
+
+FOLD is a multi-threaded C++/Python system built on FAISS HNSW. 3 C++ implements the hot-path distance kernels and bitmap primitives, while Python orches-trates ingestion and batch deduplication. We describe the implementation choices that sustain high-throughput streaming deduplication in FOLD: SIMD acceleration for Jaccard distance computation (Section 5.1), and caching to reduce repeated work in HNSW search/construction hot loops (Section 5.2). 
+
+> 3FOLD currently runs on CPUs but the same principles could also be incorporated into a GPU implementation.
+
+85.1 SIMD Acceleration of Jaccard Similar-ity 
+
+Modern processors provide SIMD extensions that ap-ply one operation to multiple data elements in par-allel, accelerating database and vector-search work-loads [7, 29, 31, 40]. FOLD applies SIMD optimizations in two parts of the overall workflow. First, as shown in Figure 3, FOLD accelerates the input-batch deduplica-tion, which follows the classic fuzzy deduplication flow (described in Section 2.1). The band calculations as well as the candidate intersection are accelerated as fol-lows. Recall that a MinHash signature is an array of size 𝐻 , consisting of 32-bit values. Given two signa-tures, the MinHash-Jaccard estimate is the fraction of positions (lanes) where the two 32-bit values are identi-cal. SIMD accelerates this by comparing multiple 32-bit lanes at once and using a bitmask and popcount to count matches. Second, FOLD applies SIMD optimizations to effi-ciently compute the Jaccard similarity of bitmap sig-natures when querying the graph index. As described in Section 4.2, each MinHash signature is mapped to a sparse bitmap of length 𝑇 = 4096. For two bitmaps 𝐴, 𝐵 ,the Jaccard similarity depends only on three popcounts 
+
+(i.e., counting the number of 1 bits): 𝑝 𝑎 = popcount ( 𝐴 ),
+
+𝑝 𝑏 = popcount (𝐵 ), and 𝑝 𝑥 = popcount ( 𝐴 ⊕ 𝐵 ). Since 
+
+𝑝 𝑎 + 𝑝 𝑏 = 2| 𝐴 ∩ 𝐵 | + 𝑝 𝑥 , it follows that the intersection 
+
+𝐼 = ( 𝑝 𝑎 + 𝑝 𝑏 − 𝑝 𝑥 )/ 2, the union 𝑈 = ( 𝑝 𝑎 + 𝑝 𝑏 + 𝑝 𝑥 )/ 2, and the Jaccard similarity 𝐽 = 𝐼 /𝑈 . The corresponding Jaccard distance used by HNSW is therefore 𝐷 = 𝐽 =
+
+2𝑝 𝑥 /( 𝑝 𝑎 + 𝑝 𝑏 + 𝑝 𝑥 ), matching Algorithm 1. Bitmaps are stored as 𝑊 = 𝑇 /64 64-bit machine words (for 𝑇 = 4096, 𝑊 = 64). SIMD accelerates the three popcounts by processing multiple words per iteration: we load a block of words from 𝐴 and 𝐵 , compute word-wise XOR for 𝐴 ⊕ 𝐵 , apply vector popcount to each stream, and accumulate the partial sums. After scanning all 𝑊 
+
+words we obtain 𝑝 𝑎 = popcount ( 𝐴 ), 𝑝 𝑏 = popcount (𝐵 ),and 𝑝 𝑥 = popcount ( 𝐴 ⊕ 𝐵 ), and compute 𝐼, 𝑈, 𝐽 with the scalar formulas above. Thus per-pair scoring reduces to a loop of vector loads, XOR, vector-popcount, and a few scalar additions. 
+
+## 5.2 Caching Optimizations for the Graph Index 
+
+To accelerate index search, FOLD caches the popcount 
+
+values of stored bitmap signatures. At query time, FOLD’s search routine uses the bitmap signature of the current query 𝐴 together with cached popcounts for each traversed node: the query popcount 𝑝 𝑎 = popcount ( 𝐴 ),computed once per query, and a per-vector array {𝑝 𝑏 [𝑖 ]} ,where 𝑝 𝑏 [𝑖 ] = popcount (𝐵 𝑖 ).FOLD maintains a per-vector array {𝑝 𝑏 [𝑖 ]} with one entry per bitmap 𝐵 𝑖 . When new nodes are added, FOLD computes 𝑝 𝑏 [𝑖 ] = popcount (𝐵 𝑖 ) once and stores it in a 16-bit slot ( uint16 ), adding 2 bytes of metadata per stored vector. During graph search, each visited neighbor 
+
+𝐵 𝑖 is scored using Algorithm 1. This routine is invoked for every visited neighbor, and, due to caching, requires a single 4096-bit SIMD XOR+popcount operation: Line 1 computes 𝑝 𝑥 = popcount ( 𝐴 ⊕ 𝐵 𝑖 ). The remaining work uses cached data. During graph construction, FOLD must also mea-sure distances between two nodes 𝐵 𝑖 and 𝐵 𝑗 corre-sponding to documents 𝑖 and 𝑗 . FOLD computes 
+
+𝑝 𝑥 = popcnt (𝐵 𝑖 ⊕ 𝐵 𝑗 ) with the SIMD kernel, reads 
+
+𝑝 𝑏 [𝑖 ] and 𝑝 𝑏 [ 𝑗 ] from the precomputed array, and re-turns 𝐷 (𝑖, 𝑗 ) = 𝐷  𝑝 𝑏 [𝑖 ], 𝑝 𝑏 [ 𝑗 ], 𝑝 𝑥 
+
+ = 2 𝑝 𝑥        
+
+> 𝑝 𝑏 [𝑖 ]+ 𝑝 𝑏 [𝑗 ]+ 𝑝 𝑥
+
+.Thus, on both the query and construction paths, the dom-inant cost per comparison is reduced to a single 4096-bit XOR+popcount .Caching the query popcount once per query and precomputing 𝑝 𝑏 once per document elimi-nates redundant work in the hottest loops, while adding only 2 bytes of metadata per stored vector. 
+
+# 6 Experimental Evaluation 
+
+We set out to answer the following questions: 1. End-to-end throughput and recall: How does FOLD compare to Milvus[9], FAISS (Jaccard) and IBM DPK[45] across diverse real-world datasets? (Section 6.2) 2. Performance breakdown: Which internal compo-nents dominate runtime in FOLD? (Section 6.3) 3. Scalability with dataset size: Can FOLD achieve sta-ble throughput as the corpus size grows? (Section 6.4) 
+
+## 6.1 Experimental Setup 
+
+Datasets and characteristics. We evaluate four English corpora widely used for LLM training and prior dedupli-cation studies [22, 24, 27, 32, 41, 49, 50]. Our workloads include LM1B (30.3M documents), RealNews (32.8M documents), and 30M-document samples from C4 and a recent Common Crawl snapshot. Table 2 summarizes each dataset’s redundancy, document length, and shingle 
+
+Algorithm 1 Jaccard distance between 𝐴 and neighbor 
+
+𝐵 𝑖 
+
+Require: query bitmap 𝐴 , cached 𝑝 𝑎 = popcount ( 𝐴 ),cached 𝑝 𝑏 [𝑖 ] = popcount (𝐵 𝑖 ). 
+
+> 1:
+
+𝑝 𝑥 ← popcnt ( 𝐴 ⊕ 𝐵 𝑖 ) ⊲ SIMD XOR + popcount  
+
+> 2:
+
+return 𝐷 ( 𝐴, 𝐵 𝑖 ) = 2𝑝 𝑥 /( 𝑝 𝑎 + 𝑝 𝑏 [𝑖 ] + 𝑝 𝑥 )
+
+9volume. Near-duplicate counts are computed using DPK with threshold 𝐽 ≥ 0.7.                     
+
+> Dataset Documents(M) Duplicates p99w shingle5(B) LM1B 30.30 601,554 (1.98%) 64 0.65 RealNews 32.80 2,364,644 (7.20%) 2,505 18.78 C4 30.00 608,791 (2.02%) 2,675 10.74 Common Crawl 30.00 12,199,957 (40.66%) 6,683 28.66
+
+Table 2: Deduplication workload diversity across LLM corpora. The datasets range from short, low-redundancy text to long, highly redundant raw-web documents. Near-duplicates are DPK-detected documents at 𝐽 ≥ 0.7; p99 words reports the 99th-percentile document length, and 5-shingles reports the total number of 5-word shingles in billions. These datasets cover distinct deduplication regimes. LM1B contains short documents and low redundancy, making it useful for measuring per-document ingestion overhead. RealNews and C4 contain longer documents and much larger shingle volumes, stressing candidate gen-eration and verification cost. Common Crawl is the most challenging workload: it combines long noisy web docu-ments with a high near-duplicate rate, exposing the scal-ability limits of deduplication systems under raw-web redundancy. 
+
+Baselines. We compare FOLD against the following sys-tems: (1) DPK, our SIMD-accelerated implementation of the IBM Data Prep Kit (DPK) pipeline. Its near-duplicate detection is equivalent to the brute-force pair-wise reference described in Section 3. (2) Milvus [9], a production-grade vector database for Jaccard-based can-didate retrieval. (3) FAISS (Jaccard), an HNSW baseline implemented by integrating the Jaccard distance metric into a standard FAISS HNSW index. We include FAISS (Jaccard) to isolate the impact of graph-based indexing under the same distance metric, while Milvus reflects a production vector-database system with software/runtime overhead beyond the index itself. 
+
+System configurations. HNSW (used by FOLD and FAISS (Jaccard)) has three key parameters that impact performance: efConstruction (maximum number of visited nodes at build time), efSearch (maximum num-ber of visited nodes at query time), and 𝑀 (the graph de-gree). Increasing any of these improves recall at the cost of higher construction and query latency. We use 𝑘 to de-note the number of nearest neighbors returned per query (top-𝑘 ). Unless otherwise specified, we use 𝑀 = 128, 
+
+efConstruction = 512, efSearch = 400, and 𝑘 = 4in all experiments; Appendix A.2 discusses the tuning rationale. For all baselines, we fix the near-duplicate threshold at 𝐽 ≥ 0.7, following common practice in pro-duction fuzzy deduplication frameworks [3, 5, 45]. 
+
+Hardware. The configuration is the same as in Section 3. 
+
+Experiment Description. We simulate continuous in-gestion in repeating 1M-document cycles until reaching a 30M-document corpus. As in Section 3, each cycle includes a 900K-document bulk ingest phase followed by a 100K-document streaming evaluation phase, enabling recall measurement across 30 growth cycles. Reference labels per cycle are defined using DPK: for each 100K streaming slice, we run DPK in the same incremental setting, comparing each incoming document against the entire base corpus accumulated up to that cycle and la-beling near-duplicates with 𝐽 ≥ 0.7. We treat the set of DPK-flagged near-duplicates as the reference positives for recall. We then define recall for each method as the fraction of these DPK-detected near-duplicates that are successfully captured during the streaming phase (top-
+
+𝑘 , with 𝑘 =4). We report throughput (documents/sec) for each 100K streaming evaluation phase over the full processing path in Section 4.1 (Signature Generation, In-Batch Deduplication, Index Search/Candidate Filter, and Index Insert), measured as 100K divided by the wall-clock time to process that phase. 
+
+## 6.2 End-to-end Throughput and Recall 
+
+Figure 6 reports throughput (documents/sec) and recall relative to DPK reference labels as the base corpus grows. The key point is the joint scaling trajectory: an online deduplication system must remain both fast and accurate as the indexed corpus grows. Small-scale speed alone is not enough. For some baselines, we stop the largest-scale runs early to reduce cloud compute cost once the scaling trend is clear. FOLD remains stable with scale, finishing with re-call 0.93–0.97 across datasets. It also delivers the high-est end-to-end throughput at the largest evaluated scales: at the largest CC MAIN scale it reaches 551 docs/sec, 109% higher than Milvus (263 docs/sec) and ≈20% above FAISS (Jaccard) (460 docs/sec). On LM1B, it reaches 220 docs/sec at the final scale, 16% above DPK (190 docs/sec). Thus, the main result is not that FOLD wins every small-scale point; it is that FOLD stays in the de-sired high-throughput, high-recall regime as the corpus grows, while the baselines eventually lose throughput, lose recall, or both. FOLD’s use of HNSW localizes computational work: each incoming document performs a bounded graph walk rather than interacting with the full corpus, while bitmap signatures keep that bounded can-didate search aligned with Jaccard-based fuzzy dedupli-cation; together, these choices preserve the throughput– recall trajectory instead of gaining speed by sacrificing recall. Across all datasets, FOLD sustains high recall with only minor throughput drift. For C4, throughput shifts from 277 to 253 docs/sec as recall moves from 1.00 to 0.94; similar trends appear for RealNews (287 → 247 10 Figure 6: FOLD preserves the high-throughput, high-recall operating point as the corpus grows. The x-axis is corpus size in millions of documents; baseline curves are stopped early to save compute once their recall–throughput trend is clear. FOLD maintains nearly flat throughput and final DPK-relative recall of 0.93–0.97, while alternatives either slow down, lose recall, or both. docs/sec) and LM1B (275 → 220 docs/sec). Notably, for Common Crawl, throughput actually increases from 454 to 551 docs/sec while recall remains robust (1.00 →
+
+0.97). This inverse relationship is driven by Common Crawl’s extreme duplicate pressure (40.66%): as the ex-periment progresses, more documents are identified as duplicates and filtered out. Because these duplicates are never inserted into the HNSW index, the overhead of index inserts decreases, allowing for higher overall pro-cessing speeds at larger scales. Together, these results show that FOLD scales across redundancy regimes. On C4, RealNews, and LM1B, it maintains high recall while keeping throughput nearly flat as the corpus grows. On high-redundancy Common Crawl, accurate duplicate fil-tering adds a second benefit: fewer duplicates are in-serted, reducing future index-maintenance work. Across these regimes, FOLD preserves high recall while keeping throughput stable, or even improving. DPK’s throughput degrades sharply as the corpus grows because each batch is processed relative to an ever-larger dataset state, increasing total computational work linearly. High duplicate volume can further amplify this cost by increasing candidate verification work. Milvus achieves comparatively consistent but lower re-call than FOLD across all datasets, while its end-to-end throughput declines as the corpus grows. In our Milvus configuration, this slowdown is mainly due to growth in candidate-retrieval and index-maintenance work: as the corpus grows, each query and each ingestion step must search over and maintain a larger base, so query work and index maintenance overhead rise steadily, reducing overall throughput. On C4, throughput falls from 393 
+
+→ 198 docs/sec (1M to 20M) as recall degrades from 0.64 → 0.52.This illustrates why early throughput can be misleading: retrieving a small set of LSH-bucket candi-dates keeps Milvus fast, but misses near-duplicates out-side those buckets; expanding the candidate set could im-prove recall only by increasing Jaccard verification work. FAISS (Jaccard) throughput remains stable as the cor-pus grows (e.g., RealNews: 204 → 206 docs/sec from 1M to 20M; Common Crawl: 378 → 460). HNSW keeps FAISS (Jaccard) fast, but raw MinHash–Jaccard scoring does not keep recall stable. Recall varies substantially across datasets due to score crowding within the Jac-card distance metric. In dense near-duplicate regions, many candidates receive identical or near-identical Jac-card scores, especially early in the search, when visited nodes are not yet close to the query. Such score ties flatten the local distance gradient, preventing the HNSW greedy search from reliably distinguishing near-duplicates. The dataset-specific recall pattern is consistent with Table 2. LM1B has very short documents and low du-plicate pressure (p99w = 64; 1.98%), while C4 also has low duplicate prevalence (2.02%) despite longer docu-ments (p99w = 2,675); both settings produce sparse du-plicate neighborhoods that make HNSW navigation less reliable under crowded Jaccard scores. In contrast, Re-alNews (7.20%) and Common Crawl (40.66%) provide denser near-duplicate structure during streaming inges-tion, helping populate more informative local subgraphs and yielding higher recall. Common Crawl is the extreme case, with the highest duplicate rate, longest documents (p99w = 6,683), and largest shingle volume (28.66B), so recall remains higher than in low-duplicate datasets but still degrades as the graph scales. Thus, FAISS shows that graph search solves only half the problem: it pre-serves throughput, but recall remains dataset-dependent without a stronger Jaccard-aligned retrieval mechanism. 
+
+## 6.3 Performance breakdown 
+
+This section analyzes the baselines’ performance and ef-ficiency on Common Crawl. Figure 7 presents two syn-chronized views of a 100K-document streaming segment 11 Documents breakdown                              
+
+> Latency breakdown Inserted Dropped (in-batch) Dropped (Index Search)
+> Index Insert In-Batch Dedup Index Search Signature Generation
+> Documents breakdown
+> Latency breakdown 0
+> 50000
+> 100000
+> Documents
+> 136912 15 18 20
+> 0
+> 250
+> Time (s)
+> (a) FOLD
+> 136912 15 18 20
+> (b) Milvus
+> 135
+> (c) SIMD-DPK
+> 136912 15 18 20
+> (d) FAISS (Jaccard)
+
+Figure 7: Common Crawl breakdown. FOLD turns accurate duplicate drops into fewer insertions and lower insert time; Milvus and DPK lose those savings to growing search cost, while FAISS remains fast but low-recall. Top: document outcomes per 100K-document segment. Bottom: latency by stage. X-axis: base corpus size in millions. All methods are shown to 20M, except DPK, which is shown to 5M. within a 20M-document collection: the top row shows how many documents are inserted versus dropped (in-batch or index search), and the bottom row shows where time is spent (signature generation, index search, index in-sert, in-batch deduplication). Although in-batch dedupli-cation appears in the legend, it is visually negligible at this scale: across all methods it ranges from 0.056–0.158 s. Overall, the dominant driver of end-to-end behavior is how index search and index insert scale with corpus size. The breakdown explains the throughput result: as the corpus grows, end-to-end performance is dominated by whether search and insertion costs stay controlled. For FOLD, increasing duplicates in newer batches translates into less insertion work. As the base grows, FOLD drops more duplicates during index search (16,804 →28,829 from 1M →20M), reducing the num-ber of documents inserted (77,980 →64,140). Com-pute time stays essentially flat (signature generation time 47.78 →48.29 s; index search time 41.43 →43.92 s), but index insert time falls sharply (119.49 →71.88 s), so to-tal latency decreases (208.81 →164.15 s). Thus, accurate duplicate detection improves output quality and reduces insertion work over time. Milvus shows a similar shift: documents dropped dur-ing index search increase (27,766 →39,124) and index insertions decrease (67,018 →53,845), reducing index in-sert time (146.83 →117.48 s). The difference is that Mil-vus’ flat LSH-style candidate-retrieval path grows with index size (14.27 →188.30 s), so end-to-end latency rises overall (203.16 →354.67 s) even though fewer documents are being inserted. Milvus also benefits from fewer in-serts, but growing candidate retrieval erases those sav-ings. DPK also performs fewer file insertions as more items are dropped. However, search time explodes (11.23 →300.32 s) due to the growing dataset state, and file insert time grows as well (27.76 →116.04 s) since it uses files to delete and retain unique documents, driv-ing total latency from 95.64 →476.18 s. Thus, high recall comes with work that grows with the accumulated corpus. FAISS (Jaccard) shows a different profile. Its index search time stays small and stable as the corpus grows (12.86 →12.72 s). At larger scales it also inserts fewer documents (68,935 →57,268), which reduces index in-sert time (190.72 →141.68 s) and lowers total latency (250.67 →202.15 s), even though the number of docu-ments visited during search increases (25,849 →35,701). The higher insert time as compared to FOLD is con-sistent with insertion being dominated by distance eval-uations during graph neighbor selection: FAISS must compute MinHash–Jaccard distances for many candidate neighbors, whereas FOLD’s path makes these compar-isons cheaper. However, these favorable latency trends come with low recall. This is the key FAISS failure mode: graph search keeps latency low, but raw MinHash– Jaccard scoring does not guide HNSW reliably to the right neighbors. In a self-search diagnostic, FOLD returns the identi-cal item in the top-𝑘 list for 98,727 of 100,000 queries (98.7%), whereas FAISS (Jaccard) does so for only 16,768 queries (16.8%). This is consistent with tie-heavy scoring in duplicate-dense regions: many candidates re-ceive the same or nearly the same score, so FAISS (Jac-card) has weak guidance during its greedy walk and can drift into poor local neighborhoods. The diagnostic con-firms that FAISS’s latency advantage is not an accuracy advantage: its graph search is cheap, but retrieval quality is incorrect. The breakdown above captures the full system ef-fect; the ablation below isolates the bitmap–Jaccard dis-tance computation by toggling only popcount caching and SIMD. To better understand where FOLD’s speedups come from, we isolate two optimizations in the bitmap– Jaccard distance computation used during HNSW traver-sal: (1) per-document caching of popcount statistics and (2) SIMD acceleration of the bitwise inner loop. Figure 8 12 Figure 8: FOLD ablation study on Common Crawl. Caching and SIMD speed up bitmap–Jaccard distance computation without changing the index or recall. All variants use the same HNSW index and bitmap signa-tures; only popcount caching and SIMD are toggled. FOLD (NO CACHE + NO SIMD) is the scalar on-the-fly baseline. reports throughput and recall for Common Crawl as the index grows from 0.5M to 2.5M documents. All variants preserve essentially the same recall (1.00 throughout), in-dicating that the two optimizations do not change retrieval quality, as expected. The slowest setting disables both optimizations, reach-ing 176 docs/sec. Enabling SIMD alone roughly dou-bles throughput (FOLD (NO CACHE + SIMD): 344 doc-s/sec), while caching alone yields a similar boost (FOLD (CACHE + NO SIMD): 372 docs/sec) by avoiding redun-dant popcount work across repeated comparisons. Com-bining both is best and shows that the gains are comple-mentary: FOLD (CACHE + SIMD), our default, reaches 569 docs/sec, a 3.3 × improvement over on-the-fly com-putation at the same recall. 
+
+## 6.4 Scalability with Dataset Size 
+
+We evaluate whether the throughput trend in Figure 6 persists at larger scale by extending the Common Crawl experiment to 50M documents. We keep the same 1M-document cycle structure (900K bulk ingest + 100K streaming evaluation, processed in 10K batches) and track end-to-end throughput as the indexed corpus grows. Figure 9 shows that FOLD sustains high through-put across the full 1M–50M range. The key result is the steady-state behavior after the index becomes large: throughput rises from 467 docs/sec at 1M to a peak of 648 docs/sec at 10M, then remains stable from 11M to 50M, staying within 544–599 docs/sec and ending at 574 docs/sec at 50M (mean ≈ 570 docs/sec). Thus, FOLD does not exhibit a late-scale throughput collapse as the HNSW index grows under continuous insertion. This indicates that FOLD’s candidate retrieval and bitmap– Jaccard distance computation remain efficient at tens-of-millions scale. 
+
+Figure 9: FOLD sustains throughput through 50M Common Crawl documents. After an early peak, throughput remains in a narrow 544–599 docs/sec band from 11M to 50M, showing no late-scale throughput col-lapse under continuous insertion. 
+
+# 7 Related Work 
+
+Data deduplication is important in LLM pre-training because redundant data can increase training time, re-duce generalization, and amplify memorization [20, 28]. Existing fuzzy text-deduplication approaches com-monly rely on sketches such as MinHash [16] and SimHash [21], LSH-style candidate generation, prefix-filter set-similarity joins, and related set-search sys-tems [25, 26, 44, 46–48, 52, 53]. These ideas appear in LLM data-curation systems such as IBM DPK [45], Data Juicer [3], DataTrove [4], RedPajama [5], and Mil-vus [9]; we describe these frameworks in Section 2. Storage deduplication removes repeated byte chunks or segments to reduce capacity, backup/restore cost, and indexing overhead [34, 38, 39, 42, 51, 54]. These ex-act fingerprint-based techniques are complementary to fuzzy text deduplication: documents can remain near-duplicates under shingle-based Jaccard similarity even when edits, formatting changes, boilerplate, or reorder-ing alter their byte-level chunks. Exact text deduplication removes identical documents or repeated substrings, using methods such as document hashing or suffix-array-based approaches [36]. Such methods are useful for exact copies, but they miss many near-duplicates that differ lexically while still contain-ing substantially overlapping content. FOLD therefore targets online fuzzy deduplication: it maintains an incre-mentally updated HNSW index over admitted documents and retrieves a bounded candidate neighborhood for each incoming item. Semantic deduplication uses pre-trained embeddings and vector databases to identify documents with similar meaning [13]. This optimizes embedding-space similar-ity, whereas FOLD targets syntactic near-duplicates un-der shingle-based Jaccard similarity, the objective used by MinHash/LSH fuzzy-deduplication pipelines. Thus, FOLD complements semantic deduplication by accelerat-ing lexical near-duplicate filtering for continuously evolv-ing corpora. 13 8 Conclusion 
+
+We introduced FOLD , an online fuzzy deduplication sys-tem for continuously growing corpora. FOLD mitigates the scalability bottlenecks of LSH pipelines by retriev-ing a small candidate set using an HNSW index. For a fast traversal, we introduce a novel bitmap signature which allows for efficient Jaccard similarity computation on the graph. Across multiple large-scale datasets, FOLD sustains near-constant end-to-end throughput while main-taining high recall, outperforming IBM DPK and Milvus in throughput at scale. 
+
+# References 
+
+[1] Common Crawl Corpus. https: //commoncrawl .org/ , 2013–. Accessed: 2025-05-21. [2] The hypergeometric distribution, 2022. URL https://towardsdatascience .com/ understanding-the-hypergeometric-distribution-e6540c7fec3c/ . Accessed: 2025-05-21. [3] Data Juicer MinHash Deduplication. https:// github .com/modelscope/data-juicer/blob/ main/data_juicer/ops/deduplicator/ document_minhash_deduplicator .py , 2023. Accessed: 2025-03-17. [4] DataTrove MinHash Deduplication. https:// github .com/huggingface/datatrove/blob/ main/examples/minhash_deduplication .py ,2023. Accessed: 2025-03-17. [5] RedPajama MinHash Deduplication. https:// github .com/togethercomputer/RedPajama-Data/blob/main/app/src/run_lsh .py , 2023. Accessed: 2025-03-17. [6] Common Crawl: 2024-30 Snapshot. http:// commoncrawl .org/ , 2024. Accessed: 2025-03-30. [7] FAISS. https://github .com/ facebookresearch/faiss , 2025. Accessed: 2025-05-26. [8] Hierarchical Navigable Small Worlds (HNSW). 
+
+http://pinecone .io/learn/series/faiss/ hnsw/ , 2025. Accessed: 2025-05-26. [9] MinHash LSH in Milvus. https://milvus .io/ blog/minhash-lsh-in-milvus-the-secret-weapon-for-fighting-duplicates-in-llm-training-data .md , 2025. Accessed: 2025-10-17. [10] Index Explained. https://milvus .io/docs/ index-explained .md/ , 2025. Accessed: 2025-05-26. [11] ModelScope . https://www .modelscope .cn/ home , 2025. Accessed: 2026-05-22. [12] NVIDIA Datacuration. https:// docs .nvidia .com/nemo-framework/ user-guide/latest/datacuration/ gpudeduplication .html , 2025. Accessed: 2025-05-21. [13] Amro Abbas, Kushal Tirumala, D´ aniel Simig, Surya Ganguli, and Ari S. Morcos. Semdedup: Data-efficient learning at web-scale through seman-tic deduplication. arXiv preprint arXiv:2303.09540, 2023. [14] Magdalena Biesialska, Katarzyna Biesialska, and Marta R. Costa-juss` a. Continual lifelong learn-ing in natural language processing: A survey. In The International Conference on Computational Linguistics, 2020. [15] Burton H. Bloom. Space/time trade-offs in hash coding with allowable errors. ACM, 13, 1970. [16] A. Z. Broder. On the resemblance and containment of documents. In The Compression and Complexity of SEQUENCES, 1997. [17] Andrei Z. Broder. On the resemblance and con-tainment of documents. In Proceedings of the Compression and Complexity of SEQUENCES, 1997. [18] Andrei Z. Broder. Identifying and filtering near-duplicate documents. In The Annual Symposium on Combinatorial Pattern Matching, 2000. [19] Andrei Z. Broder, Steven C. Glassman, Mark S. Manasse, and Geoffrey Zweig. Syntactic clustering of the web. In Proceedings of the Sixth International World Wide Web Conference, 1997. [20] Nicholas Carlini, Daphne Ippolito, Matthew Jagiel-ski, Katherine Lee, Florian Tram` er, and Chiyuan Zhang. Quantifying memorization across neural language models. In The International Conference on Learning Representations (ICLR), 2023. [21] Moses S. Charikar. Similarity estimation techniques from rounding algorithms. In The Annual ACM Symposium on Theory of Computing, 2002. ISBN 1581134959. 14 [22] Ciprian Chelba, Tomas Mikolov, Mike Schuster, Qi Ge, Thorsten Brants, Phillipp Koehn, and Tony Robinson. One billion word benchmark for measur-ing progress in statistical language modeling. arXiv preprint arXiv:1312.3005, 2013. [23] Lianhua Chi and Xingquan Zhu. Hashing tech-niques: A survey and taxonomy. ACM Computing Surveys (CSUR), 50(1):1–36, 2017. [24] Jesse Dodge, Maarten Sap, Ana Marasovic, William Agnew, Gabriel Ilharco, Dirk Groeneveld, and Matt Gardner. Documenting the english colossal clean crawled corpus. arXiv preprint arXiv:2104.08758, 2021. [25] Mahdi Esmailoghli, Jorge-Arnulfo Quian´ e-Ruiz, and Ziawasch Abedjan. Mate: Multi-attribute table extraction. Proceedings of the VLDB Endowment, 15(8):1684–1696, 2022. [26] Raul Castro Fernandez, Essam Mansour, Abdul-hakim A. Qahtan, Ahmed Elmagarmid, Ihab F. Ilyas, Samuel Madden, Mourad Ouzzani, Michael Stonebraker, and Nan Tang. Lazo: A cardinality-based method for coupled estimation of jaccard similarity and containment. In 2019 IEEE 35th International Conference on Data Engineering, pages 1190–1201, 2019. [27] Mandy Guo, Zihang Dai, Denny Vrandeˇ ci` c, and Rami Al-Rfou. Wiki-40b: Multilingual language model dataset. In The Language Resources and Evaluation Conference, 2020. [28] Danny Hernandez, Tom Brown, Tom Conerly, Nova DasSarma, Dawn Drain, Sheer El-Showk, Nelson Elhage, Zac Hatfield-Dodds, Tom Henighan, Tris-tan Hume, et al. Scaling laws and interpretabil-ity of learning from repeated data. arXiv preprint arXiv:2205.10487, 2022. [29] Christopher J. Hughes. Single-Instruction Multiple-Data Execution. Synthesis Lectures on Computer Architecture. Morgan & Claypool Pub-lishers, 2015. ISBN 978-3-031-00618-0. [30] Piotr Indyk and Rajeev Motwani. Approximate nearest neighbors: Towards removing the curse of dimensionality. In The Annual ACM Symposium on Theory of Computing (STOC), 1998. [31] Per-˚ Ake Larson, Adrian Birka, Eric N. Hanson, Weiyun Huang, Michal Nowakiewicz, and Vassilis Papadimos. Real-time analytical processing with SQL server. The VLDB Journal, 8(12):1740–1751, 2015. [32] Katherine Lee, Daphne Ippolito, Andrew Nys-trom, Chiyuan Zhang, Douglas Eck, Chris Callison-Burch, and Nicholas Carlini. Deduplicating training data makes language models better. In The Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), 2022. [33] Jeffrey Li, Mohammadreza Armandpour, Iman Mirzadeh, Sachin Mehta, Vaishaal Shankar, Raviteja Vemulapalli, Samy Bengio, Oncel Tuzel, Mehrdad Farajtabar, Hadi Pouransari, and Fartash Faghri. Tic-lm: A web-scale benchmark for time-continual LLM pretraining. In The Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers), 2025. [34] Mark Lillibridge, Kave Eshghi, Deepavali Bhag-wat, Vinay Deolalikar, Greg Trezise, and Peter Camble. Sparse indexing: Large scale, inline deduplication using sampling and locality. In 7th USENIX Conference on File and Storage Technologies (FAST 09), San Francisco, CA, February 2009. USENIX Association. URL 
+
+https://www .usenix .org/conference/fast-09/sparse-indexing-large-scale-inline-deduplication-using-sampling-and-locality .[35] Yury A. Malkov and Dmitry A. Yashunin. Efficient and robust approximate nearest neighbor search us-ing hierarchical navigable small world graphs. arXiv preprint arXiv:1603.09320, 2016. [36] Udi Manber and Gene Myers. Suffix arrays: A new method for on-line string searches. SIAM Journal on Computing, 22(5):935–948, 1993. [37] James Jie Pan, Jianguo Wang, and Guoliang Li. Sur-vey of vector database management systems. The VLDB Journal, 33(5):1591–1615, 2024. [38] Yanqi Pan, Wen Xia, Erci Xu, Hao Huang, Xiangyu Zou, and Shiyi Li. Don’t maintain twice, it’s alright: Merged metadata manage-ment in deduplication file system with GogetaFS. In 23rd USENIX Conference on File and Storage Technologies (FAST 25), pages 479– 495, Santa Clara, CA, February 2025. USENIX Association. URL https://www .usenix .org/ conference/fast25/presentation/pan .[39] Jo˜ ao Paulo and Jos´ e Pereira. A survey and clas-sification of storage deduplication systems. ACM Computing Surveys, 47(1):11:1–11:30, 2014. doi: 10 .1145/2611778. 15 [40] Orestis Polychroniou, Arun Raghavan, and Ken-neth A. Ross. Rethinking simd vectorization for in-memory databases. In The ACM SIGMOD International Conference on Management of Data, 2015. ISBN 9781450327589. [41] Colin Raffel, Noam Shazeer, Adam Roberts, Katherine Lee, Sharan Narang, Michael Matena, Yanqi Zhou, Wei Li, and Peter J. Liu. Exploring the limits of transfer learning with a unified text-to-text transformer. J. Mach. Learn. Res., 21(1), 2020. ISSN 1532-4435. [42] Kiran Srinivasan, Tim Bisson, Garth Goodson, and Kaladhar Voruganti. iDedup: Latency-aware, inline data deduplication for primary storage. In 10th USENIX Conference on File and Storage Technologies (FAST 12), San Jose, CA, February 2012. USENIX Association. URL https://www .usenix .org/conference/ fast12/idedup-latency-aware-inline-data-deduplication-primary-storage .[43] Kushal Tirumala, Daniel Simig, Armen Agha-janyan, and Ari S. Morcos. D4: Improving LLM pretraining via document de-duplication and di-versification. In Advances in Neural Information Processing Systems (NeurIPS), 2023. [44] Rares Vernica, Michael J. Carey, and Chen Li. Efficient parallel set-similarity joins using mapre-duce. In Proceedings of the 2010 ACM SIGMOD International Conference on Management of Data, 2010. [45] David Wood, Boris Lublinsky, Alexy Roytman, Shivdeep Singh, Constantin Adam, Abdulhamid Adebayo, Sungeun An, Yuan Chi Chang, Xuan-Hong Dang, Nirmit Desai, Michele Dolfi, Ha-jar Emami-Gohari, Revital Eres, Takuya Goto, Dhiraj Joshi, Yan Koyfman, Mohammad Nassar, Hima Patel, Paramesvaran Selvam, Yousaf Shah, Saptha Surendran, Daiki Tsuzuku, Petros Zerfos, and Shahrokh Daijavad. Data-prep-kit: Getting your data ready for llm application development. In 2024 IEEE International Conference on Big Data, pages 2234–2243, 2024. [46] Chuan Xiao, Wei Wang, Xuemin Lin, and Jeffrey Xu Yu. Efficient similarity joins for near duplicate de-tection. In Proceedings of the 17th International Conference on World Wide Web, 2008. [47] Chuan Xiao, Wei Wang, Xuemin Lin, and Haichuan Shang. Top-k set similarity joins. In Proceedings of the 25th IEEE International Conference on Data Engineering, 2009. [48] Chuan Xiao, Wei Wang, Xuemin Lin, Jeffrey Xu Yu, and Guoren Wang. Efficient similarity joins for near-duplicate detection. ACM Transactions on Database Systems, 36, 2011. [49] Rowan Zellers, Ari Holtzman, Hannah Rashkin, Yonatan Bisk, Ali Farhadi, Franziska Roesner, and Yejin Choi. Defending against neural fake news. In Advances in Neural Information Processing Systems (NeurIPS), 2019. [50] Marina Zhang, Owen Vallis, Aysegul Bumin, Tanay Vakharia, and Elie Bursztein. Retsim: Re-silient and efficient text similarity. arXiv preprint arXiv:2311.17264, 2023. [51] Benjamin Zhu, Kai Li, and Hugo Patterson. Avoid-ing the disk bottleneck in the data domain dedu-plication file system. In 6th USENIX Conference on File and Storage Technologies (FAST 08), San Jose, CA, February 2008. USENIX Association. URL https://www .usenix .org/conference/ fast-08/avoiding-disk-bottleneck-data-domain-deduplication-file-system .[52] Erkang Zhu, Dong Deng, Fatemeh Nargesian, and Ren´ ee J. Miller. Lsh ensemble: Internet-scale domain search. Proceedings of the VLDB Endowment, 9(12):1185–1196, 2016. [53] Erkang Zhu, Dong Deng, Fatemeh Nargesian, Wen-tao Zhu, and Ren´ ee J. Miller. Josie: Overlap set sim-ilarity search for finding joinable tables in data lakes. In Proceedings of the 2019 International Conference on Management of Data, pages 847–864, 2019. [54] Xiangyu Zou, Wen Xia, Philip Shilane, Hai-jun Zhang, and Xuan Wang. Building a high-performance fine-grained deduplication framework for backup storage with high deduplication ratio. In Proceedings of the 2022 USENIX Annual Technical Conference, 2022. 
+
+# A Bitmap Collision Analysis 
+
+Overview. We provide the full derivation for the colli-sion analysis summarized in the main paper. The goal is to show why bitmap collisions do not significantly af-fect the Jaccard similarity scores between nodes, while reducing score crowding during HNSW traversal. FOLD works with 4096-bit bitmaps ( 𝑇 = 4096) and 112 Min-Hash signatures. We proceed in two steps: (1) within one document, how many distinct bits do we expect to be on and how many hashes collide; and (2) across two 16 unrelated documents, how much overlap should we ex-pect purely by chance, and whether that overlap could realistically exceed our deduplication threshold. 
+
+Step 1: Expected distinct 1-bits and within-document collisions. We model folding 𝐻 MinHash values into a 
+
+𝑇 -bit bitmap as a balls-into-bins process: each of the 𝐻 
+
+values maps independently and uniformly to one of the 𝑇 
+
+bit positions. For any fixed bit position 𝑡 , the probability that none of the 𝐻 values land on 𝑡 is (1 − 1 
+
+> 𝑇
+
+)𝐻 , so 
+
+𝑃 (bit OFF ) =
+
+
+
+1 − 1
+
+𝑇 
+
+ 𝐻 
+
+, 𝑃 (bit ON ) = 1−
+
+
+
+1 − 1
+
+𝑇 
+
+ 𝐻 
+
+.
+
+By linearity of expectation, the expected number of dis-tinct 1-bits per document is 
+
+𝑠 = E[#ones ] = 𝑇 𝑃 (bit ON ) = 𝑇 
+
+
+
+1 −  1 − 1
+
+> 𝑇
+
+ 𝐻 
+
+,
+
+and the expected number of within-document collisions is 
+
+E[collisions ] = 𝐻 − 𝑠. 
+
+Table 3 reports these values for 𝐻 = 112 and several bitmap sizes 𝑇 . For 𝑇 = 4096, we get 𝑠 ≈ 110 .50, i.e., only ≈ 1.50 of the 112 hashes collide on average. This keeps the bitmap footprint close to the original Jaccard similarity. Larger 𝑇 reduces collisions further, but with diminishing returns and higher memory cost. Table 3: Expected distinct bits and collisions when map-ping 𝐻 = 112 MinHash values into a bitmap of size 𝑇 .
+
+𝑇 (bits) 𝑇 /8 (bytes) E[#ones ] = 𝑠 E[collisions ] = 𝐻 − 𝑠 
+
+2,048 256 109.02 2.98 4,096 512 110.50 1.50 8,192 1,024 111.24 0.76 
+
+Step 2: Accidental overlap between unrelated docu-ments. After folding, each document becomes a set of active bit positions. Let 𝑋 𝐴 ⊆ { 1, . . . , 𝑇 } be the set of 1-bit locations for document 𝐴 , and 𝑋 𝐵 for document 𝐵 .From Step 1, both sets have size about 𝑠 : |𝑋 𝐴 | ≈ | 𝑋 𝐵 | ≈ 𝑠 .To estimate chance overlap for unrelated documents, we fix 𝐴 ’s bitmap and work with the set of 1-bit positions. Since each bitmap has about 𝑠 distinct 1-bits on average, we approximate an unrelated 𝐵 as choosing 𝑠 distinct bit positions uniformly at random without replacement from the 𝑇 positions. The overlap 𝑋 = |𝑋 𝐴 ∩ 𝑋 𝐵 | counts how many of 𝐵 ’s chosen positions land in 𝐴 ’s 𝑠 marked positions. This problem maps to a hypergeometric dis-tribution [2], corresponding to drawing 𝑛 items without replacement from a population of size 𝑁 with 𝐾 marked items; here 𝑁 = 𝑇 , 𝐾 = 𝑠 , and 𝑛 = 𝑠 . Therefore, 
+
+𝑋 ∼ Hypergeom (𝑁 =𝑇, 𝐾 =𝑠, 𝑛 =𝑠 ).
+
+The expected overlap is 
+
+E[𝑋 ] = 𝑛 · 𝐾 𝑁 = 𝑠 · 𝑠 𝑇 = 𝑠 2
+
+𝑇 .
+
+Intuitively, 𝐵 makes 𝑠 picks, and on any pick the chance of hitting one of 𝐴 ’s 𝑠 one-bit locations is 𝑠 /𝑇 , so the expected number of hits is 𝑠 · ( 𝑠 /𝑇 ). Equivalently, let 
+
+𝐼 𝑗 be the indicator that the 𝑗 -th pick of 𝐵 hits a marked position in 𝐴 . Then 𝑋 = Í𝑠 𝑗 =1 𝐼 𝑗 , and by linearity of expectation, 
+
+E[𝑋 ] =
+
+> 𝑠
+
+∑︁ 
+
+> 𝑗 =1
+
+E[𝐼 𝑗 ] =
+
+> 𝑠
+
+∑︁ 
+
+> 𝑗 =1
+
+Pr [𝐼 𝑗 = 1] =
+
+> 𝑠
+
+∑︁ 
+
+> 𝑗 =1
+
+𝑠 𝑇 = 𝑠 2
+
+𝑇 .
+
+With 𝑇 = 4096 and 𝑠 ≈ 110 .50, this gives E[𝑋 ] ≈ 3: two unrelated documents share only about three 1-bits on average. Bitmap Jaccard compares active bit positions by intersection-over-union: 
+
+𝐽 bitmap ( 𝐴, 𝐵 ) = |𝑋 𝐴 ∩ 𝑋 𝐵 ||𝑋 𝐴 ∪ 𝑋 𝐵 | = 𝑋 
+
+|𝑋 𝐴 | + | 𝑋 𝐵 | − 𝑋 ≈ 𝑋 
+
+2𝑠 − 𝑋 .
+
+Using 𝑋 ≈ 3 yields a typical unrelated similarity around 0.014. At our deduplication threshold 𝐽 bitmap ≥ 0.7, two doc-uments of size ≈ 𝑠 would need a much larger overlap: 
+
+𝑋 
+
+2𝑠 − 𝑋 ≥ 0.7 =⇒ 𝑋 ≥ 2 · 0.71 + 0.7 𝑠 ≈ 0.8235 𝑠 ≈ 91 shared bits. Thus, a random non-duplicate pair would need 𝑋 ≥ 91, even though E[𝑋 ] ≈ 3. To make this concrete, we evaluate the hypergeometric tail using the integer approximation 𝑠 ≈ 110. Under 𝑋 ∼
+
+Hypergeom (4096 , 110 , 110 ), the exact tail probability is Pr [𝑋 ≥ 91 ] =
+
+> 110
+
+∑︁ 
+
+> 𝑥 =91
+
+ 110 
+
+> 𝑥
+
+   4096 −110 110 −𝑥 
+
+ 4096 110 
+
+ ≈ 5.95 × 10 −147 .
+
+Even over a large number of document pairs, the expected number of false positives due purely to bitmap collisions is effectively zero, which justifies using a 4,096-bit bitmap as a faithful surrogate signal at our operating thresholds. 
+
+## A.1 Hamming Distance vs. MinHash/Jac-card Agreement 
+
+A concrete example makes this mismatch clear. Consider two documents with three hash values (shown here as integers for readability): Doc 1: 23 45 67 
+
+| {z }
+
+> hash values
+
+Doc 2: 22 41 12 
+
+| {z }
+
+> hash values
+
+
+
+⇒ #equal hash = 0, ˆ𝐽 = 06 = 017 Although no hash values match exactly and the Min-Hash/Jaccard agreement is hence 0, the Hamming dis-tance tells a different story. The Hamming distance is computed on the bit strings of these hash values. Below we write the same integers in 8-bit binary (for illustration; a real implementation uses 32-bit hash values): Doc1: 00010111 00101101 01000011 
+
+| {z }
+
+> 23 45 67 in binary
+
+Doc2: 00010110 00101001 00001100 
+
+| {z }
+
+> 22 41 12 in binary
+
+
+
+= 1 + 1 + 5
+
+| {z }
+
+> bit flips
+
+= 7Across the three 8-bit values, the packed signature has 
+
+𝐵 = 24 bits, so the normalized Hamming similarity is 1 − 𝑑 𝐻 
+
+𝐵 = 1 − 724 = 0.708 ≈ 0.71 .
+
+Thus, the pair has ˆ 𝐽 MinHash = 0 due to zero exact hash matches, yet still exhibits ≈ 70% similarity according to the normalized Hamming metric. This illustrates why Hamming distance is an unstable proxy for the Jaccard objective. 
+
+## A.2 HNSW Configuration Details 
+
+HNSW has three key parameters that control the speed– recall trade-off. efConstruction is the maximum num-ber of candidate nodes visited during index construc-tion, efSearch is the maximum number of candidate nodes visited during query search, and 𝑀 is the graph degree, i.e., the maximum number of neighbors retained per node. Larger values of 𝑀 , efConstruction , and 
+
+efSearch consistently yielded empirical recall = 1.0 for FOLD on our datasets, but not for the FAISS (Jaccard) baseline. Because these larger settings also increased index construction and query cost, we use 𝑀 = 128, 
+
+efConstruction = 512, efSearch = 400, and 𝑘 = 4as a balanced operating point. Smaller values were suf-ficient for cleaner, partially deduplicated corpora such as C4, but degraded recall on noisier, highly duplicated datasets such as Common Crawl. 18
