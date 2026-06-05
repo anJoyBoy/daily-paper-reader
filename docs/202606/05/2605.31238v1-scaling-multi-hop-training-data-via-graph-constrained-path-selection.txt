@@ -1,0 +1,837 @@
+Title: Scaling Multi-Hop Training Data via Graph-Constrained Path Selection
+
+URL Source: https://arxiv.org/pdf/2605.31238v1
+
+Published Time: Mon, 01 Jun 2026 01:10:45 GMT
+
+Number of Pages: 21
+
+Markdown Content:
+# Scaling Multi-Hop Training Data via Graph-Constrained Path Selection 
+
+Pengyu Chen 1,2 Yonggang Zhang 1,2 Mingming Chen 1,2 Jun Song 3
+
+Wei Xue 1,2B Yike Guo 1,2B
+
+> 1
+
+The Hong Kong University of Science and Technology 
+
+> 2
+
+Hong Kong Generative AI Research and Development Center 
+
+> 3
+
+Hong Kong Baptist University 
+
+## Abstract 
+
+Endowing large language models with compositional reasoning over specialized documents requires multi-hop training data at scale, where such data rarely ex-ists outside of curated benchmarks built on structured sources. To construct it directly from plain, unannotated text, existing methods ask a single teacher model to jointly discover an evidence path through a document and verbalize it as a question-answer pair. However, these methods degrade sharply when documents are structured around repetitive templates and densely cross-referencing clauses, conditions that characterize most real-world specialized corpora. In this work, we decouple the two operations: reasoning paths are enumerated offline over a graph of contextual keyword centroids, and the teacher is invoked only to ver-balize pre-validated paths. The graph enforces five geometric admissibility con-straints, for which we provide Gram-matrix arguments establishing that local sim-ilarity bounds alone admit endpoint drift up to ∼91 ◦, and that an upper similarity bound is necessary to exit dense embedding cliques formed by boilerplate text. A matched-size ablation isolates the mechanism: at equal training scale, constrained and unconstrained chains yield indistinguishable downstream performance, and the gain at full scale comes from a 4.4 × expansion of the usable corpus rather than from higher per-chain quality—reframing the role of graph constraints, in this setting, as raising teacher synthesizability rather than improving chain content. Fine-tuning Qwen3-32B on 80K examples constructed from the CUAD legal con-tract corpus improves closed-book Token F1 from 21.66% to 38.58%. We have released our codes at https://github.com/hkgai-official/GCSCS .
+
+## 1 Introduction 
+
+Large language models can recall isolated facts yet often fail to compose them into reliable multi-hop answers [32, 15, 11]. The gap is acute in legal contract analysis, where a useful answer may require linking a definition, an obligation, an exception, and a termination condition across different clauses [14]. Human-authored multi-hop chains exist for general-domain benchmarks [41, 35, 34], but comparable domain-specific supervision is costly to produce [14]. General synthetic instruction pipelines [38, 40, 31, 13, 48, 28] require the teacher LLM to execute two tasks in a single prompt: discover connected evidence scattered across a document, and write the final question-answer pair. On straightforward domains this works reasonably well [38]. On legal contracts, however, the coupling proves brittle. Dense clause families, nested cross-references, and highly templated language create a large space of superficially similar but semantically distinct paths that must be navigated before generation even begins. Consequently, when we evaluate this joint  
+
+> BCorrespondence to: Wei Xue <weixue@ust.hk>, Yike Guo <yikeguo@ust.hk>.
+> arXiv:2605.31238v1 [cs.CL] 29 May 2026
+
+operation on the Contract Understanding Atticus Dataset (CUAD) [14], random multi-document chains pass a structured JSON quality gate only 22 .0% of the time, and the usable corpus saturates at approximately 18K examples regardless of generation budget [14].  
+
+> Figure 1: Illustration of the data yield bottleneck when coupling evidence discovery with language generation.
+
+We formalize this barrier as the cognitive synthesizability bot-tleneck . Figure 1 illustrates this failure mode concretely. The teacher is being asked to do two things at once: search an im-plicit graph of possible evidence connections while composing fluent language. Each task individually is manageable, but to-gether they exceed the model’s reliable fusion capacity. Dziri et al. [7] show that auto-regressive Transformers tend to linearize multi-step compositional tasks into surface-level pattern match-ing, which makes joint graph search and text generation a partic-ularly fragile combination. The underlying evidence paths them-selves are often valid, so the bottleneck is mechanical rather than epistemic. This observation suggests a straightforward solution: separate topology discovery from language generation. We propose 
+
+Graph-Constrained Semantic Chain Synthesis (GCSCS) , a four-stage offline pipeline that operationalizes this decoupling. Instead of asking the teacher to reason about evidence relation-ships on the fly, GCSCS first atomizes each contract into stan-dalone keyword-grounded QA facts. It then constructs contextual keyword centroids that capture each concept’s semantic footprint, and searches a FAISS index over these centroids for non-looping, topologically admissible paths under five geometric constraints. The result is a pre-validated linear reasoning chain with verified cross-clause connectivity. Only then is the teacher invoked to compose a question and answer from this ready-made sequence. Since the teacher is never asked to do more than read a pre-assembled evidence path and write a QA example around it, GCSCS replaces an overloaded joint operation with a single-pass articulation task. As a result, the quality-gate pass rate rises from 22 .0% to 94 .5% , expanding the usable corpus 4.4 times to 80K examples [14]. Fine-tuning Qwen3-32B on this corpus improves closed-book Token F1 from 21 .66% to 38 .58% under a strict source-contract split [14]. An 18K matched-size ablation confirms that this gain tracks corpus scale rather than per-chain quality, establishing data yield as the primary bottleneck [14]. This is consistent with the data-quality literature showing that filter-defined yield matters as much as nominal generation volume [46, 2, 4]. We further characterize the nature of this gain through zero-shot transfer to human-annotated bench-marks. On HotpotQA and MuSiQue, the improvement is statistically positive but small (approxi-mately +0 .56% on HotpotQA), indicating that the 80K gain primarily reflects legal answer-style adaptation rather than generalizable multi-hop reasoning, which bounds the scope of the contribu-tion [41]. Additionally, We find that the model learns to paste citation IDs at the end of every answer as a format habit, not because it has located the relevant evidence in the source contract. When we inject retrieved context at inference time, this citation habit disappears entirely (CFR drops from 
+
+89% to 8% ). We call this the citation-as-suffix behavior. Our contributions are threefold: • We formalize the cognitive synthesizability bottleneck , a mechanical failure mode in which jointly discovering evidence structure and verbalizing it over specialized corpora degrades data yield regardless of model capacity, establishing data yield as the primary scaling bot-tleneck in synthetic multi-hop data construction for specialized domains. • We propose GCSCS, which resolves this bottleneck by separating path enumeration from verbalization so that each operation stays within the teacher’s competence. A matched-size ablation establishes that the gain comes from expanded data yield rather than per-chain quality: constrained and unconstrained chains produce indistinguishable downstream performance at equal training scale, ruling out chain quality as a confound. • We show that fine-tuning on the resulting corpus improves closed-book Token F1 from 
+
+21 .66% to 38 .58% under a strict held-out split, and identify a citation-as-suffix behavior 2where the model appends citation tokens as a format habit rather than grounding them in evidence, collapsing entirely when retrieved context is injected at inference time. 
+
+## 2 Related Work 
+
+2.1 Synthetic Data for Instruction Tuning 
+
+Self-Instruct and Unnatural Instructions showed that teacher-generated instruction-response pairs can improve alignment [38, 16]. WizardLM increased instruction complexity through evolutionary rewriting [40]. RLHF-style and design-guided synthesis broadened the use of synthetic supervision [31, 13, 28, 48]. These pipelines leave the evidence path implicit; we select it before teacher fusion. 
+
+2.2 Multi-Hop Reasoning, Prompting, and Graph Supervision 
+
+We use HotpotQA and MuSiQue as out-of-domain transfer benchmarks in Appendix L; WebQues-tions, IIRC, and TriviaQA are related open-domain benchmarks included for context [41, 35, 34, 8, 20]. Inference-time methods (Chain-of-Thought, Tree-of-Thought, self-consistency, least-to-most, decomposed prompting, program-of-thought) improve reasoning without changing training data [39, 42, 37, 47, 23, 3]. Our work changes the offline data instead. 
+
+Path-before-generation graph synthesis. The paradigm of selecting evidence paths before genera-tion is not new. QA-GNN and GreaseLM show that graph structure can support question answering at inference time [43, 45]. FactCG extracts context graphs from text for multi-hop fact checking and treats path enumeration as an upstream substrate for natural-language verification [26]. AIM-SciQA [25] (LREC 2026) constructs inter-document scientific QA via single-hop atomic extraction and se-mantic bridging across papers. SciNets studies graph-constrained synthesis over scientific literature [6]. Recent work additionally argues that synthetic multi-hop traces can improve multi-hop reason-ing [21]. All four lines (a) treat evidence-path selection as an offline graph-search problem, (b) use a teacher LLM to verbalize a validated path into natural language, and (c) report a yield or quality benefit from the constraint. Our methodological differences (contextual centroids in place of en-tity nodes, five-constraint admissibility, maximal-path pruning) are described in Section 3; domain generalization and threshold sensitivity are discussed in Appendix J. LIMA shows that a small carefully-curated SFT set can match much larger noisy ones [46], AlpaGa-sus filters Self-Instruct-style data to improve downstream quality [2], and DoG argues for filtering-aware curation [4]. Our observation sits in this space: on a high-boilerplate domain like CUAD, graph-constrained path search lets a teacher produce 4.4× more samples that pass the same quality gate, and the downstream gain tracks corpus size rather than per-example chain quality. 
+
+2.3 Retrieval, FAISS, and Citation Grounding 
+
+Retrieval-Augmented Generation and dense passage retrieval retrieve evidence at inference time [27, 22], often using Sentence-BERT or SimCSE [33, 9]. Self-RAG and Active RAG add reflection or dynamic retrieval control [1, 18], and hop-aware studies show that multi-step agentic retrieval remains brittle [44]. FAISS [19] is commonly an inference-time vector index; we use it offline during data synthesis to propose conceptual edges. Section 5.5 shows that a model trained in closed-book format loses citation behavior when retrieved context is injected at inference time. 
+
+## 3 Methodology 
+
+The GCSCS pipeline (Figure 2) has four stages: ontological atomization, contextual keyword cen-troid construction, constrained semantic chain building, and teacher fusion. Appendix C provides implementation details on prompt, quality-gate failures, ID normalization, and threshold calibration. 
+
+3.1 Ontological Chunking and Atomization 
+
+Given a contract T , the chunker identifies native legal boundaries (Article, Section, Clause, Para-graph, Schedule, Exhibit). These boundaries reduce mid-clause truncation and preserve the local se-3Chunking & Atomization 
+
+> keywods
+
+Contextual Keyword 
+
+Centroid Construction 
+
+Teacher Fusion & 
+
+Quality Gate Semantic Chain (Graph- Constrained) 
+
+Maximal Paths 
+
+> Clause 1
+> Clause 2
+> Clause 3
+
+tk = k ⊕ q ⊕ a  
+
+> FAISS
+> Index
+> 1
+> 2
+> 3
+> 4
+> Defualt
+> Failure
+> to Pay
+> Cure
+> Period Termination
+> Force
+> Majeure Notice
+
+××
+
+×
+
+× ×   
+
+> 0.70 ≤ S ≥ 0.90 0.70 ≤ S ≥ 0.90
+> Gate / Filter
+> core band
+> no drift
+> no synonym
+> no duplicate
+> ID
+> Keyword
+> Atomic QA
+> ID
+> Keyword
+> Atomic QA
+> ID
+> Keyword
+> Atomic QA
+> ID
+> Keyword
+> Atomic QA
+> ID
+> Keyword
+> Atomic QA
+> ID
+> Keyword
+> Atomic QA Complex QA
+> (Output)
+> Complex Q
+> Answer + IDs
+> Citations
+> preasent
+> IDs
+> normalized
+> JSON valid
+
+√ √ √   
+
+> Contract Atomic Facts
+> centroid
+> Quality Gate Checks
+> ID
+> Keyword
+> Atomic QA
+> ID
+> Keyword
+> Atomic QA
+> no oscillation
+> Failure
+> to Pay
+
+... Cure   
+
+> Periord Termination Notice
+> 0.70 ≤ S ≥ 0.90
+
+×
+
+Iedge = 1[τ min ≤ S (μ, v) ≤ τ max ∧S (μ, v) ‹τ syn ···]  
+
+> core band no synonym
+> ID
+> Keyword
+> Atomic QA
+
+Figure 2: Overview of the four-stage Graph-Constrained Semantic Chain Synthesis pipeline. mantics of obligations, exceptions, and definitions. If a document lacks explicit headings, sentence-boundary-aware splitting with a maximum block size of 1,200 characters is used instead. For each chunk ci, an extraction LLM Mext at temperature 0.1 outputs a structured object Ai =
+
+{kj , q j , a j }Ni
+
+j=1 containing keywords and atomic QA pairs. The extraction prompt forbids relative referents such as “the preceding clause,” so each fact stands alone without needing its surrounding context during later path construction. Validated facts receive globally unique evidence identifiers that support citation tracking during teacher fusion and supplementary overlap audits. 
+
+3.2 Contextual Keyword Centroids 
+
+Once we have atomic QA pairs, the next challenge is connecting related but distinct facts across the contract. Direct QA-to-QA similarity tends to retrieve near-duplicate clauses from the same clause family and create semantic loops within a single contract. To avoid this, we represent each keyword not by its surface string alone but by a contextual centroid that incorporates representative QA content. For keyword k appearing in M QA contexts, we concatenate the keyword with at most two representative QA pairs: 
+
+tk = k ⊕ qk, 1 ⊕ ak, 1 ⊕ · · · ⊕ qk,K ⊕ ak,K , K = min(2 , M ). (1) The centroid vector is obtained by embedding and L2-normalizing this grounded text: 
+
+ˆk = Normalize( ϕ(tk)) , ∥ˆk∥2 = 1 . (2) We instantiate ϕ with text-embedding-v4 , which produces 1536-dimensional dense vectors. We index all centroids with FAISS IndexFlatIP , enabling exact nearest-neighbour search over all cen-troids. Because vectors are L2-normalized, inner product corresponds exactly to cosine similarity. 
+
+3.3 Constrained Semantic Chain Building 
+
+Let G = ( V, E ) be a directed graph over contextual keyword centroids and let S(·, ·) denote cosine similarity in the centroid space. For a partial path P = ( v1, . . . , v prev , u ), a candidate next node v
+
+is admissible if and only if it passes all five semantic constraints and the lexical deduplication check. We write the constraints as a piecewise function of the current depth |P |:
+
+τ ∗
+
+prev (|P |) = 
+
+
+
+undefined , |P | = 1 ,
+
+0.75 , |P | ∈ { 2, 3},
+
+0.70 , |P | ≥ 4,τ ∗
+
+drift (|P |) = 
+
+{undefined , |P | = 1 ,
+
+0.50 , |P | ≥ 2. (3) 4The edge admissibility indicator is 
+
+Iedge (u, v ; P ) = 1[ τmin ≤ S(u, v ) ≤ τmax ∧ S(u, v ) < τ syn 
+
+∧ (τ ∗
+
+> prev
+
+(|P |) undef. ∨ S(v, v prev ) < τ ∗
+
+> prev
+
+(|P |))
+
+∧ (τ ∗
+
+> drift
+
+(|P |) undef. ∨ S(v, v 1) ≥ τ ∗
+
+> drift
+
+(|P |))
+
+∧ λ(v, P ) = 0 ],
+
+(4) where 1[·] is the indicator function, vprev is the node immediately preceding u in P , and v1 is the chain’s origin. The static thresholds (τmin , τ max ) = (0 .70 , 0.90) define the admissible cosine simi-larity band for each hop, and τsyn = 0 .95 excludes near-synonyms. The depth-dependent threshold 
+
+τ ∗
+
+> prev
+
+(|P |) is undefined at |P | = 1 , equals 0.75 for |P | ∈ { 2, 3}, and 0.70 for |P | ≥ 4; it rejects v
+
+if S(v, v prev ) meets or exceeds this cutoff, preventing back-and-forth oscillation between adjacent hops. The threshold τ ∗
+
+> drift
+
+(|P |) is undefined at |P | = 1 and equals 0.50 for |P | ≥ 2; it rejects 
+
+v if its similarity to the chain origin v1 falls below 0.50 , preventing global semantic drift across the full chain. Finally, λ(v, P ) is a binary flag that excludes v when its keyword label is lexically near-duplicate to any node already present in P .
+
+Constraint calibration. The interval [τmin , τ max ] = [0 .70 , 0.90] is chosen to target edges that connect related but conceptually distinct concepts. Under standard STS annotation, pairs scoring 
+
+3.5–4.0 out of 5 are considered related but not synonymous [33]; these pairs cluster within cosine similarity [0 .70 , 0.85] under transformer encoders. We set τmax below τsyn = 0 .95 to create a three-zone partition (weak association / admissible inferential steps / near-synonyms). While calibrated on CUAD development data, these values align with dense retrieval sweet spots [22]. Theorem 1 and Theorem 2 provide formal geometric justifications; empirical grounding for τmax is in Appendix B. The piecewise τ ∗ 
+
+> prev
+
+tightens with depth ( 0.75 for the first two hops, 0.70 at depth ≥ 4) to enforce stricter anti-oscillation. Lexical deduplication λ(v, P ) flags near-duplicate keyword labels via exact match, substring containment, character-overlap > 0.80 , or difflib sequence ratio > 0.60 . FAISS retrieves K = 100 candidates per node; the path search is a bounded best-first DFS with B = 5 ,
+
+Lmax = 8 , and maximal-path pruning (Appendix C). 
+
+Assumption (density). Throughout this section, V is assumed sufficiently dense in Sd−1 so that for the GCSCS constraint parameters (τmin , τ max ), a valid successor always exists at each path extension step and no search branch terminates prematurely. 
+
+Definition 1 (Locally Constrained Semantic Chain) . Let G = ( V, E ) be a semantic graph where each contextual keyword centroid v ∈ V is an L2-normalized vector on Sd−1 (d ≥ 2). A semantic chain P = ( v1, v 2, . . . , v L) of length L is locally constrained with threshold τmin if S(vi, v i+1 ) ≥
+
+τmin for all i ∈ { 1, . . . , L − 1}, enforcing a minimum similarity between every pair of consecutive nodes. 
+
+Theorem 1 (Insufficiency of Local Semantic Constraints) . Let P be a locally constrained semantic chain with τmin = 710 and L ≥ 3. The local hop constraints are strictly insufficient to guarantee a global semantic anchoring of S(v1, v L) ≥ τdrift = 12 . Consequently, an explicit global drift constraint is geometrically necessary to prevent unbounded endpoint deviation. Proof Sketch. We provide a constructive proof via Gram matrix realizability (full derivations in Appendix A). For L = 3 , we construct the 3×3 Gram matrix of (v1, v 2, v 3) with adjacent similarities fixed at S = 710 and unknown x = S(v1, v 3). Sylvester’s criterion for positive semi-definiteness yields the realizable domain x ∈ [− 150 , 1]. Since − 150 < 12 , the configuration S(v1, v 3) = − 150 is geometrically valid yet violates the global target. For L > 3, the local constraint is purely Markovian and imposes no geometric restoring force toward v1. A second Gram matrix argument shows that for any vk with S(v1, v k) ≤ 12 , there always exists a valid vk+1 satisfying the local constraint while maintaining S(v1, v k+1 ) < 12 ; the key bound follows from 7s 
+
+> 10
+
+≤ 0.35 < 12 for s ≤ 12 . ■
+
+Remark 1. Over just two hops ( L = 3 ) with τmin = 0 .70 , the end-to-end similarity can reach − 150 
+
+(≈91 .1◦ drift), demonstrating that global semantic anchoring is not implied by any finite set of local hop constraints, however tight those constraints are set. 
+
+Theorem 2 (Necessity of the Upper Bound for Escaping Dense Semantic Cliques) . Let G = ( V, E )
+
+be a semantic graph where each contextual keyword centroid v ∈ V is an L2-normalized vector on 
+
+5Sd−1. Define a dense boilerplate clique as a spherical cap C(c, ϵ ) = {v ∈ Sd−1 : arccos( S(v, c )) ≤
+
+ϵ} with angular radius ϵ ∈ (0 , π/ 2) around a centre c.
+
+(i) Insufficiency of the lower bound. If the edge admissibility condition only requires S(vi, v i+1 ) ≥
+
+τmin , then for any clique satisfying cos(2 ϵ) ≥ τmin , every pair (u, v ) ∈ C(c, ϵ ) × C(c, ϵ ) satisfies the condition, permitting paths of arbitrary length to remain within C(c, ϵ ).
+
+(ii) Sufficiency of the upper bound. Under the additional constraint S(vi, v i+1 ) ≤ τmax , if ϵ <  
+
+> 12
+
+arccos( τmax ), then for any vi ∈ C(c, ϵ ), the admissibility condition eliminates every u ∈ C(c, ϵ )
+
+as a candidate, forcing vi+1 /∈ C(c, ϵ ) and guaranteeing escape from the dense clique. Proof Sketch. Follows from the spherical triangle inequality θ(u, v ) ≤ 2ϵ and monotonicity of 
+
+cos( ·); full derivation and empirical verification in Appendix B. ■
+
+Remark 2. The GCSCS pipeline sets τmax = 0 .90 , enforcing a minimum angular separation of 
+
+arccos(0 .90) ≈ 25 .84 ◦ between consecutive hops. Theorem 2 guarantees escape from any boiler-plate clique with ϵ < 12 .92 ◦. Appendix B provides empirical verification that 87 .8% of the 5,313 
+
+DBSCAN-identified boilerplate clusters in CUAD satisfy this condition; the remaining 12 .2% are covered by the τsyn = 0 .95 filter. Together, Theorem 1 and Theorem 2 provide a closed geometric justification for the [τmin , τ max ] band with each bound addressing a distinct failure mode. 
+
+3.4 Teacher Fusion and Quality Gate 
+
+Each accepted path is serialized into evidence blocks. Every supporting fact is prepended by its global ID, and each node contributes at most three evidence items to control context length. Ageneration LLM Mgen at temperature 0.2 writes a complex question and answer citing the evidence IDs. Citation IDs serve as traceability markers that link each answer back to its source evidence items [30, 29, 10]. Whether a cited ID actually entails the answer is not verified at this stage; that check is left for downstream evaluation. The quality gate Ggate (·) comprises structured JSON validation, up to three retries, and ID normalization. For a candidate path set P, synthesis yield is 
+
+Yield( P) = 1
+
+|P| 
+
+∑
+
+> Pi∈P
+
+1[Ggate (Mgen (Pi)) = 1] . (5) All pass rates in Section 5.2 are measured after this gate. 
+
+## 4 Experimental Setup 
+
+Corpus and model. We use the Contract Understanding Atticus Dataset (CUAD) [14], whose contracts contain repeated clause families, defined terms, cross-references, and exceptions. These properties suit multi-hop synthesis but also create a leakage risk because similar clauses recur across contracts. The base model is Qwen3-32B; the synthesis pipeline is instantiated with DeepSeek (DS) and Gemini (GE) teachers to test whether gains persist across teacher distributions. 
+
+Fine-tuning protocol. All SFT runs use LoRA [17, 5]. Unless stated otherwise, the LoRA rank is 8, alpha is 16, dropout is 0.05, target modules are all linear modules, learning rate is 1 × 10 −5, global batch size is 64, maximum sequence length is 4096, and training lasts one epoch. Existing adapter weights are discarded before each run. Appendix D reports compute and reproducibility details. 
+
+Metrics. Token F1 measures lexical overlap with the gold answer. Citation Format Rate (CFR) measures adherence to the required citation syntax. Evidence Recall (ER, diagnostic) measures the fraction of gold evidence IDs that the model explicitly cites. Token F1 can reward answer length and teacher style; neither CFR nor ER alone proves citation faithfulness or genuine evidence grounding. Appendix F gives full definitions and recommended audits. 
+
+Source-contract split. We split the 510 source contracts into 357 train / 51 development / 102 test (seed 42) before chunking, so training and held-out chains are built from entirely indepen-dent source documents. This removes exact source-contract contamination; template-level near-duplicates across CUAD contracts remain a known risk. Appendix E reports the data funnel and an ID-gap sanity audit; the GE and DS test sets contain 21,186 and 19,238 examples. 6Table 1: Closed-book multi-hop QA performance. ER is evidence recall against gold evidence IDs and is diagnostic only; higher is better. CFR ( ↑) measures citation-format adherence. Model Test Set Token F1 ER ( ↑, diag.) CFR ( ↑)Qwen3-32B-Base DS 18.99% 0.40% 50.54% Qwen3-32B-DS-SFT DS 37.19% 0.36% 85.99% Qwen3-32B-Base GE 21.66% 2.74% 53.98% Qwen3-32B-Gemini-SFT GE 38.58% 2.34% 89.04% Table 2: Matched-size ablation on the GE test set. Bold rows are the 18K matched-scale comparison (single seed, no CI). ∆pp is relative to Random-SFT at 18K. ER is diagnostic-only. Configuration Train Size Pass Rate Token F1 ∆pp ER ( ↑, diag.) CFR ( ↑)Base (no SFT) — — 21.66% −0.85 2.74% 53.98% 
+
+Random-SFT 18K 22.0% 22.51% 0.00 2.69% 60.59% Matched Semantic-SFT 18K 94.5% 22.66% +0 .15 ∗ 2.70% 63.55% 
+
+Semantic-SFT 80K 94.5% 38.58% +16 .07 2.34% 89.04% 
+
+> ∗Single training seed; no multi-seed std or bootstrap CI computed. Treated as an indicative tie, not a directional claim.
+
+## 5 Results 
+
+5.1 Closed-Book CUAD-Style QA 
+
+Table 1 reports the in-pipeline closed-book results under a source-contract split. DS-SFT improves DS-test Token F1 from 18 .99% to 37 .19% , GE-SFT improves GE-test Token F1 from 21 .66% to 
+
+38 .58% , and CFR rises from 51 –54% to 86 –89% . ER stays below 3% and does not improve with training. This combination is informative: the student learns to produce the citation template (emit 
+
+ID_xxx tokens at the end of an answer) but does not learn the underlying gold evidence-ID set. We expand on this observation in Section 5.5, where we show that the learned citation behavior collapses entirely under open-book retrieved context. Stratifying by chain length (Appendix H) shows the gain holds across ≤3 / 4–5 / ≥6 hop buckets. The slightly larger ≥6-hop improvement is consistent with the hypothesis that multi-hop supervision helps on longer chains, but it does not by itself establish that the model has learned compositional long-chain reasoning as opposed to longer answer templates. 
+
+5.2 Matched-Size Ablation 
+
+Table 2 presents the central ablation. Random chain sampling passes the teacher quality gate at 
+
+22 .0% and saturates at ∼18K usable examples. Semantic chain construction passes at 94 .5% . When the semantic corpus is subsampled to the same 18K scale, Matched Semantic-SFT obtains 22 .66% 
+
+Token F1 and Random-SFT obtains 22 .51% . We bold these two rows because they carry the causal weight of the ablation: at matched scale, Random and Matched Semantic are indistinguishable. The 
+
+0.15% gap is a single-seed result lacking confidence intervals; we treat it as an indicative tie. Given the indicative tie at 18K, the 16 .92% gain at 80K comes from corpus scale, not from intrinsi-cally better chains. The graph constraints make each path easier for the teacher to verbalize, which is why the pass rate rises from 22 .0% to 94 .5% and the usable corpus grows 4.4× without changing the underlying generation model. This is consistent with the data-quality literature showing that filter-defined yield matters as much as nominal generation volume [46, 2, 4]. 
+
+5.3 Data Volume Scaling 
+
+Figure 3 varies only the number of semantic-chain training examples on the GE closed-book test set. Token F1 improves monotonically from 22 .60% at 20K to 38 .58% at 80K. CFR rises from 63 .33% 
+
+to 89 .04% , while ER slightly decreases from 2.69% to 2.34% . The 20K semantic result ( 22 .60% ) is nearly identical to the 18K random result ( 22 .51% ), confirming that the mechanism is scale rather than per-example quality. The monotonic rise in CFR alongside flat (or declining) ER is a diagnostic 720K 40K 60K 80K 
+
+Training size 
+
+> 20
+> 25
+> 30
+> 35
+> 40
+> Token F1 (%)
+> Semantic SFT
+> Random 18K
+> Base
+> 22.60
+> 38.58
+
+(a) Token F1 scaling 
+
+> 60
+> 75
+> 90
+> CFR (%)  89.04
+> Random
+> Base
+
+(b) CFR ↑    
+
+> 20K 40K 60K 80K
+
+Training size 
+
+> 2.3
+> 2.5
+> 2.7
+> ER (%)
+> 2.34
+> Random
+> Base
+
+(c) ER ↑ (diagnostic) Figure 3: Data scaling analysis on the GE closed-book test set. Left: Token F1 vs. semantic-chain SFT training size, with the Random-SFT 18K and Base model as references. Right: citation format rate (CFR, higher is better) and evidence recall (ER, diagnostic, higher is better). Table 3: Cross-teacher generalization analysis. Condition Token F1 vs Base ∆pp Base on DS-test 18.99% —DS-SFT on DS-test (in-domain) 37.19% +18.20 GE-SFT on DS-test (cross-A) 39.28% +20.29 Base on GE-test 21.66% —GE-SFT on GE-test (in-domain) 38.58% +16.92 DS-SFT on GE-test (cross-B) 38.27% +16.61 pattern: scaling teaches the model to produce better-formatted answers with citation tokens in the correct syntactic positions, but does not teach it to select the correct evidence IDs. This separation between format learning and evidence learning persists across the entire 20K–80K range. 
+
+5.4 Cross-Teacher Evaluation 
+
+Table 3 evaluates each SFT model on the other teacher’s held-out test set. GE-SFT reaches 39 .28% 
+
+on DS-test and DS-SFT reaches 38 .27% on GE-test, preserving most in-domain gains across teacher styles and weakening a single-teacher mimicry explanation for the observed improvements. 
+
+5.5 Open-Book Distribution Shift 
+
+We test whether the closed-book citation behavior survives a distribution shift by injecting dense retrieved CUAD clauses into the inference-time prompt while keeping weights and questions identi-cal. CFR collapses from 85 .99 –89 .04% to 3.42 –8.45% (Table 4), ER moves by less than 0.2% , and Token F1 falls by 10 –13% . Prompt-slot placement (user vs. system) changes nothing material. We interpret this as citation-as-suffix behavior: at training time the answer always ends with ID_xxx 
+
+tokens, so the student raises their probability under the closed-book distribution. When a long re-trieved passage is added to the prompt, the input distribution shifts enough that the model stops emitting citation IDs altogether, even though its answer quality does not drop proportionally. True grounding should remain stable or improve when evidence appears in context, but CFR collapses instead, bounding deployment value for legal RAG applications. We test whether mixed-format training can restore citation reliability. Augmenting the 80K closed-book corpus with 20 K open-book samples ( 5 : 3 : 2 Clean / Partial-Noise / Incomplete) raises open-8Table 4: Open-book distribution shift. Same weights and questions; only a long retrieved-context block is added. CFR collapse with ER unchanged is the citation-as-suffix signature. Model Setting Token F1 ER ( ↑, diag.) CFR ( ↑)DS-SFT Closed-book 37.19% 0.36% 85.99% DS-SFT Open-book (user) 23.75% 0.34% 3.42% DS-SFT Open-book (system) 23.92% 0.35% 3.70% GE-SFT Closed-book 38.58% 2.34% 89.04% GE-SFT Open-book (user) 28.35% 2.50% 8.25% GE-SFT Open-book (system) 28.50% 2.54% 8.45% Table 5: Mixed-format SFT does not restore citation reliability. The 80K closed-book corpus is augmented with 20K open-book samples (Clean:Partial-Noise:Incomplete = 5 : 3 : 2 ). GE-SFT reference rows are reported in Table 4. Open-book CFR rises from 8.25% to 20 .57% , far below the 
+
+95 .62% closed-book CFR and below any threshold suitable for legal RAG deployment. Model Setting Token F1 ER ( ↑, diag.) CFR ( ↑)Mixed-SFT Closed-book 42.72% 2.41% 95.62% Mixed-SFT Open-book 45.55% 2.45% 20.57% book Token F1 to 45 .55% and closed-book Token F1 to 42 .72% , but open-book CFR only recovers to 20 .57% , far below the 95 .62% closed-book CFR of the same model (Table 5). This confirms that switching citation behavior from suffix-style formatting to genuine evidence grounding requires a fundamentally different training signal (see Appendix J). A LegalBench subset check (Appendix I) shows GE-SFT and DS-SFT within 1% of the Qwen3-32B-Base average ( 91 .71% and 90 .86% vs. 91 .90% ), ruling out catastrophic forgetting on legal reasoning tasks in this subset. Broad legal-reasoning transfer is not claimed. 
+
+## 6 Discussion 
+
+Our findings indicate a data-yield mechanism rather than a per-chain quality mechanism: con-strained path search improves teacher synthesizability, so downstream gains primarily come from having more usable training examples. A separate behavioral diagnosis is that citation formatting can improve without evidence grounding, indicating template adherence under the closed-book train-ing schema rather than robust citation use. We therefore frame citation-as-suffix as an independent limitation signal rather than a marker of grounded reasoning quality. The evidence is scoped to one base model (Qwen3-32B + LoRA), one teacher per axis, CUAD-tuned thresholds, and one fusion template; a high pass rate marks comfortable teacher fusion, not optimal-ity of hop necessity. Cross-teacher results (Section 5.4) and external benchmarks (Appendix L) bound style adaptation; the system is an offline data-scaling pipeline for closed-book legal QA, not a legal assistant or citation-grounded RAG (Appendix K). Zero-shot transfer to HotpotQA and MuSiQue confirms gains do not generalize beyond CUAD (Appendix L; +0 .56% on HotpotQA). 
+
+## 7 Conclusion 
+
+GCSCS decouples path selection from text generation and raises the CUAD teacher pass rate from 
+
+22 .0% to 94 .5% , expanding the usable corpus 4.4× to 80 K examples and improving closed-book To-ken F1 by ∼16 –18% . A matched-size ablation confirms the gain reflects corpus scale rather than per-chain quality. External transfer to human-annotated benchmarks is small ( +0 .56% on HotpotQA; Appendix L), diagnostic evidence recall stays flat across the scaling sweep, and citation format col-lapses under retrieved context. Together these diagnostics bound the contribution to closed-book legal-style and citation-template adaptation rather than general multi-hop reasoning; broader do-mains, retrieval backends, and multi-seed validation remain future work. For reproducibility, the synthesis codebase and constructed 80K dataset will be open-sourced upon publication. 9References 
+
+[1] Akari Asai, Zeqiu Wu, Yizhong Wang, Avirup Sil, and Hannaneh Hajishirzi. Self-RAG: Learn-ing to retrieve, generate, and critique through self-reflection. In International Conference on Learning Representations , 2024. [2] Lichang Chen, Shiyang Li, Jun Yan, Hai Wang, Kalpa Gunaratna, Vikas Yadav, Zheng Tang, Vijay Srinivasan, Tianyi Zhou, Heng Huang, et al. AlpaGasus: Training a better alpaca with fewer data. In International Conference on Learning Representations , 2024. [3] Wenhu Chen, Xueguang Ma, Xinyi Wang, and William W Cohen. Program of thoughts prompt-ing: Disentangling computation from reasoning for numerical reasoning tasks. Transactions on Machine Learning Research , 2023. [4] Yongrui Chen, Haiyun Jiang, Xinting Huang, Shuming Shi, and Guilin Qi. DoG-Instruct: Towards premium instruction-tuning data via text-grounded instruction wrapping. In Proceed-ings of the Conference of the North American Chapter of the Association for Computational Linguistics , pages 4125–4135, 2024. [5] Tim Dettmers, Artidoro Pagnoni, Ari Holtzman, and Luke Zettlemoyer. QLoRA: Efficient fine-tuning of quantized LLMs. In Advances in Neural Information Processing Systems , volume 36, 2023. [6] Sauhard Dubey. SciNets: Graph-constrained multi-hop reasoning for scientific literature syn-thesis. arXiv preprint arXiv:2601.09727 , 2026. [7] Nouha Dziri, Ximing Lu, Melanie Sclar, Xiang Lorraine Li, Liwei Jiang, Bill Yuchen Lin, Peter West, Chandra Bhagavatula, et al. Faith and fate: Limits of transformers on compositionality. In Advances in Neural Information Processing Systems , volume 36, 2023. [8] James Ferguson, Matt Gardner, Hannaneh Hajishirzi, Tushar Khot, and Pradeep Dasigi. IIRC: A dataset of incomplete information reading comprehension questions. In Proceedings of the Conference on Empirical Methods in Natural Language Processing , pages 1137–1147, 2020. [9] Tianyu Gao, Xingcheng Yao, and Danqi Chen. SimCSE: Simple contrastive learning of sen-tence embeddings. In Proceedings of the Conference on Empirical Methods in Natural Lan-guage Processing , pages 6894–6910, 2021. [10] Zorik Gekhman, Jonathan Herzig, Roee Aharoni, Chen Elkind, and Idan Szpektor. TrueTeacher: Learning factual consistency evaluation with large language models. In Pro-ceedings of the Conference on Empirical Methods in Natural Language Processing , pages 2053–2070, 2023. [11] Mor Geva, Daniel Khashabi, Elad Segal, Tushar Khot, Dan Roth, and Jonathan Berant. Did Aristotle use a laptop? A question answering benchmark with implicit reasoning strategies. 
+
+Transactions of the Association for Computational Linguistics , 9:346–361, 2021. [12] Neel Guha, Julian Nyarko, Daniel E Ho, Christopher Ré, Adam Chilton, Aditya Narayana, Alex Chohlas-Wood, Austin Peters, Brandon Waldon, Daniel N Rockmore, et al. LegalBench: A collaboratively built benchmark for measuring legal reasoning in large language models. In 
+
+Advances in Neural Information Processing Systems , volume 36, 2023. [13] Yiduo Guo, Zhen Guo, Chuanwei Huang, Zi-Ang Wang, Zekai Zhang, Haofei Yu, Huishuai Zhang, and Yikang Shen. Synthetic data RL: Task definition is all you need. arXiv preprint arXiv:2505.17063 , 2025. [14] Dan Hendrycks, Collin Burns, Anya Chen, and Spencer Ball. CUAD: An expert-annotated NLP dataset for legal contract review. In Proceedings of the Neural Information Processing Systems Track on Datasets and Benchmarks , 2021. [15] Xanh Ho, Anh-Khoa Duong Nguyen, Saku Sugawara, and Akiko Aizawa. Constructing a multi-hop QA dataset for comprehensive evaluation of reasoning steps. In Proceedings of the International Conference on Computational Linguistics , pages 6609–6625, 2020. 10 [16] Or Honovich, Thomas Scialom, Omer Levy, and Timo Schick. Unnatural instructions: Tuning language models with (almost) no human labor. In Proceedings of the Annual Meeting of the Association for Computational Linguistics , pages 14409–14428, 2023. [17] Edward J Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang, and Weizhu Chen. LoRA: Low-rank adaptation of large language models. In In-ternational Conference on Learning Representations , 2022. [18] Zhengbao Jiang, Frank F Xu, Luyu Gao, Zhiqing Sun, Qian Liu, Jane Dwivedi-Yu, Yiming Yang, Jamie Callan, and Graham Neubig. Active retrieval augmented generation. In Pro-ceedings of the Conference on Empirical Methods in Natural Language Processing , pages 7969–7992, 2023. [19] Jeff Johnson, Matthijs Douze, and Hervé Jégou. Billion-scale similarity search with GPUs. 
+
+IEEE Transactions on Big Data , 7(3):535–547, 2019. [20] Mandar Joshi, Eunsol Choi, Daniel Weld, and Luke Zettlemoyer. TriviaQA: A large scale dis-tantly supervised challenge dataset for reading comprehension. In Proceedings of the Annual Meeting of the Association for Computational Linguistics , pages 1601–1611, 2017. [21] Anmol Kabra, Yilun Yin, Albert Gong, Kamile Stankeviciute, Dongyoung Go, Johann Lee, Katie Z Luo, Carla P Gomes, and Kilian Q Weinberger. Learning from synthetic data improves multi-hop reasoning. In International Conference on Learning Representations , 2026. [22] Vladimir Karpukhin, Barlas Oˇ guz, Sewon Min, Patrick Lewis, Ledell Wu, Sergey Edunov, Danqi Chen, and Wen-tau Yih. Dense passage retrieval for open-domain question answering. In Proceedings of the Conference on Empirical Methods in Natural Language Processing ,pages 6769–6781, 2020. [23] Tushar Khot, Harsh Trivedi, Matthew Finlayson, Yao Fu, Kyle Richardson, Peter Clark, and Ashish Sabharwal. Decomposed prompting: A modular approach for solving complex tasks. In International Conference on Learning Representations , 2023. [24] James Kirkpatrick, Razvan Pascanu, Neil Rabinowitz, Joel Veness, Guillaume Desjardins, An-drei A Rusu, Kieran Milan, John Quan, Tiago Ramalho, Agnieszka Grabska-Barwinska, et al. Overcoming catastrophic forgetting in neural networks. Proceedings of the National Academy of Sciences , 114(13):3521–3526, 2017. [25] Seungmin Lee, Dongha Kim, Yuni Jeon, Junyoung Koh, and Min Song. Automatic inter-document multi-hop scientific QA generation. In Proceedings of the International Con-ference on Language Resources and Evaluation , Palma, Spain, 2026. Also available as arXiv:2603.14257. [26] Deren Lei, Yaxi Li, Siyao Li, Mengya Hu, Rui Xu, Ken Archer, Mingyu Wang, Emily Ching, and Alex Deng. FactCG: Enhancing fact checkers with graph-based multi-hop data. In Pro-ceedings of the Conference of the North American Chapter of the Association for Computa-tional Linguistics , pages 5002–5020, 2025. [27] Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir Karpukhin, Na-man Goyal, Heinrich Küttler, Mike Lewis, Wen-tau Yih, Tim Rocktäschel, et al. Retrieval-augmented generation for knowledge-intensive NLP tasks. In Advances in Neural Information Processing Systems , volume 33, pages 9459–9474, 2020. [28] Weize Liu, Yongchi Zhao, Yijia Luo, Mingyu Xu, Jiaheng Liu, Yanan Li, Xiguo Hu, Zhiqi Bai, Yuchi Xu, Wenbo Su, and Bo Zheng. DESIGNER: Design-logic-guided multidisciplinary data synthesis for LLM reasoning. In International Conference on Learning Representations , 2026. [29] Potsawee Manakul, Adian Liusie, and Mark Gales. SelfCheckGPT: Zero-resource black-box hallucination detection for generative large language models. In Proceedings of the Conference on Empirical Methods in Natural Language Processing , pages 9004–9017, 2023. 11 [30] Sewon Min, Kalpesh Krishna, Xinxi Lyu, Mike Lewis, Wen-tau Yih, Pang Wei Koh, Mohit Iyyer, Luke Zettlemoyer, and Hannaneh Hajishirzi. FActScore: Fine-grained atomic evalua-tion of factual precision in long form text generation. In Proceedings of the Conference on Empirical Methods in Natural Language Processing , pages 12076–12100, 2023. [31] Long Ouyang, Jeffrey Wu, Xu Jiang, Diogo Almeida, Carroll Wainwright, Pamela Mishkin, Chong Zhang, Sandhini Agarwal, Katarina Slama, Alex Ray, et al. Training language models to follow instructions with human feedback. In Advances in Neural Information Processing Systems , volume 35, pages 27730–27744, 2022. [32] Ofir Press, Muru Zhang, Sewon Min, Ludwig Schmidt, Noah A Smith, and Mike Lewis. Mea-suring and narrowing the compositionality gap in language models. In Findings of the Associ-ation for Computational Linguistics: EMNLP , pages 5687–5711, 2023. [33] Nils Reimers and Iryna Gurevych. Sentence-BERT: Sentence embeddings using Siamese BERT-networks. In Proceedings of the Conference on Empirical Methods in Natural Lan-guage Processing , pages 3982–3992, 2019. [34] Alon Talmor and Jonathan Berant. The web as a knowledge-base for answering complex questions. In Proceedings of the Conference of the North American Chapter of the Association for Computational Linguistics , pages 641–651, 2018. [35] Harsh Trivedi, Niranjan Balasubramanian, Tushar Khot, and Ashish Sabharwal. MuSiQue: Multihop questions via single-hop question generation. Transactions of the Association for Computational Linguistics , 10:539–554, 2022. [36] Steven H Wang, Antoine Scardigli, Leonard Tang, Wei Chen, Dimitry Levkin, Anya Chen, Spencer Ball, Thomas Woodside, Oliver Zhang, and Dan Hendrycks. MAUD: An expert-annotated legal NLP dataset for merger agreement understanding. In Proceedings of the Con-ference on Empirical Methods in Natural Language Processing , pages 16369–16382, 2023. [37] Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc V Le, Ed H Chi, Sharan Narang, Aakanksha Chowdhery, and Denny Zhou. Self-consistency improves chain of thought reasoning in lan-guage models. In International Conference on Learning Representations , 2023. [38] Yizhong Wang, Yeganeh Kordi, Swaroop Mishra, Alisa Liu, Noah A Smith, Daniel Khashabi, and Hannaneh Hajishirzi. Self-Instruct: Aligning language models with self-generated instruc-tions. In Proceedings of the Annual Meeting of the Association for Computational Linguistics ,pages 13484–13508, 2023. [39] Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten Bosma, Brian Ichter, Fei Xia, Ed Chi, Quoc V Le, and Denny Zhou. Chain-of-thought prompting elicits reasoning in large language models. In Advances in Neural Information Processing Systems , volume 35, pages 24824– 24837, 2022. [40] Can Xu, Qingfeng Sun, Kai Zheng, Xiubo Geng, Pu Zhao, Jiazhan Feng, Chongyang Tao, Qingwei Lin, and Daxin Jiang. WizardLM: Empowering large language models to follow complex instructions. In International Conference on Learning Representations , 2024. [41] Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Bengio, William W Cohen, Ruslan Salakhut-dinov, and Christopher D Manning. HotpotQA: A dataset for diverse, explainable multi-hop question answering. In Proceedings of the Conference on Empirical Methods in Natural Lan-guage Processing , pages 2369–2380, 2018. [42] Shunyu Yao, Dian Yu, Jeffrey Zhao, Izhak Shafran, Thomas L Griffiths, Yuan Cao, and Karthik Narasimhan. Tree of thoughts: Deliberate problem solving with large language models. In 
+
+Advances in Neural Information Processing Systems , volume 36, 2023. [43] Michihiro Yasunaga, Hongyu Ren, Antoine Bosselut, Percy Liang, and Jure Leskovec. QA-GNN: Reasoning with language models and knowledge graphs for question answering. In 
+
+Proceedings of the Conference of the North American Chapter of the Association for Compu-tational Linguistics , pages 535–546, 2021. 12 [44] Qijie You, Wenkai Yu, and Wentao Zhang. AgenticRAGTracer: A hop-aware benchmark for diagnosing multi-step retrieval reasoning in agentic RAG. arXiv preprint arXiv:2602.19127 ,2026. [45] Xikun Zhang, Antoine Bosselut, Michihiro Yasunaga, Hongyu Ren, Percy Liang, Christo-pher D Manning, and Jure Leskovec. GreaseLM: Graph reasoning enhanced language models. In International Conference on Learning Representations , 2022. [46] Chunting Zhou, Pengfei Liu, Puxin Xu, Srinivasan Iyer, Jiao Sun, Yuning Mao, Xuezhe Ma, Avia Efrat, Ping Yu, Lili Yu, et al. LIMA: Less is more for alignment. In Advances in Neural Information Processing Systems , volume 36, 2023. [47] Denny Zhou, Nathanael Schärli, Le Hou, Jason Wei, Nathan Scales, Xuezhi Wang, Dale Schu-urmans, Claire Cui, Olivier Bousquet, Quoc V Le, et al. Least-to-most prompting enables complex reasoning in large language models. In International Conference on Learning Repre-sentations , 2023. [48] Xinyu Zhu, Yihao Feng, Yanchao Sun, Xianzhi Du, Pingzhi Li, Olli Saarikivi, Yun Zhu, and Yu Meng. CHIMERA: Compact synthetic data for generalizable LLM reasoning. arXiv preprint arXiv:2603.00889 , 2026. 
+
+## A Proof of Theorem 1 
+
+We provide a constructive proof for each L ≥ 3.
+
+Base case (L = 3 ). Consider the 3 × 3 Gram matrix of (v1, v 2, v 3):
+
+G =
+
+
+
+1 710 x 
+
+> 710
+
+1 710 
+
+x 710 1
+
+ , x = S(v1, v 3).
+
+The configuration is realizable in Rd (d ≥ 2) if and only if G ⪰ 0. By Sylvester’s criterion, the 1 × 1
+
+minor equals 1 > 0 and the 2 × 2 minor equals 51 100 > 0, both independent of x; the sole binding condition is therefore det( G) ≥ 0. Computing via cofactor expansion: 
+
+det( G) = −x2 + 49 50 x + 150 = − 150 (x − 1)(50 x + 1) .
+
+Setting det( G) ≥ 0 gives the realizable domain x ∈ [− 150 , 1]. Since − 150 < 12 , the configuration 
+
+S(v1, v 3) = − 150 is geometrically valid (the Gram matrix has rank 2, confirming realizability for all 
+
+d ≥ 2) while violating the global target, despite every adjacent pair satisfying S(vi, v i+1 ) = 710 .
+
+Extension to all L > 3. The local hop constraint S(vk, v k+1 ) ≥ 710 references only adjacent nodes and imposes no constraint coupling vk+1 to v1. We show that for any node vk with S(v1, v k) = s ≤ 
+
+> 12
+
+, there exists a geometrically valid vk+1 satisfying S(vk, v k+1 ) = 710 and S(v1, v k+1 ) < 12 .Consider the Gram matrix of the triple (v1, v k, v k+1 ):
+
+H(y) = 
+
+
+
+1 s ys 1 710 
+
+y 710 1
+
+ , y = S(v1, v k+1 ).
+
+Computing det( H) = −y2 + 7s 
+
+> 5
+
+y + 51 100 (1 − s2), the realizable domain for y is: 
+
+y ∈
+
+[ 
+
+> 7s
+> 10
+
+−√51(1 −s2)10 , 7s 
+
+> 10
+
++
+
+√51(1 −s2)10 
+
+]
+
+.
+
+For any s ≤ 12 , the linear term satisfies 7s 
+
+> 10
+
+≤ 720 = 0 .35 . Since 
+
+√51(1 −s2)10 ≥ 0, the lower bound satisfies: 
+
+ymin (s) = 7s 
+
+> 10
+
+−√51(1 −s2)10 ≤ 7s 
+
+> 10
+
+≤ 0.35 < 12 .
+
+Thus, setting y = ymin (s) always yields a geometrically valid vk+1 that maintains the violation. Therefore, for every L ≥ 3 there exists a valid chain with S(v1, v L) < 12 = τdrift , and an explicit global constraint S(v1, v L) ≥ τdrift is a strict geometric necessity. ■
+
+13 B Proof of Theorem 2 and Empirical Verification 
+
+Proof 
+
+Let θ(u, v ) = arccos( S(u, v )) denote the geodesic distance on Sd−1. Since ϵ ∈ (0 , π/ 2) , the spheri-cal cap C(c, ϵ ) is geodesically convex: any two points in the cap lie in an open hemisphere centred at 
+
+c, and the length-minimising geodesic between them remains within the cap. The spherical triangle inequality therefore applies. 
+
+Pairwise similarity lower bound inside the clique. For any u, v ∈ C(c, ϵ ):
+
+θ(u, v ) ≤ θ(u, c ) + θ(c, v ) ≤ 2ϵ. 
+
+Since cos( ·) is strictly decreasing on [0 , π ]:
+
+S(u, v ) = cos( θ(u, v )) ≥ cos(2 ϵ). (∗)
+
+Part (i). If cos(2 ϵ) ≥ τmin , then by (∗) every pair (u, v ) ∈ C(c, ϵ )×C(c, ϵ ) satisfies S(u, v ) ≥ τmin .A search constrained only from below can traverse an arbitrarily long chain without leaving C(c, ϵ ).
+
+Part (ii). Suppose ϵ < 12 arccos( τmax ), i.e. 2ϵ < arccos( τmax ). Since cos( ·) is strictly decreasing: 
+
+cos(2 ϵ) > τ max . By (∗), for any vi ∈ C(c, ϵ ) and any u ∈ C(c, ϵ ):
+
+S(vi, u ) ≥ cos(2 ϵ) > τ max .
+
+The upper-bound constraint S(vi, v i+1 ) ≤ τmax therefore eliminates every u ∈ C(c, ϵ ). The algo-rithm must select vi+1 with θ(vi, v i+1 ) ≥ arccos( τmax ) > 2ϵ, placing vi+1 strictly outside C(c, ϵ ).
+
+■
+
+Empirical Verification of Boilerplate Clique Radii 
+
+To verify the geometric premise of Theorem 2, we applied DBSCAN ( eps = 0 .05 cosine distance, 
+
+min_samples = 3 ) to the 45 ,551 L2-normalized keyword centroids extracted from CUAD training contracts. 1 The threshold eps = 0 .05 corresponds to a similarity floor of 0.95 , deliberately aligned with the τsyn = 0 .95 synonym-exclusion boundary in Eq. (4). DBSCAN identified 5,313 dense boilerplate clusters. Of the 45 ,551 centroids, 55 .0% were classi-fied as noise points (i.e., isolated keywords not belonging to any dense cluster), confirming that the majority of legal keywords occupy unique conceptual positions in the embedding space and do not form repetitive template families. For each cluster, we computed the angular radius ϵ as the maxi-mum angular distance from any member to the L2-normalized cluster centroid. Table 6 summarises the distribution. Table 6: Angular radius distribution of CUAD boilerplate clusters. The theoretical bound is 12 .92 ◦.Statistic Value Mean ¯ϵ 10 .87 ◦
+
+Median 10 .89 ◦
+
+p90 13 .11 ◦
+
+p95 13 .69 ◦
+
+p99 14 .86 ◦
+
+Max 18 .97 ◦
+
+Clusters with ϵ < 12 .92 ◦ 4,667 /5,313 (87 .8% )For the 87 .8% majority, Theorem 2 provides a strict geometric guarantee that τmax = 0 .90 forces exit from the local cluster within one hop. For the remaining 12 .2% of clusters whose radius mod-estly exceeds the bound (up to 18 .97 ◦; p99 = 14 .86 ◦), two complementary constraints limit the prac-tical impact: (1) the synonym-exclusion filter τsyn = 0 .95 independently eliminates near-identical nodes, and (2) cluster sizes are small (median 4, max 10 ), making persistent local looping unlikely in practice. This dual-threshold design ensures forward chain momentum across the full CUAD embedding space.     
+
+> 1850 centroids were excluded due to API retry failures during the re-embedding run; the analysis covers 98 .2% of the
+> 46 ,401 centroids reported in Table 7.
+
+14 Figure 4: Distribution of max angular radius ϵ per DBSCAN-identified boilerplate cluster in CUAD (n = 5 ,313 clusters). Blue bars: clusters satisfying ϵ < 12 .92 ◦ (N = 4 ,667 , 87 .8% ); red bars: clusters violating the bound ( N = 646 , 12 .2% ). The Theorem 2 bound at 12 .92 ◦ (= 12 arccos(0 .90) )is shown as a dashed red line. The distribution peaks near 10 –11 ◦, confirming that the large majority of CUAD boilerplate cliques fall within the geometric escape guarantee of τmax = 0 .90 .
+
+Figure 5: Max angular radius ϵ by DBSCAN cluster size. Each box shows the interquartile range; the orange line is the median; whiskers extend to the 5th/95th percentile. Blue boxes: median 
+
+ϵ < 12 .92 ◦; red boxes: median ϵ ≥ 12 .92 ◦. Sample counts n are annotated above each box. The absence of a systematic upward trend with cluster size confirms that the Theorem 2 geometric guarantee does not degrade for larger boilerplate cliques within the observed size range. The two clusters of size 10 ( n = 2 ) are included for completeness but carry limited statistical weight. 15 C Additional Method Details 
+
+We include implementation details for the graph-constrained synthesis algorithm here. 
+
+Atomization and parsing. The extraction stage uses deterministic prompting with temperature 0.1. The prompt requests a JSON object containing distinct keywords, atomic questions, and atomic an-swers. The parser first attempts strict JSON decoding. If decoding fails, an AST fallback parser and regular-expression sanitization repair common schema violations such as trailing commas, un-escaped quotation marks, or malformed list delimiters. Only validated atomic QA pairs enter the evidence database. 
+
+Identifier discipline. Each atomic QA pair receives a globally unique, auto-incrementing integer identifier. The identifier is independent of document boundaries. This design makes generated answers traceable to source atoms. It also enables the supplementary ID-gap audit in Appendix E. That audit is not the primary split evidence. 
+
+Path search details. For every unique keyword, the centroid text contains the keyword and up to two representative QA contexts. All centroids are L2-normalized and indexed using FAISS 
+
+IndexFlatIP [19]. Candidate neighbors are first restricted to the top 100 nearest centroids. They are then filtered by synonym exclusion, core association, predecessor compatibility, global drift, and lexical deduplication. Lexical deduplication applies lowercased exact match, substring containment, character-overlap coefficient > 0.80 , and difflib sequence ratio > 0.60 over visited keyword la-bels. The search uses a bounded best-first depth-first traversal. It caps branching at B = 5 and grows paths to at most Lmax = 8 nodes. After enumeration, maximal-path pruning discards any path that is a strict prefix of a longer accepted path. For the enumerated path set P, the retained set is 
+
+Pmax = {P ∈ P :̸ ∃Q ∈ P s.t. P ≺ Q} , (6) where P ≺ Q means that the ordered node sequence of P is a strict prefix of Q.
+
+Teacher fusion details. The final path is serialized into evidence blocks. Each node contributes at most three supporting evidence items. The generation teacher Mgen runs at temperature 0.2. It is prompted to write a complex question that requires all chain nodes and an answer that cites the cor-responding evidence IDs. The response schema requires a complex_question , complex_answer ,and evidence registry. The pipeline retries up to three times on API failure or schema violation. Malformed IDs are normalized into a canonical ID_xxx format when the target evidence item can be recovered from the source chain. Otherwise the chain fails the quality gate. 
+
+Path-enumeration pseudocode. Algorithm 1 compactly states the bounded constrained DFS used by Section 3. 
+
+Computational complexity. Algorithm 1 decomposes the offline synthesis cost into two phases: dense retrieval and bounded DFS traversal. 
+
+Dense retrieval. All |V | centroid vectors are indexed in a single FAISS IndexFlatIP structure. For each node u expanded during DFS (line 7 of Algorithm 1), retrieving the top-K nearest neighbours requires an exhaustive inner product over the full index at cost O(|V | · d), where d = 1536 . To avoid redundant computation across the |V | seed-node DFS runs, each node’s top-K neighbour list is precomputed once and cached before the traversal phase; subsequent DFS expansions of the same node read from cache at O(1) . Under this single-pass retrieval strategy, the total cost of the dense retrieval phase is O(|V |2 · d) in the worst case (all |V | nodes queried), and significantly less in practice because the stringent Iedge filter leaves many nodes unreachable. 
+
+Bounded DFS traversal. With neighbour lists precomputed, each DFS expansion reads K = 100 
+
+pre-cached candidates and applies the admissibility filter to select at most B = 5 successors. The total number of states explored per seed node is bounded by 
+
+|States per seed | ≤ 
+
+> Lmax
+
+∑
+
+> l=1
+
+B l = B(BLmax − 1) 
+
+B − 1 ≈ 4.8 × 10 5. (7) Since ∑Ll=1 Bl = Θ( BL) (the geometric series is dominated by its final term), the traversal cost over all |V | seed nodes is O(|V |· BLmax ). Because BLmax and d are constants independent of corpus 16 Algorithm 1 Bounded constrained DFS for path enumeration (per seed node v1). 
+
+Require: Centroid set V , FAISS index, thresholds (τmin , τ max , τ syn , τ ∗
+
+> prev
+
+(·), τ ∗
+
+> drift
+
+(·)) , B, K,
+
+Lmax . 
+
+> 1:
+
+P ← ∅ ; push partial path P = ( v1) onto stack.  
+
+> 2:
+
+while stack is not empty do  
+
+> 3:
+
+Pop P = ( v1, . . . , u ). 
+
+> 4:
+
+if |P | ≥ 2 then  
+
+> 5:
+
+add P to P. 
+
+> 6:
+
+end if  
+
+> 7:
+
+if |P | = Lmax then  
+
+> 8:
+
+continue . 
+
+> 9:
+
+end if  
+
+> 10:
+
+N ← top-K FAISS neighbors of u. 
+
+> 11:
+
+N ok ← { v ∈ N \ P : Iedge (u, v ; P ) = 1 } using Eq. (4).  
+
+> 12:
+
+Sort N ok by S(u, v ) and keep the top B. 
+
+> 13:
+
+for all v ∈ N ok do  
+
+> 14:
+
+push P ∪ (v). 
+
+> 15:
+
+end for  
+
+> 16:
+
+end while  
+
+> 17:
+
+Pmax ← { P ∈ P :̸ ∃Q ∈ P s.t. P ≺ Q} {maximal-path pruning}  
+
+> 18:
+
+return Pmax .size, both phases combine additively: Total = O(|V |2 · d + |V | · BLmax ) = O(|V |2 · d) , (8) where the retrieval phase dominates. This guarantees that the offline path-enumeration pipeline scales quadratically in the corpus size |V |, making it computationally tractable for corpus-scale synthesis. 
+
+## D Training and Reproducibility Details 
+
+We report the training and compute details for Section 4. All fine-tuning experiments use Qwen3-32B with LoRA rank r = 8 , alpha 16, dropout 0.05, target modules set to all-linear , learning rate 1 × 10 −5, global batch size 64, maximum sequence length 4096, and one epoch. Pre-existing adapter weights are discarded before each training run. All reported SFT conditions use the same optimization settings unless they are explicitly labeled Mixed-SFT. Experiments were conducted on NVIDIA H800 GPUs with 80GB memory. Standard SFT runs used 8 H800 GPUs. The Mixed-SFT run used 24 H800 GPUs. The estimated total compute across reported training and inference experiments is approximately 2,400 GPU-hours. The use of LoRA and QLoRA-style efficient fine-tuning follows prior parameter-efficient adaptation work [17, 5]. 
+
+## E Split and Overlap Analysis 
+
+We record the source-contract split, the data construction funnel, and the supplementary overlap audit. The primary split is performed before chunking, atomization, path construction, and teacher fusion. Using seed 42, the 510 CUAD source contracts are split into 357 train, 51 development, and 102 test contracts. To strictly ensure data isolation, the held-out test set is constructed using an independent execution pipeline. Specifically, training paths are synthesized strictly from the atomized records of the training subset, while held-out paths are generated solely from the test subset. After path enu-meration, the validated paths undergo teacher fusion, generating separate final evaluation datasets corresponding to the Gemini and DeepSeek teacher models. Only 94 of the 102 test contracts ap-pear in the final QA composition because some contracts do not yield chains that survive Step 3 path construction and Step 4 teacher fusion. 17 Table 7: Data construction funnel under the source-contract split. Final train QA denotes filtered semantic-chain QA before subsampling to the 80K SFT corpus. The held-out test uses 102 source contracts; 94 contract keys produce final QA after Step3/Step4 filtering.                               
+
+> Split Contracts Chunks Atomic QA Embedded centroids Semantic paths Final QA Train 357 16,931 69,654 46,401 85,499 80,799 Test paths 102 4,020 16,672 13,268 22,272 —Test-GE 94 ————21,186 Test-DS 94 ————19,238
+
+Table 8: Held-out test set composition after teacher fusion. Hop buckets use the Step3 chain length written in metadata.                
+
+> Test set Final QA Avg. evidence IDs 3-hop 4–5-hop ≥6-hop GE 21,186 4.62 4,308 6,303 10,575 DS 19,238 5.58 4,183 5,793 9,262
+
+We also estimate document-boundary overlap using jumps in globally unique evidence IDs. A p95 
+
+identifier-gap threshold of 15 is used to infer document boundaries. This heuristic identifies 3 over-lapping inferred document units and 303 overlapping QA pairs. The estimated overlap does not increase across the 40K, 60K, and 80K training scales. Because the main split is source-contract-level, this ID-gap result is only a secondary audit for progressive contamination. It is not the basis of the split claim. The remaining leakage risk is template-level rather than source-contract-level. CUAD contracts can contain repeated boilerplate and near-duplicate legal clauses across different source files. Future work should report exact duplicate, near-duplicate, answer-overlap, and evidence-overlap statistics across the source-contract split. 
+
+## F Metric Definitions and Faithfulness Caveats 
+
+We define the automatic metrics and state their limits. 
+
+Token F1. Token F1 is computed between the model response and the gold synthetic answer after standard normalization. It is useful for comparing models within a fixed answer style. It can reward longer answers, repeated legal terminology, citation templates, and teacher-specific phrasing. It does not identify whether the answer used all hops in the chain. 
+
+Evidence Recall. Let IDs( yi) denote the evidence IDs emitted by prediction yi. Let E⋆i denote the gold evidence-ID set. ER is the fraction of gold evidence IDs that appear in the model response: 
+
+ER = 1
+
+N
+
+> N
+
+∑
+
+> i=1
+
+|IDs( yi) ∩ E ⋆i ||E ⋆i | .
+
+Higher is better, but ER is diagnostic only. It measures exact recall of gold evidence identifiers. It does not measure whether the cited evidence entails the answer. The low ER values in the main tables show that citation-format learning is much stronger than exact evidence-ID recovery. 
+
+Citation Format Rate. CFR measures whether the model follows the required citation syntax: 
+
+CFR = 1
+
+N
+
+> N
+
+∑
+
+> i=1
+
+1[|IDs( yi)| > 0] .
+
+It does not measure whether the cited evidence entails the claimed reasoning step. A model can achieve high CFR while citing an ID that is syntactically valid but semantically unsupported. Future evaluation should add invalid-citation rate, evidence precision, citation-support entailment accuracy, human citation audits, and support ordering accuracy. 18 Table 9: Performance across chain-length buckets on the GE/DS test sets. Chain Length Base-DS DS-SFT ∆pp Base-GE GE-SFT ∆pp 
+
+≤ 3-hop 18.59% 35.98% 17.39 21.61% 37.32% 15.71 4–5-hop 19.12% 36.64% 17.52 21.63% 38.13% 16.50 
+
+≥ 6-hop 19.09% 38.08% 18.99 21.69% 39.35% 17.66 Table 10: Zero-shot transfer and forgetting analysis on a LegalBench subset. LegalBench Task Base DS-SFT GE-SFT consumer_contracts_qa 95.71% 95.71% 95.71% contract_nli_notice_on_compelled_disclosure 97.18% 95.77% 97.18% cuad_audit_rights 88.16% 86.76% 87.75% cuad_non-compete 85.75% 84.62% 86.43% Average 91.90% 90.86% 91.71% 
+
+## G Chain Topology Diagnostics 
+
+We report topology statistics for the semantic path builder. These diagnostics describe path construc-tion behavior. They do not directly measure reasoning quality. The train and held-out test path builders produce similar topology statistics. The train split yields 85,499 paths with average chain length 5.66, average adjacent-hop similarity 0.7625, and average endpoint similarity 0.6094. The held-out test split yields 22,272 paths with average chain length 5.57, average adjacent-hop similarity 0.7631, and average endpoint similarity 0.6141. The chain-length distributions are also similar. In train, lengths 3/4/5/6/7/8 account for 21.1/17.2/12.1/8.3/6.9/34.5% of paths. In test, the corresponding distribution is 21.9/18.1/11.9/8.7/7.1/32.1%. This stability shows that the held-out chain builder follows the same constrained topology regime as the training builder. Human hop-necessity and citation-support validation remain future work. 
+
+## H Chain-Length Bucket Stratification 
+
+Table 9 stratifies the in-pipeline closed-book results from Section 5.1 by Step3 chain length. Gains are slightly larger in longer buckets, especially for DS-SFT at ≥6 hops. This pattern is consistent with better use of multi-hop supervision but does not by itself prove improved long-chain reasoning, since longer buckets may differ in answer length, lexical overlap, and question difficulty. Future work should add answer-length-normalized F1, evidence-ordering accuracy, and per-question hop-necessity audits. 
+
+## I LegalBench Anti-Forgetting Check 
+
+Domain-specific fine-tuning can damage general capabilities [24]. We evaluate a small LegalBench subset [12, 36] as a check that GCSCS-driven SFT does not catastrophically forget related contract-understanding tasks. Table 10 shows that GE-SFT and DS-SFT stay within 1% of the Qwen3-32B-Base average ( 91 .71% and 90 .86% vs. 91 .90% ). This rules out catastrophic forgetting on this subset; we do not interpret it as evidence of broad legal-reasoning transfer. 
+
+## J Limitations and Future Work 
+
+The experiments in this paper are scoped to a single domain (CUAD legal contracts), a single base model (Qwen3-32B with LoRA), and a single embedding model ( text-embedding-v4 ). We dis-cuss the main methodological boundaries below. 19 J.1 Scope of the yield claim 
+
+The yield and downstream Token F1 gains are measured under a fixed pipeline configuration. All five admissibility thresholds ( τmin , τmax , τsyn , τ ∗
+
+> prev
+
+, τ ∗
+
+> drift
+
+) were calibrated on the CUAD development set; their behaviour on other high-boilerplate domains (e.g., SEC filings, medical guidelines) has not been evaluated. Whether the [0 .70 , 0.90] admissibility band transfers without re-tuning is an open question. The matched-size comparison at 18K (Table 2) is based on a single training seed. While the 0.15% 
+
+gap is consistent with a tie, multi-seed confidence intervals and a paired bootstrap test would provide stronger statistical footing for this conclusion. The data scaling curve in Figure 3 uses a single run per scale point for the same reason. 
+
+J.2 Baseline coverage 
+
+The current experiments compare GCSCS to random chain sampling at matched and full scale. Com-parisons to BM25- or entity-graph-based chain construction, within-document random chains, and established path-before-generation pipelines such as FactCG [26] would further characterize the specific contribution of dense semantic retrieval to the yield improvement. These comparisons are natural extensions of the present work. 
+
+J.3 Embedding and model sensitivity 
+
+All centroid vectors are computed with a single encoder family. Replacing text-embedding-v4 
+
+with alternative encoders (e.g., Sentence-BERT [33], SimCSE [9]) would establish whether the ad-missibility band is encoder-specific. Similarly, the downstream SFT experiments use only Qwen3-32B; results on smaller or differently pre-trained base models are not reported. 
+
+J.4 Reasoning and grounding evaluation 
+
+Token F1 and CFR measure lexical overlap and format adherence, respectively; neither directly measures multi-hop reasoning depth. Hop-necessity audits (evaluating whether each hop in the chain is causally required for the answer), per-citation NLI scoring, and blinded human evaluation of chain quality remain important directions for validating the reasoning content of the synthesized data. 
+
+J.5 Citation behaviour under distribution shift 
+
+The citation-as-suffix collapse documented in Section 5.5 shows that closed-book citation training and open-book RAG inference are structurally incompatible under the current schema. Mixed-format training partially mitigates but does not resolve this incompatibility. A training approach that conditions citation emission on the presence of retrieved evidence, rather than treating it as a positional suffix, is a natural direction for future work. 
+
+## K Broader Impacts, Licensing, and Deployment Risks 
+
+Positive impact. Lower-cost construction of domain-specific multi-hop SFT supervision can help small legal-tech teams that cannot afford human-authored chain annotation. The yield observation also clarifies a practical bottleneck for synthetic data work in any high-boilerplate, repeat-clause domain: it is teacher-acceptability of candidate chains, not nominal generation volume, that limits scale. 
+
+Fabricated legal authority is a concrete failure mode of this exact system. The closed-book Mixed-SFT model emits ∼95% syntactically valid ID_xxx citations while exact gold-evidence-ID recall (ER) sits at ∼2.4% . Mechanically, this means the model is essentially always emitting an evidence-ID-shaped string, while the string almost never matches any specific evidence the answer actually depends on. For a non-expert reader looking at the closed-book output — well-formatted answer ending in citation IDs — this looks like an authoritative legal citation. For a deployment context, this is the failure mode of fabricated legal authority : the system produces a confident 20 citation to a clause-ID that has no semantic relationship to the claim. The open-book CFR collapse to 8% shows that the model does not robustly cite evidence that is actually present in the prompt. We therefore explicitly state that the closed-book SFT system in this paper is not safe to deploy in any setting where a non-expert user might treat its citation output as a genuine legal reference. 
+
+Required deployment safeguards. Any legal-workflow use of a model trained with this kind of synthetic citation supervision should require, at minimum: (i) inference-time retrieval-grounded verification (e.g., per-citation NLI between the cited text and the answer); (ii) abstention when no retrieved span entails the answer; (iii) audit logs that surface invalid citations to a reviewer; (iv) expert human review before any output is shown to an end user; and (v) explicit user-facing labelling that the system is a research artefact and not a legal advisor. We do not claim that adding these safeguards would suffice; we claim only that they are necessary. 
+
+Dataset license. CUAD [14] is released under CC BY 4.0. Our use — atomization, embedding, path enumeration, and teacher-fused multi-hop QA generation — falls within the dataset’s permitted use for research and adaptation provided that attribution is preserved. We do not redistribute CUAD source contracts. We intend to release the synthesized derivative QA examples and the synthesis pipeline code; commercial redistribution of derivatives is not authorized by us. 
+
+Teacher-LLM terms-of-service. The synthesis pipeline calls two commercial teacher LLMs (Gem-ini and DeepSeek) for atomization and fusion. Both providers’ terms of service should be reviewed before any public release of the resulting student weights. In particular, distillation/training-on-output clauses vary across providers and across model versions and may restrict release of weights derived from teacher output. We treat this as a release-time constraint on the LoRA adapters and on the synthesized SFT corpus, and we will publish the explicit ToS check at public release time. 
+
+Energy and compute footprint. The reported training and inference experiments use approximately 
+
+2,400 NVIDIA H800 GPU-hours total (Appendix D). A non-trivial fraction is spent on teacher inference for the synthesis pipeline rather than on student training. Practitioners reproducing this work should plan for both budgets and may prefer cheaper open-weight teachers when the goal is yield study rather than absolute quality. 
+
+Negative-use considerations. The same yield mechanism — “find candidate evidence paths that the teacher comfortably verbalizes” — can in principle be used to generate large volumes of plausible-looking but unverified legal text. Combined with the citation-as-suffix behavior we document, this creates a non-trivial misinformation surface in legal contexts. We recommend that downstream users do not deploy citation-emitting closed-book legal QA models without an independent grounding verifier. 
+
+## L Human-Annotated Multi-Hop Transfer 
+
+To further bound whether in-pipeline gains reflect generalizable multi-hop reasoning, we run zero-shot closed-book inference on 3,500 bridge-type HotpotQA [41] and 1,500 answerable MuSiQue [35] validation questions (no supporting documents; paired t-tests on per-sample Token F1). Ta-ble 11 summarizes the outcome: Token F1 improvements are at most ∼0.6% —orders of magni-tude smaller than the +16% –+18% gains on our CUAD-style test—so the headline improvement is dominated by domain-specific answer style and citation-template adaptation rather than transferable multi-hop reasoning. The small non-zero HotpotQA lift rules out a degenerate “no transfer” story while confirming that any transfer remains marginal. Table 11: Zero-shot closed-book transfer on human-annotated benchmarks. No fine-tuning on either benchmark was performed; p-values are paired t-tests on per-sample Token F1.                          
+
+> Model HotpotQA MuSiQue F1 EM pF1 EM p
+> Qwen3-32B-Base 22.97% 12.43% —13.14% 3.13% —Qwen3-32B-GE-SFT 23.53% 12.97% 0.035 13.65% 3.20% 0.136 Qwen3-32B-DS-SFT 23.56% 13.09% 0.021 13.61% 3.40% 0.197
+
+21
