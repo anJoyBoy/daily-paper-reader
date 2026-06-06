@@ -1,0 +1,2424 @@
+Title: TANDEM: Bi-Level Data Mixture Optimization with Twin Networks
+
+URL Source: https://arxiv.org/pdf/2606.04401v1
+
+Published Time: Thu, 04 Jun 2026 00:30:16 GMT
+
+Number of Pages: 26
+
+Markdown Content:
+# TANDEM: Bi-Level Data Mixture Optimization with Twin Networks 
+
+Jiaxing Wang ∗1, Deping Xiang ∗1, Jin Xu 2, Mingyang Yi † 3, Guoqiang Gong 1,Zicheng Zhang 1, Haoran Li 4, Pengzhang Liu † 1, Zhen Chen 1, Ke Zhang 1,
+
+Ju Fan 3, Qixiang Jiang 11JD.com 2 University of Oxford 3Renmin University of China 
+
+> 4
+
+University of Chinese Academy of Sciences 
+
+{wangjiaxing41,xiangdeping1,gongguoqiang1,zhangzicheng6}@jd.com {liupengzhang,chenzhen48,zhangke323,jiangqixia}@jd.com {yimingyang,fanj}@ruc.edu.cn jin.xu@stats.ox.ac.uk lihaoran21@mails.ucas.ac.cn 
+
+Abstract 
+
+The capabilities of large language models (LLMs) significantly depend on training data drawn from various domains. Optimizing domain-specific mixture ratios can be modeled as a bi-level optimization problem, which we simplify into a single-level penalized form and solve with twin networks: a proxy model trained on primary data and a dynamically updated reference model trained with additional data. Our proposed method, Twin Networks for bi-level DatA mixturE optiMiza-tion (TANDEM), measures the data efficacy through the difference between the twin models and up-weights domains that benefit more from the additional data. TANDEM provides theoretical guarantees and wider applicability, compared to prior approaches. Furthermore, our bi-level perspective suggests new settings to study domain reweighting such as data-restricted scenarios and supervised fine-tuning, where optimized mixture ratios significantly improve the performance. Extensive experiments validate TANDEM’s effectiveness in all scenarios. 
+
+1 Introduction 
+
+The success of large language models (LLMs) largely relies on extensive training data collected from diverse domains, including chat logs [ 18 ], academic writings [ 32 ], mathematical problems [ 45 ], and code repositories [ 21 ]. The emergent capabilities observed in LLMs are substantially influenced by the specific composition of cross-domain corpora [ 13 , 38 ]. Therefore, it is important to carefully balance the proportions of domain-specific data in training sets to ensure models develop intended and balanced capabilities for target domains. Optimizing the mixture ratios of data domains can be formulated as a bi-level optimization problem, in which the inner loop optimizes model parameters for a fixed ratio on training data, while the outer loop searches for the best mixture ratio on validation data. Due to the difficulty of exactly solving this bi-level problem, we transform it into a single-level optimization problem. Specifically, the inner-level optimization is viewed as a Lagrangian penalty within the outer-level objective. This perspective naturally motivates the introduction of twin networks: a proxy model trained exclusively on the primary training data, and a reference model exposed to additional validation data. Interestingly, this twin-network formulation relates closely to prior methods such as DoReMi [ 37 ] and DoGE 
+
+> ∗
+
+Equal Contribution. 
+
+> †
+
+Corresponding to Pengzhang Liu 39th Conference on Neural Information Processing Systems (NeurIPS 2025). 
+
+> arXiv:2606.04401v1 [cs.LG] 3 Jun 2026
+
+[7], offering insights into addressing their limitations. Based on this formulation, we propose Twin Networks for bi-level DatA mixturE optiMization (TANDEM), an algorithm that measures the domain data efficacy through the twin models’ disparities and ultimately approximates the original bi-level optimization problem. Unlike DoReMi, which employs a static reference model, TANDEM dynamically updates both models. Additionally, TANDEM enhances stability and provides theoretical convergence guarantees compared to DoGE, as it aggregates multiple updating steps and avoids relying directly on gradient estimation, thereby mitigating issues related to high variance. The bi-level formulation also emphasizes that future research on data domain weighting could focus more on scenarios with limited domain-specific data and supervised fine-tuning (SFT), rather than exclusively on traditional pretraining settings with abundant data. From a bi-level optimization viewpoint, assigning equal mixture ratios becomes a valid solution for single-epoch training when domain data is abundant, aligning with recent empirical findings highlighting uniform mixing strategies as competitive baselines [ 2]. Despite the prevalence of big data, limited data scenarios are quite common, particularly within specific domains, since large datasets frequently consist of many heterogeneous smaller datasets [ 33 ]. Furthermore, SFT often requires domain data to be visited multiple times, which creates generalization gap that leads to non-trivial solution for the bi-level problem. It is precisely in these cases that optimizing data mixture ratios can yield significant improvements. While previous methods like DoReMi and those built on data mixing laws [ 41 , 23 , 16 ] are not directly applicable to these newer scenarios, TANDEM can be effectively extended. Our experimental results demonstrate TANDEM’s effectiveness in such settings. Our contributions can be summarized as follows: • We introduce TANDEM, an effective and efficient algorithm for data mixture optimization that utilizes twined proxy and reference networks to approximate the bi-level objective. TANDEM enjoys theoretical convergence guarantees. • We highlight that data mixture optimization is particularly beneficial in scenarios with limited data availability rather than traditional pretraining setups with abundant domain data. • We empirically show TANDEM’s effectiveness across standard and data-limited scenarios, showing its superiority over a set of competitive data mixture optimization methods. 
+
+2 Methodology 
+
+We formulate the problem of finding the optimal data mixture ratio as bi-level optimization. To solve the problem, we propose our penalty-based algorithm TANDEM, as presented in Figure 1(b) and Algorithm 1 in Appendix A. TANDEM draws insights from many previous works, while improving upon them. Besides, by inspecting the bi-level optimization formulation, we suggest broadening the scope of research on data mixture optimization under limited-domain data and supervised fine-tuning (SFT), rather than focusing solely on conventional data-rich pretraining settings. The notations used in this paper are summarized in Appendix H. 
+
+2.1 Problem Formulation 
+
+Consider training an LLM on a data composition from M domains, {D 1, D2, . . . , DM } (e.g. Wikipedia, CommonCrawl). Data mixture optimization (DMO) refers to the problem of finding the optimal proportions of data for each domain α = [ α1, α 2, . . . , α M ] over probability simplex 
+
+A := {α ∈ RM | PMm=1 αm = 1 , α m ≥ 0}. For any data mixture ratio α, and its correspond-ing model parameter w(α) obtained by training loss, our goal is to minimize the validation loss 
+
+Lval (w(α)) over α. The optimization problem is formulated as follows:          
+
+> min
+> α∈A Lval (w(α)) :=
+> MX
+> m=1
+> Lm
+> val (w(α)) s.t. w(α)∈arg min
+> wLtrain (α,w) :=
+> MX
+> m=1
+> αmLm
+> train (w).(1)
+
+By splitting the data into training and validation sets, we can construct the validation and training loss Lm
+
+> val
+
+(w) and Lm
+
+> train
+
+(w) on domain Dm. Intuitively, in the bi-level problem, the outer level problem seeks the optimal domain weights for validation loss with the model weights obtained by the inner level reweighted training loss. Similar to [ 37 , 7], given the learned final mixture ratio α∗,2Proxy  Model                       
+
+> steps steps steps steps steps
+> Ref. Models
+> Mixture Ratio
+> Time
+> Update Ratio Update Ratio Update Ratio
+> books
+> wiki
+> cc
+> books
+> wiki
+> cc
+> books
+> wiki
+> cc
+> books
+> wiki
+> cc
+> books
+> wiki
+> cc
+> Mixture
+> Ratio
+> Stage Two
+> Full LLM training with the
+> learned mixture ratio.
+> Stage One
+> Data mixture ratio learning
+> with TANDEM
+
+(a) The Two-Stage DMO. Proxy  Model                      
+
+> steps
+> steps steps
+> steps
+> steps
+> Ref. Models
+> Mixture Ratio
+> Time
+> Update Ratio Update Ratio Update Ratio
+> books
+> wiki
+> cc
+> books
+> wiki
+> cc
+> books
+> wiki
+> cc
+> books
+> wiki
+> cc
+> books
+> wiki
+> cc
+> Mixture
+> Ratio
+> Stage Two
+> Full LLM training with the
+> learned mixture ratio.
+> Stage One
+> Data mixture ratio learning
+> with TANDEM
+
+(b) Computation Procedure of TANDEM 
+
+Figure 1: (a) The two-stage data mixture optimization. Optimal mixtures are first learned and then utilized to train the final model. (b) The computation procedure of TANDEM, twined proxy model (green) and reference model (orange) are used to determine the update of the mixture ratio (pink). we construct the final training set by sampling Dα∗ ≜ PMm=1 α∗ · UNIF ( Dm) upon which the final model is trained (Figure 1(a)). 
+
+2.2 Twin Networks for Bi-level Data Mixture Optimization 
+
+Solving the bi-level optimization problem (1) is challenging due to its nested structure. By viewing the inner-level problem as a constraint and subsequently incorporating it into the outer-level problem as a Lagrangian penalty, (1) can be reformulated as a single-level problem [30, 19]: 
+
+min  
+
+> α∈A ,w
+
+Hγ (α, w) := Lval (w) + γ
+
+
+
+Ltrain (α, w) − min  
+
+> u
+
+Ltrain (α, u)
+
+
+
+. (2) Here, the auxiliary variable u is introduced as a proxy of w(α) ∈ S∗(α) := arg min w Ltrain (α, w).The constrain in (1) is transferred into the penalization Ltrain (α, w) − min u Ltrain (α, u). Clearly, by properly invoking γ → ∞ , the solution of (2) will approximate the original (1) . This claim is justified by Proposition 3 in [ 30 ]. We refer readers to the Appendix A for more information. Next, we proceed to illustrate our algorithm of optimizing the penalized Lagrange problem (2). 
+
+Algorithm Procedure Besides the mixture ratio α, optimizing (2) deals with two models: a proxy model u and a reference model w. As shown in Figure1(b), the optimization processes of α, w, and 
+
+u are indexed by t, k and k.
+
+Update on u: Firstly, given a data mixture ratio α(t), we find the u ∈ arg min u Ltrain (α(t), u) in the penalization term under certain mixture ratio α. Our u is updated for K steps to approximate the optimal one: 
+
+u(t) 
+
+> k+1
+
+= u(t) 
+
+> k
+
+− ηu∇uLtrain 
+
+
+
+α(t), u(t)
+
+> k
+
+
+
+(3) (green line with arrow in Figure 1(b)). The proxy model is trained on the whole training set and maintained through the DMO process. 
+
+Update on w: w serves as a reference model updated on both the training and the validation sets. Similar to the proxy model u, w is updated for K steps before one data mixture ratio α update, which is used to optimize the inner problem (2) . Note that the term related to w is Lval (w) + γLtrain (α, w),the update rule then becomes: 
+
+w(t) 
+
+> k+1
+
+= w(t) 
+
+> k
+
+− ηw
+
+
+
+∇wLval 
+
+
+
+α(t), w(t)
+
+> k
+
+
+
++ γ∇wLtrain 
+
+
+
+α(t), w(t)
+
+> k
+
+ 
+
+, (4) (orange line in Figure 1(b)). Intuitively, training w for multiple steps provides more subtle guidance for mixture ratio update. This will be elaborated in the α update part. Unlike the proxy model u, which is maintained throughout training (green line in Figure 1(b)), we do not maintain an independent reference model w, but rather synchronize the starting point of w and 
+
+u by setting w(t)0 = u(t)0 as a initialization of the K updates. By doing so, we control the disparity 3between w and u during the optimization. Intuitively, w and u should not diverge from each other as 
+
+u acts as a proxy of w(α) ∈ S∗(α) and w approximates w∗ 
+
+> γ
+
+(α) ∈ S∗ 
+
+> γ
+
+(α) := arg min w Hγ (α, w).Clearly, the ideal w∗ 
+
+> γ
+
+(α) under penalized problem will approximate one w(α) when γ → ∞ , since the penalized Lagrange problem (2) approximates the original problem (1). 
+
+Update on α: The mixture ratio update in (5) seeks a solution of (2) . That says, a data mixture ratio yields a trained model with good performance on data from the validation set under all domains. The term in (2) related to α is γ (Ltrain (α, w) − min u Ltrain (α, u)) . Recall that Ltrain (α, ·), by definition, is the α weighted domain-wise loss. Applying the projected gradient descent gives the following update rule: 
+
+α(t+1) = Π A
+
+α(t) − ηαγ
+
+L1: M
+
+> train
+
+
+
+α(t), w(t)
+
+> K
+
+| {z }
+
+> reference model
+
+− L 1: M
+
+> train
+
+
+
+α(t), u(t)
+
+> K
+
+| {z }
+
+> proxy model
+
+ , (5) (Pink line in Figure 1(b).) where ΠA(·) projects the updated mixture ratio to the probabilistic simplex. The post-updated u(t) 
+
+> K
+
+and w(t) 
+
+> K
+
+are applied to capture the domain-wise loss difference 
+
+Lm
+
+> train
+
+(w(t) 
+
+> K
+
+)−L m
+
+> train
+
+(u(t) 
+
+> K
+
+). Since the u(t) 
+
+> K
+
+and w(t) 
+
+> K
+
+are respectively trained on training set and training set plus validation set, the aforementioned gap captures the gain of incorporating the additional validation data. Larger loss differences indicate that the model gets significant improvement by consuming more data, thus the corresponding domains are up-weighted. In each episode t, K steps training on u and w are conducted to probe the proper direction of α
+
+update. Notably, the parameters of proxy model u and reference model w are synchronized at the beginning of probing, forming a Twin Networks for bi-level DatA mixturE optiMization (TANDEM) framework. Since the updating of α requires u, w probing, in practice, we decrease the frequency of updating α to reduce the computational cost, and leave the proxy model u trained freely for E
+
+steps before the next α update (see Figure 1(b)). Altogether the updates of u, w, α, the data mixture optimization (DMO) problem can be solved efficiently. The overall computation graph of TANDEM is outlined in Figure 1(b), and a detailed workflow is summarized in Algorithm 1 in Appendix A. 
+
+Convergence Analysis Next, we explore the convergence rate of our proposed method. For a non-convex bi-level optimization problem, it is standard to study its first-order stationary convergence result e.g., [ 30 , 19 ]. Notably, our problem (2) is a constrain problem over α ∈ A . Thus, it should be considered in first-order stationary condition as in [ 9, 30 ]. The convergence result of our method is summarized in the following theorem. 
+
+Theorem 1 (Informally) . For sufficiently large T , under mild assumptions (detailed in Appendix A), for α(t) obtained in TANDEM Algorithm 1, it converges to first-order stationary point of problem (2) 
+
+in the rate of O(T − 14 ) by properly selecting γ, K, E, η α, η w, and ηu.
+
+The proof is left in Appendix A. Theorem 1 indicates that TANDEM theoretically ensures the optimality of the learned mixture ratio. 
+
+2.3 TANDEM Improves Existing DMO Methods 
+
+We discuss the relationship between TANDEM and two existing methods, DoReMi [ 37 ] and DoGE [ 7]. By comparing the hyper-gradient ∆ 3 that determines α updates in different methods, we show that our TANDEM draws common insights from previous works and improves upon them. DoReMi updates the mixture ratio according to the excess loss of a proxy model u relative to a reference model ¯w trained on uniformly sampled data. DoGE [ 7 ] pioneers bi-level optimization to settle data mixtures and tracks the influence [ 28 ] of each domain on the validation data. Specifically, 
+
+∆DoGE = ∇L train 
+
+ α(t), u (t) , ∇L val 
+
+ α(t), u (t) . The inner product ⟨·⟩ is essentially a first-order approximation of the domain-wise loss difference between a proxy model and a reference model, where the reference model is obtained by one-step update on the validation data. Outlined in Table 1, we see that ∆ of all three methods takes the form of per-domain loss difference between a proxy model and a reference model. Nevertheless, contrasting DoReMi, which adopts a       
+
+> 3DoReMi and DoGE utilize exponential gradient descent to update αwhere α(t+1) ∝α(t)exp( −ηα∆)
+
+4Table 1: Summary of ∆ in DoReMi, DoGE and TANDEM. All three methods update α with two models. 
+
+Method Hyper-gradient ∆
+
+DoReMi − max {L 1: M 
+
+> train
+
+(α(t), u(t))
+
+| {z }
+
+> proxy model
+
+− L 1: M 
+
+> train
+
+( ¯ α, ¯w)
+
+| {z }
+
+> reference model
+
+, 0}
+
+DoGE L1: M 
+
+> train
+
+(α(t), u(t) − η∇L val (u(t))) 
+
+| {z }
+
+> reference model
+
+− L 1: M 
+
+> train
+
+(α(t), u(t))
+
+| {z }
+
+> proxy model
+
+TANDEM L1: M 
+
+> train
+
+(α(t), w(t) 
+
+> K
+
+)
+
+| {z }
+
+> reference model
+
+− L 1: M
+
+> train
+
+
+
+α(t), u(t)
+
+> K
+
+| {z }
+
+> proxy model
+
+Figure 2: SFT exhibits lower gradi-ent alignment than pretraining 0 200 400 600 800 1000 
+
+> Steps
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> cos( g1, g2)
+> pretrain
+> SFT
+
+fixed reference model, the reference model w in TANDEM is dynamic, which better captures the current training status. In its original form, DoGE incurs significant memory overhead as it maintains the per-domain gradients. Relaying explicitly on the gradient estimation also makes it vulnerable to instability issues in high gradient variance scenarios like supervised fine-tuning (SFT). Our TANDEM better adapts, as increasing the probing step K helps reduce the variance on ∆, as will be elaborated in Section 4.3. In Figure 2, we show that SFT exhibits higher gradient variance than pretraining. The alignment of g1 and g2 cos( g1, g 2) is used as a proxy of the gradient variance, where g1 and g2
+
+are gradients evaluated on different batches. Lower alignment cos( g1, g 2) indicates larger gradient variance. 
+
+2.4 Domain Reweighting Beyond Traditional Settings 
+
+In the above, we discuss our method to determine the data mixture ratio by solving bi-level problem (1) . The circumstances under which DMO is most effective remain to be explored. Theoretically, the standard training setting sets αm = 1 /M for every m. Let us check the following proposition. 
+
+Proposition 1. Assume Lm 
+
+> train
+
+= Lm
+
+> val
+
+, the uniform data mixture ratio ¯αm = 1 
+
+> M
+
+for m = 1 , . . . , M 
+
+constitutes a valid solution of the bi-level mixture optimization (1) .
+
+The proof is left in Appendix B. As can be seen, when the generalization gap |L m 
+
+> val
+
+−L m
+
+> train
+
+| approaches zero, uniform weighting emerges as a valid solution, thus making the reweighting less significant. This holds for the conventional data-abundant scenario. When ¯αm = 1 
+
+> M
+
+, the train data and validation data are independently identically distributed, so the loss gap is approximately zero for the first epoch training. 4. This aligns with the empirical observations that uniform weighting is highly competitive that many DMO methods can not consistently outperform [2]. When there is limited data in specific domains or the trained model overfits to some domain, since both phenomenons result in a large generalization gap, the reweighting technique over data domains becomes significant. In fact, even though LLMs are trained on massive datasets overall, it is common for specific domains to be relatively small, e.g., specialized scientific literature, low-resource languages, or domain-specific user interactions. In practice, the data-restricted scenario is ubiquitous. Furthermore, in SFT, repeated passes over the same domain data exacerbate overfitting and widen the generalization gap [ 10 ], which presents more interesting opportunities for domain reweighting. Please refer to Appendix F.1 for empirical evidence. 
+
+3 Related Work 
+
+Data mixture optimization is drawing increasing attention for designing LLMs with comprehensive and balanced capabilities. Our work follows the recent trend of formulating the DMO as a bi-level optimization. We summarize the related literature from these two strands of research in the following. 
+
+Data Mixture Optimization Conventional industry practices determine the optimal cross-domain composition with human expertise [ 6 , 34 , 11 ]. To circumvent the exhaustive trial-and-error, various heuristics has been explored. DoReMi [ 37 ] settles the mixture ratio by 
+
+> 4
+
+In the data-abundant training scenario, samples are consumed only once. 
+
+5minimizing the worst-domain excess loss relative to a well-trained reference model, pursuing good performance in all domains. [23 , 41 , 16 ] fit global data mixing laws, predict the per-formance on other mixtures, and search for those with good performances. Other works cap-ture the inter-domain relations through domain embeddings [ 39 ] or training several models [ 3]. Table 2: Computational complexity of different DMO methods. Method Computational Complexity Vanilla Train CT E 
+
+DoReMi 73 CT E 
+
+DoGE 2CT E 
+
+Skill-it ( M 
+
+> 4
+
++ 1) CT E + M 
+
+> 3
+
+CT 
+
+Aioli CT E + M CT K + 13 M 2CT 
+
+TANDEM CT E + 2 CT K + 23 CT 
+
+Skill-It [ 3] then utilize the inter-domain relations to establish a local data mixing law that predicts the per-domain loss. Aioli [ 2] improves Skill-It by dynamically updating the inter-domain relation matrix according to current model states. Never-theless, these approaches remain theoretically un-grounded due to their inductive nature, and incorpo-rating the fitting of the mixing law incurs additional approximation error. DOGE [ 7] pioneers bi-level optimization to settle data mixtures and tracks the influence [ 28 ] of each domain on the validation set. However, assessing the influence relies directly on the per-domain gradient estimation, which under-mines its efficacy in high gradient variance scenar-ios while incurring large memory overhead. Comparison of the computational complexity of these strategies is given in Table 2, where C is the complexity of one step training of a model. T is the update number of α. Typically, the overall computational cost of these methods is of the order: Aioli > Skill-it > DoReMi ≈ DoGE ≈ TANDEM 5 6. Note that, although the complexity of DoGE is not particularly large, it requires per-domain gradient computation, which is unfriendly to the computing kernel and takes significantly more time in practice. 
+
+Bi-level Optimization Bi-level optimization has been an important research topic in many scientific disciplines, however, solving the bi-level optimization problem is challenging due to the complicated dependency of the upper-level and lower-level problems. Typical bi-level optimization algorithms [ 24 ,5, 29 , 12 , 4 , 15 ] requires estimation of the implicit gradient, which requires second-order derivatives on the lower-level variables. Incorporating the Hessian makes it computationally prohibitive for large-scale problems. Recently [ 30 , 19 , 20 ] pioneer the penalized methods, where the inner-level problem is reformulated into an penalty. As first-order gradient-based approaches, the penalized methods avoid the estimation of the Hessian or the Jacobian. Though effective in theory, their practical applications in large-scale LLM settings remain rarely explored. The most similar to ours is the recent ScaleBio [ 27 ], which belongs to this category, and is specially tailored for large-scale data mixture optimization problems. Nevertheless, the solving procedure is different, TANDEM enjoys more stable training by synchronizing u and w periodically. 
+
+4 Experiments 
+
+In this section, we compare TANDEM to state-of-the-art algorithms in Section 4.2. Then we analyse the effectiveness of each design ingredient in Section 4.3. 
+
+4.1 Experimental Setup 
+
+We consider three application scenarios: conventional data-abundant pretraining, data-restricted training, and supervised fine-tuning. A brief summarization of the experimental setup is introduced below, while complete hyper-parameter settings and implementation details are in Appendix C. 
+
+Data-Abundant Scenario: For the data-aboundant scenario, we train 160M GPT-style LMs [ 1]on a 6B sampled version of SlimPajama [ 31 ] as in [ 2 ]. SlimPajama consists of 7 domains: ArXiv, Books, CommonCrawl, C4, Github, StackExchange, and Wikipedia. The statistics of this sampled corpus are given in Figure 4. We set E = 20 , K = 5 , train with batch size 8 and context length 2048 for 40000 steps (with respect to updates of proxy model u, so the mixture ratio α is updated for 
+
+∼2000 steps.) as [ 2]. Though the SlimPajama-6B corpus exhibits significant domain imbalance, 40K           
+
+> 5We assume backward takes 2 ×computation as the forward process.
+> 6Skill-it trains Mmodels with data from each domain for Hsteps, we use H=14T E in our analysis.
+
+60 8000 16000 24000 32000 40000           
+
+> Steps
+> 0.10
+> 0.12
+> 0.14
+> 0.16
+> 0.18
+> 0.20
+> 0.22
+> Data Abundant Pretraining.
+> arxiv
+> book
+> c4
+> cc
+> github
+> stackexchange
+> wikipedia 01000 2000 3000 4000 5000
+> Steps
+> 0.10
+> 0.15
+> 0.20
+> 0.25
+> 0.30
+> Data Restricted Pretraining.
+> arxiv
+> book
+> c4
+> cc
+> github
+> stackexchange
+> wikipedia 01000 2000 3000 4000 5000
+> Steps
+> 0.10
+> 0.15
+> 0.20
+> 0.25
+> 0.30
+> Supervised Fine-tuning.
+> Textual Ent.
+> Answer Ver.
+> Text Mat.
+> Inf. Ext.
+> Word Sem.
+> Text Cat.
+
+Figure 3: Step-wise data mixture ratio evolution under three scenarios. We repeat the DMO 3 times and the 95 % confidence intervals are given. (a) data-abundant pretraining (b) data-restricted pretraining and (c) supervised fine-tuning. steps of training doesn’t deplete even the smallest domain, so this setting constitutes a data-abundant one-epoch scenario. The penalty constant γ is set to 1 across all the experiments. Experiments are conducted on eight NVIDIA Hopper H-100s. 
+
+Data-Restricted Scenario: For the data-restricted scenario, we construct a 300M sampled version of SlimPajama and keep the domain distribution unchanged. GPT-style LMs of size 160M, 410M and 1B are trained to examine the scalability of TANDEM. In this scenario, we train with K = E = 5 ,batch size 128, and context length 512 for 5000 steps, which ensures that samples in small domains like Arxiv, Books, StackExchange, and Wikipedia are exposed more than once. After DMO, the learned mixture ratio is utilized to resample the 300M corpus for the final model training. 
+
+Supervised Fine-tuning: For supervised fine-tuning, we use 6 major categories (containing 99 tasks) from Natural Instructions [ 25 , 35 ], Textual Entailment, Answer Verification, Text Matching, Information Extraction, Word Extraction and Text Categorization. Prioritizing diversity of capabilities and formats, this corpus is comprised of open-ended text generation, multiple choice, and True/False tasks. Due to the limited space, the statistics are given in Appendix D. In this scenario, we train a pretrained Qwen2-500M model [ 40 ] with K = 10 , E = 10 , batch size 64, and context length 512 for 5000 steps. Different from pretraining where the majority of samples are only trained once, in instruction tuning, each sample is on average exposed 1.15 times. 
+
+4.2 Comparisons with State of the Arts 
+
+We compare TANDEM against various state-of-the-art methods. Uniform A simple baseline that uniformly mixes groups and requires zero extra training runs. DoReMi [ 37 ] adopts the idea of distributionally robust optimization and searches for the data mixture ratio by minimizing the worst-domain excess loss over a reference model trained with the uniform strategy. DOGE [7 ] solves the DMO problem by tracking the data influence of each domain on the validation set and up-weights the most influential domains. Skill-It [ 3] trains several models to fit an inter-domain relation matrix, which is later used to establish an incremental data mixing law that induces a mixture ratio α update rule. Aioli [2] improves Skill-It by dynamically updating the inter-domain relation matrix according to current model states. For the baselines, We use the published implementations. 7 Averaged results from 3 runs are reported. Due to limited space, the standard deviation is given in Appendix E 
+
+Data-Abundant Pretraining In Table 3 (Upper), we see that TANDEM discovers mixture ratios with comparative performance. As discussed in Section 2.4, in this scenario, the uniform strategy is highly competitive. The mixture ratio for the baselines is obtained from Aioli [ 2]. We show the step-wise data mixture ratio evolution of TANDEM during DMO in Figure 3 (Left). Note that the uniform strategy is not the only valid solution to the DMO problem, and TANDEM finds another solution that performs equally well. The detailed learned mixture ratio of each method is given in Appendix G). 
+
+> 7
+
+DoReMi : https://github.com/sangmichaelxie/doremi, DOGE : https://github.com/Olivia-fsm/DoGE, Skill-It 
+
+and Aioli : https://github.com/HazyResearch/aioli 
+
+7Table 3: Comparison for the 160M GPT-style model on SlimPajama in the data-abundant sce-nario (Upper) and data-restricted scenario (Lower). Per-domain perplexity is reported and “Average” represents the exponential of the average loss across all domains as in [ 7 , 2 ]. † denotes the results reported use the mixture ratio given in Aioli [2]. 
+
+Methods Arxiv Book C4 CommonCrawl Github Stackexchange Wikipedia Average Data Abundent Regime Uniform 11.46 62.53 66.43 59.29 6.71 13.98 28.31 25.74 DoReMi † 12.71 80.09 82.60 71.76 5.75 14.26 29.54 28.32 DoGE † 12.89 51.50 54.32 49.34 8.48 16.77 37.21 26.60 Skill-It † 11.76 62.24 64.58 59.84 6.36 12.36 34.87 25.87 Aioli † 11.47 61.89 65.52 58.24 6.74 14.08 28.48 25.66 TANDEM 11.53 61.82 65.92 58.86 6.63 13.76 27.26 25.43 
+
+Data Restricted Regime Uniform 18.05 65.86 71.05 63.76 9.37 17.94 34.27 31.53 DoReMi 18.90 80.29 89.05 79.02 10.24 19.74 43.20 36.91 DoGE 17.76 60.88 65.08 58.81 9.00 17.71 33.94 30.10 Skill-It 20.93 52.00 57.11 49.50 8.77 16.74 40.49 29.24 Aioli 17.68 62.48 69.02 61.44 9.26 17.79 33.06 30.67 TANDEM 16.85 52.75 56.82 51.11 8.99 18.21 32.52 28.07 
+
+Figure 4: SlimPajama-6B Statistics. 0    
+
+> 10
+> 20
+> 30
+> 40
+> 50
+> 3.4 3.7
+> 28.7
+> 54.1
+> 4.2 2.8 3.1
+> arxiv
+> books
+> c4
+> cc
+> github
+> stackexchange
+> wikipedia
+
+Table 4: Comparison for models of different sizes. 160M 410M 1B Avg. Time Avg. Time Avg. Time Uniform 31.53 - 29.59 - 29.91 -DoReMi 36.91 16 min 54.61 31 min 56.53 41 min 
+
+DoGE 30.10 65 min 27.45 172 min - -Skill-It 29.24 28 min 27.70 59 min 27.15 80 min 
+
+Aioli 31.19 36 min 28.79 64 min 28.07 93 min 
+
+TANDEM 28.07 26 min 25.00 57 min 24.35 77 min 
+
+Data-Restricted Pretraining For the data-restricted training scenario, TANDEM significantly outperforms baselines as shown in Table 3 (Lower). For instance, it achieves 28.07 averaged perplexity, surpassing the most competitive Skill-It by 1.17 and the uniform baseline by 3.46. In this scenario, the uniform strategy is no longer competitive. Equally assigning 1 
+
+> M
+
+weights potentially leads to overfitting in small domains (repeated multiple times), while leaving the large domains underfitting. The mixture ratios learned with TANDEM and other baselines are shown in Figure 5, and the step-wise data mixture ratio evolution during the data mixture optimization is given in Figure 3 (Middle). We see that after DMO, CommonCrawl and C4 take the majority, driven by their extensive lexical diversity and complex semantics. Nevertheless, compared to the original data distribution, TANDEM up-weights the small domains Arxiv, Books, Github, StackExchange and Wikipedia from 3.4 %, 3.7 %,4.2 %, 2.8 %, 3.1 % to 8.9 %, 8.5 %, 7.6 %, 11.5 %, 7.9 % respectively, preventing these small domains from being overwhelmed while avoiding potential overfitting. Besides, we inspect the scalability of TANDEM with three different scales (160M, 410M, 1B) in Table 4. TANDEM consistently outperforms the baselines with a large margin while not incurs much computational overhead. We omit DoGE for the 1B model experiment due to its large memory consumption. 
+
+Supervised Fine-tuning The results for supervised fine-tuning are given in Table 5. The overall averaged accuracy as well as the test loss are reported. From Table 5, TANDEM outperforms or is on par with the other data mixture optimization methods in 5 out of 6 task clusters. Showing its effectiveness in the supervised fine-tuning scenario. Besides, we consider a more fine-grained task-level SFT (instead of the task cluster) case, please refer to Appendix D. 
+
+4.3 Analyses 
+
+To evaluate the effectiveness of each design component, we conduct ablation experiments. The model used is the 160M GPT-style model unless specified. Due to limited space, we focus on the effect of synchronizing u and w, the effect of the probing steps K, and the robustness of TANDEM to model 8arxiv books c4 cc github stack. wikipedia 
+
+> 0.0
+> 0.1
+> 0.2
+> 0.3
+> 0.4
+> Mixture Ratio
+> DoReMi
+> DOGE
+> Skill-It
+> Aioli
+> TANDEM
+
+Figure 5: Mixture ratio learned by different methods. 0.2 0.4 0.6 0.8 1.0  
+
+> Model Size ×B
+> 0.1
+> 0.2
+> 0.3
+> 0.4
+> Mixture Ratio
+> arxiv
+> books
+> c4
+> cc
+> github
+> stackexchage
+> wikipedia
+
+Figure 6: Impact of different model sizes. Table 5: Comparison for the 500M Qwen-2 model on a mixture of 6 major categories (99 tasks in total) of supervised fine-tuning tasks. 
+
+Method Textual Ent. Answer Ver. Text Mat. Inf. Ext. Word Sem. Text Cat. Test Loss ↓ Avg. Metric ↑
+
+Uniform 84.4 75.1 86.2 77.8 88.3 83.2 0.231 82.5 DoReMi 85.3 74.9 83.6 78.1 87.0 79.0 0.249 81.6 DoGE 81.4 76.7 86.5 78.6 88.3 82.4 0.297 82.4 Skill-It 84.1 75.0 86.4 78.3 87.9 83.7 0.232 82.6 Aioli 83.9 75.8 86.2 78.0 88.3 84.0 0.229 82.7 TANDEM 85.3 76.3 86.2 78.6 88.5 84.9 0.208 83.3 
+
+scales. For a more comprehensive analysis, please refer to Appendix F, including the effectiveness of DMO in the real-world large-scale data (past chinchilla [ 14 ]) scenario, sensitivity of the final result on K and E, the performance of the DMO pretrained model on downstream tasks, as well as the performance of the proxy model u.
+
+The Effect of Synchronizing u and w One obvious characteristic of our method is that the proxy model u and the reference model w are synchronized by setting w(t)0 = u(t)0 . We show the effect of the synchronization by inspecting Dist( u, w) = ∥u − w∥2 along the DMO training process. From Figure 7(a), we see that with synchronization, the distance between u and w is well controlled under 
+
+1.5e−4 and gradually contracts during the whole DMO process. This contraction is critical for w
+
+and α in the penalized problem (2) to converge to the original bi-level optimization problem (1) as discussed in Section 2. On the contrary, independently maintaining the proxy model u and the reference model w incurs blown-up distance Dist( u, w) as shown in Figure 7(b). 0 200 400 600 800 
+
+> Steps
+> 0.2
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> consistency  cos ( , ) DOGE
+> TANDEM K=1
+> TANDEM K=3
+> TANDEN K=5
+
+Figure 8: The variance of ∆ decreases with more probing steps. 
+
+The Effect of the Probing Steps K During DMO, the hyper-gradient ∆ determines the update of α. To validate the effectiveness of K in reducing the variance of ∆, we trace cos 
+
+
+
+∆, ˜∆
+
+
+
+through the training. ˜∆
+
+is the hyper-gradient evaluated using another batch of data other than that of ∆, so cos 
+
+
+
+∆, ˜∆
+
+
+
+serves as a proxy of the variance, the better ∆ and ˜∆ aligns, the smaller the variance of hyper-gradient is. We inspect under the SFT setting (with the 500M Qwen model) where the gradients exhibited large variance. During the training, α is fixed to prevent the interference of inaccurate mixture ratio. From Figure 8, we see that DoGE exhibits the largest ∆ variance as it explicitly depends on the noisy parameter gradient estimation. As K increases, the variance of ∆ decrease, leading to more reliable updates of the mixture ratio. Nevertheless, large K increases the computational cost. So in practice and we need to deliberately choose the proper K. 
+
+The Effect of the Model Scale To investigate how the model size will impact the final mixture ratio. In Figure 6, we compare α learned with models of size 160M, 410M, and 1B. We see that learned 91000 2000 3000 4000 5000                  
+
+> 0.0
+> 0.5
+> 1.0
+> 1.5 ×10 4
+> 2000 2005 2010 2015
+> 0
+> 2
+> ×10 5(a) Dist( u,w)with synchronization. 500 1000 1500 2000 2500
+> 0
+> 2
+> 4
+> 6
+> ×10 3(b) Dist( u,w)w/o synchronization.
+
+Figure 7: The Dist( u, w) evolution comparison during DMO with and without u, w synchronization. 
+
+α with larger models are slightly "sharper" than the smaller ones. More specifically, the 1B model further increases the weights of the already large CommonCrawl and C4 while down-weights the others. For large models, due to the increasing capability of memorizing samples, smaller domains are less likely to be overwhelmed, while the risk of potential overfitting increases. The capability of capturing this subtle difference further demonstrates the effectiveness of TANDEM. Nevertheless, the optimal mixture ratios under different model scales share the same trend, so a smaller model can work as a valid proxy for efficient searching. 
+
+5 Conclusion 
+
+In this paper, we propose TANDEM, a principled, efficient and versatile data mixture optimization framework. By solving the DMO bi-level optimization problem, TANDEM ensures the optimality of the learned mixture ratios, along with a O(T − 14 ) convergence rate. Besides the algorithmic contribution, from the bi-level optimization perspective, we further demonstrate the limitation of the conventional data-abundant setting in DMO and advocate new settings like data-restricted scenario as well as supervised fine-tuning. Extensive experiments and analysis are conducted to demonstrate the effectiveness of our approach. Our work deepens the understanding of data mixture optimization and expands its application scenarios. 
+
+References 
+
+[1] Stella Biderman, Hailey Schoelkopf, Quentin Gregory Anthony, Herbie Bradley, Kyle O’Brien, Eric Hallahan, Mohammad Aflah Khan, Shivanshu Purohit, USVSN Sai Prashanth, and Ed-ward Raff eta.al. Pythia: A suite for analyzing large language models across training and scaling. In International Conference on Machine Learning , 2023. [2] Mayee F. Chen, Michael Y. Hu, Nicholas Lourie, Kyunghyun Cho, and Christopher Ré. Aioli: A unified optimization framework for language model data mixing. In International Conference on Learning Representations , 2025. [3] Mayee F. Chen, Nicholas Roberts, Kush Bhatia, Jue Wang, Ce Zhang, Frederic Sala, and Christopher Ré. Skill-it! a data-driven skills framework for understanding and training language models. In Neural Information Processing Systems , 2023. [4] Tianyi Chen, Yuejiao Sun, and Wotao Yin. Closing the gap: Tighter analysis of alternating stochastic gradient methods for bilevel problems. In Advances in Neural Information Processing Systems , 2021. [5] Sang Keun Choe, Sanket Vaibhav Mehta, Willie Neiswanger Hwijeen Ahn, Pengtao Xie, Emma Strubell, and Eric Xing. Making scalable meta learning practical. In Advances in Neural Information Processing Systems , 2024. [6] Nan Du, Yanping Huang, Andrew M Dai, Simon Tong, Dmitry Lepikhin, Yuanzhong Xu, Maxim Krikun, Yanqi Zhou, Adams Wei Yu, Orhan Firat, Barret Zoph, Liam Fedus, Maarten P Bosma, Zongwei Zhou, Tao Wang, Emma Wang, Kellie Webster, Marie Pellat, Kevin Robinson, 10 Kathleen Meier-Hellstern, Toju Duke, Lucas Dixon, Kun Zhang, Quoc Le, Yonghui Wu, Zhifeng Chen, and Claire Cui. GLaM: Efficient scaling of language models with mixture-of-experts. In 
+
+Proceedings of the 39th International Conference on Machine Learning , 2022. [7] Simin Fan, Matteo Pagliardini, and Martin Jaggi. Doge : Domain reweighting with generaliza-tion estimation. In International Conference on Machine Learning , 2024. [8] Leo Gao, Jonathan Tow, Baber Abbasi, Stella Biderman, Sid Black, Anthony DiPofi, Charles Foster, Laurence Golding, Jeffrey Hsu, Alain Le Noac’h, Haonan Li, Kyle McDonell, Niklas Muennighoff, Chris Ociepa, Jason Phang, Laria Reynolds, Hailey Schoelkopf, Aviya Skowron, Lintang Sutawika, Eric Tang, Anish Thite, Ben Wang, Kevin Wang, and Andy Zou. The language model evaluation harness, 07 2024. [9] Saeed Ghadimi, Guanghui Lan, and Hongchao Zhang. Mini-batch stochastic approxima-tion methods for nonconvex stochastic composite optimization. Mathematical Programming ,155(1):267–305, 2016. [10] Ian Goodfellow, Yoshua Bengio, and Aaron Courville. Deep Learning . MIT Press, 2016. Book in preparation for MIT Press. [11] Aaron Grattafiori, Abhimanyu Dubey, Abhinav Jauhri, Abhinav Pandey, and Abhishek Kadian et.al. The llama 3 herd of models. arXiv preprint , arXiv:2407.21783, 2024. [12] Riccardo Grazzi, Massimiliano Pontil, and Saverio Salzo. Bilevel optimization with a lower-level contraction: Optimal sample complexity without warm-start. In Journal of Machine Learning Research , 2023. [13] Shangmin Guo, Yi Ren, Stefano V Albrecht, and Kenny Smith. Sample relationships through the lens of learning dynamics with label information. In Workshop on Interpolation Regularizers and Beyond at NeurIPS , 2022. [14] Jordan Hoffmann, Sebastian Borgeaud, Arthur Mensch, Elena Buchatskaya, Trevor Cai, Eliza Rutherford, Diego de las Casas, Lisa Anne Hendricks, Johannes Welbl, Aidan Clark, Tom Hennigan, Eric Noland, Katherine Millican, George van den Driessche, Bogdan Damoc, Aurelia Guy, Simon Osindero, Karen Simonyan, Erich Elsen, Oriol Vinyals, Jack William Rae, and Laurent Sifre. An empirical analysis of compute-optimal large language model training. In Alice H. Oh, Alekh Agarwal, Danielle Belgrave, and Kyunghyun Cho, editors, Advances in Neural Information Processing Systems , 2022. [15] Mingyi Hong, Hoi-To Wai, Zhaoran Wang, and Zhuoran Yang. A two-timescale stochastic algorithm framework for bilevel optimization: Complexity analysis and application to actor-critic. SIAM J. Optim. , 2023. [16] Feiyang Kang, Yifan Sun, Bingbing Wen, Si Chen, Dawn Song, Rafid Mahmood, and Ruoxi Jia. Autoscale: Automatic prediction of compute-optimal data compositions for training LLMs. 
+
+arXiv preprint , arXiv:2407.20177, 2025. [17] Hamed Karimi, Julie Nutini, and Mark Schmidt. Linear convergence of gradient and proximal-gradient methods under the polyak-łojasiewicz condition. In European Conference on Machine Learning , 2016. [18] Andreas Köpf, Yannic Kilcher, Dimitri von Rütte, Sotiris Anagnostidis, Zhi Rui Tam, Keith Stevens, Abdullah Barhoum, Duc Minh Nguyen, Oliver Stanley, Richárd Nagyfi, Shahul ES, Sameer Suri, David Alexandrovich Glushkov, Arnav Varma Dantuluri, Andrew Maguire, Christoph Schuhmann, Huu Nguyen, and Alexander Julian Mattick. Openassistant conversations - democratizing large language model alignment. In Neural Information Processing Systems ,2023. [19] Jeongyeol Kwon, Dohyun Kwon, Stephen Wright, and Robert Nowa. A fully first-order method for stochastic bilevel optimization. In International Conference on Machine Learning , 2023. [20] Jeongyeol Kwon, Dohyun Kwon, Stephen Wright, and Robert D Nowak. On penalty methods for nonconvex bilevel optimization and first-order stochastic approximation. In International Conference on Learning Representations , 2024. 11 [21] Raymond Li, Loubna Ben allal, and Yangtian Zi et.al. Starcoder: may the source be with you! 
+
+Transactions on Machine Learning Research , 2023. [22] Chin-Yew Lin. ROUGE: A package for automatic evaluation of summaries. In Text Summariza-tion Branches Out , 2004. [23] Qian Liu, Xiaosen Zheng, Niklas Muennighoff, Guangtao Zeng, Longxu Dou, Tianyu Pang, Jing Jiang, and Min Lin. Regmix: Data mixture as regression for language model pre-training. In International Conference on Learning Representations , 2025. [24] Dagréou Mathieu, Pierre Ablin, Samuel Vaiter, and Thomas Moreau. A framework for bilevel optimization that enables stochastic and global variance reduction algorithms. In Advances in Neural Information Processing Systems , 2022. [25] Swaroop Mishra, Daniel Khashabi, Chitta Baral, and Hannaneh Hajishirzi. Cross-task gener-alization via natural language crowdsourcing instructions. In Association for Computational Linguistics , 2022. [26] Maher Nouiehed, Maziar Sanjabi, Tianjian Huang, Jason D Lee, and Meisam Razaviyayn. Solving a class of non-convex min-max games using iterative first order methods. Advances in Neural Information Processing Systems , 2019. [27] Rui Pan, Jipeng Zhang, Xingyuan Pan, Renjie Pi, Xiaoyu Wang, and Tong Zhang. Scalebio: Scalable bilevel optimization for llm data reweighting. ar Xiv preprint , arXiv:2406.19976, 2024. [28] Garima Pruthi, Frederick Liu, Satyen Kale, and Mukund Sundararajan. Estimating training data influence by tracing gradient descent. In Advances in Neural Information Processing Systems ,2020. [29] Amirreza Shaban, Ching-An Cheng, Nathan Hatch, and Byron Boots. Truncated back-propagation for bilevel optimization. In International Conference on Artificial Intelligence and Statistics , 2019. [30] Han Shen and Tianyi Chen. On penalty-based bilevel gradient descent method. In International Conference on Machine Learning , 2023. [31] Daria Soboleva, Faisal Al-Khateeb, Joel Hestness, and Jacob Robert Steeves Nolan Dey Open-tensor: Robert Myers. Slimpajama: A 627b token, cleaned and deduplicated version of redpajam. https://www.cerebras.ai/blog/slimpajama-a-627b-token-cleaned-and-deduplicated-version-of-redpajama , 2023. [32] Ross Taylor, Marcin Kardas, Guillem Cucurull, Thomas Scialom, Anthony Hartshorn, Elvis Saravia, Andrew Poulton, Viktor Kerkez, and Robert Stojnic. Galactica: A large language model for science. arXiv preprint , arXiv:2211.09085, 2022. [33] Yee Whye Teh. On big data learning for small data problems. KDD ’18, page 3, New York, NY, USA, 2018. Association for Computing Machinery. [34] Hugo Touvron, Thibaut Lavril, Gautier Izacard, Xavier Martinet, Marie-Anne Lachaux, Timo-thée Lacroix, Baptiste Rozière, Naman Goyal, Eric Hambro, Faisal Azhar, Aurelien Rodriguez, Armand Joulin, Edouard Grave, and Guillaume Lample. Llama: Open and efficient foundation language models. arXiv preprint , arXiv:2302.13971, 2023. [35] Yizhong Wang, Swaroop Mishra, Pegah Alipoormolabashi, Yeganeh Kordi, Amirreza Mirzaei, Anjana Arunkumar, Arjun Ashok, Arut Selvan Dhanasekaran, Atharva Naik, and David Stap et al. Super-natural instructions: generalization via declarative instructions on 1600+ tasks. In 
+
+Conference on Empirical Methods in Natural Language Processing. , 2022. [36] Quan Xiao, Songtao Lu, and Tianyi Chen. A generalized alternating method for bilevel learning under the polyak-Łojasiewicz condition. In Neural Information Processing Systems , 2023. [37] Sang Michael Xie, Hieu Pham, Xuanyi Dong, Nan Du, Hanxiao Liu, Yifeng Lu, Percy Liang, Quoc V Le, Tengyu Ma, and Adams Wei Yu. Doremi: Optimizing data mixtures speeds up language model pretraining. In Neural Information Processing Systems , 2023. 12 [38] Sang Michael Xie, Shibani Santurkar, Tengyu Ma, and Percy Liang. Data selection for language models via importance resampling. In Neural Information Processing Systems , 2023. [39] Wanyun Xie, Francesco Tonin, and Volkan Cevher. Chameleon: A flexible data-mixing framework for language model pretraining and finetuning. In International Conference on Machine Learning , 2025. [40] An Yang, Baosong Yang, and Binyuan Hui el.al. Qwen2 technical report. arXiv preprint ,arXiv:2407.10671, 2024. [41] Jiasheng Ye, Peiju Liu, Tianxiang Sun, Jun Zhan, Yunhua Zhou, and Xipeng Qiu. Data mixing laws: Optimizing data mixtures by predicting language modeling performance. In International Conference on Learning Representations , 2025. [42] Mingyang Yi, Lu Hou, Jiacheng Sun, Lifeng Shang, Xin Jiang, and Qun Liu. Improved ood generalization via adversarial training and pretraing. In International Conference on Machine Learning , 2021. [43] Mingyang Yi, Ruoyu Wang, and Zhi-Ming Ma. Characterization of excess risk for locally strongly convex population risk. Advances in Neural Information Processing Systems , 2022. [44] Mingyang Yi, Ruoyu Wang, Jiacheng Sun, Zhenguo Li, and Zhi-Ming Ma. Breaking cor-relation shift via conditional invariant regularizer. In International Conference on Learning Representations , 2023. [45] Longhui Yu, Weisen Jiang, Han Shi, Jincheng YU, Zhengying Liu, Yu Zhang, James Kwok, Zhenguo Li, Adrian Weller, and Weiyang Liu. Metamath: Bootstrap your own mathematical questions for large language models. In International Conference on Learning Representations ,2024. 13 A Convergence of Bi-level Data Mixture Optimization 
+
+A.1 The Proposed Algorithm 
+
+As mentioned in the main part of this paper, the data mixture optimization problem is bi-level. Here we present a theoretical analysis of the proposed TANDEM. The original bi-level optimization problem 
+
+P : min  
+
+> α∈A
+
+Lval (w∗(α)) s.t. w∗(α) ∈ S∗(α) := arg min  
+
+> w
+
+Ltrain (α, w) (6) is difficult to solve owing to the imposed hard constraint. We turn to the Lagrangian problem of P
+
+such that 
+
+Pγ : min  
+
+> α∈A ,w
+
+Lval (w) + γ
+
+
+
+Ltrain (α, w) − min  
+
+> w
+
+Ltrain (α, w)
+
+
+
+(7) There is a vast variety of existing literature, e.g. [ 30 , 19 , 36 ] discuss the relationship between the Lagrangian problem Pγ and the original problem P. In a word, when taking γ sufficient large, the solution of Pγ will approximate the solution of P. Thereafter, we can develop the algorithm to Pγ to solve P, as we did in this paper. 
+
+Algorithm 1 Twin Networks for bi-level DatA mixturE optiMization (TANDEM) 
+
+Input: 
+
+Train set Dtrain , validation set Dval comprised of M domains. Episode number T , Episode length E, Probing length for each episode K,Learning rate ηw , ηu, ηα for w (reference), u (proxy) and α (mixture) respectively. 1: Initialize proxy model parameters u0 and domain weights α0.2: for t = 0 to T − 1 do 
+
+// Mixture ratio α update. 
+
+3: Set w(t)0 , u(t)0 ← u(t).4: for k = 0 to K − 1 do 
+
+5: u(t) 
+
+> k+1
+
+= u(t) 
+
+> k
+
+− ηu∇uLtrain (α(t), u(t) 
+
+> k
+
+).6: w(t) 
+
+> k+1
+
+= w(t) 
+
+> k
+
+− ηw (∇w Lval (w(t) 
+
+> k
+
+) + γ∇w Ltrain (α(t), w(t) 
+
+> k
+
+)) .7: end for 
+
+8: α(t+1) = Π A(α(t) − ηα(L1: M
+
+> train
+
+(α(t), w(t) 
+
+> K
+
+)
+
+| {z }
+
+> reference model
+
+− L 1: M
+
+> train
+
+(α(t), u(t) 
+
+> K
+
+)
+
+| {z }
+
+> proxy model
+
+)) 
+
+// Free model weights u update. 
+
+9: for e = 0 to E − 1 do 
+
+10: u(t) 
+
+> e+1
+
+= u(t) 
+
+> e
+
+− ηu∇uLtrain (α(t+1) , u(t) 
+
+> e
+
+).11: end for 
+
+12: Set u(t+1) ← u(t) 
+
+> E
+
+.13: end for Output: 
+
+domain weights α(T ).
+
+A full workflow of Twin Networks for bi-level DatA mixturE optiMizatio (TANDEM) is shown in Algorithm1. TANDEM alternates between updating the mixture ratio α and the proxy model 
+
+u, whereas u is used to approximate the minimum of Ltrain (α, w). Update of the mixture ratio 
+
+α requires probing the data efficacy of each domain. During probing, we optimize the reference model w, as well as the proxy model u for K steps. w and u are respectively trained on the train set and the train set plus validation set, their incurred loss gap captures the gain of incorporating the additional validation data. TANDEM then up-weights domains that benefit more from additional data. Notably, the proxy model u and reference model w are synchronized at the beginning of probing. Since the updating of α requires u, w probing, we decrease the frequency of updating α to reduce the computational cost, and leave the u trained freely for E steps before the next α update. 
+
+A.2 Convergence Rate 
+
+Next, we explore the convergence rate of the proposed Algorithm 1. For the original problem P (6) ,its convergence property under the iterates obtained by solving the Lagrange problem (7) has been 14 explored, under different regularity conditions [ 30 , 19 ]. In this paper, we will present our results under a mild Polyak-Łojasiewicz (PL) condition [ 43 , 17 , 30 , 44 , 26 , 42 ], which has been widely imposed to study the bi-level optimization problem. Technically, we will impose the following Assumptions to derive the convergence rate. Before illustrating our Assumptions, we need the following definitions to simplify the notations. We denote 
+
+Hγ (α, w) = Lval (w) + γ
+
+
+
+Ltrain (α, w) − min  
+
+> w
+
+Ltrain (α, w)
+
+
+
+, (8) with S∗ 
+
+> γ
+
+(α) = {w : w ∈ arg min w Hγ (α, w)}, and S∗(α) = {w : w ∈ arg min w Ltrain (α, w)}.We further define 
+
+H(α) = inf  
+
+> w∈S∗(α)
+
+Lval (w), (9) where H(α) is well-defined since Ltrain (α, w) is continuous to w. Besides that, the minimum of 
+
+H(α) is exactly the solution to original problem P (6). 
+
+Assumption 1 (PL condition) . For any α ∈ A , both Ltrain (α, w) and Hγ (α, w) satisfy the PL inequality with coefficient μ and μγ , respectively. That says: 
+
+Ltrain (α, w) − min  
+
+> w
+
+Ltrain (α, w) ≤ 12μ ∥∇ wLtrain (α, w)∥2 (10) 
+
+and 
+
+Hγ (α, w) − min  
+
+> w
+
+Hγ (α, w) ≤ 12μγ
+
+∥∇H γ (α, w)∥2. (11) 
+
+Moreover, the coefficient μγ satisfies lim γ→∞ μγ 
+
+> γ
+
+= 1 .
+
+Assumption 2 (Smoothness) . For any α ∈ A ,1. Both ∇wLtrain (α, w) and ∇wLval (w) are Lipschitz continuous to α (hold for 
+
+∇wLtrain (α, w)) and w on coefficient L.2. For any α ∈ A , both Ltrain (α, w) and Lval (w) are Lipschitz continuous to w with coeffi-cient B.
+
+Assumption 3 (Bounded Hessian) . For any α ∈ A , w ∈ S∗(α), there exists positive constants λ, ρ ,satisfying Hessian matrices ∇ww Ltrain (α, w) ⪰ λ8 and ∇2
+
+> αw
+
+Ltrain (α, w) ⪯ ρ.
+
+Assumption 4 (Lipschitz Hessian) . For any α ∈ A , Ltrain (α, w) is twice-times continuous differen-tiable, and the Hessian matrices ∇2
+
+> αw
+
+Ltrain (α, w), ∇2
+
+> ww
+
+Ltrain (α, w) are all Lipschitz continuous to w with coefficient H.
+
+Assumption 5 (Bounded Loss Function) . The non-negative loss function Ltrain (α, w), Lval (w) are uniformly bounded by positive constant D.
+
+Notably, for the bounded Hessian condition, due to the structure of Ltrain (α, w), it can be implied by the lower bounded ∇ww Lm
+
+> train
+
+(w) and an upper bounded ∇wLtrain (w) for any m. Moreover, it worth noting that for bi-level optimization problem, it is standard to impose some regularity conditions to the Hessian matrix. For examples, the smooth Hessian in [ 30 , 19 ] and lower bounded Hessian in [ 19 ]. Therefore, the imposed bounded Hessian Assumption 3 can be considered as a mild condition. Next, we present a lemma to characterize the gap between the gradient of ∇αH(α) and 
+
+∇αHγ (α, w).
+
+Lemma 1. Under Assumptions 1-4, for any given α and w∗ 
+
+> γ
+
+(α) ∈ S∗ 
+
+> γ
+
+(α), it holds 
+
+∇αH(α) − ∂∂α Hγ (α, w∗ 
+
+> γ
+
+(α)) ≤ 1
+
+γ
+
+ HB 2
+
+μ2
+
+ ρλ + 1 
+
+
+
++ ρLB μλ 
+
+
+
+(12) 
+
+Proof. Without loss of generality, suppose that H(α) = Lval (w∗(α)) , due to the chain rule, we have 
+
+∇αH(α) = ∇αLval (w∗(α)) = ∇αw∗(α)⊤∇wLval (w∗(α)) . (13) 
+
+> 8
+
+For two matrices A, A ⪰ λ means A − λI is a positively semi-definite matrix. 
+
+15 To simplify the notation, we denote w∗ 
+
+> γ
+
+(α) and w∗(α) as w∗ 
+
+> γ
+
+and w∗ in the sequel. For the penalized problem, given any w∗ 
+
+> γ
+
+(α), we have 
+
+∂∂α Hγ (α, w∗ 
+
+> γ
+
+)= ∇αHγ (α, w∗ 
+
+> γ
+
+) + ∇αw∗⊤  
+
+> γ
+
+∇wHγ (α, w∗ 
+
+> γ
+
+)= ∇αHγ (α, w∗ 
+
+> γ
+
+)= γ  ∇αLtrain (α, w∗ 
+
+> γ
+
+) − ∇ αLtrain (α, w∗) − ∇ αw∗⊤ ∇wLtrain (α, w∗)
+
+= γ  ∇αLtrain (α, w∗ 
+
+> γ
+
+) − ∇ αLtrain (α, w∗) − ∇ 2
+
+> αw
+
+Ltrain (α, w∗)( w∗ 
+
+> γ
+
+− w∗)
+
+− ∇ αw∗⊤ (∇wLval (w∗) + γ∇wLtrain (α, w∗)) + ∇αw∗⊤ ∇wLval (w∗) + γ∇2
+
+> αw
+
+Ltrain (α, w∗)( w∗ 
+
+> γ
+
+− w∗).
+
+(14) Besides that, we have 
+
+∇αw∗⊤ (∇wLval (w∗) + γ∇wLtrain (α, w∗)) = ∇αw∗⊤  ∇wLval (w∗) − ∇ wLval (w∗ 
+
+> γ
+
+)
+
++ γ∇αw∗⊤  ∇wLtrain (α, w∗) − ∇ wLtrain (α, w∗ 
+
+> γ
+
+) + ∇2
+
+> ww
+
+Ltrain (α, w∗)( w∗ 
+
+> γ
+
+− w∗)
+
++ γ∇2
+
+> αw
+
+Ltrain (α, w∗)( w∗ 
+
+> γ
+
+− w∗),
+
+(15) due to the optimal conditions ∇wLval (w∗ 
+
+> γ
+
+) + γ∇wLtrain (α, w∗ 
+
+> γ
+
+) = 0 , and ∇2
+
+> αw
+
+Ltrain (α, w∗) + 
+
+∇αw∗⊤ ∇2
+
+> ww
+
+Ltrain (α, w∗) = 0 . Combining the two above equations and (13), we get 
+
+∂∂α Hγ (α, w∗ 
+
+> γ
+
+) − ∇ αH(α)
+
+≤ γ  ∇αLtrain (α, w∗ 
+
+> γ
+
+) − ∇ αLtrain (α, w∗) − ∇ 2
+
+> αw
+
+Ltrain (α, w∗)( w∗ 
+
+> γ
+
+− w∗)
+
++ γ∇αw∗⊤  ∇wLtrain (α, w∗) − ∇ wLtrain (α, w∗ 
+
+> γ
+
+) + ∇2
+
+> ww
+
+Ltrain (α, w∗)( w∗ 
+
+> γ
+
+− w∗)
+
++ ∇αw∗⊤  ∇wLval (w∗) − ∇ wLval (w∗ 
+
+> γ
+
+)
+
+≤ γH 
+
+ ρλ + 1 
+
+
+
+∥w∗ − w∗ 
+
+> γ
+
+∥2 + ρL λ ∥w∗ − w∗ 
+
+> γ
+
+∥,
+
+(16) due to the bounded Hessian Assumption 3, Smoothness Assumption 2, and Lipchitz Assumption 4. Then, due to the PL condition 1 and Smoothness Assumption 2, we know there exists a w∗ 
+
+> γ
+
+(the projection of w∗ to S∗ 
+
+> γ
+
+(α)) satisfies 
+
+∥w∗ − w∗ 
+
+> γ
+
+∥ ≤ 1
+
+μ ∥∇ wLtrain (α, w∗ 
+
+> γ
+
+)∥≤ 1
+
+γμ 
+
+ ∥∇ wLval (w∗ 
+
+> γ
+
+) + γ∇wLtrain (w∗ 
+
+> γ
+
+)∥ + ∥∇ wLval (w∗ 
+
+> γ
+
+)∥
+
+= ∥∇ wLval (w∗ 
+
+> γ
+
+)∥
+
+γμ 
+
+≤ Bγμ .
+
+(17) Combining this with inequality (16) , we obtain the conclusion under such w∗ 
+
+> γ
+
+. Finally, due to the Lemma A.5 in [ 26 ], we know that ∇αHγ (α, w∗ 
+
+> γ
+
+) is invariant over w∗ 
+
+> γ
+
+∈ S∗ 
+
+> γ
+
+(α), we prove our conclusion. From Lemma 1, we know that the gap between the gradients of original problem H(α) and its Lagrange version Hγ (α, w∗ 
+
+> γ
+
+(α)) can be extremely small by invoking penalty parameter γ → ∞ .Thus, it implies that we can compute the gradient of the Lagrange problem to implement the gradient-based method. Next, we illustrate a useful lemma, which characterizes the Lipschitz continuity of 
+
+w∗ 
+
+> γ
+
+(α) and w∗(α) to α.16 Lemma 2. Under Assumptions 1 and 2, for any α1, α2 ∈ A , it holds 
+
+∥w∗(α1) − w∗(α2)∥ ≤ Lμ ∥α1 − α2∥, (18) 
+
+for any w∗(α1) ∈ S∗(α) and w∗(α2) ∈ S∗(α2) satisfies w∗(α2) = arg min w∈S∗(α2) ∥w −
+
+w∗(α1)∥. On the other hand, it holds 
+
+∥w∗ 
+
+> γ
+
+(α1) − w∗ 
+
+> γ
+
+(α2)∥ ≤ γL μγ
+
+∥α1 − α2∥ (19) 
+
+for any w∗ 
+
+> γ
+
+(α1) ∈ S∗ 
+
+> γ
+
+(α1) and w∗ 
+
+> γ
+
+(α2) = arg min w∈S∗  
+
+> γ(α1)
+
+∥w − w∗ 
+
+> γ
+
+(α1)∥.Proof. The two conclusions are directly obtained from Lemma A.3 in [ 26 ], we prove the second conclusion as an example. The proof can be similarly generalized to the first conclusion. Due to the formulation of ∇wHγ (α, w), we know 
+
+∥∇ wHγ (α1, w∗ 
+
+> γ
+
+(α2)) ∥ = ∥∇ wHγ (α1, w∗ 
+
+> γ
+
+(α2)) − ∇ wHγ (α2, w∗ 
+
+> γ
+
+(α2)) ∥
+
+= γ ∇wLtrain (α1, w∗ 
+
+> γ
+
+(α2)) − ∇ wLtrain (α2, w∗ 
+
+> γ
+
+(α2)) 
+
+≤ γL ∥α1 − α2∥,
+
+(20) by Assumption 2. On the other hand, by invoking the Assumption 1 and (17), we get 
+
+∥∇ wHγ (α1, w∗ 
+
+> γ
+
+(α2)) ∥ = ∇wLval (w∗ 
+
+> γ
+
+(α2)) + γ∇wLtrain (α1, w∗ 
+
+> γ
+
+(α2)) 
+
+≥ μγ ∥w∗ 
+
+> γ
+
+(α2) − w∗ 
+
+> γ
+
+(α1)∥, (21) where w∗ 
+
+> γ
+
+(α1) is the projection of w∗(α2) to S∗ 
+
+> γ
+
+(α1). By combining the two above inequalities, we obtain our second conclusion. From this lemma, we can obtain the following Lipschitz smoothness of ∇αHγ (α, w∗ 
+
+> γ
+
+(α)) w.r.t. α
+
+by the following Lemma. It worth noting that ∇αHγ (α, w∗ 
+
+> γ
+
+(α)) is invariant over w∗ 
+
+> γ
+
+(α) ∈ S∗ 
+
+> γ
+
+(α)
+
+as discussed in the proof of Lemma 1. Thus, the ∇αHγ (α, w∗ 
+
+> γ
+
+(α)) is well-defined. 
+
+Lemma 3. Under Assumptions 1 and 2, ∇αHγ (α, w∗ 
+
+> γ
+
+(α)) has semi-Lipschitz gradient such that 
+
+∥∇ αHγ (α1, w∗ 
+
+> γ
+
+(α1)) − ∇ αHγ (α2, w∗ 
+
+> γ
+
+(α2)) ∥ ≤ γB 
+
+ γL μγ
+
++ Lμ
+
+| {z }
+
+> Lγ
+
+∥α1 − α2∥. (22) 
+
+Proof. From (14), we see 
+
+∇αHγ (α1, w∗ 
+
+> γ
+
+(α1)) − ∇ αHγ (α2, w∗ 
+
+> γ
+
+(α2)) 
+
+≤ γ ∇αLtrain (α1, w∗ 
+
+> γ
+
+(α1)) − ∇ αLtrain (α2, w∗ 
+
+> γ
+
+(α2)) 
+
++ γ ∥∇ αLtrain (α2, w∗(α2)) − ∇ αLtrain (α1, w∗(α1)) ∥≤ γB (∥wγ (α1) − wγ (α2)∥ + ∥w(α1) − w(α2)∥)
+
+≤ γB 
+
+ γL μγ
+
++ Lμ
+
+
+
+∥α1 − α2∥,
+
+(23) which proves our conclusion. Notably, for the original optimization problem, there exists a constraint α ∈ A . Thus, to prove the first order stationary condition of constrain problem min α∈A Hα, we consider the generalized projected gradient stable condition, i.e., 1 
+
+> ηα
+
+∥α(t) − ΠA(α(t) − ηα∇αH(α(t))) ∥ ≤ ϵ for some small positive ϵ. This is a standard first-order stationary condition for Non-convex optimization problem with constrains [30, 42, 9]. Due to Lemma 1, we know that 
+
+1
+
+ηα
+
+α(t) − ΠA(α(t) − ηα∇αH(α(t))) − 1
+
+ηα
+
+α(t) − ΠA(α(t) − ηα∇αHγ (α(t), w∗ 
+
+> γ
+
+(α(t)))) 
+
+≤ 1
+
+ηα
+
+ΠA(α(t) − ηα∇αH(α(t))) − ΠA(α(t) − ηα∇αHγ (α(t), w∗ 
+
+> γ
+
+(α(t)))) 
+
+≤ ∇αH(α(t)) − ∇ αHγ (α(t), w∗ 
+
+> γ
+
+(α(t))) 
+
+≤ O 
+
+ 1
+
+γ
+
+
+
+,
+
+(24) 
+
+17 when γ → ∞ . Here the second inequality is from the Lipschitz continuity of projection operation [ 9]. Thus, the above inequality indicates that to prove the first-order stationary condition of H(α),it is sufficient to prove the first-order stationary condition of Hγ (α, w). Next we present our main theorem, i.e., the formal version of Theorem 1, which shows the convergence result of Hα(α) under Algorithm 1. 
+
+Theorem 1. For sufficiently large T , under Assumptions 1-5, for the α(t) obtained in Algorithm 1, it holds 
+
+min 
+
+> 1≤t≤T
+
+1
+
+ηα
+
+∥α(t) − ΠA(α(t) − ηα∇αH(α(t))) ∥ ≤ O 
+
+
+
+T − 14
+
+
+
+(25) 
+
+by selecting γ = T 14 , K ≥ log μT −12D(1+ γ)  
+
+> log
+> 
+> 1−μγ Lγ
+> 
+
+, E ≥ min 
+
+
+
+1, log μγ T −12D 
+
+> log
+
+(1− μL ) − K
+
+
+
+, ηα = 14Lγ , ηw = 1 
+
+> Lγ
+
+,
+
+ηu = 1 
+
+> L
+
+.Proof. As mentioned in (24) , it is sufficient to prove the first-order stationary condition for Hγ (α, w).Due to the Lipchitz smoothness of it, we have 
+
+Hγ (α(t+1) , w∗ 
+
+> γ
+
+(α(t+1) )) − H γ (α(t), w∗ 
+
+> γ
+
+(α(t))) 
+
+≤
+
+D
+
+∇αHγ (α(t), w∗ 
+
+> γ
+
+(α(t))) , α(t+1) − α(t)E
+
++ Lγ
+
+2 ∥α(t+1) − α(t)∥2
+
+=
+
+D
+
+∇αFγ (α(t), w(t) 
+
+> K
+
+, u(t) 
+
+> K
+
+), α(t+1) − α(t)E
+
++
+
+D
+
+∇αHγ (α(t), w∗ 
+
+> γ
+
+(α(t))) − ∇ αFγ (α(t), w(t) 
+
+> K
+
+, u(t) 
+
+> K
+
+), α(t+1) − α(t)E
+
++ Lγ
+
+2 α(t+1) − α(t) 2
+
+≤
+
+ Lγ
+
+2 − 12ηα
+
+
+
+α(t+1) − α(t) 2
+
++ ηα
+
+2 ∇αHγ (α(t), w∗ 
+
+> γ
+
+(α(t))) − ∇ αFγ (α(t), w(t) 
+
+> K
+
+, u(t) 
+
+> K
+
+) 2
+
+,
+
+(26) 
+
+where the last inequality is due to the property of projection operator and Jensen’s inequality. Let us define ¯α(t+1) = Π A(α(t) − ηα∇αHγ (α(t), w∗ 
+
+> γ
+
+(α(t)))) , we proceed to upper bound the gap between ∥ ¯α(t+1) − α(t)∥ and ∥α(t+1) − α(t)∥. By the triangle inequality 
+
+∥ ¯α(t+1) − α(t)∥ − ∥ α(t+1) − α(t)∥
+
+≤ ∥ ¯α(t+1) − α(t+1) ∥≤ ΠA
+
+
+
+α(t) − ηα∇αFγ (α(t), w(t) 
+
+> K
+
+, u(t) 
+
+> K
+
+)
+
+
+
+− ΠA
+
+
+
+α(t) − ηα∇αHγ (α(t), w∗ 
+
+> γ
+
+(α(t))) 
+
+
+
+≤ ηα ∇αFγ (α(t), w(t) 
+
+> K
+
+, u(t) 
+
+> K
+
+) − ∇ αHγ (α(t), w∗ 
+
+> γ
+
+(α(t))) 
+
+≤ ηαγB ∥w(t) 
+
+> K
+
+− w∗ 
+
+> γ
+
+(α(t))∥ + ηαγB ∥u(t) 
+
+> K
+
+− w∗(α(t))∥,
+
+(27) 
+
+where the last inequality is from the smoothness Assumption 2, w∗ 
+
+> γ
+
+(α(t)) and w∗(α(t)) are respec-tively the projection of w(t) 
+
+> K
+
+and u(t) 
+
+> K
+
+to S∗ 
+
+> γ
+
+(α(t)) and S∗(α(t)). Firstly, due to the PL-condition and Lipschitz smoothness of Ltrain , we have 
+
+Ltrain (α(t), u(t)
+
+> k+1
+
+) − L train (α(t), u(t) 
+
+> k
+
+) ≤
+
+D
+
+∇w Ltrain (α(t), u(t) 
+
+> k
+
+), u(t) 
+
+> k+1
+
+− u(t)
+
+> k
+
+E
+
++ L
+
+2 ∥u(t) 
+
+> k+1
+
+− u(t) 
+
+> k
+
+∥2
+
+= − 12L ∥∇ w Ltrain (α(t), u(t) 
+
+> k
+
+)∥2
+
+≤ − μL
+
+
+
+Ltrain (α(t), u(t) 
+
+> k
+
+) − L train (α(t), w∗(α(t))) 
+
+
+
+,
+
+(28) 
+
+which implies 
+
+∥u(t) 
+
+> K
+
+− w∗(α(t))∥2 ≤ 2
+
+μ
+
+
+
+1 − μL
+
+K+E 
+
+Ltrain (α(t), u(t)0 ) − L train (α(t), w∗(α(t))) 
+
+
+
+≤ 2
+
+μ
+
+
+
+1 − μL
+
+K+E
+
+D
+
+= O
+
+ 1
+
+T
+
+
+
+.
+
+(29) 
+
+18 due to the selection of K and E and the PL condition of Ltrain (α, w) (which implies the error bound condition [17]). Similarly, we can prove that 
+
+∥w(t) 
+
+> K
+
+− w∗ 
+
+> γ
+
+(α(t))∥2 ≤ 2
+
+μγ
+
+
+
+1 − μL
+
+K 
+
+Hγ (α(t), w(t) 
+
+> K
+
+) − H γ (α(t), w∗ 
+
+> γ
+
+(α(t))) 
+
+
+
+≤ 2
+
+μγ
+
+
+
+1 − μγ
+
+Lγ
+
+K
+
+(1 + γ) D
+
+= O
+
+ 1
+
+T
+
+
+
+.
+
+(30) 
+
+Combining (26) (27), (29), and (30), we have 
+
+Hγ (α(t+1) , w∗ 
+
+> γ
+
+(α(t+1) )) − H γ (α(t), w∗ 
+
+> γ
+
+(α(t))) ≤ − 14ηα
+
+α(t+1) − α(t) 2
+
++ O
+
+ ηαγ2
+
+T 43
+
+
+
+, (31) so that, by combining (27), we get 
+
+1
+
+T
+
+> T
+
+X
+
+> t=1
+
+1
+
+η2
+
+> α
+
+¯α(t+1) − α(t) 2
+
+≤ 1
+
+T
+
+> T
+
+X
+
+> t=1
+
+2
+
+η2
+
+> α
+
+
+
+α(t+1) − α(t) 2
+
++ ∥ ¯α(t+1) − α(t)∥ − ∥ α(t+1) − α(t)∥ 2
+
+≤ Hγ (α(0) , w(∗) 
+
+> γ
+
+(α(0) )) − inf α Hγ (α(0) , w(∗) 
+
+> γ
+
+(α(0) )) 
+
+ηαT + O
+
+ γ2
+
+T
+
+
+
+= O
+
+ γ2
+
+T
+
+
+
+= O
+
+
+
+T − 12
+
+
+
+.
+
+(32) 
+
+Due to the definition of ¯α(t+1) , combining this with (24) , and the value of γ proves our conclusion. 
+
+B Proof of the Proposition 
+
+Proposition 1. Assume Lm 
+
+> train
+
+= Lm
+
+> val
+
+, the uniform mixture ratio ¯αm = 1 
+
+> M
+
+for m = 1 , . . . , M 
+
+constitutes a valid solution of (1) .Proof. Let Lm 
+
+> train
+
+= Lm 
+
+> val
+
+= Edata [Lm
+
+> data
+
+] := Lm. To establish the above, it suffices to show: 
+
+> M
+
+X
+
+> m=1
+
+Lm
+
+> val
+
+(w∗( ¯ α)) ≤
+
+> M
+
+X
+
+> m=1
+
+Lm
+
+> val
+
+(w∗(α)) 
+
+which is equivalent to: 
+
+> M
+
+X
+
+> m=1
+
+¯αmLm(w∗( ¯ α)) ≤
+
+> M
+
+X
+
+> m=1
+
+¯αmLm(w∗(α)) (33) Because w∗( ¯ α) is the minimizer of the inner-level problem under uniform weighting, we have: 
+
+> M
+
+X
+
+> m=1
+
+¯αmLm(w∗( ¯ α)) ≤
+
+> M
+
+X
+
+> m=1
+
+¯αmLm(w) (34) for any w. In particular, by choosing w = w∗(α), the right-hand side becomes the expression in (33), completing the proof. 
+
+C Implementations and Hyper-parameters 
+
+Implementation Details We use the gradient descent optimizer for the K step u and w up-date. Their learning rates ηK 
+
+> u
+
+and ηK 
+
+> w
+
+are kept the same so that the domain-wise loss difference 
+
+Lm 
+
+> train
+
+(wK ) − L m 
+
+> train
+
+(uK ) faithfully reflects the gain of incorporating the additional validation data. For the E step u update, we utilize the Adam optimizer for fast training. 19 Table 6: Hyper-parameters of TANDEM for different application scenarios                                                                              
+
+> Data Aundent Data Restricted Supervised Fine-tuning GPT-like 160M 160M 410M 1B Qwen2-0.5B Batch Size 8128 128 128 32 Learning Rate ηE
+> u5e-5 5e-4 5e-4 5e-4 4e-6 Learning Rate ηK
+> u1e-2 1e-2 1e-2 1e-2 1e-2 Learning Rate ηK
+> w1e-2 1e-2 1e-2 1e-2 1e-2 Learning Rate ηα2e-3 4e-3 4e-3 4e-3 4e-3 Learning Rate Scheduler Cosine Cosine Cosine Cosine Cosine Penalty γ1.0 1.0 1.0 1.0 1.0 Probing Steps K 555510 Free Training Steps E 20 55510 Total Steps (w.r.t u)40000 5000 5000 5000 5000 Context Length 2048 512 512 512 512 Weight Decay 1e-2 1e-2 1e-2 1e-2 1e-2 Gradient Clipping 1.0 1.0 1.0 1.0 1.0
+
+Table 7: Statistics of the SFT data.        
+
+> Method Num. Sample Textual Entailment 79332 Answer Verification 13195 Text Matching 47297 Information Extraction 31053 Word Extraction 17294 Text Categorization 89572
+
+Table 8: Statistics of the task-level SFT data.        
+
+> Method Num. Sample SQuAD1.1 6498 AMRSum 6500 MuTual 6500 SemEval 5996 SST2 6495 BoolQ 6500
+
+Hyper-parameter settings The detailed hyper-parameters for the TANDEM algorithms in the con-ventional data-abundant pretraining scenario, the data-restricted training scenario, and the supervised fine-tuning are shown in Table 6. 
+
+D Supervised Learning Data Statistics 
+
+In the supervised fine-tuning case, we use 6 major categories from Natural Instructions [ 25 , 35 ]: Textual Entailment, Answer Verification, Text Matching, Information Extraction, Word Extraction, and Text Categorization, each constitutes a task cluster. This corpus comprises 99 tasks ranging from open-ended text generation, multiple choice, and True/False tasks. The statistics are given in Table 7. Besides, we delve into a more fine-grained task-level SFT case, and select 6 tasks SQuAD1.1, AMRSum, MuTual, SemEval, SST2, and BoolQ. The statistics are given in Table 8. For the text generation tasks SQuAD1.1 and AMRSum, we report the Rouge-L [ 22 ] score. For the multi-choice tasks (MuTual, SemEval) and Yes/No tasks (SST2, BoolQ), we focus on the accuracy. The test loss is reported as well. We experiment with Qwen2-500M with K = 20, E = 10, batch size 32, and context length 512 for 2000 steps. The result is shown in Table 9. In this case, the improvement in test loss is more significant than that in the final evaluation metrics, likely due to the imperfect alignment between them. Table 9: Comparison for the 500M Qwen-2 model on a mixture of 6 tesk-level SFT tasks.                                                     
+
+> Method SQuAD1.1 AMRSum MuTual SemEval SST2 BoolQ Test Loss ↓Avg. Metric ↑
+> Uniform 72.62 45.18 72.72 89.75 87.75 80.29 0.591 74.72 DoReMi 71.40 43.40 70.97 88.50 87.00 77.43 0.686 73.11 DoGE 71.26 44.81 71.67 89.00 88.30 81.04 0.563 74.35 Skill-It 72.14 44.21 73.07 89.40 88.40 80.34 0.539 74.60 Aioli 72.35 45.01 73.57 89.10 88.10 79.64 0.542 74.63 TANDEM 72.73 45.19 73.77 89.70 88.70 80.04 0.508 75.03
+
+20 Table 10: Comparison of models of different sizes in the data-abundant pretraining scenario and data restricted scenario with standard deviation. Data Aundant Regime Data Restricted Regime 160M Avg. 160M Avg. 410M Avg. 1B Avg. Uniform 25.74 ±0.13 31.53 ±0.11 29.59 ±0.02 29.91 ±0.09 
+
+DoReMi 28.32 ±0.12 36.91 ±0.09 54.61 ±0.60 56.53 ±0.53 
+
+DoGE 26.60 ±0.21 30.10 ±0.05 27.45 ±0.02 -Skill-It 25.87 ±0.07 29.24 ±0.08 27.70 ±0.03 27.15 ±0.17 
+
+Aioli 25.66 ±0.14 31.19 ±0.25 28.79 ±0.06 28.07 ±0.03 
+
+TANDEM 25.43 ±0.15 28.07 ±0.07 25.00 ±0.01 24.35 ±0.03 0 1000 2000 3000 4000         
+
+> Steps
+> 0.00
+> 0.05
+> 0.10
+> 0.15
+> 0.20
+> 0.25
+> Gen. Gap Data Abundant Pretraining.
+> arxiv
+> book
+> c4
+> commonCrawl
+> github
+> stackexchange
+> wikipedia 01000 2000 3000 4000
+> Steps
+> 0.00
+> 0.20
+> 0.40
+> 0.60
+> 0.80
+> 1.00
+> Gen. Gap Data Restricted Pretraining.
+> arxiv
+> book
+> c4
+> commonCrawl
+> github
+> stackexchange
+> wikipedia 01000 2000 3000 4000
+> Steps
+> 0.00
+> 0.10
+> 0.20
+> 0.30
+> 0.40
+> Gen. Gap Supervised Fintuning.
+> Text Ent.
+> Ans. Ver.
+> Text Mat.
+> Inf. Ext.
+> Word Sem.
+> Text Cat.
+
+Figure 9: Step-wise generalization gap |L m
+
+val − L m
+
+train | evolution under three scenarios. (a) data-abundant pretraining (b) data-restricted pretraining and (c) supervised fine-tuning. 
+
+E Comparison with Standard Deviation 
+
+We test each method in Table 3, Table 4 3 times. The averaged perplexity and standard deviation are reported in Table 10. 
+
+F Additional Experiments 
+
+F.1 Generalization Gap Analyses 
+
+To validate our analysis in Section 2.4, we plot the change of generalization gap |L m
+
+val − L m
+
+train | during training under the three circumstances Figure 9. In the data-abundant scenario, the generalization gaps of each domain do not change much and are kept close to 0. According to the analysis in Section 2.4, Uniform is a valid solution in this scenario. In the data-restricted scenario, we see an increase in the generalization gap, particularly on small domains (Arxiv, Book, Wikipedia), because the sample repetition kicks in. In the large domains (C4, CommonCrawl) where there is no data repetition, the generalization remains small. SFT is of the same case. Generalization gap increase in small tasks (Word Sementics, Information Extraction), while kept small for large tasks (Text Categorization, Text Matching, Textual Entailment). The results on all three scenarios validate our analysis in Section 2.4. 
+
+F.2 Larger Scale Experiments 
+
+To validate the effectiveness of TANDEM in practice, we conduct experiments to test its performance under more realistic conditions. This includes scaling up both the dataset size and the model size. Table 11: Comparison for larger data scale (6B tokens). Arxiv Book C4 CC Github Stackexchange Wikipedia Average Uniform 10.28 32.37 38.53 34.57 5.86 10.76 15.26 17.09 TANDEM 10.26 29.59 32.52 29.52 6.01 10.68 16.02 16.25 21 Table 12: Comparison for larger (3B) model in the data restricted regime.                        
+
+> Arxiv Book C4 CC Github Stackexchange Wikipedia Average Uniform 17.20 53.83 60.14 55.45 9.85 22.08 41.76 31.03 TANDEM 15.73 42.85 43.60 39.59 7.49 17.26 29.20 23.81
+
+Table 13: Comparison for the larger (3B) model in the supervised fine-tuning.                     
+
+> Method Textual Ent. Answer Ver. Text Mat. Inf. Ext. Word Sem. Text Cat. Avg. Metric ↑Test Loss ↓
+> Uniform 91.9 74.8 88.8 79.2 88.8 85.5 84.9 0.189 TANDEM 92.4 76.9 89.6 80.1 88.0 87.9 85.8 0.174
+
+Larger Data Scale We train the 160M models on the full 6B version of sampled SlimPajama, which constitutes a more practical past Chinchilla [ 14 ] (Chinchilla optimal requires ≈3.2B data for the 160M model) case. From Table 11, we see that TANDEM still outperforms Uniform, though it seems that the improvement ( ∼ 1) in this case is not as significant as in the 300M data case ( ∼ 3.5). As the training proceeds and the perplexity goes down, further gains become inherently harder to achieve. This result is still significant, showing that careful mixing still matters in this "over-trained" case. 
+
+Larger Model Scale We conduct DMO with 3B models in the data-restricted scenario (Pythia 2.9B) and SFT (Qwen-2.5-3B). Further scaling up necessitates engineering upgrades to fit the two models (u and w) within the 80GB memory, while also demanding substantial time and computational resources. We skip the data-abundant scenario where Uniform is already a valid solution. From Table 12, we see that as the model goes larger, inappropriate mixture ratios (Uniform) lead to more obvious negative outcomes(e.g. severe overfitting on the overly sampled small domains). While TANDEM consistently generates proper mixture ratios. For SFT (Table 13), TANDEM still outperforms the Uniform baseline, showing its effectiveness. 
+
+F.3 Sensitivity of K and EK: K is the number of probing steps used to estimate the proper update direction ( (3) ∼ (5) ). We conduct a sensitivity analysis with K = 1 , 3, 5, 10 to see how it will affect the final model performance. From Table 14, we see that too small K may results in less fidel α update direction, thus sub-optimal data mixture ratio and higher perplexity. When K is large enough for α update probing, increasing K will not induce further benefits. In our experiments, for relatively stable pretraining, we use a smaller K = 5 in the data-abundant and data-restricted scenarios. The gradient variance in SFT is much higher, so we use larger K = 10 .
+
+E: Given the total number of training steps (amounts of data to be used), E determines the number of updates during DMO: T = total steps E . We test E = 1 , 5, 10 in the 160M data-restricted scenario. From Table 15 we see that TANDEM is not sensitive to E as long as T is large enough so that α is sufficiently updated. In our experiments, for the data-abundant scenario, we chose E = 20 so that the mixture ratio is updated for T = 2000 steps. As one α update requires additional K steps w updates, a larger T means higher additional computational cost. To reduce the computational overhead, we set 
+
+E in the data-restricted scenario and SFT to ensure T = 1000 and T = 500 respectively. Table 14: The effect of K
+
+k=1 k=3 k=5 k=10 Perplexity 29.57 28.31 28.07 28.05 Table 15: The effect of EE=1 E=5 E=10 Perplexity 27.99 28.05 28.56 22 Table 16: Downstream evaluation after training on SlimPajama in the data-restricted scenario.                                                         
+
+> Method ARC-C ARC-E BoolQ HellaSwag LAMBADA PiQA WinoGrande Average Uniform 25.76 19.58 60.70 18.62 9.88 45.43 50.04 32.85 DoReMi 21.36 19.58 60.61 11.66 6.44 42.94 49.57 31.06 DoGE 22.03 24.87 51.35 18.50 10.07 44.45 47.28 31.39 Skill-it 18.98 26.10 50.82 24.99 11.47 43.36 50.59 31.40 Aioli 20.34 19.58 61.71 19.59 10.89 44.18 49.41 32.41 TANDEM 20.34 20.81 57.55 25.59 11.20 40.53 51.07 32.92
+
+Table 17: The effectiveness of the proxy model             
+
+> Method Data Abundant (Perpl.) Data Restricted (Perpl.) SFT (Acc.) Uniform 25.74 31.53 74.72 Online (Proxy) 25.72 29.63 74.49 Two-Stage (default) 25.43 28.07 75.03
+
+F.4 Downstream Tasks 
+
+We also evaluate the 160M model pre-trained with SlimPajama data on ARC-C, ARC-E, BoolQ, HellaSwag, LAMBADA, PiQA and WinoGrande using the Language Model Evaluation Harness [ 8]. From Table 16, we see that TANDEM outperforms all the baselines, validating its effectiveness. 
+
+F.5 The Effectiveness of the Proxy Model 
+
+It might be expected that the online-trained proxy model could also perform well. We evaluate the proxy model u, which has been trained with adaptive domain weights α(t) in all the three scenarios, and compare it to the default two-stage (DMO and then train) trained model. Counter-intuitively, the performance of the online trained model falls behind the default two-stage trained model as well as the uniform baseline (Table 17). This result coincides with the findings in previous works, e.g., DoReMi and DoGE. We hypothesize that the frequent change of data distribution deteriorates the training process. 
+
+F.6 A priori Trained Reference model Restricts DoReMi 
+
+In the experiments, DoReMi [ 37 ] doesn’t perform well in the data-restricted scenarios. We hypothe-size that the performance of DoReMi is restricted by the a priori trained reference model. Following previous works, we train the reference model on training data obtained using the Uniform strategy. This reference model, however, is not well-suited for the data-restricted scenario, as the many small domains overfit and cannot provide faithful signals for DMO. For a more comprehensive comparison, we train another reference model with the natural data mixture ratio (See Figure 4, the data statistics). This setting ensures no severe overfitting happens. The result in Table 18 validates our hypothesis. 
+
+G Visualization of the Optimized Mixture Ratios. 
+
+We visualize the mixture ratio learned in each application scenario in Figure 10, Figure 11 and Figure 12. For the baselines, the average proportion over the entire training trajectory is taken. While for TANDEM, we use the average mixture ratio at the last 10 % training trajectory. Table 18: DoReMi is restricted by the a priori trained reference model                
+
+> Method 160M 410M 1B Uniform 31.53 29.59 29.91 Natural 30.97 27.82 27.30 DoReMi-Natural 30.83 27.26 26.07 TANDEM 28.07 25.00 24.35
+
+23 arxiv books c4 cc github stack. wikipedia 
+
+0.0 
+
+0.1 
+
+0.2 
+
+0.3 
+
+0.4 
+
+> Mixture Ratio
+> DoReMi
+> DOGE
+> Skill-It
+> Aioli
+> TANDEM
+
+Figure 10: Mixture ratio learned by different methods in the data-abundant pretraining. arxiv books c4 cc github stack. wikipedia 
+
+0.0 
+
+0.1 
+
+0.2 
+
+0.3 
+
+0.4 
+
+> Mixture Ratio
+> DoReMi
+> DOGE
+> Skill-It
+> Aioli
+> TANDEM
+
+(a) 160M Model arxiv books c4 cc github stack. wikipedia 
+
+0.0 
+
+0.1 
+
+0.2 
+
+0.3 
+
+0.4 
+
+0.5 
+
+0.6 
+
+> Mixture Ratio
+> DoReMi
+> DOGE
+> Skill-It
+> Aioli
+> TANDEM
+
+(b) 410M Model arxiv books c4 cc github stack. wikipedia 
+
+0.0 
+
+0.1 
+
+0.2 
+
+0.3 
+
+0.4 
+
+0.5 
+
+0.6 
+
+> Mixture Ratio
+> DoReMi
+> Skill-It
+> Aioli
+> TANDEM
+
+(c) 1B Model 
+
+Figure 11: Mixture ratio learned by different methods in the data-restricted pretraining. 24 Textual Ent. Answer Ver. Text Mat. Inf. Ext. Word Sem. Text Cat. 
+
+> 0.00
+> 0.05
+> 0.10
+> 0.15
+> 0.20
+> 0.25
+> 0.30
+> 0.35
+> Mixture Ratio
+> DoReMi
+> DOGE
+> Skill-It
+> Aioli
+> TANDEM
+
+Figure 12: Mixture ratio learned by different methods in the supervised fine-tuning. 
+
+H Summary of Notations 
+
+Table 19: Summary of the notations used throughout this paper. Variables only used in theoretical analysis are grayed for better readability. Topic Notation Explanation Data Sets M The number of domains. 
+
+Dm The m-th domain data. 
+
+Dtrain Train set. 
+
+Dval Validation set. Models & Parameters u Parameters of the proxy model. 
+
+w Parameters of the reference model. 
+
+w∗ Optimal solution for the lower level problem. 
+
+w∗ 
+
+> γ
+
+Optimal solution for the penalized problem. 
+
+S∗(α) Solution set for the lower level problem. 
+
+S∗ 
+
+> γ
+
+(α) Solution set for the penalized problem. 
+
+α Data mixture ratio 
+
+A The probability simplex. Problems & Losses Lm 
+
+> train
+
+Train loss on the m-th domain. 
+
+Lm 
+
+> val
+
+Validation loss on the m-th domain. 
+
+Ltrain Overall train loss weighted by the mixture ratio α.
+
+Lval Overall validation loss. 
+
+H(α) The upper-level loss with the lower-level problem optimized. 
+
+Hγ (α, w) The loss of the penalized problem. Function Properties μ PL coefficient of the lower-level problem. 
+
+μγ PL coefficient of the penalized problem. 
+
+L Lipschitz constant for ∇wLtrain (α, w) on w.
+
+B Lipschitz constant for Ltrain (α, w) and Lval (w) on w.
+
+λ and ρ Hessian ∇2
+
+> ww
+
+Ltrain (α, w) ⪰ λ and ∇2
+
+> αw
+
+Ltrain (α, w) ⪯ ρH Lipschitz constant for ∇2
+
+> αw
+
+Ltrain (α, w) and ∇2
+
+> ww
+
+Ltrain (α, w).
+
+D Upper bound for the train/validation loss. 
+
+Lγ Lipschitz constant for ∇αHγ
+
+ α, w∗ 
+
+> γ
+
+(α).Train t Mixture ratio α training step 
+
+T The total number of α update. 
+
+k u and w update step. 
+
+e Free u update step. 
+
+K The number of u, w probing update for one α update. 
+
+E The number of u free update. 
+
+ηα The learning rate on α.
+
+ηu The learning rate on u.
+
+ηw The learning rate on w.
+
+γ The penalty strength. 25 I Limitations and Future Works 
+
+Despite the advancements introduced in this work, several challenges remain open for future research. The limitations of this paper are as follows: (1) Due to limited computational resources, our ex-periments were conducted using models of up to 3 billion parameters. Although our experimental results demonstrate TANDEM’s effectiveness at this scale, the constraint on model size limits our ability to verify whether our findings generalize to significantly larger models, such as those with 405 billion parameters. (2) Our current data mixture optimization (DMO) approach is validated on coarse, naturally occurring domain splits. For example, the SlimPajama corpus consists of seven domains sourced from different origins. The impact of using more fine-grained and intentionally designed domain splits on DMO performance remains unexplored and presents an interesting direction for future investigation. 26
