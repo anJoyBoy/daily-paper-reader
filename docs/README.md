@@ -6,34 +6,38 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-06-06
-- 运行时间：2026-06-06 20:18:36 UTC
+- 最新运行日期：2026-06-07
+- 运行时间：2026-06-07 21:02:26 UTC
 - 运行状态：成功
-- 本次总论文数：4
+- 本次总论文数：6
 - 精读区：1
-- 速读区：3
+- 速读区：5
 
 ### 今日简报（AI）
-今日精选4篇论文，涵盖大模型数据归因、图谱增强检索、数据混合优化及幻觉检测。  
-重点推荐使用双向梯度优化进行大模型数据归因的方法，以及基于专家混合的图检索增强生成（MoG）。  
-建议未来关注数据质量与检索增强的结合，可尝试将图结构引入生成式模型以提升事实准确性。
-- 详情：[/202606/06/README](/202606/06/README)
+今日精读ProSPy框架提升企业Text-to-SQL效率，速读涵盖RAG分块、法律检索与图像过滤。最值得关注ProSPy的SQL查询模式优化方法，以及RAG分块对性能与成本的权衡。建议优先阅读ProSPy论文中的代理框架设计，并对比不同分块策略的实际效果。
+- 详情：[/202606/07/README](/202606/07/README)
 
 ### 精读区论文标签
-1. [Data Attribution in Large Language Models via Bidirectional Gradient Optimization](/202606/06/2606.04928v1-data-attribution-in-large-language-models-via-bidirectional-gradient-optimization)  
+1. [ProSPy: A Profiling-Driven SQL-Python Agentic Framework for Enterprise Text-to-SQL](/202606/07/2606.05836v1-prospy-a-profiling-driven-sql-python-agentic-framework-for-enterprise-text-to-sql)  
    标签：评分：8.0/10、query:llm-dm
-   evidence：LLM训练数据归属作为数据挖掘技术
+   evidence：大语言模型辅助数据挖掘，通过Text-to-SQL实现
 
 ### 速读区论文标签
-1. [MoG: Mixture of Experts for Graph-based Retrieval-Augmented Generation](/202606/06/2605.31010v1-mog-mixture-of-experts-for-graph-based-retrieval-augmented-generation)  
+1. [Chunking Methods on Retrieval-Augmented Generation - Effectiveness Evaluation Against Computational Cost and Limitations](/202606/07/2606.00881v1-chunking-methods-on-retrieval-augmented-generation---effectiveness-evaluation-against-computational-cost-and-limitations)  
    标签：评分：7.0/10、query:llm-dm
-   evidence：使用混合专家机制的LLM检索增强生成
-2. [TANDEM: Bi-Level Data Mixture Optimization with Twin Networks](/202606/06/2606.04401v1-tandem-bi-level-data-mixture-optimization-with-twin-networks)  
+   evidence：评估了RAG分块方法，这是LLM文本挖掘的关键组件
+2. [Section-Weighted Hybrid Approach for Legal Case Retrieval](/202606/07/2606.03138v1-section-weighted-hybrid-approach-for-legal-case-retrieval)  
    标签：评分：7.0/10、query:llm-dm
-   evidence：LLM训练数据混合优化作为数据挖掘技术
-3. [KG-Guard: Graph-Based Hallucination Detection for Knowledge Base Question Answering](/202606/06/2606.00328v1-kg-guard-graph-based-hallucination-detection-for-knowledge-base-question-answering)  
+   evidence：使用LLM进行法律案例文本分割和检索，属于文本挖掘
+3. [Selectivity Estimation for Semantic Filters on Image Data](/202606/07/2606.04610v1-selectivity-estimation-for-semantic-filters-on-image-data)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：LLM在知识库问答幻觉检测中的应用
+   evidence：使用LLM嵌入对图像数据进行选择性估计的数据挖掘技术
+4. [LLM-Guided ANN Index Optimization for Human-Object Interaction Retrieval](/202606/07/2606.05489v1-llm-guided-ann-index-optimization-for-human-object-interaction-retrieval)  
+   标签：评分：6.0/10、query:llm-dm
+   evidence：LLM代理优化ANN索引用于检索，可应用于数据挖掘
+5. [Edge-Aware Curvature Modeling for Graph Understanding in Large Language Models](/202606/07/2606.06073v1-edge-aware-curvature-modeling-for-graph-understanding-in-large-language-models)  
+   标签：评分：6.0/10、query:llm-dm
+   evidence：通过边缘感知曲率建模提升LLM图理解能力
 
 
 <div class="dpr-home-promo-card">
