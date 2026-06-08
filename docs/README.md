@@ -6,38 +6,46 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-06-07
-- 运行时间：2026-06-07 21:02:26 UTC
+- 最新运行日期：2026-06-08
+- 运行时间：2026-06-08 21:13:26 UTC
 - 运行状态：成功
-- 本次总论文数：6
-- 精读区：1
-- 速读区：5
+- 本次总论文数：8
+- 精读区：2
+- 速读区：6
 
 ### 今日简报（AI）
-今日精读ProSPy框架提升企业Text-to-SQL效率，速读涵盖RAG分块、法律检索与图像过滤。最值得关注ProSPy的SQL查询模式优化方法，以及RAG分块对性能与成本的权衡。建议优先阅读ProSPy论文中的代理框架设计，并对比不同分块策略的实际效果。
-- 详情：[/202606/07/README](/202606/07/README)
+1) 今日精选了2篇高分论文，分别探讨工业知识图谱中图增强检索的结构化分析与LLM打破多垂直推荐行为孤岛的技术。  
+2) 最值得关注的方向：图结构检索超越传统向量相似度，以及LLM跨业务线推荐融合方案。  
+3) 普通读者可优先了解图增强检索的实际工业落地价值，并关注LLM整合推荐数据的通用思路。
+- 详情：[/202606/08/README](/202606/08/README)
 
 ### 精读区论文标签
-1. [ProSPy: A Profiling-Driven SQL-Python Agentic Framework for Enterprise Text-to-SQL](/202606/07/2606.05836v1-prospy-a-profiling-driven-sql-python-agentic-framework-for-enterprise-text-to-sql)  
+1. [Beyond Vector Similarity: A Structural Analysis of Graph-Augmented Retrieval for Industrial Knowledge Graphs](/202606/08/2606.06003v1-beyond-vector-similarity-a-structural-analysis-of-graph-augmented-retrieval-for-industrial-knowledge-graphs)  
    标签：评分：8.0/10、query:llm-dm
-   evidence：大语言模型辅助数据挖掘，通过Text-to-SQL实现
+   evidence：图增强检索的结构分析，LLM查询规划器用于知识图谱
+2. [Mind the Gap: Bridging Behavioral Silos with LLMs in Multi-Vertical Recommendations](/202606/08/2606.06779v1-mind-the-gap-bridging-behavioral-silos-with-llms-in-multi-vertical-recommendations)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：基于LLM的特征生成用于推荐系统，属于数据挖掘应用
 
 ### 速读区论文标签
-1. [Chunking Methods on Retrieval-Augmented Generation - Effectiveness Evaluation Against Computational Cost and Limitations](/202606/07/2606.00881v1-chunking-methods-on-retrieval-augmented-generation---effectiveness-evaluation-against-computational-cost-and-limitations)  
+1. [Self-supervised User Profile Generation for Personalization](/202606/08/2606.05336v1-self-supervised-user-profile-generation-for-personalization)  
    标签：评分：7.0/10、query:llm-dm
-   evidence：评估了RAG分块方法，这是LLM文本挖掘的关键组件
-2. [Section-Weighted Hybrid Approach for Legal Case Retrieval](/202606/07/2606.03138v1-section-weighted-hybrid-approach-for-legal-case-retrieval)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：使用LLM进行法律案例文本分割和检索，属于文本挖掘
-3. [Selectivity Estimation for Semantic Filters on Image Data](/202606/07/2606.04610v1-selectivity-estimation-for-semantic-filters-on-image-data)  
+   evidence：自监督用户画像生成，LLM辅助挖掘用户数据
+2. [PandaAI: A Practical Agent CQ2 for Neuro-symbolic Data Analysis And Integrated Decision-Making in Quantitative Finance](/202606/08/2606.06823v1-pandaai-a-practical-agent-cq2-for-neuro-symbolic-data-analysis-and-integrated-decision-making-in-quantitative-finance)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：使用LLM嵌入对图像数据进行选择性估计的数据挖掘技术
-4. [LLM-Guided ANN Index Optimization for Human-Object Interaction Retrieval](/202606/07/2606.05489v1-llm-guided-ann-index-optimization-for-human-object-interaction-retrieval)  
+   evidence：LLM智能体用于金融数据分析，属于数据挖掘应用
+3. [CRAFT: A Unified Counterfactual Reasoning Framework for Tabular Question Answering and Fact Verification](/202606/08/2606.06842v1-craft-a-unified-counterfactual-reasoning-framework-for-tabular-question-answering-and-fact-verification)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：LLM代理优化ANN索引用于检索，可应用于数据挖掘
-5. [Edge-Aware Curvature Modeling for Graph Understanding in Large Language Models](/202606/07/2606.06073v1-edge-aware-curvature-modeling-for-graph-understanding-in-large-language-models)  
+   evidence：LLM应用于表格问答
+4. [Are Large Language Models Suitable for Graph Computation? Progress and Prospects](/202606/08/2606.06865v1-are-large-language-models-suitable-for-graph-computation-progress-and-prospects)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：通过边缘感知曲率建模提升LLM图理解能力
+   evidence：关于LLM用于图计算的综述，图计算是数据挖掘的子领域
+5. [DataEvolver: Automatic Data Preparation for Large Language Models through Multi-Level Self-Evolving](/202606/08/2606.07001v1-dataevolver-automatic-data-preparation-for-large-language-models-through-multi-level-self-evolving)  
+   标签：评分：6.0/10、query:llm-dm
+   evidence：自动数据准备方法
+6. [Your UnEmbedding Matrix is Secretly a Feature Lens for Text Embeddings](/202606/08/2606.07502v1-your-unembedding-matrix-is-secretly-a-feature-lens-for-text-embeddings)  
+   标签：评分：6.0/10、query:llm-dm
+   evidence：改进来自LLM的文本嵌入，是数据挖掘的基础技术
 
 
 <div class="dpr-home-promo-card">
