@@ -6,46 +6,56 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-06-08
-- 运行时间：2026-06-08 21:13:26 UTC
+- 最新运行日期：2026-06-09
+- 运行时间：2026-06-09 21:00:43 UTC
 - 运行状态：成功
-- 本次总论文数：8
-- 精读区：2
-- 速读区：6
+- 本次总论文数：12
+- 精读区：5
+- 速读区：7
 
 ### 今日简报（AI）
-1) 今日精选了2篇高分论文，分别探讨工业知识图谱中图增强检索的结构化分析与LLM打破多垂直推荐行为孤岛的技术。  
-2) 最值得关注的方向：图结构检索超越传统向量相似度，以及LLM跨业务线推荐融合方案。  
-3) 普通读者可优先了解图增强检索的实际工业落地价值，并关注LLM整合推荐数据的通用思路。
-- 详情：[/202606/08/README](/202606/08/README)
+今日精读两篇9分论文：《ReadingMachine》的结构化语料阅读与大规模合成方法论，以及《Fast LLM-Based Semantic Filtering》的语义过滤两阶段自适应框架；速读则涉及高效数据选择、低质语料宝藏发掘及时序预测因果对齐。最值得关注的方向是大规模语料的结构化阅读与语义过滤的实用方法。建议优先精读这两篇高分论文，了解其核心框架后再结合自身数据处理需求尝试应用。
+- 详情：[/202606/09/README](/202606/09/README)
 
 ### 精读区论文标签
-1. [Beyond Vector Similarity: A Structural Analysis of Graph-Augmented Retrieval for Industrial Knowledge Graphs](/202606/08/2606.06003v1-beyond-vector-similarity-a-structural-analysis-of-graph-augmented-retrieval-for-industrial-knowledge-graphs)  
+1. [ReadingMachine: A Computational Methodology for Structured Corpus Reading and Large-Scale Synthesis](/202606/09/2606.07753v1-readingmachine-a-computational-methodology-for-structured-corpus-reading-and-large-scale-synthesis)  
+   标签：评分：9.0/10、query:llm-dm
+   evidence：基于大语言模型的语料库结构化阅读与大规模综合，实现文本挖掘
+2. [Fast LLM-Based Semantic Filtering: From a Unified Framework to an Adaptive Two-Phase Method](/202606/09/2606.08090v1-fast-llm-based-semantic-filtering-from-a-unified-framework-to-an-adaptive-two-phase-method)  
+   标签：评分：9.0/10、query:llm-dm
+   evidence：基于大语言模型的语义过滤用于数据处理
+3. [TLRD: Teaching LLMs to Reason over Tabular Data with Tri-Level Rationale Distillation](/202606/09/2606.08295v1-tlrd-teaching-llms-to-reason-over-tabular-data-with-tri-level-rationale-distillation)  
+   标签：评分：9.0/10、query:llm-dm
+   evidence：基于三层次原因蒸馏的表格数据推理方法，助力数据挖掘中的可解释预测
+4. [Multilingual Fact-Checking at Scale: Fine-Tuned Compact Models vs LLMs](/202606/09/2606.08605v1-multilingual-fact-checking-at-scale-fine-tuned-compact-models-vs-llms)  
    标签：评分：8.0/10、query:llm-dm
-   evidence：图增强检索的结构分析，LLM查询规划器用于知识图谱
-2. [Mind the Gap: Bridging Behavioral Silos with LLMs in Multi-Vertical Recommendations](/202606/08/2606.06779v1-mind-the-gap-bridging-behavioral-silos-with-llms-in-multi-vertical-recommendations)  
+   evidence：利用大语言模型进行事实核查的文本挖掘应用
+5. [LATTEArena: An Evaluation Framework for LLM-powered Tabular Feature Engineering (Extended Version)](/202606/09/2606.09004v1-lattearena-an-evaluation-framework-for-llm-powered-tabular-feature-engineering-extended-version)  
    标签：评分：8.0/10、query:llm-dm
-   evidence：基于LLM的特征生成用于推荐系统，属于数据挖掘应用
+   evidence：LLM用于表格特征工程评估
 
 ### 速读区论文标签
-1. [Self-supervised User Profile Generation for Personalization](/202606/08/2606.05336v1-self-supervised-user-profile-generation-for-personalization)  
+1. [HARP: Efficient Data Selection for Finetuning Large Language Models](/202606/09/2606.07690v1-harp-efficient-data-selection-for-finetuning-large-language-models)  
    标签：评分：7.0/10、query:llm-dm
-   evidence：自监督用户画像生成，LLM辅助挖掘用户数据
-2. [PandaAI: A Practical Agent CQ2 for Neuro-symbolic Data Analysis And Integrated Decision-Making in Quantitative Finance](/202606/08/2606.06823v1-pandaai-a-practical-agent-cq2-for-neuro-symbolic-data-analysis-and-integrated-decision-making-in-quantitative-finance)  
+   evidence：用于大语言模型训练的数据选择技术
+2. [Unlocking Latent Value: Taxonomy-Guided Recovery of High-Performing Data from Low-Tier Web Corpora](/202606/09/2606.07778v1-unlocking-latent-value-taxonomy-guided-recovery-of-high-performing-data-from-low-tier-web-corpora)  
+   标签：评分：7.0/10、query:llm-dm
+   evidence：利用LLM注释进行基于分类法的数据过滤，用于数据挖掘
+3. [Causal Semantic Alignment for LLM-based Time Series Forecasting](/202606/09/2606.08262v1-causal-semantic-alignment-for-llm-based-time-series-forecasting)  
+   标签：评分：7.0/10、query:llm-dm
+   evidence：基于因果语义对齐的LLM时间序列预测，数据挖掘技术
+4. [Beyond Retrieval: Learning Compact User Representations for Scalable LLM Personalization](/202606/09/2606.04547v1-beyond-retrieval-learning-compact-user-representations-for-scalable-llm-personalization)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：LLM智能体用于金融数据分析，属于数据挖掘应用
-3. [CRAFT: A Unified Counterfactual Reasoning Framework for Tabular Question Answering and Fact Verification](/202606/08/2606.06842v1-craft-a-unified-counterfactual-reasoning-framework-for-tabular-question-answering-and-fact-verification)  
+   evidence：紧凑用户表示用于LLM个性化，支持高效数据挖掘
+5. [Domain-Adapted Small Language Models with Hybrid Post-Processing: Achieving Cost-Efficient, Low-Latency Multi-Label Structured Prediction via LoRA Fine-Tuning on Scarce Data](/202606/09/2606.05781v2-domain-adapted-small-language-models-with-hybrid-post-processing-achieving-cost-efficient-low-latency-multi-label-structured-prediction-via-lora-fine-tuning-on-scarce-data)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：LLM应用于表格问答
-4. [Are Large Language Models Suitable for Graph Computation? Progress and Prospects](/202606/08/2606.06865v1-are-large-language-models-suitable-for-graph-computation-progress-and-prospects)  
+   evidence：LLM微调用于数据挖掘中的结构化预测
+6. [QueryWeaver: Reliable Multi-Tool Query Execution Planning via LLM-Based Graph Generation](/202606/09/2606.08300v1-queryweaver-reliable-multi-tool-query-execution-planning-via-llm-based-graph-generation)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：关于LLM用于图计算的综述，图计算是数据挖掘的子领域
-5. [DataEvolver: Automatic Data Preparation for Large Language Models through Multi-Level Self-Evolving](/202606/08/2606.07001v1-dataevolver-automatic-data-preparation-for-large-language-models-through-multi-level-self-evolving)  
+   evidence：基于LLM的图生成用于多工具查询
+7. [ToolRec: Calibrated Preference Alignment for Query Recommendation in On-Device Assistants](/202606/09/2606.08466v1-toolrec-calibrated-preference-alignment-for-query-recommendation-in-on-device-assistants)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：自动数据准备方法
-6. [Your UnEmbedding Matrix is Secretly a Feature Lens for Text Embeddings](/202606/08/2606.07502v1-your-unembedding-matrix-is-secretly-a-feature-lens-for-text-embeddings)  
-   标签：评分：6.0/10、query:llm-dm
-   evidence：改进来自LLM的文本嵌入，是数据挖掘的基础技术
+   evidence：LLM在设备端助手查询推荐中的应用
 
 
 <div class="dpr-home-promo-card">

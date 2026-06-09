@@ -1,0 +1,499 @@
+Title: Multilingual Fact-Checking at Scale: Fine-Tuned Compact Models vs LLMs
+
+URL Source: https://arxiv.org/pdf/2606.08605v1
+
+Published Time: Tue, 09 Jun 2026 01:12:35 GMT
+
+Number of Pages: 10
+
+Markdown Content:
+# Multilingual Fact-Checking at Scale: Fine-Tuned Compact Models vs LLMs 
+
+Pratuat Amatya 
+
+Factiverse AS and University of Stavanger 
+
+Stavanger, Norway pratuat@factiverse.ai 
+
+Vinay Setty 
+
+Factiverse AS and University of Stavanger 
+
+Stavanger, Norway vinay@factiverse.ai 
+
+Abstract —We present a multilingual fact-checking system deployed at Factiverse, designed for high-throughput and low-latency operation across diverse languages. The system follows a modular pipeline with three stages: claim detection, evidence retrieval and re-ranking, and veracity prediction. We fine-tune XLM-RoBERTa-Large for claim detection, mmBERT-base for three-label stance classification (Supports/Refutes/Mixed), and a SetFit-based multilingual re-ranker for claim–evidence matching. We compare these components against strong LLM baselines, including GPT-5.2, Claude Opus 4.6, and Qwen3-8b. Experiments on production data spanning 114 languages for claim detection and 28 languages for veracity prediction show that task-specific fine-tuning provides strong and stable multilingual performance, while the fine-tuned retrieval model remains competitive with modern proprietary embeddings. Same-hardware latency measurements further show large efficiency gains for encoder-based components, supporting their use in production deployments with tight cost and privacy constraints. Overall, compact fine-tuned, self-hosted models remain a prac-tical and effective foundation for multilingual fact-checking at scale. Code and data used for this study are available at https://github.com/factiverse/factcheck-editor. 
+
+Index Terms —multilingual fact-checking, claim detection, nat-ural language inference, evidence retrieval, fine-tuning 
+
+I. I NTRODUCTION 
+
+Online misinformation continues to scale across platforms, languages and domains, creating sustained pressure on pro-fessional fact-checkers and newsrooms. Recent measurements indicate that false or misleading narratives now propagate orders of magnitude faster than fact-checks themselves, and across far more languages than any single organisation can manually cover [1], [2]. Automated support systems are there-fore no longer optional but operationally necessary. How-ever, building reliable industrial-grade fact-checking systems remains challenging for at least four reasons: (i) the long tail of languages and orthographies makes monolingual or even bilingual approaches inadequate; (ii) claims often require nu-merical, temporal or multi-hop reasoning over heterogeneous web evidence; (iii) newsrooms operate under strict latency, cost and privacy constraints that rule out per-query reliance on hosted closed-source APIs; and (iv) the training signal is fundamentally imbalanced, since most sentences in any document are not check-worthy and most retrieved passages are not relevant. Recent progress in large language models (LLMs) has renewed optimism about end-to-end fact-checking [3]. Models such as GPT-5.x, Claude Opus 4.x, Qwen3.x and Gemma4 exhibit strong general reasoning capabilities and broad multi-lingual coverage [4], and an emerging line of work argues that retrieval-augmented LLMs alone could subsume the classical claim →evidence →verdict pipeline. Nevertheless, practical de-ployment requires consistent performance across languages, stable precision–recall trade-offs, and self-hostable solutions compatible with newsroom and fact-checker privacy require-ments. This is especially important in agentic fact-checking workflows where a large LLM acts as an orchestrator and calls specialist tools: compact encoder models are attractive as callable agents for high-throughput classification and retrieval because they are fast, deterministic, and inexpensive to run at scale. In this paper we ask, concretely, whether compact fine-tuned encoder models still beat prompt-based LLM pipelines for industrial multilingual fact-checking , and we answer in the affirmative across the three core components. In this work, we analyse three core components of an industrial fact-checking pipeline: claim detection, retrieval re-ranking, and veracity prediction [2], [5], deployed as a modular system at Factiverse and evaluated against the strongest current proprietary LLMs. For claim detection and stance, we evaluate multilingual Transformer models across a broad set of lan-guages. A fine-tuned XLM-RoBERTa-Large model achieves consistently strong macro F1 scores, outperforming large pro-prietary LLMs particularly in low-resource and morphologi-cally rich languages. These results highlight the effectiveness of task-specific fine-tuning for multilingual claim identifica-tion. For retrieval re-ranking, we compare embedding-based bi-encoders fine-tuned vs untuned embedding models both open source and proprietary models. Overall, the results show that carefully fine-tuned Transformer architectures remain highly competitive, and in several practical settings preferable, to large general-purpose LLMs for production-grade fact-checking systems, including agentic settings where an LLM controller delegates repeated verdict and retrieval decisions to specialist encoder tools. An additional constraint in real-world deployments con-cerns data governance. Journalists and media organisations often cannot transmit sensitive material to external APIs. The evaluated cross-encoder architecture can be fully self-hosted, enabling privacy-preserving deployment while maintaining high effectiveness. 
+
+> arXiv:2606.08605v1 [cs.CL] 7 Jun 2026
+
+a) Contributions.: Concretely, this paper makes the fol-lowing contributions:  
+
+> •
+
+A description and ablation of the deployed Factiverse multilingual fact-checking pipeline, covering claim de-tection, evidence retrieval with question decomposition, cross-lingual re-ranking via SetFit, and veracity predic-tion via stance aggregation (Section III).  
+
+> •
+
+A systematic comparison of fine-tuned models (XLM-RoBERTa-Large for claim detection and mmBERT-base for veracity prediction) against three state-of-the-art LLMs (GPT-5.2, Claude Opus 4.6, Qwen3-8b) across 114 languages for claim detection and 28 languages for veracity prediction, using identical prompts and held-out human-annotated data (Section IV).  
+
+> •
+
+Concrete fine-tuning recipes (loss formulation, class re-balancing, multilingual data augmentation, verdict-phrase scrubbing) that explain why compact encoder models retain a measurable advantage over zero/few-shot LLMs on production data, supported by per-language and per-class error analysis.  
+
+> •
+
+Practical evidence that a 560M-parameter encoder, fully self-hostable, is competitive with multi-hundred-billion-parameter API models while satisfying newsroom-grade latency, cost, and privacy constraints. The rest of the paper is organised as follows. Section II reviews related work on automated fact-checking. Section III describes the Factiverse pipeline and the fine-tuning methodol-ogy for each component. Section IV presents the experimental setup, baselines, and prompts. Section V reports cross-lingual results and a detailed error analysis, before concluding in Section VI. II. R ELATED WORK 
+
+Research on automated fact-checking spans three main components: claim detection, evidence retrieval, and veracity prediction. We discuss each in turn, then position our con-tribution against the recent surge of LLM-based end-to-end approaches. 
+
+a) Claim detection.: Claim detection has primarily been modelled as supervised sentence-level classification in polit-ical and news domains, beginning with ClaimBuster [6] and continuing through the CLEF CheckThat! shared tasks [7]. Recent multilingual surveys [8] highlight a persistent gap: most labelled data is English-language, and zero-shot transfer to morphologically richer languages is brittle for models that lack genuinely multilingual pretraining. A complementary line studies what makes a claim “check-worthy” beyond mere factuality (relevance, harm, salience), but the evaluation in-frastructure remains dominated by binary classification bench-marks. 
+
+b) Evidence retrieval.: Evidence retrieval is typically framed as an open-domain retrieval task over large and het-erogeneous corpora, with hybrid lexical-plus-dense pipelines now standard in industrial systems [9]. Modern bi-encoders such as those from OpenAI, Google, Perplexity and Qwen offer strong English performance, but cross-lingual evaluations remain rare. Recent work on contrastive sentence embed-dings [10], [11] demonstrates that small amounts of in-domain relevance feedback can sharply improve performance over general-purpose embeddings; we build directly on this insight. 
+
+c) Veracity prediction.: Veracity prediction, often cast as natural language inference or stance classification, determines whether evidence supports or refutes a claim [5], [12], [13]. Benchmarks such as FEVER, MultiFC and AVeriTeC have driven steady progress, but most operate on relatively clean evidence and underrepresent the noisy, multilingual web data encountered in production. Real-world fact-check explanations also typically contain explicit verdict phrases that, if not removed, leak label information into the model; we address this preprocessing concern explicitly in Section III. Graph-based formulations have also proven effective, in-cluding stream-based reasoning over knowledge graphs for fact checking and hierarchical graph inference methods for evidence-aware verification [14], [15]; related work on rumor detection in heterogeneous graphs further motivates graph-structured modeling choices in misinformation settings [16]. 
+
+d) End-to-end LLM fact-checking.: The rise of large lan-guage models has led to end-to-end approaches that combine retrieval, reasoning, and explanation generation within a single generative framework. Search-augmented generation and self-verification methods aim to reduce hallucinations and improve factual grounding [4], [17]–[20]. However, deployment in practice remains limited due to latency, cost, hallucination risks, and data governance constraints, particularly in news-room and enterprise settings [21], [22]. Several papers report that while LLMs produce fluent justifications, their per-claim verdicts are inconsistent across reruns and degrade sharply in low-resource languages; we corroborate this observation quantitatively in Section V. 
+
+e) Industrial pipelines.: In contrast, industrial systems commonly adopt modular pipelines that separate retrieval, ranking, and classification [1], [23], [24]. Such designs al-low better control of precision–recall trade-offs and easier integration with curated sources. Factiverse has previously introduced commercial fact-checking tools and multilingual benchmarks [2], [25]. Extending this line of work, we com-pare modern proprietary and open embedding models with a domain-adapted fine-tuned embedding model in multilingual, production-oriented settings, and we provide a per-language error analysis that quantifies when a fine-tuned compact en-coder remains preferable to large generalist LLMs. III. F ACT -CHECKING PIPELINE 
+
+We follow a three-stage fact-checking pipeline that is widely used in the literature [5] and industry [1], [2], [23], [24], and instantiate it as the deployed Factiverse system shown in Figure 1. It first detects check-worthy statements, referred to as claims, from user-written or LLM-generated text. For each claim, relevant evidence is retrieved from the open web and previously verified fact-checks, and the claim is then verified against this evidence. The pipeline is implemented as a Python Stage 1: Claim Detection       
+
+> Stage 2: Retrieval & Re-ranking
+> Stage 3: Veracity
+> Input text
+> Sentence seg.+coref
+> Gemma4 E4b-it
+> Claim det.
+> XLM-R
+> Check-worthy claim
+> Question gen.
+> Web search
+> Google •DDG Wikipedia •
+> Semantic Scholar FactiSearch
+> Re-ranker
+> SetFit
+> Top-k
+> passages
+> Summary +corr.
+> Stance
+> mmBERT Agg. Verdict (S/R/M)
+> Fig. 1. The deployed Factiverse fact-checking pipeline. Blue nodes are fine-tuned encoder components: XLM-RoBERTa-Large for claim detection, SetFit XLM-R for re-ranker, and mmBERT-base for stance classifier; orange nodes are off-the-shelf LLMs used for utility tasks (sentence/coreference cleanup, question decomposition, justification summarisation). Grey nodes denote intermediate artefacts. The verdict is produced by aggregating per-passage stance decisions, and an LLM-generated justification accompanies each prediction.
+
+FastAPI service deployed on a Kubernetes cluster with auto-scaling on Azure cloud platform, and integrates dedicated models for claim detection, evidence retrieval and ranking, and veracity prediction. At a high level, the pipeline takes a raw document (e.g, news articles, video/podcast transcripts, LLM generated content) as input (Figure 1, left) and emits, for every check-worthy sentence, a three-way veracity verdict (S UPPORTS , R EFUTES ,MIXED ) together with a natural-language justification (right). Three task-specific encoder models are deployed: XLM-RoBERTa-Large for claim detection and retrieval re-ranking, and mmBERT-base for stance classification, while utility steps such as coreference resolution, question decomposition and the final summary generation are delegated to off-the-shelf LLMs. This split is deliberate: the encoder components are the ones whose accuracy and latency need to be guaranteed across 100+ languages, so they are fine-tuned on production data; the LLM components are used only where their generative flexibility is genuinely required, and can be swapped without retraining the rest of the pipeline. The remainder of this section describes each stage in detail, focusing on the fine-tuning methodology that yields the performance reported in Section V. 
+
+A. Claim Detection 
+
+We first segment the sentences in a given text and use an open LLM (Gemma4-E4b-it) 1 to resolve and decontextualize them (for example, coreference resolution). We next classify these sentences into check-worthy and not-check-worthy. We follow the definition of check-worthy claims from [8]. We fine-tune the XLM-RoBERTa-Large model 2 [26], using the data from ClaimBuster [6] and CLEF CheckThat Lab! [7] along with a dataset collected from Factiverse production system (see [2] for more details) to classify sentences into ‘Check-worthy’ and ‘Not-check-worthy’. The fine-tuning objective is sequence-level binary cross-entropy on the [CLS] token, with a linear classification head added on top of the pre-trained encoder. Because the training data is heavily skewed toward non-check-worthy sentences, we apply class-weighted loss with a positive-class weight of 5:1 to reduce false negatives that would otherwise propagate through the rest of the pipeline. The multilingual representations of XLM-RoBERTa-Large allow the resulting classifier to trans-fer zero-shot to 100+ additional languages without explicit training data, which we evaluate in Section IV. We use XLM-RoBERTa-Large for claim detection because this stage operates on sentence-level inputs where a 512-token window is sufficient in practice, while still benefiting from XLM-R’s strong multilingual representations. 
+
+B. Evidence Retrieval 
+
+The second stage retrieves evidence relevant to each de-tected claim. Since issuing the claim verbatim as a query often yields limited or overly specific results, we first de-compose it into targeted verification questions generated by an LLM (Gemma4-E4b-it). These questions are used to query multiple sources, including Google, DuckDuckGo, Wikipedia, Semantic Scholar, and Factiverse’s continuously updated fact-check archive 3. Retrieved documents are deduplicated through approximate matching over URLs, titles, and content. Publicly accessible articles are then scraped and segmented into pas-sages. Both the passages and the queries are encoded using a multilingual sentence encoder [10], and passages exceeding a cosine similarity threshold of 0.6 are retained as candidate evidence. We fine-tune an embedding model using a SetFit classifier [11] on relevance feedback collected internally at Factiverse (claim, evidence) pairs. Fine-tuning follows the two-stage SetFit recipe [11]: in the first stage, the sentence encoder is adapted with a contrastive cosine-similarity loss over RELEVANT/NOT RELEVANT pairs, where positives are drawn from human-confirmed rele-vance feedback and hard negatives are mined from passages that share lexical overlap with the claim but were judged irrelevant. In the second stage, a lightweight logistic classifi-cation head is trained on the resulting embeddings to produce 
+
+> 1Self-hosted with Ollama
+> 2https://huggingface.co/FacebookAI/xlm-roberta-large
+> 3https://factisearch.ai
+
+a calibrated relevance score. Because human-labelled pairs are scarce in low-resource languages, we additionally back-translate the English training pairs, yielding a single cross-lingual re-ranker rather than language-specific models. To improve credibility, we filter out sources known to disseminate misinformation 4 and boost the scores of credible news sources from past record based on bias rating from Media Bias Fact Check 5 and Reuters digital trust score 6.
+
+C. Veracity Prediction 
+
+The final stage predicts the veracity of each claim based on the retrieved evidence. For each evidence snippet from previous stage, we perform stance classification using a natural language inference formulation to determine whether the claim is supported, refuted or conflicting following prior work [13]. For veracity prediction, we fine-tune mmBERT-base (mul-tilingual ModernBERT) on a combination of real-world fact-checks from professional fact-checkers 7 and feedback collected from our internal fact-checking app (https://app. factiverse.ai) from experts. The model is formulated as a three-way sequence-pair classifier (S UPPORTS , R EFUTES , M IXED )over the (claim, evidence) pair, joined by the model’s separator token and truncated to a combined length of 8192 sub-word tokens. Because fact-check verdicts are typically embedded in summary-style explanations that contain explicit verdict phrases (e.g., “we rate this false”, “mostly true”), we strip these multilingual verdict patterns from the evidence during training to prevent the model from memorising surface cues rather than learning evidence-based reasoning. Class imbal-ance, dominated by R EFUTES , is handled by stratified down-sampling to the minority class within each training epoch. The individual stance decisions are then aggregated at inference time across all retrieved evidence passages, consistent with earlier approaches [27], [28]. Finally, an LLM is used to generate a concise summary of the selected evidence as a justification for the predicted label. For refuted claims, the model additionally produces a corrected version based on the generated justification. 
+
+a) Unified training procedure.: All three encoder com-ponents in Figure 1 share the training recipe summarised in Algorithm 1. Concretely, given a pre-trained multilingual encoder fθ0 , a labelled dataset D (binary for claim detection, 3-way for stance, pairwise contrastive for the re-ranker), and a task-specific head hϕ, we (i) remove dataset-specific surface leakage when applicable, (ii) optionally rebalance classes, (iii) minimise a cross-entropy or contrastive objective with linear warm-up and decay, and (iv) select the best checkpoint by validation Macro-F1. The differences between the three components reduce to which loss is used and which prepro-cessing step (e.g. verdict-phrase scrubbing) is enabled. 
+
+> 4https://en.wikipedia.org/wiki/List of fake news websites
+> 5https://mediabiasfactcheck.com/
+> 6https://reutersinstitute.politics.ox.ac.uk/sites/default/files/2026-01/Trends and Predictions 2026.pdf
+> 7https://toolbox.google.com/factcheck/explorer
+
+Algorithm 1 Encoder fine-tuning used for all three Factiverse components. 
+
+Require: Pre-trained encoder fθ0 , head hϕ, dataset D, task 
+
+τ ∈ { CD , RERANK , STANCE }, hyper-params η, B, E, w  
+
+> 1:
+
+D ← PREPROCESS (D, τ ) ▷ strip verdict phrases if 
+
+τ = STANCE 2: if τ = CD then L ← WeightedCE (w+ : w−) 
+
+> 3:
+
+else if τ = STANCE then D ← DOWN SAMPLE (D); L ← 
+
+CE  
+
+> 4:
+
+else L ← ContrastiveCos (margin = 0 .3)  
+
+> 5:
+
+end if  
+
+> 6:
+
+Initialise θ ← θ0; ϕ random; optimiser ← AdamW( η) 
+
+> 7:
+
+for epoch e = 1 . . . E do  
+
+> 8:
+
+for mini-batch (x, y ) ∼ D train of size B do  
+
+> 9:
+
+z ← fθ (x); ˆy ← hϕ(z) 
+
+> 10:
+
+ℓ ← L (ˆ y, y ) (apply LR warm-up for first 500 steps)  
+
+> 11:
+
+(θ, ϕ ) ← ADAM W(θ, ϕ, ∇ℓ) 
+
+> 12:
+
+end for  
+
+> 13:
+
+me ← MACRO F1 (fθ , h ϕ, Dval ) 
+
+> 14:
+
+if me has not improved for 3 epochs then break ▷
+
+early stop  
+
+> 15:
+
+end if  
+
+> 16:
+
+end for  
+
+> 17:
+
+return (fθ , h ϕ) with arg max e me
+
+The procedure is intentionally simple: there is no curricu-lum, no auxiliary loss, and no custom layer-wise learning-rate schedule. Most of the empirical gain over LLM baselines comes from (a) honest task-specific supervision rather than zero/few-shot inference, (b) the multilingual representations baked into multilingual encoders (XLM-RoBERTa-Large and mmBERT-base) during their large-scale pretraining, and (c) the preprocessing and class-rebalancing steps that prevent the model from latching onto spurious surface features. 
+
+b) Why compact encoders still beat 100B+ LLMs here.: 
+
+Three properties of the task explain the gap that we will report in Section V: (i) the label space is small and discrete, so a calibrated classification head is more sample-efficient than asking an LLM to follow an instruction; (ii) multilingual en-coders have contiguous multilingual pre-training data, whereas LLMs increasingly under-represent low-resource languages in their post-training mixture, leading to brittle instruction-following in those languages; and (iii) LLMs are trained to produce fluent justifications, but the underlying verdict signal is often inconsistent across reruns, a property unacceptable for a production fact-checker. We make these claims concrete by per-class and per-language error analysis in Section V. IV. E XPERIMENTAL SETUP 
+
+a) Dataset:: We use a dataset sample from production deployment at Factiverse [2] with human annotated labels collected from experts in the fact-checking domain. Claim detection data uses a train split of 84,312 examples (label 0: 43,979; label 1: 40,333) and a validation split of 30,835 Marathi 
+
+> Telugu
+> Kirghiz
+> Tamil
+> Tigrinya
+> Assamese
+> Oriya
+> Panjabi / Punjabi
+> Gujarati
+> Burmese
+> Yiddish
+> Akan
+> Yoruba
+> Malayalam
+> Ewe
+> Sindhi
+> Ganda
+> Aymara
+> Polish
+> Sanskrit
+> Hindi
+> Samoan
+> Kannada
+> Guarani
+> Tatar
+> Maori
+> Bengali
+> Igbo
+> Urdu
+> Uyghur
+> Bambara
+> Kurdish
+> Zulu
+> Luxembourgish
+> Southern Sotho
+> Rwandi
+> Scottish Gaelic
+> Kazakh
+> Pashto
+> Georgian
+> Lingala
+> Sinhalese
+> Tajik
+> Maltese
+> Haitian
+> Belarusian
+> Chichewa
+> Uzbek
+> Mongolian
+> Shona
+> Xhosa
+> Sundanese
+> Tsonga
+> Armenian
+> Nepali
+> Oromo
+> Amharic
+> Azerbaijani
+> Hausa
+> Laotian
+> Turkmen
+> Turkish
+> West Frisian
+> Dutch
+> Spanish
+> Quechua
+> Czech
+> Serbian
+> Swedish
+> Tagalog
+> German
+> Bosnian
+> Arabic
+> Malagasy
+> Slovak
+> Catalan
+> Cambodian
+> Malay
+> Lithuanian
+> Ukrainian
+> Welsh
+> Swahili
+> Javanese
+> Croatian
+> Slovenian
+> Divehi
+> Afrikaans
+> Bulgarian
+> Portuguese
+> Icelandic
+> Latvian
+> Somalia
+> Thai
+> Greek
+> Irish
+> Romanian
+> Norwegian
+> Indonesian
+> Korean
+> Estonian
+> Russian
+> Macedonian
+> Hungarian
+> Persian
+> Basque
+> Latin
+> Italian
+> Corsican
+> Hebrew
+> Hebrew
+> Finnish
+> Vietnamese
+> Chinese
+> Galician
+> Albanian
+> Esperanto
+> Breton
+> French
+> Danish
+> Japanese
+> English
+
+Language 
+
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> Macro F1 Score
+
+Macro F1 Scores by Language for Claim Detection. 
+
+Qwen3-8B 
+
+Claude Opus 4.6 
+
+GPT-5.2 
+
+XLM-RoBERTa-Large (fine-tuned) Fig. 2. Evaluation of claim detection for 114 languages using Factiverse model (fine-tuned XLM-RoBERTa-Large), GPT-5.2, Claude Opus 4.6 and Qwen3-8b. 
+
+examples (label 0: 4,881; label 1: 25,954). This yields a near-balanced training split and a label-1-heavy validation split. Since the collected data was in English, it was translated to 114 languages using the Google Translate API. We ac-knowledge that this translation-based construction can intro-duce translationese effects and may not fully capture native-language distributional difficulty. At the same time, it provides a controlled way to compare models across many languages using semantically aligned inputs and consistent labels, so we treat it as a large-scale comparative stress test rather than a full substitute for native in-language evaluation. To reduce this limitation, we use original (non-translated) English samples where available and keep prompts and scoring pro-tocols identical across languages. In future revisions, we will add targeted native-language evaluation and report separate analyses to better isolate translation effects from true cross-lingual generalization. For veracity prediction, the underlying production test data is multilingual and highly imbalanced by language; to make evaluation comparable and computationally feasible for all baselines, we evaluate on a balanced subset of 28 languages (the same set shown in Fig. 5), with 300 stance examples per language (100 per class). For English, we use original (non-translated) data and sample 300 examples (100 per class) from the full English test set because full-set LLM evaluation is prohibitively expensive. Table I summarises the datasets and splits used across the three pipeline components. 
+
+b) Models:: For claim detection, we fine-tune XLM-RoBERTa-Large [26]. For veracity prediction (stance classi-fication), we fine-tune mmBERT-base (multilingual Modern-BERT). We use GPT-5.2, Claude Opus 4.6 and Qwen3-8b as 
+
+TABLE I DATASET SIZE SUMMARY ACROSS TASKS .
+
+Task Train Test/Eval Labels 
+
+Claim detection Train: 84,312 (label 0: 43,979; label 1: 40,333); Val: 30,835 (label 0: 4,881; label 1: 25,954) 114-language translated evaluation (English kept original when available) Binary labels: Check-worthy / Not-check-worthy Evidence retrieval 1,250 claims, 53,492 claim– query–snippet pairs 313 claims, 13,311 pairs Binary pairwise relevance: RELEVANT /NOT RELEVANT Veracity pre-diction Train: 46,619; Val: 7,835 (class-balanced) 28 languages × 300 examples/language 
+
+= 8,400 stance pairs (100/class/language); English subset: 300 3-way stance labels: Supports /Refutes /Mixed 
+
+LLM baselines with few-shot ICL prompting. To make the comparison fair, the same prompts are used for all LLMs (see Fig. 3 for claim detection and Fig. 4 for stance classification). We set the temperature to 0.1 and fix a random seed. For evidence retrieval, we use models from OpenAI, Per-plexity, Google and Qwen (see Table II) as baselines and com-pare them against a fine-tuned XLM-RoBERTa-Large model with contrastive loss using SetFit classifier. 
+
+c) Fine-tuning configuration:: The claim detection and SetFit re-ranker components start from XLM-RoBERTa-Large (560M parameters), while stance classification uses mmBERT-base (278M parameters). All are fine-tuned with AdamW. The classification heads (claim detection and stance) use learning rate 6×10 −6, train batch size 16, 500 warm-up steps Your task is to identify whether a given text in the {lang} language is verifiable using asearch engine in the context of fact-checking. Let’s define a function named checkworthy(input: str). The return value should be a string, where each string selects from "Yes", "No". "Yes" means the text is a factual checkworthy statement. "No" means that the text is not checkworthy, it might be an opinion, a question, or others. For example, if a user calls checkworthy("I think Apple is a good company.") You should return a string "No" without any other words. checkworthy("Apple’s CEO is Tim Cook.") should return "Yes" since it is verifiable. Note that your response will be passed to the Python interpreter, SO NO OTHER WORDS! Always return "Yes" or "No" without any other words. checkworthy({text}) 
+
+Fig. 3. Claim-detection (check-worthiness) prompt used for the LLM base-lines. Placeholder {text } is the candidate sentence and {lang } is its language. 
+
+with linear decay, weight decay 1 × 10 −3, dropout 0.1 on both hidden and attention projections, and a maximum of 5 epochs with early stopping on validation Macro-F1 (patience 3). Sequences are truncated to 512 sub-word tokens; for the stance model, claim and evidence are concatenated with the model’s separator token and right-padded. Training uses bf16 mixed precision on a single NVIDIA H100 (95 GB) GPU; each model fits in under 16 GB of activation memory at this batch size. The SetFit re-ranker uses the XLM-RoBERTa-Large encoder backbone with a contrastive cosine-similarity loss (margin 0.3), 20 contrastive iterations of 5 epochs each, and an MNR-style in-batch negative sampler; only the bottom four encoder layers and the projection head are updated to limit drift from the pre-trained multilingual space. Random seeds are fixed across runs and we report the best checkpoint by validation Macro-F1. 
+
+d) Metrics:: We use the Macro-F1 and Micro-F1 scores to compare the performance of the models since there is an imbalance in the classes (applies to both claim detection and veracity prediction tasks). For multilingual evaluation, we only show Macro-F1 but a similar trend was observed in Micro-F1. The evaluation code and test data used to reproduce the reported benchmarks are available on GitHub 8. Training code and proprietary training data are not publicly released for company-confidentiality reasons. V. E XPERIMENTAL RESULTS 
+
+A. Claim Detection 
+
+As shown in Figure 2, claim-detection performance varies by language, and the fine-tuned Factiverse model is consis-tently among the strongest systems across language groups. 
+
+> 8
+
+https://github.com/factiverse/factcheck-editor 
+
+You are given a claim and an evidence text both in the {lang} language, and you need to decide the stance of the evidence toward the claim. Choose from the following three options. A. The evidence supports the claim. B. The evidence refutes the claim. C. The evidence is mixed or inconclusive. For example, you are given Claim: "India has the largest population in the world.", Evidence: "In 2023 India overtook China to become the most populous country." You should return A. Pick the correct option A, B, or C. You must not add any other words. Claim: {claim} Evidence: {evidence} 
+
+Fig. 4. Stance-classification (veracity prediction) prompt used for the LLM baselines. Placeholders {claim }, {evidence }, and {lang } are substi-tuted at inference time. TABLE II EVIDENCE RETRIEVAL PERFORMANCE 
+
+Model Provider F1 Recall Precision text-embedding-3-large OpenAI 0.7959 0.7429 0.8571 pplx-embed-v1-4b Perplexity 0.8177 0.7905 0.8469 pplx-embed-v1-0.6b Perplexity 0.7979 0.7143 0.9036 
+
+Qwen3-Embedding-4B Qwen 0.7500 0.8857 0.6503 Qwen3-Embedding-0.6B Qwen 0.7652 0.9619 0.6352 embeddinggemma-300m Google 0.5341 0.8952 0.3806 XLM-RoBERTa-Large (FT) Factiverse 0.8216 0.9429 0.7279 
+
+The aggregate view in Table III shows that Factiverse is not the top model on Macro-F1 (Claude Opus 4.6: 0.7489 vs Factiverse: 0.7277), but it achieves the best Micro-F1 (0.7931) and is strongest on English in Table IV (EN Macro-F1 0.9045). Beyond English, the fine-tuned model remains competitive across several major languages while retaining better stability in many low-resource settings than prompt-only LLM baselines. Overall, these results suggest that additional task-specific training data for low-resource languages is the most direct path to close the remaining aggregate Macro-F1 gap. 
+
+B. Evidence Retrieval 
+
+The fine-tuned XLM-RoBERTa-Large embedding model achieves the strongest overall evidence retrieval perfor-mance, obtaining the highest F1 score (0.8216) along with 
+
+TABLE III CLAIM DETECTION AND VERACITY PREDICTION RESULTS PRESENTED AS MEAN MICRO AND MACRO -F1 SCORES .
+
+Model Claim Detection Veracity Prediction Ma.-F1 Mi.-F1 Ma.-F1 Mi.-F1 
+
+Qwen3-8b 0.4742 0.4979 0.6016 0.6092 Claude Opus 4.6 0.7489 0.7644 0.6122 0.6417 GPT-5.2 0.6792 0.6884 0.6457 0.6655 
+
+Factiverse 0.7277 0.7931 0.6205 0.6457 high recall (0.9429), indicating a well-balanced and robust claim–evidence matching capability. Among untuned embed-dings, pplx-embed-v1-4b performs best (F1 0.8177), followed by text-embedding-3-large (0.7959), while smaller models exhibit more pronounced precision–recall trade-offs. Qwen3-Embedding-0.6B achieves very high recall (0.9619) but substantially lower precision (0.6352), and 
+
+embeddinggemma-300m shows particularly low precision (0.3806) even when recall remains high. 
+
+C. Veracity Prediction 
+
+As shown in Figure 5, veracity prediction performance is strongly language-dependent on our 28-language balanced evaluation set (300 examples per language, 100 per class). For aggregate reporting, we apply the filtered protocol described above. Under this filtered protocol, GPT-5.2 achieves the highest aggregate score (Macro-F1 0.6457, Micro-F1 0.6655), followed by mmBERT-base fine-tuned (Factiverse) (0.6205 / 0.6457), Claude Opus 4.6 (0.6122 / 0.6417), and Qwen3-8b (0.6016 / 0.6092). However, this aggregate ranking does not capture where the fine-tuned model is strongest: it is best on English in our latency-linked evaluation slice (EN Macro-F1 0.8036 in Table IV) and remains competitive in several major languages while degrading more gracefully in lower-resource languages. In production, this stage is designed as decision support for human fact-checkers and journalists, not as a fully automated final-verdict engine. As a quick robustness check, we additionally compute language-level bootstrap confidence intervals (20,000 resam-ples) for the mmBERT local model: under the filtered setting, Macro-F1 is 0.6108 (95% CI: [0.5744, 0.6472]) and Micro-F1 is 0.6413 (95% CI: [0.6103, 0.6726]). Paired bootstrap differences against GPT-5.2 and Claude overlap zero in this quick test, so these aggregate gaps should be interpreted cautiously. At the per-language level, the best model still varies substan-tially, as shown in Figure 5; thus the filtered aggregate should be interpreted as a robustness summary rather than evidence of universal dominance in every language. The remaining gap for the fine-tuned model is concentrated in lower-resource languages, indicating that larger and cleaner supervised train-ing sets for those languages are likely to improve aggregate Macro-F1 most effectively. 
+
+D. Error Analysis 
+
+Aggregate scores in Table III hide recurring per-class and per-language errors. We inspected ∼200 disagreement cases per task and summarize the four dominant failure modes below. 
+
+a) (1) LLM refusals and instruction-violation responses on borderline claims.: For claim detection, GPT-5.2 and Claude Opus 4.6 often return refusals (e.g., “it depends”) instead of strict Yes /No . Even with explicit format constraints, about 7% of GPT-5.2 outputs and 11% of Claude outputs required post-hoc coercion, reducing recall. Qwen3-8b is more brittle in low-resource settings (e.g., Bengali, Tamil, Marathi), frequently emitting explanations instead of labels and driving many sub-0.50 Macro-F1 cases. This failure mode is absent in fine-tuned XLM-R because decoding is replaced by a fixed two-class softmax. 
+
+b) (2) Verdict-phrase leakage hurts the LLMs, not the fine-tuned model.: LLMs over-rely on explicit verdict phrases in evidence (e.g., “mostly true”). When we scrub these cues, LLM stance accuracy drops by 4–6 points, indicating shortcut use rather than robust inference. The fine-tuned stance model is trained after the same scrub step (Section III) and changes little, suggesting better use of underlying claim–evidence semantics. 
+
+c) (3) Class collapse on MIXED for small decoder-only models.: MIXED is the hardest stance class because lexical cues are weak. Smaller decoder-only baselines under-predict it and default to S UPPORTS /R EFUTES , which disproportionately hurts Macro-F1. GPT-5.2 and Claude reduce this collapse but still over-commit when evidence is weak or contradictory. 
+
+d) (4) Cross-lingual instability of LLMs in low-resource languages.: Figs. 2 and 5 show a U-shaped LLM pattern: strong on several high-resource European languages, then sharp drops in lower-resource settings. For claim detection, GPT-5.2 falls from 0.85 (English) to 0.42 (Nepali), while fine-tuned XLM-R stays within a narrower 0.65–0.85 band. Operationally, this is where self-hosted encoders are most valuable: when LLM reliability drops in long-tail languages. 
+
+e) Where fine-tuned models still lose.: For completeness, we note two regimes in which the LLM baselines remain ahead: (a) stance classification in a subset of languages where GPT-5.2/Claude outperform the fine-tuned model by large margins (e.g., Amharic, Akan, and Hindi in our test set), and (b) claim detection on highly idiomatic English (memes, satire), where surface-level signals are insufficient and the LLMs’ broader world knowledge helps. Closing these gaps would require either targeted multilingual fine-tuning on those harder language pockets or a hybrid system that escalates to an LLM for low-confidence encoder predictions. 
+
+f) Implications for system design.: Taken together, the error analysis suggests three practical recommendations for industrial fact-checking systems: (i) prefer fine-tuned encoders over zero/few-shot LLMs whenever the label space is small and discrete, (ii) explicitly scrub verdict cues from training and evaluation evidence to avoid surface-cue exploitation, and (iii) reserve LLMs for the steps where their generative flexibil-ity is genuinely needed (utility tasks: question decomposition, justification summarisation, decontextualisation) rather than for the per-claim verdict itself. 
+
+E. Inference Latency on the Same Hardware 
+
+Quality is only one dimension of industrial deployability; latency and throughput are the second. To make the compar-ison directly meaningful, we benchmarked every model on the same H100 NVL GPU (95 GB), using identical inputs and identical prompts across systems, with 100 held-out items per task. For the two classification tasks (claim detection and stance), we compare the fine-tuned encoder components Icelandic 
+
+> Bosnian
+> Marathi
+> Aymara
+> Azerbaijani
+> Belarusian
+> Welsh
+> Swahili
+> Bengali
+> Esperanto
+> Javanese
+> Basque
+> Arabic
+> Hindi
+> Afrikaans
+> Persian
+> Czech
+> Catalan
+> Estonian
+> Turkish
+> Bulgarian
+> Swedish
+> Finnish
+> Corsican
+> Danish
+> Chinese
+> Japanese
+> Norwegian
+> Korean
+> Vietnamese
+> Indonesian
+> Chinese (Simplified)
+> Spanish
+> German
+> French
+> English
+> Language
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> Macro F1 Score
+> Macro F1 Scores by Language for Veracity Prediction
+> MMbert-base fine-tuned (Factiverse)
+> Claude Opus 4.6
+> GPT-5.2
+> Qwen3-8B
+
+Fig. 5. Evaluation of veracity prediction for 28 languages using mmBERT-base fine-tuned (Factiverse), GPT-5.2, Claude Opus 4.6 and Qwen3-8b (some model-language pairs are missing due to unavailable outputs). 
+
+against the tested local/API LLM baselines (greedy decoding, 
+
+temperature = 0.1, fixed seed). For re-ranking , which is structurally a representation-learning problem, we compare embedding bi-encoders only; LLM-as-judge baselines are not appropriate here because the production pipeline scores hun-dreds of candidate passages per claim and the bottleneck is encoder forward passes, not generative decoding. The encoder runs with batch size 16 (the deployment setting), and LLMs are queried one item at a time as they would be in the deployed FastAPI service; bi-encoders encode the claim and evidence in two batched passes and score with cosine similarity. Per-model warm-up of 2–3 calls is excluded by reporting median latency. “Slowdown” in Table IV is computed relative to the Factiverse fine-tuned model within each task. Table IV reports the results across all three pipeline stages and makes the deployment trade-off explicit: fine-tuned en-coders consistently provide the best latency–cost profile, while remaining competitive in quality and often strongest on En-glish for the classifier setting. 
+
+a) Claim detection.: The fine-tuned encoder processes a sentence in ≈ 1.3 ms (median) and sustains > 720 claims/s with batch 16; in Table IV, the tested local/API LLM baselines are substantially slower (about 101 × to 1,335 ×) because each call requires autoregressive decoding even when the expected output is a short label. It is also the strongest model on English in this task (EN Macro-F1 0.9045), while preserving strong multilingual aggregate quality (Macro-F1 0.7277). This yields a practically dominant operating point: about $0.002 per 1,000 decisions on H100 NVL, versus $0.25 for GPT-5.2 and $4.35 for Claude Opus 4.6. 
+
+b) Stance classification.: The encoder latency rises mod-estly to ≈ 3.7 ms because the (claim, evidence) pair fills the 512-token sequence-length budget, but it is still substantially faster than the tested local LLM baseline on the same hardware (Qwen3-8b at 135.8 ms). Using the same H100-based estima-tion method as claim detection, this corresponds to roughly $0.008 per 1,000 stance decisions for mmBERT-base fine-tuned (Factiverse), versus $0.0289 for local Qwen3-8b (Ta-ble IV). On a small English API sample, GPT-5.2 and Claude Opus 4.6 are measured at about 1.01 s and 1.15 s median per stance decision (roughly 272 × and 312 × slower than the fine-tuned encoder), while their token-based cost estimates remain approximately $0.70 and $5.40 per 1,000 decisions. Although GPT-5.2 is highest on stance quality in this sample, the fine-tuned model provides the strongest efficiency–robustness trade-off for production due to deterministic label outputs, low variance latency, and substantially lower operating cost. 
+
+c) Re-ranking.: The picture is qualitatively different: every reasonable bi-encoder is fast on this hardware. The Factiverse fine-tuned XLM-R-Large runs at ≈ 4.1 ms per (claim, evidence) pair, with one forward pass for the claim and one for the evidence with batched mean pooling and cosine. Among the open-weight baselines listed in Table II, Google’s embeddinggemma-300m closes in at 4.7 ms, the two Qwen3 embedding models sit at 7.8 ms and 12.8 ms (0.6B and 4B respectively), and Perplexity’s open-weight checkpoints pplx-embed-v1-0.6b and 
+
+pplx-embed-v1-4b (https://huggingface.co/perplexity-ai); land at 9.1 ms and 56.2 ms. The Perplexity 4B model is approximately 4× slower than the same-sized Qwen3-TABLE IV INFERENCE LATENCY AND COST . S ELF -HOSTED MODELS ARE BENCHMARKED ON H100 NVL. API MODELS ARE MEASURED END -TO -END (INCLUDING NETWORK ). “S LOWDOWN ” IS RELATIVE TO THE TASK -SPECIFIC FINE -TUNED BASELINE . C OST PER 1,000 CLAIMS USES AVERAGE TOKEN COUNTS AND PUBLISHED PRICING . † GEMINI 3.5 F LASH WAS RUN IN THINKING MODE . ‡ SELF -HOSTED CLAIM -DETECTION COSTS ARE ESTIMATED FROM MEASURED ITEMS /S ON H100 NVL. § STANCE SELF -HOSTED COSTS ARE ESTIMATED WITH THE SAME METHOD . ¶ STANCE API COSTS ARE APPROXIMATE TOKEN -BASED ESTIMATES (AVERAGE PROMPT LENGTH INCLUDING CLAIM +EVIDENCE AND SHORT LABEL -ONLY OUTPUT ); API STANCE LATENCY IS MEASURED END -TO -END ON A SMALL ENGLISH SAMPLE .
+
+Task Model Med. ms p95 ms items/s Slowdown Macro-F1 EN Macro-F1 $/1k claims 
+
+> Claim det.
+
+XLM-R-Large (FT) 1.3 1.3 722.5 1.0 × 0.7277 0.9045 self-hosted ($0.002 ‡)Qwen3-8b 135.1 145.2 7.4 101 × 0.4742 0.3653 self-hosted ($0.0289 ‡)GPT-5.2 (API) 413 790 2.4 318 × 0.6792 0.6179 $0.25 Claude Opus 4.6 (API) 1,735 5,335 0.6 1,335 × 0.7489 0.6886 $4.35 Stance  mmBERT-base fine-tuned (Factiverse) 3.7 4.2 267.6 1.0 × 0.6205 0.8036 self-hosted ($0.008 §)Qwen3-8b 135.8 156.6 7.2 37 × 0.6016 0.6156 self-hosted ($0.0289 §)GPT-5.2 (API) 1,006 1,451 1.0 272 × 0.6457 0.6705 $0.70 ¶
+
+Claude Opus 4.6 (API) 1,153 2,199 0.7 312 × 0.6122 0.6052 $5.40 ¶
+
+> Re-rank
+
+XLM-R-Large (FT) 4.1 4.8 237.7 1.0 × 0.8216 — self-hosted embeddinggemma-300m (308M) 4.7 5.7 188.1 1.2 × 0.5341 — self-hosted pplx-embed-v1-0.6b (596M) 9.1 12.6 103.5 2.2 × 0.7979 — self-hosted pplx-embed-v1-4b (4022M) 56.2 78.1 17.9 13.7 × 0.8177 — self-hosted Qwen3-Embedding-0.6B (596M) 7.8 8.4 124.4 1.9 × 0.7652 — self-hosted Qwen3-Embedding-4B (4022M) 12.8 15.6 75.9 3.1 × 0.7500 — self-hosted 
+
+Embedding-4B; the bidirectional Qwen3-based architecture used by Perplexity (bidirectional_pplx_qwen3 )appears more expensive per token than Qwen’s own implementation. LLM-as-judge baselines are between 270 and 750 ms per pair on the same hardware (data not shown for brevity), one to three orders of magnitude slower than any encoder-based re-ranker. We therefore use LLM-as-judge only 
+
+offline for training-data generation and rely on a fine-tuned bi-encoder for in-flight re-ranking. The remaining proprietary API-hosted models, primarily OpenAI’s text-embedding-3-large for re-ranking, are excluded from same-hardware benchmarking in Table IV; their per-request latencies include network round-trip and are subject to rate limits, cost, and data-egress constraints discussed in Section III. For stance, GPT-5.2 and Claude Opus 4.6 are included with quality numbers, approximate token-based costs, and measured end-to-end API latencies on a small English sample (footnote ¶). The qualitative conclusion is robust to the choice of model: on the same hardware, fine-tuned encoder components are one to three orders of magnitude cheaper per item than current generative baselines for the classification stages, with much lower latency variance and stronger controllability. For re-ranking, a fine-tuned bi-encoder remains the right tool regardless of which specific open-weight model is chosen. For an industrial fact-checking pipeline operating across many languages this asymmetry is decisive. VI. C ONCLUSION 
+
+We presented a multilingual, production-grade fact-checking pipeline built on fine-tuned Transformer models for claim detection, evidence retrieval, and veracity prediction. Exper-iments across 114 languages for claim detection and 28 languages for veracity prediction show that task-specific fine-tuning provides strong and stable performance, remaining competitive with large proprietary LLMs while enabling self-hosted deployment. Beyond the headline numbers, our per-language and per-class error analysis identifies four recurring LLM failure modes (refusal, verdict-phrase leakage, mixed-class collapse, and cross-lingual U-shaped degradation) and connects each to a specific design choice in the fine-tuned encoder pipeline that mitigates it. We also showed that a domain-adapted embedding model achieves competitive re-trieval effectiveness compared to modern proprietary embed-dings. Overall, the results support modular architectures that combine retrieval and classification with carefully optimised Transformer models, reserving LLMs for the utility tasks where their generative flexibility is genuinely required. Future work will focus on larger-scale evaluation, further improve-ments to evidence retrieval in long-tail languages, hybrid encoder-LLM systems that escalate to a generative model only when the encoder’s confidence is low, and fully multi-agent fact-checking setups in which specialised agents jointly handle claim decomposition, evidence acquisition, stance assessment, and uncertainty-aware final adjudication. REFERENCES [1] B. Botnevik, E. Sakariassen, and V. Setty, “Brenda: Browser extension for fake news detection,” in Proceedings of the 43rd International ACM SIGIR Conference on Research and Development in Information Retrieval , ser. SIGIR ’20, 2020, p. 2117–2120. [2] V. Setty, “Surprising efficacy of fine-tuned transformers for fact-checking over larger language models,” in Proceedings of the 47th international ACM SIGIR conference on research and development in information retrieval , 2024, pp. 2842–2846. [3] I. Vykopal, M. Pikuliak, S. Ostermann, and M. ˇ Simko, “Generative large language models in automated fact-checking: A survey,” arXiv preprint arXiv:2407.02351 , 2024. [4] L. Gao, Z. Dai, P. Pasupat, A. Chen, A. T. Chaganty, Y. Fan, V. Zhao, N. Lao, H. Lee, D.-C. Juan et al. , “Rarr: Researching and revising what language models say, using language models,” in Proceedings of the 61st Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) , 2023, pp. 16 477–16 508. [5] Z. Guo, M. Schlichtkrull, and A. Vlachos, “A survey on automated fact-checking,” Transactions of the Association for Computational Lin-guistics , vol. 10, pp. 178–206, 2022. [6] N. Hassan, G. Zhang, F. Arslan, J. Caraballo, D. Jimenez, S. Gawsane, S. Hasan, M. Joseph, A. Kulkarni, A. K. Nayak, V. Sable, C. Li, and M. Tremayne, “Claimbuster: the first-ever end-to-end fact-checking system,” Proc. VLDB Endow. , vol. 10, no. 12, pp. 1945–1948, 2017. [7] F. Alam, S. Shaar, F. Dalvi, H. Sajjad, A. Nikolov, H. Mubarak, G. Da San Martino, A. Abdelali, N. Durrani, K. Darwish, A. Al-Homaid, W. Zaghouani, T. Caselli, G. Danoe, F. Stolk, B. Bruntink, and P. Nakov, “Fighting the COVID-19 infodemic: Modeling the perspective of journalists, fact-checkers, social media platforms, policy makers, and the society,” in Findings of the Association for Computational Linguistics: EMNLP 2021 , ser. EMNLP ’21, M.-F. Moens, X. Huang, L. Specia, and S. W.-t. Yih, Eds. Association for Computational Linguistics, 2021, pp. 611–649. [8] R. Panchendrarajan and A. Zubiaga, “Claim detection for automated fact-checking: A survey on monolingual, multilingual and cross-lingual research,” Natural Language Processing Journal , vol. 7, p. 100066, 2024. [9] V. V and V. Setty, “Factir: A real-world zero-shot open-domain retrieval benchmark for fact-checking,” in Companion Proceedings of the ACM on Web Conference 2025 , ser. WWW ’25. New York, NY, USA: Association for Computing Machinery, 2025, p. 809–812. [Online]. Available: https://doi.org/10.1145/3701716.3715300 [10] N. Reimers and I. Gurevych, “Sentence-bert: Sentence embeddings using siamese bert-networks,” in Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing , ser. EMNLP ’19’, K. Inui, J. Jiang, V. Ng, and X. Wan, Eds. Association for Computational Linguistics, 2019, pp. 3982–3992. [11] L. Tunstall, N. Reimers, U. E. S. Jo, L. Bates, D. Korat, M. Wasserblat, and O. Pereg, “Efficient few-shot learning without prompts,” arXiv preprint arXiv:2209.11055 , 2022. [Online]. Available: https://arxiv.org/abs/2209.11055 [12] K. Popat, S. Mukherjee, A. Yates, and G. Weikum, “Declare: Debunking fake news and false claims using evidence-aware deep learning,” in 
+
+Proceedings of the 2018 conference on empirical methods in natural language processing , 2018, pp. 22–32. [13] M. Schlichtkrull, Z. Guo, and A. Vlachos, “Averitec: A dataset for real-world claim verification with evidence from the web,” Advances in Neural Information Processing Systems , vol. 36, pp. 65 128–65 167, 2023. [14] P. Shiralkar, A. Flammini, F. Menczer, and G. L. Ciampaglia, “Finding streams in knowledge graphs to support fact checking,” in 2017 IEEE International Conference on Data Mining (ICDM) , 2017, pp. 859–864. [15] Q. Mao, Y. Wang, C. Yang, L. Du, H. Peng, J. Wu, J. Li, and Z. Wang, “Higil: Hierarchical graph inference learning for fact checking,” in 2022 IEEE International Conference on Data Mining (ICDM) , 2022, pp. 337– 346. [16] C. Yuan, Q. Ma, W. Zhou, J. Han, and S. Hu, “Jointly embedding the local and global relations of heterogeneous graph for rumor detection,” in 2019 IEEE International Conference on Data Mining (ICDM) , 2019, pp. 796–805. [17] P. Manakul, A. Liusie, and M. Gales, “SelfCheckGPT: Zero-resource black-box hallucination detection for generative large language models,” in Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing , ser. EMNLP ’23, H. Bouamor, J. Pino, and K. Bali, Eds. Association for Computational Linguistics, 2023, pp. 9004–9017. [18] I.-C. Chern, S. Chern, S. Chen, W. Yuan, K. Feng, C. Zhou, J. He, G. Neubig, and P. Liu, “Factool: Factuality detection in generative ai – a tool augmented framework for multi-task and multi-domain scenarios,” 
+
+arXiv preprint arXiv:2307.13528 , 2023. [19] A. Mishra, A. Asai, V. Balachandran, Y. Wang, G. Neubig, Y. Tsvetkov, and H. Hajishirzi, “Fine-grained hallucination detection and editing for language models,” arXiv preprint arXiv:2401.06855 , 2024. [20] Y. Wang, R. G. Reddy, Z. M. Mujahid, A. Arora, A. Rubashevskii, J. Geng, O. M. Afzal, L. Pan, N. Borenstein, A. Pillai, I. Au-genstein, I. Gurevych, and P. Nakov, “Factcheck-bench: Fine-grained evaluation benchmark for automatic fact-checkers,” arXiv preprint arXiv:2311.09000 , 2024. [21] R. Oshikawa, J. Qian, and W. Y. Wang, “A survey on natural language processing for fake news detection,” in Proceedings of the Twelfth Language Resources and Evaluation Conference , 2020, pp. 6086–6093. [22] D. Quelle and A. Bovet, “The perils and promises of fact-checking with large language models,” Frontiers in Artificial Intelligence , vol. 7, p. 1341697, 2024. [23] V. Venktesh and V. Setty, “Livefc: A system for live fact-checking of audio streams,” in 18th ACM International Conference on Web Search and Data Mining, WSDM 2025 . Association for Computing Machinery (ACM), 2025, pp. 1060–1063. [24] H. Vatndal and V. Setty, “Shortcheck: Checkworthiness detection of mul-tilingual short-form videos,” in The 14th International Joint Conference on Natural Language Processing and The 4th Conference of the Asia-Pacific Chapter of the Association for Computational Linguistics: System Demonstrations , 2025, p. 77. [25] V. Setty, “Factcheck editor: Multilingual text editor with end-to-end fact-checking,” in Proceedings of the 47th International ACM SIGIR Conference on Research and Development in Information Retrieval ,2024, pp. 2744–2748. [26] A. Conneau, K. Khandelwal, N. Goyal, V. Chaudhary, G. Wenzek, F. Guzm´ an, E. Grave, M. Ott, L. Zettlemoyer, and V. Stoyanov, “Unsu-pervised cross-lingual representation learning at scale,” in Proceedings of the 58th Annual Meeting of the Association for Computational Lin-guistics , ser. ACL ’20, D. Jurafsky, J. Chai, N. Schluter, and J. Tetreault, Eds. Association for Computational Linguistics, 2020, pp. 8440–8451. [27] K. Popat, S. Mukherjee, J. Str¨ otgen, and G. Weikum, “Where the truth lies: Explaining the credibility of emerging claims on the web and social media,” in Proceedings of the 26th International Conference on World Wide Web Companion , ser. WWW ’17 Companion, 2017, p. 1003–1012. [28] R. Mishra and V. Setty, “SADHAN: Hierarchical attention networks to learn latent aspect embeddings for fake news detection,” in Proceedings of the 2019 ACM SIGIR International Conference on Theory of Informa-tion Retrieval , ser. ICTIR ’19. Association for Computing Machinery, 2019, p. 197–204.

@@ -1,0 +1,1079 @@
+Title: LATTEArena: An Evaluation Framework for LLM-powered Tabular Feature Engineering (Extended Version)
+
+URL Source: https://arxiv.org/pdf/2606.09004v1
+
+Published Time: Tue, 09 Jun 2026 02:08:21 GMT
+
+Number of Pages: 30
+
+Markdown Content:
+# LATTEArena: An Evaluation Framework for LLM-powered Tabular Feature Engineering (Extended Version) 
+
+Ankai Hao 1, Ke Chen 1, Huan Li 1, Lidan Shou 11Zhejiang University Feature engineering remains essential for tabular data analysis, and Large Language Models (LLMs) have emerged as a promising paradigm for automating this process, giving rise to LLM-powered AuTomated Tabular feature Engineering (LATTE). However, the absence of standardized platforms prevents fair, cost-aware comparisons. Furthermore, complex methodological designs obscure the specific contributions of individual components; for example, although LFG integrates Tree-of-Thought, few-shot demonstrations, Monte Carlo Tree Search, and natural language generation, the isolated impact of each technique remains unquantified. To address these challenges, we introduce LATTEArena, the first competitive evaluation framework featuring: (1) a six-dimensional taxonomy decomposing 15 representative methods into reusable components; (2) a standardized modular arena for controlled comparison; (3) multi-dimensional assessments covering performance, cost, and robustness; and (4) component-level ablation quantifying each technique’s competitive edge. Through extensive evaluations, we reveal 16 key findings, including: (1) Tree-of-Thought with Monte Carlo Tree Search achieves optimal cost-effectiveness; (2) RPN and Code output formats dominate classification and regression tasks, respectively. We publicly release the modular framework and over 4000 execution logs, enabling researchers to seamlessly pitch new techniques against existing ones and advance LATTE.  
+
+> Keywords: large language models, tabular data, automated feature engineering, benchmark evaluation
+
+1 Introduction 
+
+The “Garbage In, Garbage Out” principle underscores that data quality bounds model performance. Feature engineering (FE) [ 56 ] thus serves as a critical bridge between data and algorithms. Although deep learning has diminished its role in computer vision and natural language processing, feature engineering remains essential for tabular data, which is prevalent in recommendation systems, healthcare, and finance. In these domains, tree-based models consistently outperform deep learning in efficiency, speed, and interpretability, and their sensitivity to feature design further elevates the importance of feature engineering. Given that roughly 80% of data science effort is devoted to data cleaning and feature engineering [ 42 ], automating this process has become an urgent need, making Tabular Automated Feature Engineering (TAFE) a research hotspot in the AutoML era. Traditional TAFE methods largely relies on heuristic search [21 , 23 , 24 ], meta-learning [ 39 ], or reinforcement learning [ 7, 25 , 58 ]. However, these approaches are either computationally 1
+
+> arXiv:2606.09004v1 [cs.AI] 8 Jun 2026 Prompting
+> Taxonomy  Demonstration
+> Metadata
+> Data Sampling
+> FE Strategy
+> Output Format
+
+Challenge 1: Unclear 
+
+technical drivers of 
+
+performance change. 
+
+Challenge 2: Lack of 
+
+standardized cost-aware 
+
+evaluation framework.  
+
+> CoT
+> Top-k
+> Generated
+> None
+> Greedy
+> NL
+> ToT
+> Zero-shot
+> Calculated
+> Random-Select
+> MCTS
+> Code
+> Method A Method B
+> Accuracy:
+> 80
+> Accuracy:
+> 85 LLM
+> Model
+
+Metric Random   
+
+> Forest MLP
+> LATTEArena
+> Method B yields higher
+> accuracy than Method A, but
+> what drives this?
+> Methods use singular metrics
+> and inconsistent LLMs and
+> downstream models. Figure 1 The LATTEArena taxonomy and challenges.
+
+expensive or limited in their ability to discover complex features. Recent breakthroughs in Large Language Models (LLMs) have introduced transformative opportunities. With powerful semantic understanding and code synthesis capabilities, LLMs are ideal candidates for automating feature engineering. The introduction of CAAFE [18 ] marked a pivotal moment, leveraging Chain-of-Thought [ 48 ] with GPT-4 [2 ] to iteratively generate feature engineering code. Subsequently, various prompt-based [32, 38, 55] and RAG-enhanced [54] TAFE methods have been proposed. Despite the emergence of LLM-powered AuTomated Tabular feature Engineering (LATTE) tech-niques, the progress still lags significantly behind other LLM-driven tabular tasks such as table question answering and NL2SQL. The LATTE community currently faces several critical challenges. First, it is unclear which technical components actually drive performance . Current LATTE methods exhibit substantial heterogeneity in their technical configurations. They have successively introduced a myriad of techniques, ranging from prompting paradigms to information-retrieval methods to optimization algorithms. Because these methods are often proposed as monolithic pipelines, it is difficult to isolate which parts are helpful and which are merely unnecessary overhead. A systematic, component-level breakdown is therefore necessary to determine optimal combinations. Second, there is no standardized, cost-aware evaluation framework . Existing literature suffers from highly fragmented and inconsistent experimental setups: studies frequently evaluate on different datasets, employ varying downstream machine learning models, and utilize different base LLMs. This discrepancy severely hinders fair, head-to-head comparisons. Furthermore, most current evaluations focus on predictive accuracy, neglecting real-world metrics such as token consumption, inference latency, and method robustness. As a result, the critical trade-offs between performance gains and the practical deployment constraints of these methods remain unclear. To address these limitations, there is a compelling need for a standardized, competitive evaluation platform. Such a framework must not only assess the general efficacy of LLMs in TAFE but also facilitate comparisons of diverse technical configurations to elucidate their respective strengths and weaknesses. While extensive evaluation frameworks have propelled rapid progress in other LLM-driven tabular tasks, systematic assessment in LATTE remains conspicuously absent. To bridge 2this gap, we introduce LATTEArena and structure our work along two fundamental directions: (i) abstracting and disentangling LATTE components to enhance methodological transparency (Challenge 1), and (ii) establishing an extensible arena for fair and comprehensive evaluation (Challenge 2). Specifically, our main contributions are as follows: 1. Novel Taxonomy and Unified Abstraction (Challenge 1) : We propose a comprehensive tax-onomy that systematically decomposes complex LATTE methods into modular components, enabling a transparent understanding of individual techniques. Based on this abstraction, we compile representative approaches (Section 3) and curate the LATTEArena datasets (Section 5.1). 2. Extensible and Standardized Framework (Challenge 2) : We present the first evaluation harness designed for controlled, direct comparisons of LATTE techniques. By synthesizing existing pipelines into a standardized framework, we enable the seamless integration of new methods and facilitate the shift from prompt engineering to context engineering [37] (Section 4). 3. Multi-Dimensional Competitive Assessment (Challenge 2) : We go beyond predictive perfor-mance by incorporating overhead and robustness into the arena’s evaluation criteria (Section 5.2), providing empirical comparisons and practical insights into real-world deployment (Section 5.10). 4. Component-Level Ablation and Insights (Challenge 1) : Leveraging the modularity of our arena, we conduct rigorous controlled experiments to isolate and quantify the competitive advantage of individual components (Section 5), offering actionable insights into which design choices are genuinely effective and which are redundant (Section 6). 
+
+2 Preliminaries 
+
+2.1 Concepts and Definitions Definition 2.1 (Tabular Dataset ). A tabular dataset is denoted as D(M+1)×N , containing (M + 1)
+
+columns (comprising M feature columns and one label column) and N rows (instances). The dataset is partitioned row-wise into disjoint subsets for training, validation, and testing: D =
+
+{D train , Dvalid , Dtest }. Since the tabular data semantics are invariant to column permutation, the label column is conventionally placed at the end of the feature set without loss of generality. Let the feature matrix be X ∈ RN×M and the label vector be y ∈ RN . Each row xi ∈ R1×M corresponds to a single instance, and each column fj ∈ RN×1 corresponds to one feature across all instances. The dataset can thus be equivalently expressed in row-wise and column-wise forms: 
+
+D(M+1)×N = {X, y} = {(xi, yi)}Ni=1 = {f1, . . . , fM, y}. (1) 
+
+Definition 2.2 (Supervised Learning on Tabular Data) . Given a training tabular dataset Dtrain =
+
+{(xi, yi)}N′
+
+> i=1
+
+, a predictive model built from supervised learning is defined as: 
+
+ˆyi ← H (xi; θ), (2) where H(·; θ) denotes a function parameterized by learnable parameters θ, mapping input features to a prediction ˆyi. The optimal parameters are obtained by minimizing the empirical risk: 
+
+θ∗ ← arg min θ L(θ, D) = arg min θ
+
+1
+
+N′ ∑N′ 
+
+> i=1
+
+ℓ(H(xi; θ), yi) , (3) 3where ℓ(·) is the loss function, commonly cross-entropy for classification [ 4, 19 ] or mean squared error for regression [49]. 
+
+Definition 2.3 (Automated Feature Engineering on Tabular Data) . Typically, a tabular supervised learning pipeline places a feature engineering module before a downstream predictive model. Such a feature engineering process is defined as a parameterized transformation over the dataset 
+
+D = {D train , Dvalid , Dtest }:
+
+Dϕ ← { ϕ(X), y}, ϕ ∈ Φ, (4) where ϕ represents a sequence of feature engineering operations within a search space Φ (e.g., feature selection, transformation, or embedding). The objective of automated feature engineering (AutoFE) is to identify the transformation ϕ∗ that yields the best downstream performance, formulated as a bilevel optimization problem: 
+
+min ϕ∈Φ L θ∗(ϕ), Dvalid ,ϕ
+
+
+
+s.t. θ∗(ϕ) ∈ arg min θ∈Θ L θ, Dtrain ,ϕ
+
+ . (5) The inner optimization learns the model parameters θ∗(ϕ) on the feature-transformed training data 
+
+Dtrain ,ϕ, while the outer optimization selects the transformation ϕ∗ that minimizes the validation loss. Evaluation is then performed on Dtest ,ϕ∗ using the pair {ϕ∗, θ∗(ϕ∗)}.
+
+2.2 The LATTE Pipeline 
+
+Recent advances in LLMs have opened new opportunities for AutoFE on tabular data. Unlike traditional AutoFE methods that focus primarily on statistical analysis, LLM-based approaches leverage the semantic understanding of features. By integrating contextual and semantic knowledge, 
+
+LLM-powered Automated Tabular Feature Engineering (LATTE) enables more intelligent transformation design, helping to generate meaningful features and reduce redundancy. The formal definition of LATTE is provided as follows. 
+
+Definition 2.4 (LLM-powered AuTomated Tabular feature Engineering, LATTE) . LATTE aims to automatically generate and refine feature transformations using an LLM as the optimization engine. At each iteration i = 1, . . . , S, its feature optimization module PM, implemented by an LLM M,takes as input the training data Dtrain , validation data Dvalid , previous context Ci−1, and historical feature engineering operations Φi−1, and outputs a new operation sequence ϕi with context Ci:
+
+{ϕi, Ci} ← P M(Dtrain , Dvalid , Ci−1, Φi−1), i = 1, . . . , S, (6) where Φi−1 = {ϕ1, ϕ2, . . . , ϕi−1} accumulates all generated operations. LATTE follows the same bilevel structure as the automated feature engineering described in Equa-tion (5). In essence, the LLM iteratively proposes feature transformations guided by validation feedback, progressively improving downstream model performance. As shown in Figure 2, the LATTE pipeline consists of three main stages: 
+
+(S1) Prompt Construction . The LATTE pipeline begins with the design of high-quality prompts that guide the LLM toward effective feature generation. Referring to the example in Figure 2, each prompt typically comprises six key components: (i) role , which defines the LLM’s 4perspective; (ii) task description , which specifies the prediction type (e.g., classification or regression), label column name, and downstream model to be optimized; (iii) metadata , which summarizes dataset and feature information, optionally including distributional statistics pre-computed from the tabular data; (iv) instances , which provide representative table rows for contextual grounding; (v) demonstrations , which are retrieved from log files and contain context–operation sequence pairs (C, ϕ), where C stores condensed historical metadata and reasoning traces to reduce storage overhead; and (vi) instructions , which typically define the expected output format and offer guidance on how feature engineering operators should be applied. 
+
+(S2) LLM-powered Feature Engineering . This stage forms the core of the LATTE pipeline. The feature optimizer PM, composed of the LLM M and supporting tool functions, determines candidate transformations through iterative querying. For each dataset version, the algorithm selects appropriate prompts and updates based on its feature engineering strategy, which may follow greedy, evolutionary, or UCB-based search paradigms. At this stage, all modifications affect only the stored context C and operation sequence ϕ, each of which corresponds to a specific dataset version. Advanced prompting techniques such as Chain-of-Thought (CoT), self-consistency, and Retrieval-Augmented Generation (RAG) [ 12 ] can be incorporated to enhance reasoning quality and diversity in the generated transformations. 
+
+(S3) Post-processing . Since the LLM outputs feature transformations in textual form, the post-process module converts them into executable operations. The output ϕ may appear in natural language (NL), rule-based, or code format, guided by the input instructions and demonstrations. The parser translates ϕ into executable programs, applies the transformations to produce a new dataset and metadata, and records the resulting (C, ϕ) pairs in log files for further iterations. 
+
+3 Taxonomy 
+
+Building on the three-stage LATTE pipeline, this section introduces a six-dimensional taxonomy 
+
+encompassing Prompting Technique , Feature Engineering Strategy , Demonstration Composition , Metadata ,
+
+Data Sampling Method , and Output Format . The corresponding positions of each dimension within the pipeline are shown in Figure 2. To enable systematic comparison, we compile 15 representative LATTE methods published since 
+
+CAAFE [ 18 ] first introduced LLMs to TAFE tasks. These methods offer distinct innovations and collectively span the full range of current LATTE techniques. Table 1 summarizes their technical components using our taxonomy. Next, we provide a detailed introduction to each dimension. 
+
+3.1 Prompting Techniques 
+
+Although many prompting techniques [ 33 , 40 , 41 ] have emerged since the advent of LLMs, lim-ited research has examined their adaptation and effectiveness for LATTE tasks. The prompting techniques employed in existing LATTE studies can be grouped into the following categories. 5(S3) Post 
+
+Process 
+
+(S2) LLM-powered FE 
+
+> Tabular Data
+> Metadata
+
+(S1) Prompt 
+
+Construction      
+
+> Task Description
+> Role : You are an expert data scientist working to improve
+> tabular predictions...
+> Task Description :Classification/Regression+[Label
+> Column]+[ML Model]...
+> Metadata :[Dataset + Feature Descriptions]
+> Instances :[Rows]
+> Demonstrations : [Context]+[FE Operation Sequences]
+> Instruction: The first parameter of groupbythen operator
+> is the grouping key, ...
+
+Input Prompt 
+
+> LLM
+> 2. Rule
+> 5 different conditions for class
+> "yes": 1. Glucose is > 120, 2.
+> BMI is > 30, 3. Diabetes
+> Pedigree Function is > 0.35, 4.
+> BMI is within range of [25,
+> 34.9], 5. Glucose is within
+> range of [100, 199]
+
+LLM Output        
+
+> 1. NL
+> new feature1 = feature A *
+> feature B, Reason: Multiplying
+> might emphasize the variance.
+> new feature2 = log2(feature B),
+> Reason: Considering the
+> range includes negative
+> values...
+> 3. Code
+> for df in [train_df, test_df]:
+> df ["f0"] = df ["income"]/df ["pop"]
+> df ["f1"] = df ["ycoord"]/df
+> ["xcoord"]
+> df ["f2"] = np.tan(df ["f1"])
+> df ["new"] = df ["f0"] *df ["f2"]
+> New Table
+> Tool Functions
+> Log Files
+> Prompting FE Strategy Metadata Data Sampling Demonstration Output Format
+
+Ⓐ Ⓑ Ⓒ Ⓓ Ⓔ Ⓕ
+
+Ⓐ Ⓑ
+
+Ⓒ
+
+Ⓓ
+
+Ⓔ
+
+ⒻFigure 2 The LATTE pipeline consists of (S1) prompt construction, (S2) LLM-powered feature generation, and (S3) post-process. 
+
+3.1.1 Chain of Thought (CoT) 
+
+CoT encourages LLMs to reason step by step by decomposing complex problems into intermediate steps, thereby improving reasoning accuracy. In LATTE, Vanilla CoT often includes phrases like “first...” [ 6 ] or “let’s think step by step” [ 47 ] in the prompts, guiding the LLM through analyses before deriving feature engineering operations. 
+
+Operator-based CoT , introduced by SMARTFEAT [32 ], queries the LLM twice: first to select the operator, then the operands. 
+
+CoT with Self-Consistency (SC) generates multiple reasoning paths for the same query and aggregates outcomes, demonstrating improved robustness when combined with Vanilla CoT [ 30 ]and Class-based CoT [ 17 ]. Rather than voting on the final operation sequences {ϕ∗
+
+1 , . . . , ϕ∗
+
+k } in traditional SC studies [ 45 ], LATTE studies produce k datasets {D 1, . . . , Dk}, train k corresponding models, and ensemble their predictions [ 17 ]. This yields improved accuracy while incurring higher costs than simply aggregating ϕ∗s. 
+
+3.1.2 Tree of Thought (ToT) 
+
+ToT generalizes CoT by structuring multiple reasoning paths as a tree [ 51 ]. It uses heuristic evaluators [ 44 ] or LLMs [ 51 ] to assess intermediate nodes and terminates once a solution is found. 
+
+LFG [55 ] employs ToT in LATTE, where each node corresponds to a candidate ϕ that is evaluated by validation performance on Dval ,ϕ. Unlike logic reasoning or mathematical tasks, LATTE tasks do not have an objective termination condition. Therefore, exploration continues until the maximum tree depth or step limit is reached. ToT enables the exploration of a more extensive feature space than CoT, effectively mitigating the risk of converging to local optima, but it also introduces additional overhead. 6Table 1 LLM-powered automated tabular feature engineering methods. The table summarizes the technical components used by each method. A ‘/’ indicates the absence of this component; light blue indicates core dimensions that most significantly influence the overall performance and design of LATTE methods; ★ denotes representative techniques for each dimension; ♦ denotes other notable techniques, and dark blue indicates classic technique combinations.                                                                                                                                                              
+
+> Family Methods Venue Prompt Construction LLM-powered FE Post-process
+> Prompting Demonstration Metadata Data Sampling FE Strategy Output Format
+> CoT
+> CAAFE [18] NeurIPS 2024 ★Vanilla CoT Full Context Human-Written Random-Selected ★Greedy Incremental ★Code
+> FEBias [28] NeurIPSW 2024 Vanilla CoT Full Context ♦Calculated Value Random-Selected Greedy Incremental ★NL
+> GPT-Signal [46] FINNLP 2024 Vanilla CoT /♦LLM-Generated Human-Selected Greedy Incremental NL
+> RAFG [54] ICDM 2025 Vanilla CoT /RAG-Enhanced /Greedy Incremental Code
+> SMARTFEAT [32] CIDR 2024 Operator-based CoT /★Native /Greedy Incremental NL
+> FeatLLM [17] ICML 2024 ♦CoT + SC /Native ★Cluster-based Stratified Select-Expand-Ensemble ♦Rule
+> FREEFORM [30] AMIA 2025 CoT + SC Human-Written NL Features /Random-Selected Select-Expand-Ensemble NL
+> ToT LFG [55] IJCAI 2025 ★ToT ★Positive-Negative Features Native /★MCTS-based Exploration NL
+> Adda [34] SIGMOD 2025 ToT Retrieved Top-k Code Snippets Calculated Value Random-Selected MCTS-based Exploration Code
+> OPRO OCTree [38] NeurIPS 2024 ♦CART-based OPRO ♦Top-k (Code, CART, Score) Triples Native /Greedy Incremental Code
+> FEBP [59] Preprint 2025 ★Vanilla OPRO ★Top-k (RPN, Score) Pairs Native /♦Expand-Reduce ♦RPN
+> Evo ELLM-FT [13] AAAI 2025 ★EvoPrompt ♦Ranked (RPNSet, Score) Pairs //Best-of-N RPN
+> LLM-FE [1] Preprint 2025 EvoPrompt Top-k Code Snippets Native Random-Selected Best-of-N Code
+> Critic LPFG [14] IJCAI 2025 ★Generator-critic ♦Textual Gradient Calculated Value /Incremental RPN
+> Rouge One [5] Preprint 2025 Generator-critic Textual Gradient RAG-Enhanced /Greedy Incremental Code
+
+3.1.3 EvoPrompt 
+
+EvoPrompt [16 ] evolves prompts via Genetic Algorithms [ 29 ] or Differential Evolution [ 10 ]to discover high-performing prompts, treating prompts as individuals, performance as fitness, and modifications as mutation or crossover . In LATTE, only the dynamic segment (few-shot demonstrations) is evolved, while the static template remains fixed. Demonstrations are organized into multiple populations, periodically evolving within and across groups to enhance diversity and quality. The specific demonstration forms are detailed in Section 3.5. ELLM-FT [ 13 ] and 
+
+LLM-FE [1] abandon traditional mutation and crossover operators and instead let the LLM perform unconstrained modifications, making the approach highly dependent on the LLM’s inherent capabilities. In each round, demonstrations are selected from each population and appended to the prompts. Since each population requires one LLM query per round, this incurs high query overhead. 
+
+3.1.4 Optimization by PROmpting (OPRO) 
+
+OPRO [ 50 ] frames the LLM as an optimizer, iteratively refining outputs based on feedback from an objective function evaluator. The best-performing generation at each round becomes the candidate of the next round. This paradigm has demonstrated progress on classical problems such as the Traveling Salesman Problem and datasets like GSM8K. In Vanilla OPRO [ 59 ], the validation loss is leveraged as feedback. It augments CoT by generating a set of candidate features at every reasoning round and selecting the optimal one. CART-based OPRO [38 ] extends this by training a Classification and Regression Tree and replacing metadata with reasoning extracted from it. The reasoning explicitly reveals which columns are important (as tree nodes) and the prediction 7Initial       
+
+> Prompt s
+> LLM
+> ... ...
+> Expand
+> Reduce Downstream
+> Model
+> Rank
+> a. Iter i Prompt
+> LLM
+> Accept
+> Reject
+> Downstream
+> Model
+> Iter i+1
+> Update Prompt
+> b.
+> Selection
+> Expansion
+> Simulation
+> UCB + Prompt
+> LLM
+> Nodes
+> Downstream
+> Model
+> Update
+> Nodes
+> Step i
+> Step i+1
+> c. e.
+> FE Block
+> ... ...
+> ... ...
+> Ensembling
+> d. Expand
+> Block
+> Reduce
+> Block
+> Strong
+> Tables Models
+
+Figure 3 The LATTE feature engineering strategies: a. Expand-Reduce, b. Greedy Incremental, c. MCTS-based Exploration, d. Best-of-N, e. Select-Expand-Ensemble. 
+
+thresholds (as node values). 
+
+3.1.5 Generator-critic 
+
+This is a multi-agent paradigm that separates generation and evaluation into two interacting agents: a generator, which produces candidate outputs, and a critic, which analyzes these outputs and provides guidance for improvement. The critic’s feedback is injected into the generator’s subsequent prompt, forming an iterative closed loop that enables optimization-like behavior. In LPFG [ 14 ], this interaction is realized as a duet-play process, where the critic diagnoses the feature set and conditions the generator’s next iteration accordingly. Rouge One [ 5 ] adopts a conceptually related approach, distributing critic functionality across multiple specialized agents whose evaluations and tests inform future generations within a collaborative pipeline. 
+
+Takeaway: In LATTE, prompting techniques are better understood as search policies than as reasoning templates. Their real difference lies in how much exploration, feedback, and overhead they introduce into the pipeline. 
+
+3.2 Feature Engineering Strategies 
+
+The prompting technique defines how the LLM M is queried within PM, while the feature engineering strategy determines how to optimize the resulting operation sequence ϕ based on the generated prompt output. This section analyzes five existing feature engineering strategies, each compatible with various prompting techniques. Specific examples of the strategies are shown in Figure 3. For clarity, we denote the validation loss as loss (ϕ) = L θ∗(ϕ), Dval ,ϕ
+
+, and 
+
+ϕ1 + ϕ2 = Concat (ϕ1, ϕ2).
+
+3.2.1 Expand-Reduce (Figure2.a) 
+
+This strategy consists of two main phases and is commonly used in classic AutoFE algorithms [ 21 –23 ]. The first step is Expansion : PM constructs a set of prompts based on the initial tabular data and associated metadata, and queries the LLM S times, yielding a set of ϕ. The second step is Reduction : A feature selection algorithm is then applied to the generated set to identify an 8appropriate subset, which is taken as the final answer ϕ∗. Figure 3.a shows an example using Forward Selection [ 59 ]. After sorting all ϕs in ascending order of loss (ϕ), they are applied to the initial dataset one by one until the loss no longer decreases. Suppose that the last applied sequence is ϕk, then ϕ∗ = ϕ1 + ϕ2 + · · · + ϕk. Due to the low time cost of the Expand phase, S can be readily scaled to large values; however, finding the best subset requires 2S times model training, which is extremely costly. Although Forward Selection reduces the number of training to S + k, as a greedy algorithm, it does not consider interactions among features, making it difficult to find the optimal subset. 
+
+3.2.2 Greedy Incremental (Figure2.b) 
+
+This strategy fits well with the iterative framework. In the i-th iteration, PM performs a query using Prompt i−1, which was constructed from the table and metadata of the last round, and obtains the current round’s output ϕnew . Then PM decides whether to adopt ϕnew based on its evaluation score. While this score can be derived from metrics such as mutual information or feature importance, the prevailing approach in LATTE is to use loss (ϕ) directly [ 18 , 32 , 38 ]. If loss (ϕi−1) > loss (ϕi−1 + ϕnew ), then ϕi will be updated and executed to generate a new version of the table and metadata, which will be used to update the prompt for the next iteration. Although this method considers the interactions among features, its greedy nature makes it susceptible to convergence to local optima. 
+
+3.2.3 MCTS-based Exploration (Figure2.c) 
+
+This strategy is frequently combined with ToT and leverages the Monte Carlo Tree Search [ 9 ](MCTS) algorithm and the Upper Confidence Bound [ 27 ] (UCB) to achieve a balance between exploration and exploitation [ 34 , 55 ]. In LATTE, each node contains an operation sequence ϕ, which corresponds to a specific version of data and prompt. The UCB of node i is defined as UCB (i) = 1
+
+n
+
+> n
+
+# ∑
+
+> j=1
+
+ loss (ϕi) − loss (ϕdj ) + α
+
+s
+
+2 ln (vp)
+
+vi
+
+. (7) Here, ϕi denotes the operation sequence corresponding to node i. dj denotes the descendant nodes of node i, v and vp are the visit counts for node i and its parent respectively, and α is the hyperparameter balancing exploration and exploitation. For a k-ary tree, PM first selects the node with the highest UCB score and performs k queries using its corresponding prompt, thereby generating k child nodes. A simulation is then performed, in which all child nodes update their ϕdj = ϕi + ϕnew , irrespective of whether the loss decreases. Finally, before proceeding to the next step, LATTE updates the UCB values upwards from the new leaf nodes, analogous to the backpropagation in MCTS. 
+
+3.2.4 Best-of-N (Figure2.d) 
+
+This is a simplified variant of Expand–Reduce: after the Expand phase, it simply picks the ϕtop that has the lowest loss (ϕ) as the final output. This strategy shifts PM’s burden to prompt engineering techniques and relies on M’s reasoning power, so it is typically used together with EvoPrompt to generate a set of high-quality ϕ during the expand phase [ 1 , 13 ], as shown in Figure 3.d. Moreover, because the simplified Reduce phase lowers the number of downstream model training times and thus cuts overhead, this method can generate a fairly large candidate set during the expand stage. 93.2.5 Select-Expand-Ensemble (Figure2.e) 
+
+This is another Expand–Reduce variant that splits LATTE into three phases. It begins by selecting multiple data subsets from D based on label and/or feature relevance. The standard expand phase then generates FE operation sequences for each subset. Some works also incorporate a Reduce phase, for example, FREEFORM [30 ] uses LLM scoring to perform feature selection. Finally, the locally optimal sequence is applied to each subset, and the transformed tables are merged into a single dataset. Notably, existing LATTE methods defer ensemble to the prediction stage: they train a downstream model on each optimized subset and then ensemble the models [17, 30]. 
+
+Takeaway: The FE strategy operationalizes LATTE’s exploration-exploitation trade-off: greedy refinement is efficient but vulnerable to early commitment, while broader search is more robust but much more expensive. 
+
+3.3 Metadata 
+
+Metadata denotes descriptive information about data attributes rather than data content itself. In tabular tasks, metadata characterizes the table’s structure, provenance, and intended use, thereby facilitating improved interpretability, management, and processing. For LATTE methods that utilize metadata, we categorize them based on how the metadata is obtained or enriched. 
+
+Native . Metadata residing inherently within source database systems or extracted directly from web-based repositories. 
+
+Human-Written . Precise attribute descriptions and rigorous data-type specifications manually curated by data engineers to ensure high-fidelity context [18]. 
+
+LLM-Generated . Used in scenarios where native metadata is insufficient [ 46 ]. LLMs are queried to generate or augment metadata based on feature names and existing metadata. 
+
+Calculated Value . Metadata derived from statistical measures such as mean and standard deviation. For example, the PyMFE [ 3] library computes metadata in five categories, including General, Statistical, and Information-Theoretic. These values complement native metadata by providing LLMs with information about data complexity and distribution patterns. 
+
+RAG-Enhanced . Metadata enriched via RAG. This enables methods such as RAFG [ 54 ] and Rouge One [5] to generate interpretable features for domain-specific prediction tasks. 
+
+Takeaway: Metadata is the main source of semantic grounding in LATTE, but more metadata is not necessarily better. The real challenge is to retain the most decision-relevant semantics while controlling token cost. 
+
+3.4 Data Sampling Method 
+
+In tabular tasks, the sheer volume of rows often exceeds LLM context limits, necessitating data sampling. In LATTE, these samples enable direct learning of feature-label relationships and reinforce the understanding of metadata. Existing methods can be classified into three categories based on their sampling approaches. 10 Random-Selected . Select an instance set randomly. 
+
+Cluster-based Stratified . First introduced in FeatLLM [17 ] alongside Class-based CoT, it clusters instances by label and then selects from each cluster to capture class-specific patterns. 
+
+Human-Selected . In domains like finance and biology, tables often exhibit high cardinality and class imbalance, making cluster-based sampling impractical. GPT-Signal [46 ] therefore employs domain experts to identify representative samples manually. 
+
+Takeaway: In LATTE, sampling is a context-selection problem rather than a miniature version of full-data analysis. Its purpose is to expose representative feature-label patterns under strict context limits. 
+
+3.5 Demonstration Composition 
+
+In LATTE, the candidate demonstration pool for the k-th round is composed of the historical records 
+
+{(ϕi, Ci)}k−1 
+
+> i=1
+
+from previous rounds. The demonstrations generated in each round are generally composed of three parts: operation sequence ϕ, score computed based on loss (ϕ), and the reasoning provided by the LLM, which is included in C. Some LATTE methods, such as ELLM-FT [ 13 ], use RL-based TAFE methods to collect records in advance to obtain a richer candidate pool. LATTE then constructs the demonstration section using the candidate pool. We classify existing works into five categories based on their construction strategies. 
+
+Ranked . Candidates are ranked in ascending order according to their scores. This strategy is frequently used in conjunction with EvoPrompt to help LLMs identify evolutionary patterns [ 1 , 13 ]. A typical ranked scheme is Top-k, where only k candidates with the highest scores are retained. This strategy both controls prompt length and encourages the LLM to utilize high-quality ϕ repeatedly. In Adda [34 ], candidates are ranked by a similarity metric defined as the product of semantic and structural similarity. Semantic similarity is the average cosine similarity between feature metadata embeddings. Let m be the metadata corresponding to f, E(m) denotes the embedding of m, then: 
+
+SemantSim (D1, D2) = 1
+
+M1 × M2 ∑ 
+
+> mi∈D 1
+
+# ∑ 
+
+> mj∈D 2
+
+cos (E(mi), E(mj)) , (8) Structural similarity is computed via tree edit distance [ 26 ] on feature generation lineage trees. Note that this approach requires pre-building a contrastive learning corpus and offline fine-tuning of a metadata embedding model, which incurs additional computational overhead. Furthermore, the embedding is sensitive to the quality of the contrastive learning corpus. 
+
+Positive-Negative . All candidates are divided into positive (loss decreasing) and negative (loss increasing) groups based on loss (ϕ) changes and incorporated into the prompt [55]. 
+
+Full Context . Early LATTE methods such as CAAFE employ this strategy, leveraging multi-turn dialogue to grant LLMs access to full context. While effective, this approach suffers from significant overhead and context window limitations. 
+
+Textual Gradient . This approach employs a multi-agent structure where the original agent (generator) operates without access to history. Instead, a dedicated critic agent reviews the history records and provides guidance by summarizing them into semantic advice and distributional 
+
+11 advice [ 14 ], or identifying the generator’s next focus area [ 5]. This can be seen as a special kind of demonstration. 
+
+Takeaway: The value of demonstrations depends less on how much history is included than on how that history is organized. The main difficulty is not adding more records, but distilling stable guidance from locally valid histories. 
+
+3.6 Output Format 
+
+Prior studies show that LLM reasoning is sensitive to output format constraints: increasing formal and syntactic constraints often degrade performance [ 43 ]. Therefore, existing LATTE methods adopt different output formats that trade off formal constraint, expressiveness, and executability. We categorize these formats into four types, and representative examples are shown in Figure 2. 
+
+Natural Language (NL) . In this format, the LLM describes feature operations in free-form natural language, which supports transparent reasoning. However, the lack of structural constraints makes post-processing difficult, and NL-based methods are therefore typically limited to low-order operations per round [28, 30, 32]. 
+
+Rule . Leveraging the interpretability of decision trees, LLMs can generate rules analogous to tree structures, where each rule corresponds to a binary feature [ 17 , 38 ]. Despite offering greater structural clarity, this format cannot represent continuous features. 
+
+Code . LLMs generate code that directly implements FE operations, typically using Python [ 1, 18 , 34 ]. Despite its high expressiveness, code generation introduces strong syntactic and environmental constraints, making it prone to runtime failures. 
+
+Reverse Polish Notation (RPN) . RPN encodes feature operations as postfix sequences (e.g., 
+
+f1; f2; +; square ), enabling unambiguous execution. Despite its strict formal constraints, RPN avoids code-related failures and supports high-order operations within a single round, thereby expanding the feature exploration space and motivating its adoption in recent LATTE methods [13, 14, 59]. 
+
+Takeaway: Output format is a first-order design choice because it determines both the reachable feature space and the failure mode. More expressive formats enable richer transformations, but also raise execution risk. 
+
+4 LATTEArena 
+
+4.1 Abstract Framework for LATTE 
+
+We introduce LATTEArena, the first standardized and modular framework designed for LATTE, as illustrated in Figure 4. The framework organizes the pipeline into three stages as shown in Figure 2: Prompt Construction, LLM-powered FE, and Post-process. These stages are realized through seven core modules: Serializer, FE Agent, Post-processor and Feature Selector, Evaluator, Retriever, History Database, and Warm-up Module. All modules conform to standardized input–output specifications, enabling interchangeable implementation of the techniques surveyed in Section 3. This modular architecture offers three principal benefits. First, Extensibility : new techniques and modules can be 12 Tabular Data Meta data Task 
+
+> Description
+> 6.History Database
+> Downstream
+> Models
+> Data Collector
+> LLM Prompt
+> Output
+> Executable Code
+> 7. Warm-up
+> Module
+> 1.Serializer
+> CoT
+> 2.FE Agent
+> Module
+> 3.Post-
+> processor &
+> Feature
+> Selector
+> New Metadata
+> Executer
+> New Table
+> 4.Evaluator
+> 5.Retri ever (S1) Prompt Construction
+> (S2) LLM-
+> powered FE
+> (S3) Post-Process
+
++ +
+
+> KG
+> RAG
+> ... ...
+> ToT
+> OPRO
+> ... ...
+> RF
+> DT
+> MLP
+> ... ...
+> ❶
+> ❷
+> ❸
+> ❹
+> ❺
+> ❻
+> ❼
+
+Figure 4 LATTEArena pipeline. Blue dashed boxes indicate optional modules. 
+
+seamlessly integrated. Second, Adaptive Routing : practitioners can dynamically compose module variants based on task requirements and resource constraints. Third, Controlled Comparison :researchers can easily swap out one component while keeping all others fixed. The pipeline adopts an iterative workflow. In Stage 1) Prompt Construction , the Serializer ingests task specifications, metadata, and tabular data to instantiate prompt templates based on technique configuration ( ➊). It supports diverse prompting strategies through a unified prompt template library covering techniques in Section 3.1, operators used in existing works, and output formats in Section 3.6. The Retriever queries the History Database for prior FE records and assembles demonstrations using strategies in Section 3.5 ( ➋). In Stage 2) LLM-powered FE , the FE Agent processes assembled prompts, where the optimizer PM
+
+selects prompts and dataset versions from candidates conditioned on the current input and FE strategy described in Section 3.2. PM then uses the prompting techniques in Section 3.1 to query 
+
+M, obtaining text segments containing operation sequences ϕ and context C (➌). In Stage 3) Post-process , the Post-processor converts the FE Agent outputs into executable code and updated metadata ( ➍). Subsequently, the Feature Selector filters all features using criteria such as mutual information and feature importance, and correspondingly updates the code and metadata. While prior studies primarily focus on prompting strategies, they often overlook output format compliance, which is essential for automatic parsing and execution. We define the Success Rate as the fraction of LLM outputs that can be correctly parsed and executed without runtime errors. LATTEArena improves this metric by enforcing stricter format constraints during prompt construction and enabling LLM-based reformatting, yielding a more robust and automation-oriented pipeline. The Evaluator then scores features using downstream models referred to as validation models (➎). As discussed in Section 3, most methods use validation loss as the score. Furthermore, LATTEArena integrates NAS [ 35 ] and HPO [ 52 ] to enable realistic evaluations across diverse downstream models within an AutoML setting. The History Database archives metadata, code, and evaluation scores from each iteration ( ➏). Together with the Retriever, it implements a preliminary form of context management [ 37 ], which is largely overlooked by existing LATTE methods that primarily focus on improving the FE Agent. 13 Despite its advantages, LATTEArena suffers from a cold start problem: the initially empty History Database leaves early prompts without demonstrations. The Warm-up Module mitigates this by pre-populating the database using RL-based TAFE algorithms [ 31 , 53 ] ( ➐), enabling few-shot learning from the first iteration and accelerating convergence of the iterative pipeline. 
+
+4.2 Revisiting Existing Methods 
+
+Based on our taxonomy (Section 3), we decompose existing LATTE approaches into three stages along six orthogonal dimensions, each encompassing multiple technical options, as summarized in Table 1. Current LATTE methods exhibit substantial heterogeneity in their technical configura-tions, which poses significant challenges for fair comparison and obscures quantitative assessment of the contribution of individual components. Moreover, several representative methods [ 17 , 55 ]do not incorporate feature selection mechanisms, placing them at an inherent disadvantage in evaluations. With the proposed taxonomy and the LATTEArena framework, different technical combinations can be implemented via simple pipeline configuration, enabling controlled and fair comparisons across methods. However, this flexibility also exposes a large combinatorial design space when considering all possible technique choices. 
+
+4.2.1 The Combinatorial Explosion Problem 
+
+To evaluate whether each technique effectively assists LLMs in performing TAFE while identifying optimal LATTE configurations, a straightforward approach would be to enumerate all possible combinations exhaustively. However, naive enumeration is computationally prohibitive for com-prehensive evaluation. For example, considering only the techniques marked as special in Table 1, including 7 prompting strategies, 5 demonstration choices, 3 metadata options, 3 FE strategies, and 4 output formats, the total number of configurations already exceeds 1000. To efficiently navigate this vast design space, we introduce three Configuration Principles . These principles identify meaningful and representative configurations by systematically comparing, consolidating, and selecting among existing techniques. The quantitative experimental results validating these principles are detailed in Section 5.6: 
+
+(1) Focusing on Core Methodologies. Selected techniques should represent methodologically distinct approaches rather than stylistic variations (e.g., minor rephrasing of prompts). We further exclude techniques dependent on external resources (e.g., human-in-the-loop, RAG/KG, pre-trained embedding models) to assess the intrinsic capabilities of standalone LATTE methods faithfully. Model ensembling strategies (e.g., Select-Expand-Ensemble) are evaluated separately under the AutoML setting rather than included in the main configuration space. 
+
+(2) Respecting Component Constraints. Technique combinations must respect inherent design con-straints and employ validated defaults. For instance, MCTS is paired with ToT, as MCTS was proposed as an improvement over Greedy Search specifically for ToT; EvoPrompt requires Best-of-N for multi-population evolution; OPRO and EvoPrompt are paired with output formats that can represent higher-order features; and Warm-up is limited to RPN due to constraints imposed by the RL data collector. 
+
+(3) Prioritizing Cost-Effectiveness. While advanced techniques like Least-to-Most prompting [ 57 ]excel in general reasoning tasks, their complexity introduces nontrivial token and computa-14 tional overhead in the LATTE domain. We therefore prioritize a systematic exploration of simpler configurations, as they may reveal more cost-effective solutions that deliver comparable performance. 
+
+4.2.2 Resulting Configuration Space 
+
+Applying these principles reduces the design space to 24 core configurations. Combined with the four metadata types evaluated in Section 5.6, this yields a total of 96 configurations. They can be mapped to existing LATTE methods, serving as proxies on the LATTEArena, as shown in Table 2. These configurations span four core dimensions: prompting technique, FE strategy, output format, and demonstration, ensuring comprehensive coverage of key design choices. The default configurations for the remaining dimensions are as follows: metadata is a combination of native and calculated values, the data sampling method is cluster-based stratified, and the operator set comprises all operators from existing methods. These configurations integrate and improve upon implementations of original methods, thus satisfying Principle 2. The CoT and ToT Families have richer configurations enabled by Principle 3. 
+
+Table 2 LATTEArena configuration space and mapping to original methods. Aliases are derived from the initials of four primary dimensions, where Positive-Negative records the complete FE history and is thus denoted by the letter ‘h’. 
+
+Alias LATTEArena Configuration Original Methods Detailed Differences of Each Method Prompting Strategy Output Demonstration 
+
+CGN CoT Greedy NL / SMARTFEAT [32], 
+
+GPT-Signal [46], 
+
+RAFG [54], FeatLLM [17], 
+
+FREEFORM [30] 
+
+SMARTFEAT is a user-interactive dialogue system that uses 3 feature selection metrics provided by sklearn. GPT-Signal has no open-source implementation and is also a semi-automatic method involving human participation. FREEFORM 
+
+and FeatLLM are model ensemble methods directly oriented toward prediction tasks, where the former targets linear classifiers and the latter is designed for genotype data; RAFG leverages RAG for assistance. 
+
+CGC CoT Greedy Code /
+
+CGR CoT Greedy RPN /
+
+CGN h CoT Greedy NL Positive-Negative 
+
+FEBias [28], 
+
+CAAFE [18] 
+
+FEBias has no open-source implementation and no selector. 
+
+CAAFE relies solely on LLMs for feature selection and lacks a selector. CGC h CoT Greedy Code Positive-Negative 
+
+CGR h CoT Greedy RPN Positive-Negative 
+
+CGN t CoT Greedy NL Top-k 
+
+– (New Variant) – CGC t CoT Greedy Code Top-k 
+
+CGR t CoT Greedy RPN Top-k 
+
+TMN h ToT MCTS NL Positive-Negative 
+
+LFG [55], 
+
+Adda [34] 
+
+LFG lacks a selector and invokes the LLM Agent through multi-turn conversations, which leads to context length overflow issues when dealing with a large number of features or rich metadata. Adda requires pre-training a metadata embedding model on datasets in advance, and leverages UDFs to integrate the LATTE algorithm into the DBMS for acceleration. 
+
+TMC h ToT MCTS Code Positive-Negative 
+
+TMR h ToT MCTS RPN Positive-Negative 
+
+TMN ToT MCTS NL /
+
+– (New Variant) – TMC ToT MCTS Code /
+
+TMR ToT MCTS RPN /
+
+GGN Generator-critic Greedy NL Positive-Negative 
+
+LPFG [14], 
+
+Rouge One [5] 
+
+Rouge One does not have an open-source implementation and introduces external knowledge through RAG, thus it is represented by LPFG .GGC Generator-critic Greedy Code Positive-Negative 
+
+GGR Generator-critic Greedy RPN Positive-Negative 
+
+OGC c CART-based OPRO Greedy Code Top-k + CART OCTree [38] No modification to OCTree .
+
+FEBP does not have an open-source implementation and lacks detailed descriptions for its implementation. To ensure a fair comparison, we implemented it by modifying the OCTree framework. 
+
+OGC OPRO Greedy Code Top-k – (Base) – 
+
+OGR OPRO Greedy RPN Top-k FEBP [59] 
+
+EBR w EvoPrompt Best-of-N RPN Ranked + Warm-up ELLM-FT [13] ELLM-FT , as a continuation of the RL method GRFG , only receives numerical tables as input without incorporating metadata and instances, and it also does not do feature selection. LLM-FE does not actually perform evolutionary algorithms but always selects top-k demonstrations; LATTEArena uses the population evolution framework of ELLM-FT as a replacement. 
+
+EBR EvoPrompt Best-of-N RPN Ranked – (Base) – 
+
+EBC EvoPrompt Best-of-N Code Ranked LLM-FE [1] 
+
+15 The configuration space we establish based on the three principles covers all LATTE methods in Table 1. They are mapped onto the unified LATTEArena pipeline according to our taxonomy, achieving unification beyond the 4 core dimensions in Table 2, thereby enabling a fair comparison of LATTE algorithms. We also provide detailed descriptions of the differences between original methods and the LATTEArena implementation in Table 2. 
+
+4.2.3 Remark on Uncovered Combinations 
+
+We conduct repeated experiments for all methods, which is equivalent to combining each con-figuration with the Best-of-N strategy in LATTE. This will be reported as a performance metric “Best” (Table 4) and is therefore not listed in Table 2. Additionally, all methods in LATTEArena are tested under the AutoML setting, which incorporates model ensembling and effectively serves as a comparison for the Select-Expand-Ensemble strategy; for more details, refer to Section 5.2.1. The Rule output format restricts LLMs to binary feature operators for classification on linear models, demonstrating limited model and task adaptability, and is therefore excluded from our configuration space. We leave more complex configurations to future work, as they require novel techniques beyond the scope of LATTEArena. 
+
+5 EXPERIMENT 
+
+In this section, we present the performance evaluation of LATTEArena. We first introduce the datasets in Section 5.1. Then we describe the experimental setup in Section 5.2. Our performance evaluation aims at answering the following research questions: 
+
+RQ1 (Overall Performance Comparison): 
+
+• RQ1.1: Which configuration achieves the highest performance gain across different tasks? (Section 5.3) 
+
+• RQ1.2: What are the time and token costs for each configuration? (Section 5.4) 
+
+• RQ1.3: Which configuration offers the best token efficiency under different budget constraints? (Section 5.5) 
+
+RQ2 (Component and Module Analysis): 
+
+• RQ2.1: What is the impact of each component on performance and cost in different LATTE families? (Section 5.6) 
+
+• RQ2.2: How do pipeline modules outside the configuration space affect the performance? (Section 5.7) 
+
+RQ3 (Scalability and Robustness Analysis): 
+
+• RQ3.1: To what extent do the empirical findings generalize to large-scale datasets? (Section 5.8) 
+
+• RQ3.2: How do different configurations influence the Success Rate of the pipeline? (Section 5.9) 
+
+5.1 Dataset 
+
+Existing LATTE research predominantly relies on classic benchmarks where SOTA tabular models already perform competitively without feature engineering, thus limiting the observable necessity and contribution of TAFE. To enable more rigorous and discriminative evaluation, we construct 16 LATTEArena using the “hardest” datasets from TabZilla [ 36 ], supplemented with datasets from an existing study [15]. The construction adheres to three guiding principles rooted in LATTE’s core motivation: (1) Datasets should present non-trivial challenges, for which feature engineering is necessary and can yield meaningful performance gains. The specific selection criteria follow TabZilla’s guidelines. Furthermore, we exclude datasets on which existing LATTE methods already achieve near-perfect performance, such as balance-scale (LLM-FE got 99%) and car (LLM-FE got 100%). (2) Raw data and metadata are retained to preserve semantic fidelity and to enable LATTE’s LLM backbone to utilize contextual information that traditional tabular models and TAFE methods typically cannot exploit. (3) Features should exhibit heterogeneity, either across data types or in their underlying nature. For example, datasets dominated by homogeneous features, such as cnae-9 [ 8] with word-frequency attributes, are excluded. This better reflects real-world TAFE application scenarios [15]. The final dataset suite spans multiple real-world domains, including healthcare, finance, and biology, covering sample sizes ranging from 294 to 1025009 instances and feature dimensions ranging from 5 to 118 features. The specific attributes of the datasets are listed in Table 3. To our knowledge, this is the first effort to define dataset selection criteria for the LATTE task. In LATTEArena, we use these carefully curated datasets to evaluate existing technique combinations, addressing the lack of comparisons across different scales and tasks [ 17 , 18 , 32 ], while filtering out simple datasets to highlight performance gaps.                                                                                            
+
+> Table 3 Dataset attributes. N and M represent the number of instances and features, respectively, with the number in “()” indicating the count of numerical features. Kurtosis indicates the standard deviation of the kurtosis of all features. Large datasets with ♦are evaluated separately in Section 5.9.
+> Datasets Dataset Attributes Metric Test w/o FE
+> NMKurtosis heart-h 294 13 (5) 3.88 Accuracy 78.65 credit-approval 690 15 (6) 55.19 Accuracy 88.05 vehicle 846 18 (18) 15.16 Accuracy 72.94 credit-g 1000 20 (3) 5.58 Accuracy 73.83 qsar-biodeg 1055 41 (32) 127.32 Accuracy 87.21 socmob 1156 5 (1) 37.18 Accuracy 94.54 kc1 2109 21 (21) 29.17 Accuracy 85.59 nomao 34465 118 (77) 946.49 Accuracy 96.74 electricity 45312 8 (8) 2484.28 Accuracy 89.77
+> ♦road-safety 111762 32 (32) 107.81 Accuracy 78.50
+> ♦covertype 423680 55 (10) 1578.56 Accuracy 95.48
+> ♦poker-hand 1025009 10 (10) 0.08 Accuracy 73.88 wine-quality 6487 11 (11) 14.56 N-RMSE 0.1028 cpu-small 8192 12 (12) 105.99 N-RMSE 0.0289 bike-sharing 17379 12 (7) 8.92 N-RMSE 0.0461 diamonds 53940 9 (6) 32.08 N-RMSE 0.030
+
+5.2 Evaluation Setting 5.2.1 Metric 
+
+To comprehensively evaluate the performance of LATTE algorithms, the benchmark incorporates a set of complementary metrics covering predictive performance, computational efficiency, and 17 robustness. 
+
+Performance Gain is evaluated using three metrics: VG (Validation Gain), TG (Test Gain), and AG (AutoML Test Gain). VG and TG measure absolute performance improvements on the validation and test sets using a fixed downstream model, with accuracy used for classification tasks and normalized root mean square error (N-RMSE) used for regression tasks. AG reflects the absolute performance improvements on the test set that LATTE brings to the AutoML pipeline. In our experiments, this is implemented using AutoGluon [ 11 ], a widely adopted tabular AutoML framework that integrates various models, including traditional methods such as Random Forest, gradient boosting trees such as LightGBM and XGBoost, as well as deep learning models such as NeuralNetFastAI. 
+
+Computational Efficiency consists of two parts: token efficiency = Performance Gain Token Cost and time efficiency = Performance Gain Time Cost . In LATTEArena, the time cost primarily stems from LLM inference and evaluator training. The inference time is positively correlated with token cost, while the training time is affected by factors such as the downstream model size and computing hardware. Therefore, we focus more on the token cost. 
+
+Robustness plays a critical role in LLM-driven data science research; however, it remains underex-plored in most existing LATTE methods. To fill this gap, we perform repeated runs of each method on each dataset and compare their Success Rates. 
+
+5.2.2 LLM 
+
+In this study, we select multiple LLMs for comparative experiments, covering both open-source and closed-source models, as well as thinking and non-thinking models. These include GPT-4o ,
+
+> Deepseek-V3.1
+
+, o4-mini , and Llama-3.1-8B-Instruct . The default LLM is GPT-4o , with temperature set to 1. 
+
+5.2.3 Parameter Settings 
+
+LATTEArena employs a 3:1:1 split for training, validation, and testing, with experiments con-ducted over 6 random splits. The ToT family utilizes a binary tree with 5 exploration steps, while other families perform 10 iterations. The Evo family divides demonstrations into 5 populations. 
+
+Autofeat runs for 2 steps. The default value for top-k is 3, and the default downstream model is RandomForest. Following ELLM-FT , the warm-up module uses GRFG and adopts its settings to collect 450 demonstrations. OPRO has 10 optimization steps in each iteration. 
+
+5.3 Performance Gain Analysis (RQ 1.1) 
+
+The performance gains of different LATTEArena configurations, together with the traditional TAFE method Autofeat [20] and RL-based TAFE method RAFG [54], are shown in Table 4. 
+
+Finding 1. Methods from different families exhibit notable performance gain variations. By observing the highlighted top-3 and lowest results in Table 4, we can observe that: (1) Methods using the Greedy Incremental strategy (e.g., the CoT and OPRO family) achieve leading performance on regression tasks, while (2) Complex configurations (e.g., OPRO and Evo family) dominate classification tasks. This may be because most existing works primarily design strategies and prompts targeting classification tasks, such as FeatLLM , LFG , and OCTree . For regression tasks, within the fixed 18 number of iterations, improvements brought by MCTS, Critic Agent, and evolutionary algorithms yield less performance gain compared to the greedy incremental strategy. 
+
+Finding 2. While no configuration dominates universally, RPN and Code consistently outperform NL across all families. Examining the distribution of best performance reveals clear trends: within the CoT family, CGC and its variants lead in regression tasks, while CGR and its variants lead in classification tasks; similar patterns can be observed in the ToT family, the Critic family, and the OPRO family. Through analysis of LLM outputs, this phenomenon can be attributed to two reasons: (1) As discussed in Section 3.6, RPN and Code formats can express high-order complex features, expanding the exploration space and thus outperforming NL; (2) Code has a lower execution success rate due to its inherent complexity (see Section 5.9), making it slightly inferior to RPN. However, on regression datasets, we observe that many high-reward FE behaviors in Code outputs rely on row-wise processing, such as group-by-then-mapping operations, which involve aggregation operators and complex combinations that are challenging for LLM reasoning in RPN. Additionally, Code can perform operations like data selection, exceeding RPN’s expressive capability. 
+
+Finding 3. LATTE methods exhibit “overfitting” on small datasets, showing a declining trend from VG to AG, and Best-of-N can alleviate this. This reflects a fundamental limitation in current LATTE methods: the Evaluator computes scores using the validation model, and both prompts and strategies are optimized against these scores. With small validation sets, the LLM outputs become overly tailored to specific data distributions and models. 
+
+Finding 4. Demonstrations do not yield consistent gains. As shown in Table 4, CoT- and ToT-based methods with demonstrations do not consistently outperform zero-shot variants. Existing demon-strations report only newly added features and their scores, omitting the full evolution of the feature set and performance. As a result, these scores are inherently local: across CoT iterations or ToT branches, shifting feature states and baselines undermine their reliability as indicators of true feature quality. 
+
+Table 4 Performance gains of methods across datasets. Due to the cold start problem, EBC and EBR fail to evolve within 10 iterations, and are thus excluded. For each metric, the top 3 highest and the lowest are highlighted in blue and yellow, respectively; the best value in each family is in bold. N-RMSE values are scaled by ×1,000 for clarity.                                                                                                                                                                                                                                                                                                                            
+
+> CoT ToT Critic OPRO Evo
+> Autofeat GRFG CGN CGN hCGN tCGC CGC hCGC tCGR CGR hCGR tTMN TMN hTMC TMC hTMR TMR hGGN GGC GGR OGC cOGC OGR EBR w
+> Classification
+> Average  VG 0.31 3.02 2.24 2.64 2.48 2.70 2.04 2.20 2.74 2.64 2.60 2.46 2.43 2.42 2.31 2.81 2.57 2.30 2.17 2.57 3.20 3.13 3.55 3.23 TG 0.72 0.56 0.39 0.04 0.44 0.20 0.45 0.34 0.48 0.25 -0.05 0.25 0.28 0.24 -0.06 0.42 0.41 0.17 0.35 0.08 0.71 0.56 0.73 0.86 AG 0.31 -0.07 -0.36 0.00 0.05 -0.69 -0.34 -0.50 0.09 -0.28 -0.20 -0.64 0.09 -0.73 -0.45 -0.42 -0.05 0.12 0.13 -0.48 -0.54 0.08 -0.32 0.12 Best  VG 1.08 4.63 3.33 4.13 3.62 3.97 3.38 3.40 3.72 4.78 3.53 3.80 3.85 3.48 3.34 3.80 3.86 3.84 3.55 4.42 4.66 4.28 5.15 4.38 TG 2.23 2.71 1.91 2.03 2.69 1.90 1.91 1.77 1.97 2.15 1.75 1.86 2.04 1.66 1.56 2.37 2.74 1.52 2.11 1.56 2.79 1.99 2.45 2.79 AG 1.35 1.73 1.01 1.83 1.88 0.58 0.85 0.93 2.21 1.24 2.28 1.01 2.42 0.74 1.38 1.44 2.16 1.65 1.89 2.01 0.67 1.67 1.74 2.32
+> Regression
+> Average  VG <0 0.57 0.48 0.70 0.45 0.83 0.84 0.67 0.81 0.56 0.68 0.64 0.43 0.78 0.73 0.54 0.78 0.52 0.68 0.64 1.02 1.71 1.51 0.50 TG –0.42 0.43 0.05 0.46 0.73 0.59 0.52 0.35 0.18 0.26 0.10 -0.01 0.54 0.22 0.32 0.48 0.44 0.46 0.40 0.73 0.72 0.34 0.23 AG –-0.18 0.04 -0.26 -0.11 0.05 0.10 0.07 0.08 -0.21 -0.02 -0.11 0.02 -0.06 0.07 0.08 -0.05 0.00 -0.47 -0.28 -0.66 -0.41 -0.85 -0.62 Best  VG <0 0.61 0.99 1.01 0.81 1.05 1.04 0.87 1.29 0.90 0.79 0.92 0.61 0.85 0.94 0.68 1.09 0.67 0.95 0.80 1.03 1.91 1.90 0.61 TG –0.46 0.81 0.30 0.52 1.20 1.02 0.70 0.79 0.37 0.52 0.41 0.32 0.99 0.43 0.49 1.00 0.75 0.95 0.75 0.78 1.23 0.93 0.39 AG –-0.14 0.21 -0.04 0.18 0.22 0.23 0.19 0.13 0.04 0.21 -0.03 0.21 0.12 0.19 0.17 0.16 0.07 -0.02 0.16 -0.63 -0.15 -0.17 -0.09
+
+5.4 Time and Token Cost Analysis (RQ 1.2) 
+
+Beyond performance gains, the practical deployment of LATTE methods also depends on their cost. We analyze both token and time usage to evaluate the cost-effectiveness of different configurations. 
+
+Autofeat and GRFG do not use LLM and thus incur no token cost. For EBR w, the overhead of 19 0                             
+
+> 10
+> 20
+> 30
+> 40
+> 50
+> 60
+> 70
+> Token cost (×103)
+> 0
+> 70
+> 140
+> 210
+> 280
+> 350
+> 420
+> 490
+> 560
+> 630
+> 700
+> Token cost (×103)
+> CGN CGNhCGNtCGR CGRhCGRtCGC CGChCGCtTMN TMNhTMR TMRhTMC TMCh
+> 0
+> 50
+> 100
+> 150
+> 200
+> 250
+> 300
+> Time cost (s)
+> Autofeat GGN GGR GGC OGCcOGR OGC EBR GRFG
+> 0
+> 300
+> 600
+> 900
+> 1200
+> 1500
+> 1800
+> 2100
+> 2400
+> 2700
+> 3000
+> Time cost (s)
+> Timecost(s)Tokencost(×103)Extracost
+
+Figure 5 Average time and token cost across datasets. Note: the y-axis range of the left panel is 1/10 of that of the right panel. 0 6 12 18 24 30 36 42 48                                               
+
+> Token Cost (10 3tokens)
+> 86
+> 87
+> 88
+> Accuracy (%)
+> (a) kc1
+> 0510 15 20 25 30 35 40
+> Token Cost (10 3tokens)
+> 87
+> 88
+> 89
+> 90
+> 91
+> (b) credit-approval
+> 0510 15 20 25 30 35 40
+> Token Cost (10 3tokens)
+> 77
+> 78
+> 79
+> 80
+> 81
+> (c) credit-g
+> 0612 18 24 30 36 42 48 54
+> Token Cost (10 3tokens)
+> 89
+> 90
+> (d) qsar-biodeg
+> 0816 24 32 40 48 56
+> Token Cost (10 3tokens)
+> 76
+> 77
+> 78
+> 79
+> (e) vehicle
+> CGN CGN hCGR TMN TMN hTMR EBR wOGC cGGR Autofeat
+
+Figure 6 VG vs. Token Cost for 9 representative methods on 5 classification datasets. 
+
+the evolutionary part is recorded in EBR , while the warm-up overhead is recorded in GRFG . The average cost of each method is shown in Figure 5. 
+
+Finding 5. Both time and token overheads increase rapidly as configuration complexity grows. We partition configurations into two groups based on overhead, shown in the left and right panels of Figure 5, respectively. The low-cost group includes the CoT and the ToT families, while the high-cost group comprises Critic, OPRO, and the Evo family, along with non-LLM-powered methods Autofeat and 
+
+GRFG . As the configuration becomes more complex, the overhead exhibits an exponential growth trend: the overhead of the ToT and Critic families is approximately 1.3 × and 2 × that of the CoT family, while the OPRO and Evo families rapidly increase to nearly 10 ×.
+
+Finding 6. LATTE methods demonstrate substantial time-efficiency advantages over traditional and RL-based TAFE methods. Most LATTE variants require only about 10% of the runtime of Autofeat or 
+
+GRFG . The OPRO family and EBR w are exceptions, consuming roughly 30-60% of Autofeat ’s runtime due to multiple LLM queries per iteration and additional validation model training or evolution steps. Among other approaches, the Critic family incurs the highest overhead due to its multi-agent design, while CGR achieves the best efficiency at only 5% of Autofeat ’s runtime. 
+
+Finding 7. Demonstrations primarily affect token cost, while output format has a stronger impact on time cost. We highlight with shading in Figure 5 the extra cost that demonstrations bring to each base configuration, and report detailed analysis in Table 5. Demonstrations primarily raise input token counts, while output format affects only output tokens, which disproportionately determine LLM inference time. When Code is used as the output format, the flexible number and complexity of operations cause substantial variation in LLM output length, typically about 2.5 × that of the NL format. This flexibility makes it very difficult to compress historical records, leading to a significant increase in demonstration length. 20 0 40 80 120                    
+
+> 86.0
+> 86.5
+> 87.0
+> 87.5
+> 88.0
+> 88.5
+> Accuracy (%)
+> (a) kc1
+> 040 80 120
+> 87
+> 88
+> 89
+> 90
+> 91
+> (b) credit-approval
+> 040 80 120
+> 78
+> 80
+> 82
+> (c) credit-g
+> 040 80 120
+> 89
+> 90
+> 91
+> (d) qsar-biodeg
+> 040 80 120
+> 76
+> 77
+> 78
+> 79
+> 80
+> 81 (e) vehicle
+> Token Cost (10 3tokens)
+> CGN CGN hCGR CGR hOGR Autofeat
+
+Figure 7 VG vs. Token Cost for simple CoT methods and OGR with high budgets. 
+
+5.5 Token Efficiency Analysis (RQ 1.3) 
+
+Previous studies have lacked a systematic comparison of different LATTE methods under the same token budget, limiting practical guidance for real-world applications. From Figure 5 and Table 4, we observe that low-cost CoT methods have already achieved leading performance on regression tasks, but the cost-effectiveness of different methods on classification tasks is still difficult to compare intuitively. Therefore, in this section, we select 9 methods and plot VG curves against token consumption in Figure 6. Methods are selected based on their cost-effectiveness under fixed-round settings. Datasets are selected to exhibit large VG variance across methods, which facilitates comparison analysis. 
+
+Finding 8. CoT methods excel in very-low-budget scenarios, while ToT methods outperform across a wider budget range. Our analysis reveals that CoT methods exhibit impressive initial VG growth but quickly reach local optima due to their greedy strategies. In contrast, ToT methods, though slightly underperforming compared to the best CoT variants at low budgets, consistently surpass them in high-budget scenarios by balancing exploration and exploitation. 
+
+Finding 9. Complex methods show limited cost-effectiveness despite potential performance gains. Critic, OPRO, and Evo family methods exhibit relatively low token efficiency and are likely to demonstrate advantages only when cost constraints are relaxed, particularly for EBR w, which significantly lags in the early stages. 
+
+Finding 10. Demonstrations yield marginal gains that seldom justify the additional overhead. Although Positive-Negative demonstrations may enhance performance gain in fixed-round settings, these slight improvements fail to translate into superior token efficiency. To further investigate the cost-effectiveness of different LATTE configurations, we tested CoT methods under higher token budget scales (140k+ tokens) and compared their cost-effectiveness with OGR , the best-performing high-cost method under fixed-round settings. The results are shown in Figure 7. We observe that simple CoT methods, even those without demonstrations, consistently outperform OGR .
+
+Finding 11. OPRO iteratively optimizes the quality of a single output, which is less cost-effective than multiple independent LLM queries. 
+
+21 5.6 Component-Level Analysis (RQ 2.1) 5.6.1 Analysis of CoT and ToT Family 
+
+To further investigate the effects of different configurations on performance and cost, we conducted a detailed analysis of CoT and ToT variants (Table 5). 
+
+Unlike CoT, some ToT variants exhibit an inverse time-token relationship driven by MCTS dynamics. As shown in Figure 5, the ToT family displays patterns that diverge from CoT, particularly in time cost trends. Statistics for these exceptional variants in Table 5 reveal that MCTS-induced variability in LLM query counts drives this inverse relationship: (1) When an optimal path is apparent, MCTS focuses on exploitation and visits fewer nodes. Providing demonstrations enhances the model’s ability to identify promising paths early, resulting in fewer queries with lower total time, despite higher per-query token consumption. (2) When high-value nodes appear at varying depths, the NL format hinders their discovery. The RPN format, by enabling the generation of high-order features, brings high-value nodes to shallower tree levels, allowing MCTS to discover more nodes with comparable UCB values and thereby promoting exploration. While this increases the number of queries, per-query latency significantly decreases (a pattern observed in the CoT family), ultimately reducing overall time.                                                                      
+
+> Table 5 Detailed analysis of cost changes among CoT and ToT variants. — indicates normalization to 100%.
+> CoT family ∆Time (%) ∆Token (%) ∆Output Token (%)
+> CGN ———+ Positive–Negative ↑13.4 ↑19.6 ↑45.7
+> + Top-k ↑7.6 ↑6.8 ↑53.1
+> - NL + RPN ↓36.1 ↓7.5 ↓81.3
+> - NL + RPN + Positive–Negative ↓24.5 ↑9.9 ↓78.7
+> - NL + Code ↑11.3 ↑6.8 ↑∼ 150
+> - NL + Code + Positive–Negative ↑24.4 ↑67.7 ↑∼ 150
+> ToT family ∆Time (%) ∆Token (%) AVG Query Num
+> TMN ——13.1 + Positive–Negative ↓7.6 ↑17.6 12.4 - NL + RPN ↓15.7 ↑6.9 13.8 - NL + RPN + Positive–Negative ↓19.1 ↑11.7 13.3
+
+5.6.2 Analysis of OPRO and Evo Family 
+
+Additionally, we conducted extended experiments (Table 6) to analyze how technique components in OPRO- and Evo-family methods affect token efficiency. Following OCTree , OGC c integrates OPRO with CART-based reasoning. To evaluate the impact of each technique, we performed ablation studies by removing them individually. We found that: (1) CART is a cost-effective substitute for metadata when using code output format, substantially reducing token cost while maintaining performance. (2) Although OPRO yields substantial performance improvements, the associated 19 × increase in token costs severely compromises the method’s overall cost-effectiveness. For the Evo family, considering that EBR and EBC require consuming a large number of tokens (>100k) during the cold start phase, we use EBR r to replace them. It uses a random RPN collector for 22 warm-up, thereby avoiding the additional token cost. Table 6 shows that (1) EBR w ’s evolutionary phase predominantly enhances TG and AG, indicating the LLM’s ability to leverage semantic information for generating features with superior generalization. (2) The data collector has a critical impact on the final performance.               
+
+> Table 6 Component analysis and token cost evaluation for OPRO and Evo families.
+> OPRO family ∆VG (%) ∆TG (%) ∆AG (%) ∆Token (%)
+> OGC c————- CART + Metadata ( OGC )
+
+↓ 2.2 ↓ 1.4 ↑∼ 50 ↑∼ 280  
+
+> - OPRO ( CGC c)
+
+↓ 11.9 ↓ 66.2 ↑ 44.4 ↓∼ 95  
+
+> - OPRO - CART + Metadata ( CGC )
+
+↓ 16.6 ↓ 71.8 ↓ 27.8 ↓∼ 75              
+
+> Evo family ∆VG (%) ∆TG (%) ∆AG (%) ∆Token (%)
+> EBR w————- EvoPrompt ( GRFG )
+
+↓ 6.5 ↓ 34.9 ↓ 158 ↓ 100  
+
+> - GRFG + Random Collector ( EBR r)
+
+↓ 9.9 ↓ 25.6 ↓ 358 ∼ 0.0 
+
+5.6.3 Analysis of three Configuration Principles 
+
+In Section 4.2, we proposed three configuration principles for combining existing techniques. In this subsection, we conduct quantitative experiments to validate these principles, with the results presented in Table 7. As observed, combining ToT with a greedy strategy and using NL as the output format in the OPRO family both yield poor performance, which is consistent with the second principle. Additionally, Least-to-Most (LtM) prompting improves performance on CoT without history but degrades it on CoT with history. Since LtM provides no overall performance gain while increasing overhead by 3 to 5 times, it is filtered out by the third principle.         
+
+> Table 7 Quantitative validation of Configuration Principles.
+> ToT family ∆VG (%) ∆Token (%) ∆Time (%)
+> - MCTS + Greedy
+
+↓ 6.0 ↑ 3.9 ↓ 13.7        
+
+> OPRO family ∆VG (%) ∆Token (%) ∆Time (%)
+> - RPN + NL
+
+↓ 14.4 ↑ 10.7 ↑∼ 140  
+
+> - Code + NL
+
+↓ 6.8 ↓ 22.3 ↓ 40.4        
+
+> CoT family ∆VG (%) ∆Token (%) ∆Time (%)
+> + LtM (CoT w/o history)
+
+↑ 11.8 ↑∼ 430 ↑∼ 430  
+
+> + LtM (CoT w history)
+
+↓ 11.8 ↑∼ 570 ↑∼ 230  
+
+> + LtM (all CoT baseline)
+
+↓ 0.4 ↑∼ 500 ↑∼ 320 
+
+5.7 Pipeline Module Analysis (RQ 2.2) 
+
+So far, we have conducted a detailed comparison of the four core dimensions in the six-dimensional taxonomy. For the remaining two dimensions, we employed a uniform experimental setup (Sec-tion 4.2.2). To validate the rationality of our default settings, we conducted extended experiments on the corresponding modules: the Serializer, the Feature Selector, and the LLM. 23 Table 8 Analysis on the serializer and feature selector.                                                        
+
+> Method ∆Success Rate (%) ∆VG (%) ∆Token (%) ∆Time (%)
+> LATTEArena Pipeline ————- Calculated Values ↓6.0 ↓2.1 ↓33.1 ↓24.0
+> - Metadata ↓9.6 ↓6.4 ↓38.9 ↓26.8
+> - Instances ↓2.4 ↓3.0 ↓21.6 ↓8.9
+> - Metadata & Instances ↓16.5 ↓16.8 ↓75.7 ↓34.4
+> - Feature Selector ∼0.0 ↓39.5 —↓48.1
+> + Generated Metadata ↓3.6 ↑14.6 ↑ ∼ 40 ↑ ∼ 100
+
+5.7.1 Analysis on Serializer and Feature Selector 
+
+Table 8 shows the ablation results of the serializer and feature selector. For generated metadata, the LLM rewrites it using the native metadata, calculated values, and instances. When removing metadata, we retain concise feature names that contain semantic information. 
+
+• Component Necessity and Synergy. Any component removal degrades the success rate and VG, confirming the rationale of the LATTEArena pipeline design. Specifically, the simultaneous exclusion of Metadata and Instances causes the largest drop in success rate, proving their synergistic role in LATTE. 
+
+• Informational Redundancy. Removing calculated values, metadata, or instances slashes token costs by over 20% but only yields marginal VG losses. This disproportion suggests significant informational redundancy in tables and metadata for LATTE. 
+
+• Pipeline Bottlenecks. Removing the selector reduces latency by 48.1% but causes a catastrophic VG collapse. Generating metadata achieves higher VG, suggesting room for optimization in the metadata format, though at the cost of significant overhead. 
+
+Finding 12. Feature selection acceleration is crucial for temporal efficiency, while metadata generation and compression are essential for performance and token efficiency. 
+
+5.7.2 Analysis on LLM Backbones 
+
+Experiments show that the best LATTE method with GPT-4o outperforms both traditional and RL-based TAFE methods in efficiency and performance. However, since the quality of FE operations depends on the LLM’s reasoning capability, a natural question arises: how do LATTE methods perform with LLMs of varying capabilities and scales? LATTEArena provides a convenient tool for assessing the data engineering capabilities of various LLMs and offers an additional dimension for LLM evaluation. 
+
+We evaluated LATTEArena using Deepseek-V3.1 , o4-mini , and Llama-3.1-8B-Instruct as represen-tative LLMs. Figure 8 shows the VG and token cost of different LLMs. Deepseek-V3.1 achieves performance and cost most comparable to GPT-4o . o4-mini achieves the highest VG but its reasoning process incurs 80% additional token cost compared to GPT-4o . Llama-3.1-8B-Instruct , as the smallest model, exhibits the poorest performance. It struggles to discover effective features across most datasets and demonstrates weak instruction-following capabilities, frequently failing to produce 24 0
+
+2
+
+4
+
+6
+
+> CGN
+> VG (%)
+
+kc1 credit-approval credit-g qsar-biodeg vehicle 
+
+0
+
+2
+
+4
+
+6
+
+> CGN h
+> VG (%)
+
+0
+
+2
+
+4
+
+6
+
+> CGR
+> VG (%)
+> 0
+> 15
+> 30
+> 45
+> 60
+> 0
+> 15
+> 30
+> 45
+> 60
+> Token cost ( 10 3)
+> 0
+> 15
+> 30
+> 45
+> 60
+
+GPT-4o Deepseek-V3.1 o4-mini Llama-3.1-8B Token Figure 8 Performance and cost of different LLMs. 
+
+responses that adhere to the required format and feature operation rules. Moreover, its NL reasoning outputs tend to be brief, resulting in minimal token overhead. This indicates that the LATTE task capabilities on smaller models still require further enhancement through training techniques such as fine-tuning. 
+
+Table 9 Performance gains of methods on large datasets. “r & c” indicates the average results for road-safety and covertype, while poker-hand (“poker”) is listed separately due to its differing magnitude of performance gains.                                                                                                                                                                                   
+
+> CoT ToT Critic OPRO Evo
+> Autofeat GRFG CGN CGN hCGN tCGC CGC hCGC tCGR CGR hCGR tTMN TMN hTMC TMC hTMR TMR hGGN GGC GGR OGC cOGN OGC OGR EBR w
+> r & c  VG <0 0.89 1.61 1.29 1.46 1.95 1.61 0.95 1.58 1.18 1.77 1.22 1.30 1.80 1.47 1.32 2.30 1.52 1.96 1.40 0.64 2.02 2.56 2.40 1.21 TG –0.85 1.79 1.40 1.55 1.92 1.67 1.06 1.59 1.19 1.86 1.40 1.27 1.84 1.39 1.42 2.38 1.46 2.06 1.51 0.26 1.87 2.59 2.50 1.26 AG –-0.15 0.31 -1.02 0.21 -1.26 -1.73 -0.30 -0.27 -0.22 0.08 0.15 0.32 -0.01 0.20 -0.13 0.33 0.19 0.26 0.11 -1.41 -2.06 -0.09 0.06 -0.93
+> poker  VG –24.6 17.0 18.5 18.7 26.0 25.6 26.0 21.9 20.5 22.1 11.3 7.0 25.9 26.1 22.6 16.9 9.7 25.0 17.9 4.1 18.4 26.0 24.1 24.8 TG –25.8 17.0 16.9 18.6 26.1 25.6 26.1 21.9 20.5 22.2 11.3 7.1 26.0 26.1 22.7 16.8 9.7 25.0 18.0 0.0 18.5 26.0 24.2 24.9 AG –-0.2 -16.8 -0.1 -1.1 -2.3 -0.5 0.0 -4.4 -0.2 0.2 -0.1 0.0 -0.1 0.0 -0.4 -3.4 -0.1 -1.1 -0.2 -0.3 -0.1 -0.1 -1.1 -3.7
+
+5.8 Scalability Analysis (RQ 3.1) 
+
+The datasets investigated in LATTE are generally relatively small, typically comprising around 10000 instances. In this subsection, we analyze datasets ranging from 100000 to 1000000 instances to verify whether our findings are influenced by data scale. The detailed results are presented in Table 9. 
+
+Finding 13. Scaling up the number of instances directly alleviates overfitting in LATTE. As the instance count increases with feature and class dimensions held constant, the validation set captures the underlying distribution more effectively, allowing the validation model to compute scores with greater precision. Consequently, while collecting more data inherently boosts LATTE’s performance, constrained data scenarios still require technical interventions, such as employing Best-of-N or refining the scoring mechanism ( Finding 3 ). 
+
+Finding 14. LATTE is driven by feature patterns rather than data scale. By sampling fixed instances and relying on calculated metadata, LATTE remains insensitive to total data volume (e.g., covertype and road-safety trends mirror those of smaller datasets). Conversely, poker-hand requires complex 25 CGN 
+
+> CGN h
+> CGN t
+> CGR
+> CGR h
+> CGR t
+> CGC
+> CGC h
+> CGC t
+> TMN
+> TMN h
+> TMR
+> TMR h
+> TMC
+> TMC h
+> GGN
+> GGR
+> GGC
+> OGR
+> OGC c
+> OGC
+> EBR w
+
+60 
+
+80 
+
+100     
+
+> Success Rate (%)
+> NL Format RPN Format Code Format Trend Figure 9 Success rate of different methods.
+
+logic (Texas Hold’em rules) for 100% accuracy. Since NL and RPN formats struggle to encode such rules, the Code format supersedes prompting techniques and FE strategies, achieving optimal results across all families. 
+
+5.9 Robustness Analysis (RQ 3.2) 
+
+This section examines the robustness of LATTE methods across datasets and random splits using success rate as the evaluation metric, as methods with higher success rates exhibit more stable performance. Results are presented in Figure 9. 
+
+Finding 15. Success rates decline noticeably as the FE output format becomes more complex. As illustrated in Figure 9, a consistent trend emerges: RPN underperforms NL, while Code exhibits the lowest success rates. We observe that the flexibility of the Code format frequently induces problematic LLM behaviors, such as referencing non-existent operators or features, or even manipulating prediction targets to inflate performance metrics. These issues result in a substantial number of runtime errors. 
+
+Finding 16. OPRO significantly enhances robustness. OGR and OGC c achieve the highest success rate of 99%, attributed to their adoption of OPRO. In each iteration, these methods generate and refine just one new feature expression, thereby maintaining a focused and streamlined optimization process. 
+
+5.10 Recommendations 
+
+In this section, we summarize the current experimental findings and provide recommendations on the optimal technical configuration for deploying LATTE in real-world applications. 
+
+(1) Considering all metrics, the optimal configurations among existing LATTE methods are ToT and MCTS-based methods with NL or RPN output format ( TMR and TMN ), which achieve strong performance, best token efficiency, and high robustness. 
+
+(2) With sufficient token budget, combining OPRO with the Best-of-N strategy is recommended to get optimal performance gain. 
+
+(3) The Code format performs better for regression tasks, whereas the RPN format excels in classification tasks. 26 (4) When budgets are extremely tight, we recommend using RPN-based zero-shot methods such as CGR and TMR .
+
+(5) To optimize cost, we recommend simplifying metadata and instances and incorporating manual or low-overhead error-correction mechanisms to improve success rates. 
+
+6 CONCLUSION AND FUTURE WORK 
+
+In this paper, we introduced LATTEArena, a comprehensive benchmark with a novel taxonomy and standardized evaluation framework for LLM-powered automated tabular feature engineering. Through systematic evaluation, we identified key findings: (1) No single LATTE method consistently dominates; (2) Complexification of methods fails to bring higher cost-effectiveness; (3) Existing demonstration forms remain cost-ineffective. These findings indicate that current bottlenecks lie in the retrieval, processing, and management of contextual information, suggesting a paradigm shift from prompt engineering to context engineering. Promising future directions include advanced context engineering (better retrieval and history management), richer scoring formats beyond VG, more sophisticated FE Agent strategies, and SFT/RL paradigms tailored for LATTE. We hope LATTEArena will serve as a solid foundation for future research. 
+
+References 
+
+[1] Nikhil Abhyankar, Parshin Shojaee, and Chandan K Reddy. Llm-fe: Automated feature engineering for tabular data with llms as evolutionary optimizers. arXiv preprint arXiv:2503.14434 , 2025. [2] Josh Achiam, Steven Adler, Sandhini Agarwal, Lama Ahmad, Ilge Akkaya, Florencia Leoni Aleman, Diogo Almeida, Janko Altenschmidt, Sam Altman, Shyamal Anadkat, et al. Gpt-4 technical report. arXiv preprint arXiv:2303.08774 ,2023. [3] Edesio Alcobaça, Felipe Siqueira, Adriano Rivolli, Luís P. F. Garcia, Jefferson T. Oliva, and André C. P. L. F. de Carvalho. Mfe: Towards reproducible meta-feature extraction. Journal of Machine Learning Research , 21(111):1–5, 2020. [4] David Bonet, Daniel Mas Montserrat, Xavier Giró-i Nieto, and Alexander G Ioannidis. Hyperfast: Instant classification for tabular data. In Proceedings of the AAAI Conference on Artificial Intelligence , volume 38, pages 11114–11123, 2024. [5] Henrik Bradland, Morten Goodwin, Vladimir I Zadorozhny, and Per-Arne Andersen. Knowledge-informed automatic feature extraction via collaborative large language model agents. arXiv preprint arXiv:2511.15074 , 2025. [6] Tom Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared D Kaplan, Prafulla Dhariwal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, et al. Language models are few-shot learners. Advances in neural information processing systems , 33:1877–1901, 2020. [7] Xiangning Chen, Qingwei Lin, Chuan Luo, Xudong Li, Hongyu Zhang, Yong Xu, Yingnong Dang, Kaixin Sui, Xu Zhang, Bo Qiao, et al. Neural feature search: A neural architecture for automated feature engineering. In 2019 IEEE International Conference on Data Mining , pages 71–80. IEEE, 2019. [8] Patrick Ciarelli and Elias Oliveira. CNAE-9. UCI Machine Learning Repository, 2009. DOI: https://doi.org/10.24432/C51G7P. [9] Rémi Coulom. Efficient selectivity and backup operators in monte-carlo tree search. In International conference on computers and games , pages 72–83. Springer, 2006. [10] Swagatam Das and Ponnuthurai Nagaratnam Suganthan. Differential evolution: A survey of the state-of-the-art. 
+
+IEEE transactions on evolutionary computation , 15(1):4–31, 2010. [11] Nick Erickson, Jonas Mueller, Alexander Shirkov, Hang Zhang, Pedro Larroy, Mu Li, and Alexander Smola. Autogluon-tabular: Robust and accurate automl for structured data. arXiv preprint arXiv:2003.06505 , 2020. 
+
+27 [12] Yunfan Gao, Yun Xiong, Xinyu Gao, Kangxiang Jia, Jinliu Pan, Yuxi Bi, Yi Dai, Jiawei Sun, Meng Wang, and Haofen Wang. Retrieval-augmented generation for large language models: A survey. arXiv preprint arXiv:2312.10997 , 2024. [13] Nanxu Gong, Chandan K Reddy, Wangyang Ying, Haifeng Chen, and Yanjie Fu. Evolutionary large language model for automated feature transformation. In Proceedings of the AAAI Conference on Artificial Intelligence , volume 39, pages 16844–16852, 2025. [14] Nanxu Gong, Xinyuan Wang, Wangyang Ying, Haoyue Bai, Sixun Dong, Haifeng Chen, and Yanjie Fu. Unsupervised feature transformation via in-context generation, generator-critic llm agents, and duet-play teaming. In Proceedings of the Thirty-Fourth International Joint Conference on Artificial Intelligence, IJCAI-25 , pages 2820–2828, 2025. [15] Léo Grinsztajn, Edouard Oyallon, and Gaël Varoquaux. Why do tree-based models still outperform deep learning on typical tabular data? In Proceedings of the 36th International Conference on Neural Information Processing Systems ,NIPS ’22, 2022. [16] Qingyan Guo, Rui Wang, Junliang Guo, Bei Li, Kaitao Song, Xu Tan, Guoqing Liu, Jiang Bian, and Yujiu Yang. Connecting large language models with evolutionary algorithms yields powerful prompt optimizers. arXiv preprint arXiv:2309.08532 , 2023. [17] Sungwon Han, Jinsung Yoon, Sercan Ö. Arik, and Tomas Pfister. Large language models can automatically engineer features for few-shot tabular learning. In Proceedings of the 41st International Conference on Machine Learning , ICML’24, 2024. [18] Noah Hollmann, Samuel Müller, and Frank Hutter. Large language models for automated data science: Introducing caafe for context-aware automated feature engineering. Advances in Neural Information Processing Systems , 36: 44753–44775, 2023. [19] Noah Hollmann, Samuel Müller, Lennart Purucker, Arjun Krishnakumar, Max Körfer, Shi Bin Hoo, Robin Tibor Schirrmeister, and Frank Hutter. Accurate predictions on small data with a tabular foundation model. Nature , 637 (8045):319–326, 2025. [20] Franziska Horn, Robert Pack, and Michael Rieger. The autofeat python library for automated feature engineering and selection. In Joint European Conference on Machine Learning and Knowledge Discovery in Databases , pages 111–120. Springer, 2019. [21] James Max Kanter and Kalyan Veeramachaneni. Deep feature synthesis: Towards automating data science endeavors. In 2015 IEEE International Conference on Data Science and Advanced Analytics (DSAA) , pages 1–10, 2015. [22] Gilad Katz, Eui Chul Richard Shin, and Dawn Song. Explorekit: Automatic feature generation and selection. In 
+
+2016 IEEE 16th International Conference on Data Mining , pages 979–984, 2016. [23] Ambika Kaul, Saket Maheshwary, and Vikram Pudi. Autolearn — automated feature generation and selection. In 
+
+2017 IEEE International Conference on Data Mining , pages 217–226, 2017. [24] Udayan Khurana, Deepak Turaga, Horst Samulowitz, and Srinivasan Parthasrathy. Cognito: Automated feature engineering for supervised learning. In 2016 IEEE 16th international conference on data mining workshops (ICDMW) ,pages 1304–1307. IEEE, 2016. [25] Udayan Khurana, Horst Samulowitz, and Deepak Turaga. Feature engineering for predictive modeling using reinforcement learning. In Proceedings of the AAAI Conference on Artificial Intelligence , volume 32, 2018. [26] Philip Klein, Srikanta Tirthapura, Daniel Sharvit, and Ben Kimia. A tree-edit-distance algorithm for comparing simple, closed shapes. In Proceedings of the Eleventh Annual ACM-SIAM Symposium on Discrete Algorithms , SODA ’00, page 696–704, USA, 2000. Society for Industrial and Applied Mathematics. ISBN 0898714532. [27] Levente Kocsis and Csaba Szepesvári. Bandit based monte-carlo planning. In European conference on machine learning ,pages 282–293. Springer, 2006. [28] Jaris Küken, Lennart Purucker, and Frank Hutter. Large language models engineer too many simple features for tabular data. arXiv preprint arXiv:2410.17787 , 2024. [29] Annu Lambora, Kunal Gupta, and Kriti Chopra. Genetic algorithm-a literature review. In 2019 international conference on machine learning, big data, cloud and parallel computing (COMITCon) , pages 380–384. IEEE, 2019. [30] Joseph Lee, Shu Yang, Jae Young Baik, Xiaoxi Liu, Zhen Tan, Dawei Li, Zixuan Wen, Bojian Hou, Duy Duong-Tran, Tianlong Chen, et al. Knowledge-driven feature selection and engineering for genotype data with large language models. AMIA Summits on Translational Science Proceedings , 2025:250, 2025. 
+
+28 [31] Liyao Li, Haobo Wang, Liangyu Zha, Qingyi Huang, Sai Wu, Gang Chen, and Junbo Zhao. Learning a data-driven policy network for pre-training automated feature engineering. In The Eleventh International Conference on Learning Representations , 2023. [32] Yin Lin, Bolin Ding, HV Jagadish, and Jingren Zhou. Smartfeat: efficient feature construction through feature-level foundation model interactions. 14th Annual Conference on Innovative Data Systems Research , 2024. [33] Pengfei Liu, Weizhe Yuan, Jinlan Fu, Zhengbao Jiang, Hiroaki Hayashi, and Graham Neubig. Pre-train, prompt, and predict: A systematic survey of prompting methods in natural language processing. ACM computing surveys , 55(9): 1–35, 2023. [34] Kuan Lu, Zhihui Yang, Sai Wu, Ruichen Xia, Dongxiang Zhang, and Gang Chen. Adda: Towards efficient in-database feature generation via llm-based agents. Proceedings of the ACM on Management of Data , 3(3):1–27, 2025. [35] Renqian Luo, Fei Tian, Tao Qin, Enhong Chen, and Tie-Yan Liu. Neural architecture optimization. Advances in neural information processing systems , 31, 2018. [36] Duncan McElfresh, Sujay Khandagale, Jonathan Valverde, Vishak Prasad C, Ganesh Ramakrishnan, Micah Goldblum, and Colin White. When do neural nets outperform boosted trees on tabular data? Advances in Neural Information Processing Systems , 36:76336–76369, 2023. [37] Lingrui Mei, Jiayu Yao, Yuyao Ge, Yiwei Wang, Baolong Bi, Yujun Cai, Jiazhi Liu, Mingyu Li, Zhong-Zhi Li, Duzhen Zhang, et al. A survey of context engineering for large language models. arXiv preprint arXiv:2507.13334 , 2025. [38] Jaehyun Nam, Kyuyoung Kim, Seunghyuk Oh, Jihoon Tack, Jaehyung Kim, and Jinwoo Shin. Optimized feature generation for tabular data via llms with decision tree reasoning. Advances in Neural Information Processing Systems ,37:92352–92380, 2024. [39] Fatemeh Nargesian, Horst Samulowitz, Udayan Khurana, Elias B. Khalil, and Deepak Turaga. Learning feature engineering for classification. In Proceedings of the 26th International Joint Conference on Artificial Intelligence , IJCAI’17, page 2529–2535, 2017. [40] Pranab Sahoo, Ayush Kumar Singh, Sriparna Saha, Vinija Jain, Samrat Mondal, and Aman Chadha. A systematic survey of prompt engineering in large language models: Techniques and applications. arXiv preprint arXiv:2402.07927 ,2024. [41] Sander Schulhoff, Michael Ilie, Nishant Balepur, Konstantine Kahadze, Amanda Liu, Chenglei Si, Yinheng Li, Aayush Gupta, HyoJung Han, Sevien Schulhoff, et al. The prompt report: a systematic survey of prompt engineering techniques. arXiv preprint arXiv:2406.06608 , 2024. [42] Zhenqian Shen, Yongqi Zhang, Lanning Wei, Huan Zhao, and Quanming Yao. Automated machine learning: From principles to practices. arXiv preprint arXiv:1810.13306 , 2018. [43] Zhi Rui Tam, Cheng-Kuang Wu, Yi-Lin Tsai, Chieh-Yen Lin, Hung-yi Lee, and Yun-Nung Chen. Let me speak freely? a study on the impact of format restrictions on large language model performance. In Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing: Industry Track , pages 1218–1236, 2024. [44] Siyuan Wang, Enda Zhao, and Xiang Ren. Stepwise informativeness search for improving LLM reasoning. In 
+
+Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing , pages 25291–25309, 2025. ISBN 979-8-89176-332-6. [45] Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc Le, Ed Chi, Sharan Narang, Aakanksha Chowdhery, and Denny Zhou. Self-consistency improves chain of thought reasoning in language models. arXiv preprint arXiv:2203.11171 ,2022. [46] Yining Wang, Jinman Zhao, and Yuri Lawryshyn. GPT-signal: Generative AI for semi-automated feature engineering in the alpha research process. In Proceedings of the Eighth Financial Technology and Natural Language Processing and the 1st Agent AI for Scenario Planning , pages 42–53, 2024. [47] Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten Bosma, Brian Ichter, Fei Xia, Ed H. Chi, Quoc V. Le, and Denny Zhou. Chain-of-thought prompting elicits reasoning in large language models. In Proceedings of the 36th International Conference on Neural Information Processing Systems , NIPS ’22, 2022. [48] Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten Bosma, Fei Xia, Ed Chi, Quoc V Le, Denny Zhou, et al. Chain-of-thought prompting elicits reasoning in large language models. Advances in neural information processing systems ,35:24824–24837, 2022. 
+
+29 [49] Jiahuan Yan, Bo Zheng, Hongxia Xu, Yiheng Zhu, Danny Z Chen, Jimeng Sun, Jian Wu, and Jintai Chen. Making pre-trained language models great on tabular prediction. In The Twelfth International Conference on Learning Representations ,2024. [50] Chengrun Yang, Xuezhi Wang, Yifeng Lu, Hanxiao Liu, Quoc V Le, Denny Zhou, and Xinyun Chen. Large language models as optimizers. In The Twelfth International Conference on Learning Representations , 2024. [51] Shunyu Yao, Dian Yu, Jeffrey Zhao, Izhak Shafran, Tom Griffiths, Yuan Cao, and Karthik Narasimhan. Tree of thoughts: Deliberate problem solving with large language models. Advances in neural information processing systems ,36:11809–11822, 2023. [52] Tong Yu and Hong Zhu. Hyper-parameter optimization: A review of algorithms and applications. arXiv preprint arXiv:2003.05689 , 2020. [53] Tianping Zhang, Zheyu Zhang, Zhiyuan Fan, Haoyan Luo, Fengyuan Liu, Qian Liu, Wei Cao, and Jian Li. Openfe: automated feature generation with expert-level performance. In Proceedings of the 40th International Conference on Machine Learning , ICML’23, 2023. [54] XinHao Zhang, Jinghan Zhang, Fengran Mo, Yuzhong Chen, and Kunpeng Liu. Retrieval-augmented feature generation for domain-specific classification. arXiv preprint arXiv:2406.11177 , 2024. [55] Xinhao Zhang, Jinghan Zhang, Banafsheh Rekabdar, Yuanchun Zhou, Pengfei Wang, and Kunpeng Liu. Dynamic and adaptive feature generation with llm. In Proceedings of the Thirty-Fourth International Joint Conference on Artificial Intelligence, IJCAI-25 , pages 7029–7037, 2025. [56] Alice Zheng and Amanda Casari. Feature Engineering for Machine Learning: Principles and Techniques for Data Scientists .O’Reilly Media, Inc., 1st edition, 2018. ISBN 1491953241. [57] Denny Zhou, Nathanael Schärli, Le Hou, Jason Wei, Nathan Scales, Xuezhi Wang, Dale Schuurmans, Claire Cui, Olivier Bousquet, Quoc V Le, et al. Least-to-most prompting enables complex reasoning in large language models. In The Eleventh International Conference on Learning Representations , 2023. [58] Guanghui Zhu, Zhuoer Xu, Chunfeng Yuan, and Yihua Huang. Difer: differentiable automated feature engineering. In International Conference on Automated Machine Learning , pages 17–1. PMLR, 2022. [59] Yufeng Zou, Jean Utke, Diego Klabjan, and Han Liu. Automated feature engineering by prompting, 2025. https: //openreview.net/forum?id=ZXO7iURZfW .
+
+30
