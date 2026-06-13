@@ -1,0 +1,2640 @@
+Title: 2606.08973v1.pdf
+
+URL Source: https://arxiv.org/pdf/2606.08973v1
+
+Published Time: Tue, 09 Jun 2026 01:39:01 GMT
+
+Number of Pages: 31
+
+Markdown Content:
+> 1
+
+# A systematic investigation of molecular encoding methods for drug 
+
+# property prediction s across neural network and Transformer 
+
+# encoder -based model 
+
+Sh eng-Ya Chen 34 and Shan -Ju Yeh 123* 
+
+> 1
+
+School of Medicine, National Tsing Hua University, Hsinchu, Taiwan. 
+
+> 2
+
+Institute of Bioinformatics and Structural Biology, National Tsing Hua University, 
+
+Hsinchu, Taiwan. 
+
+> 3
+
+Department of Life Science, National Tsing Hua University, Hsinchu, Taiwan. 
+
+> 4
+
+Interdisciplinary Program of Life Sciences and Medicine , National Tsing Hua University, Hsinchu, Taiwan. 
+
+> *
+
+Corresponding author 
+
+E-mail: sjyeh@life.nthu.edu.tw (Shan -Ju Yeh) 
+
+# Abstract 
+
+Fundamental investigations into how different molecular encoding method s affect molecular property 
+
+prediction remain relatively limited. In th is study , we extensively examined the optimal molecular encoding 
+
+methods for molecular properties prediction using two prevalent structure designs : a classical neural network 
+
+model (MLP) and a Transformer encoder -based model (MLP+TL) . For molecular encoding methods , we 
+
+investigate d several types of fingerprints, including traditional topological fingerprints, substructure -based 
+
+fingerprints, and string -based representations . These two models were trained on seven well -known molecular 
+
+datasets to evaluate different input molecular encoding m ethods based on evaluation metrics. On several 
+
+biologically relevant classification tasks, including toxicity, mutagenicity, and side -effect prediction, our 
+
+models consistently achieved average AUC values above 0.9. Beyond model performance, we further explored 
+
+whether the Transformer encoder -base d framework could provide interpretable insight. Rather than relying 
+
+on external post -hoc explanation methods such as the local interpretable model -agnostic explanation (LIME )
+
+or the Deep SHapley Additive exPlanations (SHAP) , we leveraged the model’s intrinsic attention weights as 
+
+an internal interpretability signal for identifying potentially important feature . To further support this analysis, 
+
+we conducted case studies on the BBBP and MUTAG datasets . T he MLP+TL model using MACCS and 
+
+PubChem as input can capture chemically interpretable groups that determin ed the major blood -brain barrier 
+
+(BBB) permeability and mutagenicity in Salmonella typhimurium . In particular, a comparison between 
+
+Morphine and Heroin highlighted the role of hydroxyl -related substructures in BBB permeability prediction, 
+
+which was consistently reflected in the attention weight s. Overall, our findings provide practical guidance for 
+
+selecting effective molecular encoding methods and contribute to the development of interpretable molecular 
+
+informatics approaches for drug discovery. 2
+
+# Introduction 
+
+Drug discovery [1, 2] is a lengthy, costly, and high -risk process, with a substantial attrition rate 
+
+throughout the development pipeline. As a result, there has been growing interest in leveraging artificial 
+
+intelligence (AI) and machine learning (ML) to improve the efficiency of early -stage drug discovery. By 
+
+enabling the in silico evaluation of candidate compounds, predictive models can help eliminate unfavorable 
+
+molecules at an earlier stage, prioritize more promising candidates, and thereby reduce the costs associated 
+
+with b lind synthesis, in vitro assays, animal studies, and late -stage failure. In this context, accurate molecular 
+
+property prediction has become a crucial task in a wide range of applications, including drug discovery, 
+
+toxicity assessment [3] , and drug –drug interaction prediction [4] . A key prerequisite for such prediction tasks 
+
+is the selection of an appropriate molecular representation, because the performance of downstream models 
+
+strongly depends on how molecular structures are encoded into machine -readable forms. More generally, 
+
+molecular representation can be understood as any encoding of a chemical compound, and different 
+
+representations preserve different aspects of chemical information, which in turn affects model behavior and 
+
+predictive performance. In recent years, substantia l effort has been devoted to molecular representation 
+
+learning, deep learning, and pretrained models to improve predictive performance [5] . However, recent studies 
+
+have pointed out that benchmark -driven performance gains do not always reflect meaningful advances in 
+
+practical applications [6] . In particular, prior work [7] has emphasized that model evaluation in molecular 
+
+property prediction can be strongly influenced by factors such as statistical rigor, model applicability, 
+
+evaluation metric selection, dataset split variability, and the extent to which external or chemica l-space 
+
+generalization is properly assessed. Moreover, improved metrics may sometimes reflect statistical fluctuation 
+
+rather than robust methodological progress. Therefore, model development should not be guided solely by 
+
+predictive performance, but should also consider interpretability, robustness, and generalizability. At the same 
+
+time, although simpler machine learning models based on fixed molecular representations often remain 
+
+competitive, they may be limited in their ability to capture richer structur al patterns [8] . Motivated by this 
+
+perspective, we focus ed on two neural network -based architectures (Figure 1) that have shown broad utility 
+
+across domains: a multi -layer perceptron (MLP) [9] and a Transformer encoder -based model (MLP+TL) [10] .
+
+These two models were trained on seven well -known molecular datasets to evaluate different molecular 
+
+encoding methods based on model performance. Rather than relying exclusively on external post hoc 
+
+explanation methods, such as LIME [11] or SHAP [12, 13] , we further explore d the model’s internal attention 
+
+weights as an interpretability -related signal for identifying potentially important input features. In this way, 
+
+the present study aims not only to evaluate predictive performance across molecular representations, but also 
+
+to investigate whether an intermediate mo deling strategy can provide a practical balance between predictive 
+
+capability and interpretability. 
+
+From a representation perspective, molecules can be organized into three broad categories: fixed 
+
+representation , which abstract structural patterns into predefined or hash -generated features; linear notations, 
+
+exemplified by SMILES; and graph representations, which preserve the connectivity between atoms and 
+
+bonds in an explicit graph form [1] . Among the various molecular representations available, molecular 
+
+fingerprints are one of the most widely used fixed representations in cheminformatics, because they encode 
+
+molecular structures into vectors that can be directly used in similarity analysis a nd machine learning models. 
+
+Based on the kinds of chemical information that each type of fingerprint captures, five categories were taken 3
+
+into consideration [14] . By examining the paths taken by a pair of atoms across the molecular graph and 
+
+hashing them inside a fixed -size vector, path -based fingerprints provide molecular features [15] . For instance, 
+
+Depth First Search (DFS) [16] starts at each atom and explores up to a certain number of edges, representing 
+
+a compound by capturing all unique paths in its molecular graph. Atom Pair fingerprints (AP) [17] , which 
+
+describe molecules by gathering all potential triplets of two atoms and the shortest path connecting them, are 
+
+another example of this type of algorithm. Furthermore, a subset of path -based fingerprinting known as 
+
+pharmacopohore fingerprints defines atoms depending on whether or not they are pharmacophore points (e.g., 
+
+donors or acceptors of hydrogen bonds) [18] . This results in bit vectors that attempt to encode the molecule's 
+
+interactions with its chemical surroundings rather than being as closely tied to the complex structure. 
+
+Substructure -based fingerprints assign each bit to a predefined structural motif, indicating whether that motif 
+
+is present in a molecule. [19, 20] . The PubChem fingerprints and the MACCS keys [19] are two examples of 
+
+this class of algorithms. Like substructure -based fingerprints, circular fingerprints dissect a target compound 
+
+into many fragments; however, rather than depending on expert -defined structural patterns, they dynamically 
+
+generate them f rom the molecular graph of each molecule [21, 22] . To accomplish this, they first represent 
+
+every atom in terms of certain characteristics, including atomic mass or valence. The numerical identifiers of 
+
+nearby atoms are then appended to each atom, creating a fragment identifier. This procedure can be car ried 
+
+out multiple times, gradually consider expanding the neighborhood's radius when compiling data. Ultimately, 
+
+a fixed -size vector is created by hashing every unique fragment for a specific molecule. In general, the 
+
+distinction between fingerprints in th is class can be seen in the use of distinct atom identifier attributes. 
+
+Representative examples include extended -connectivity fingerprints (ECFP) [21] and functional -connectivity 
+
+fingerprints (FCFPs) [21] . By working on the compound's simplified molecular input line entry system 
+
+(SMILES) string rather than its graph representation, string -based fingerprints provide molecular 
+
+representations [23, 24] . For example, LINGO fingerprints split SMILES strings into fixed -length substrings 
+
+and encode each molecule according to the presence or frequency of these substrings. [24] . Next, using either 
+
+counts or binary values, each compound is encoded based on which SMILES substrings in the set it contains. 
+
+With the advent of advanced machine learning techniques, new encoding methods are continually being 
+
+developed. Since f unctional groups in molecules play a pivotal role in determining their chemical properties 
+
+and biological activities , selecting an appropriate molecular representation that captures these nuances is 
+
+essential for accurate predictions. Despite the availability of num erous encoding methods, it remains unclear 
+
+which representation yields the most accurate predictions across different applications. This knowledge gap 
+
+motivates our investigation into identifying the optimal molecular encoding methods .
+
+Multi -layer Perceptron (MLP) is a class of feedforward [9] artificial neural network that consists of at 
+
+least three kinds of layers: an input layer, one or more hidden layers [25] , and an output layer. Each layer is 
+
+fully connected to the next one, and each node (or neuron) uses a nonlinear activation function [26] , making 
+
+MLPs capable of modeling complex relationships in data. MLPs have been foundational in the development 
+
+of neural network research and are widely used in various applications, such as image recognition [27] , and 
+
+speech recognition [28] . Self -attention mechanism was first introduced in the context of the Transformer 
+
+architecture [10] . This mechanism allows the model to weigh the importance of different words in a sentence 
+
+relative to each other, regardless of their distance apart. This innovation has revolutionized natural language 
+
+processing (NLP) [25, 29] by enabling models to capture long -range dependencies more effectively than 
+
+previous methods. The concept of self -attention rapidly gained popularity following the introduction of the 4
+
+Transformer model. Notably, bidirectional encoder representations from transformers (BERT) [30] and 
+
+generative pre -trained Transformer (GPT) [31] are some of the most influential models based on the 
+
+Transformer architecture, leading to state -of -the -art performance on a wide range of NLP tasks. BERT, 
+
+introduced by Devlin et al., demonstrated the power of bidirectional training of Transformers on masked 
+
+language modeling, while GPT, developed by OpenAI, showed the effectiveness of generative pre -training on 
+
+large text corpora. In addition, Transformers have been adapted for various applications, including image 
+
+processing (e.g., Vision Transformers or ViTs) [32] , drug discovery, and protein structure prediction [33] . For 
+
+instance, the AlphaFold model by DeepMind, which uses Transformer -like architectures, has made significant 
+
+advancements in predicting protein folding. 
+
+Based on th e pipeline (Figure s 2-3) , our study produced several major findings. The first is a comparative 
+
+analysis of molecular property prediction using MLP and MLP+TL , which reveals how model choice 
+
+influences the effectiveness of different molecular encoding methods . The second is external validation for 
+
+BBB penetration and solubility prediction, which evaluates whether the learned models remain robust when 
+
+transferred to independent datasets beyond the internal splits. The third is dataset -level identi fication of 
+
+representative substructures through attention -score analysis, where attention weights are used to highlight 
+
+molecular fingerprint regions that contribute strongly to prediction. The fourth is a case comparison of 
+
+Morphine and Heroin based on a ttention score -derived substructure patterns, which provides a more 
+
+chemically intuitive illustration of how the model distinguishes closely related compounds. Overall, the goal 
+
+of this study is to provide a fundamental investigation into which molecular e ncoding methods most 
+
+effectively capture chemically informative patterns and yield strong predictive performance across different 
+
+molecular property prediction tasks. In addition, by integrating Transformer -encoder layer with MLP model ,
+
+the proposed framework seeks to preserve model simplicity while improving representational power and 
+
+interpretability. From this perspective, the learned attention weights offer a direct way to examine how the 
+
+model distributes focus across fingerprint features, thereby helping identify potentially important 
+
+substructures interactions underlying the final prediction. 5
+
+Figure 1 . Model architectures. There are two different designs for the molecular property prediction model 
+
+architectures. (a) Use the multi -layer perceptron (MLP) model to evaluate molecule embedding methods based 
+
+on the model performance toward seven well -known datasets. (b) Applying the Transformer encoder layers 
+
+combined with MLP to evaluate molecule embedding methods based on the model performance toward seven 
+
+well -known datasets. 
+
+Figure 2. W orkflow of regression models and data processing design for the study. The pipeline consists 
+
+of five main steps: data cleaning and fingerprint standardization, optional transformation of the input format 
+
+using FN, data resampling and splitting, model training, and calculation of performance metrics : Root Mean 
+
+Squared Error (RMSE), Mean Squared Error (MSE), Mean Absolute Error (MAE), and Coefficient of 
+
+Determination(R -squared) 
+
+Figure 3. Workflow of classification models and data processing design for the study. The pipeline 
+
+consists of five main steps: data cleaning and fingerprint standardization, optional transformation of the input 
+
+format using FN, data resampling and splitting, model training, and calculation of performance metrics: F1, 
+
+Recall, Precision, Acc uracy, Area Under the Receiver Operating Characteristic Curve (AUC ). If the training 
+
+set is imbalanced after data splitting, an additional SMOTEENN step is applied. 6
+
+# Mater ial s and Methods 
+
+Molecular encoding methods , standardization , and pre -process ing 
+
+We implement ed a comprehensive preprocessing pipeline for molecular bioactivity datasets by 
+
+standardizing raw SMILES strings and aggregating duplicate compound annotations into a single consensus 
+
+record. Specifically, we first remove d invalid molecular strings, then appl ied a multi -step chemical 
+
+standardization workflow , including hydrogen removal, metal disconnection, fragment cleanup, charge and 
+
+radical neutralization, structural normalization, and tautomer canonicalization using RDKit and MolVS 
+
+utilities; to further improve canonical consistency, we additionally perform ed an international chemical 
+
+identifier (InChI ) [34] round -trip conversion and preserve d alternative outputs when discrepancies arise. After 
+
+standardization, the pipeline filter ed out non -organic or chemically ambiguous multi -fragment entries, 
+
+retain ed only acceptable organic representations, and groups record ed by identical standardized SMILES. For 
+
+each molecular group, labels were consolidated via majority voting (active vs. inactive), with ties marked as 
+
+missing values to avoid introducing arbitrary bias. Finally, the processed dataset was exported with t raceable 
+
+identifiers linking each aggregated molecule back to its original row indices, thereby producing a cleaner, 
+
+deduplicated, and analytically robust input for downstream modeling and evaluation. This workflow was 
+
+adapted from a previously published molecular preprocessing strategy [35] and further extended in this study. 
+
+Molecular representations SMARTS and PubChem need to be precomputed before using in the pipeline. 
+
+SMARTS were processed using natural language –inspired methods to generate machine -readable embeddings. 
+
+SMILES were first converted into SMARTS patterns, which were treated as textual sequences describing 
+
+substructure rules. These SMARTS strings were tokenized using a regular expression that separate d chemical 
+
+symbols based on structural delimiters such as -, \, /, =, #, ~, @, and :, thereby isolating atomic and bonding 
+
+elements. After t okenization, a bag -of -words representation was constructed and reweighted with term 
+
+frequency –inverse document frequency (TF -IDF) [36, 37] , producing SMARTS embeddings that emphasize d
+
+discriminative structural features. For each SMILES string, it querie d PubChem through pubchempy ,
+
+attempt ed to retrieve the corresponding compound record, and extract ed the CACTVS/PubChem fingerprint 
+
+as a binary feature vector; if the fingerprint was missing or any retrieval/parsing exception occurs, it 
+
+substitute d an all -zero vector of length 881 to preserve array shape consistency. We save d a compressed .npz 
+
+file containing the fingerprint matrix , a ligned SMILES list, and metadata (version, timestamp, dataset 
+
+identifier, fingerprint type, sample count, and error statistics), thereby providing a traceable file which was 
+
+suitable for us ing in our research pipeline. 
+
+Molecular property datasets used for molecule encoding methods investigation 
+
+We leverage d seven benchmark molecular datasets that span a variety of molecular activities, including 
+
+binding affinity, bioassay response, toxicity, and adverse reactions (Table 1) . Those datasets would be used to 
+
+train two models shown in Figure s 1a-b, respectively. The BACE -1 [38] dataset focuses on the outcomes of 
+
+molecule -human protein binding, particularly targeting the beta -secretase 1 enzyme. This dataset uses IC50 
+
+values to classify compounds as active or inactive, with inactive compounds defined by an IC50 ≤ 100 nM. 
+
+The BBBP [39] dataset quantifies the ability of chemicals to penetrate the BBB , classifying compounds as 
+
+either BBB+ or BBB -. The ClinTox [40] dataset integrates drug properties to identify clinical toxicity risks 
+
+effectively, distinguishing between toxic and non -toxic compounds based on clinical trial outcomes. ToxCast 7
+
+[67 ] is a high -throughput in vitro toxicology dataset designed to characterize the biological activity of 
+
+thousands of chemicals across a wide range of molecular targets and cellular pathways. The MUTAG [41] 
+
+dataset consists of 188 aromatic and heteroaromatic nitro compounds labeled by their mutagenic effects 
+
+in Salmonella typhimurium . This classification dataset is used to predict mutagenicity, helping identify 
+
+compounds that may pose genetic risks. The SIDER [42] is a multi -label classification dataset, which is 
+
+essential for predicting adverse drug reactions (ADRs), as each drug can belong to multiple ADR categories. 
+
+The ESOL (Estimating Solubility) [43] dataset is a widely used benchmark dataset in cheminformatics for 
+
+predicting the aqueous solubility of organic compounds. It consists of 1,128 molecules, each labeled with its 
+
+experimentally determined water solubility (log solubility values in mol/L). 
+
+The external dataset used for BBBP prediction was B3DB [44] , a chemically diverse molecular database 
+
+compiled from 50 published data sources for BBB permeability research. I t was developed to address the 
+
+limitation that BBB permeability studies are often constrained by the small size and limited chemical diversity 
+
+of existing training datasets . For ESOL prediction, the external datasets used were the AQUA and PHYS (A+P) 
+
+datasets curated by Meng et al. [45] . Specif ically , AQUA comprises experimental aqueous solubility data 
+
+compiled from earlier public sources reported by Huuskonen [46] and Tetko [47] , and PHYS is a curated subset 
+
+of the PHYSPROP database processed through an automated KNIME workflow [45, 48] . These datasets 
+
+provide a comprehensive foundation for molecular property predictions, supporting various aspects of drug 
+
+discovery, safety assessment, and pharmacological research through classification and regression models. 
+
+Table 1 . Introduction of nine datasets including tra ining sets and external validation sets .  
+
+> A+P: AQUA and PHYS dataset
+
+ToxCast curation 
+
+We used datasets from MoleculeNet [49] and MoCL [50] as reference benchmarks. However, most of 
+
+these datasets were established several years ago and are no longer actively maintained. For instance, the latest 
+
+publicly available release o f SIDER is version 4.1 [42] , which was released on October 21, 2015 . By contrast, 
+
+ToxCast remains actively expanded and provides integrated assay information from multiple sources, 
+
+including Tox21. Accordingly, we decided to curate an updated ToxCast -based dataset ourselves from the 
+
+latest available resources. We implemented an end -to -end, API -driven curation pipeline to construct a ToxCast                      
+
+> Dataset BACE
+> [38]
+> BBBP [39] ClinTox
+> [40]
+> ToxCast
+> [67 ]
+> MUTAG
+> [41]
+> SIDER
+> [42]
+> ESOL [43] B3DB [44] A+P [44]
+> Size 1513 2050 1483 8597 188 1427 1128 7807 3321
+> Y-label active
+> vs.
+> inactive
+> penetration
+> of the BBB
+> toxic and
+> non -toxic
+> Various
+> biological
+> assay
+> results
+> mutagenic
+> vs. non -
+> mutagenic
+> Side
+> effects
+> log
+> solubility
+> values in
+> mol/L
+> penetration
+> of the BBB
+> log
+> solubility
+> values in
+> mol/L
+> Problem
+> type
+> Binary
+> classifi
+> cation
+> Binary
+> classification
+> Binary
+> classifica
+> tion
+> Multi -label
+> classificati
+> on
+> Binary
+> classificati
+> on
+> Multi -
+> label
+> classifica
+> tion
+> Regression Binary
+> classification
+> Binary
+> classificati
+> on 8
+
+binary activity matrix using the U.S. EPA CompTox services [67 ]. First, the complete assay catalog (AEIDs) 
+
+was retrieved, and assay -level bioactivity records were systematically collected via the by -aeid endpoints. The 
+
+assay outputs were subsequently standardized to reduce numerical instability and boundary -related artifacts. 
+
+Specifically, small negative values close to zero (e.g., -1e -12), which were typically attributable to floating -
+
+point error rather than true negative activity, were reset to 0.0. Similarly, values slightly abo ve 1 (e.g., 
+
+1.0000000001) were truncated to 1.0. Values that were clearly negative (i.e., less than -1e -6) were treated as 
+
+missing. After cleaning, activity labels were binarized using a configurable threshold of ≥ 0.90 [51] . For 
+
+each AEID, assay -level records were compiled with corresponding chemical identifiers and activity 
+
+annotations. The pipeline then queried the CompTox Chemical API to map each DTXSID to its corresponding 
+
+SMILES representation, and records lacking valid c hemical structures were excluded. When duplicate records 
+
+were observed for the same molecule within the same assay, they were merged using a positive -dominant rule, 
+
+such that the merged record was labeled active if any duplicate entry had a binary activi ty value of 1. The 
+
+curated data were then consolidated into an assay -by -molecule matrix for downstream model training .
+
+Molecular property d ataset pre -process ing 
+
+To ensure a meaningful and consistent evaluation across classification and regression tasks, we carefully 
+
+selected target labels and applied dataset -specific preprocessing strategies tailored to the characteristics of 
+
+each benchmark dataset. Since our comparison was based on single -task setting , we need ed to select one label 
+
+from multi -label datasets for model training. In the SIDER dataset, “Nervous system disorders” was selected 
+
+as the target label because it own ed the most balanced class. In parallel, we selected NVS_ADME_hCYP2C19 
+
+from ToxCast because a previous study has suggested that the labels retained after filtering generally showed 
+
+better predictive performance than other ToxCast labels [8] . For the ToxCast dataset, assays were filtered to 
+
+remove those with insufficient data labels for robust model training and evaluation. After chemical 
+
+standardization and aggregation, only assays with at least 50 toxic and 50 non -toxic labels were retained [35] .
+
+To address the class imbalance d issue in datasets where the minority class proportion was below 0. 3, we 
+
+applied the SMOTEENN [52, 53] technique for oversampling. For the regression data, ESOL dataset, we 
+
+applied StandardScaler [53] to the target variable (measured log solubility in mols per litre), fitting the scaler 
+
+exclusively on the training set to prevent data leakage. The resulting scaler was then used to transform the 
+
+training and validation labels before model training. After inference, both the predicted values and the ground -
+
+truth labels were restored to the original scale via inverse_transform , upon which the final performance 
+
+metrics were computed. These preprocessing and label -selection procedures were designed to improve data 
+
+quality, reduce bias caused by imbalance or scale differences, and provide d a fair basis for downstream model 
+
+comparison. 
+
+Systematic investigation on molecular encoding methods for property predictions from neural network 
+
+to the Transformer -encoder -based model 
+
+Multi -layer perceptron (MLP) 
+
+The basic building bloc k of an MLP [9] is the neuron, which is mathematically defined as: 
+
+%! = ∑ ("! )" + +! 
+
+> #
+> "$%
+
+(1) 9
+
+where %! is the weighted sum of inputs for neuron ,. ("! represents the weight from input - to neuron ,. )"
+
+is the input val ue. +! is the bias term for neuron ,. n indicates the total number of neurons for the certain 
+
+neural network layer. The output of each neur on is shown in (2), wh ich is obtained by applying an activation 
+
+function [26] .
+
+. : 0! = .(%!) (2) 
+
+Common activation functions include Leak yReLU [54] shown as below: 
+
+34056 7438 (%) = 9:% , % ≤ 0
+
+%, % > 0 (3) 
+
+For the regression task, we will choose the root mean squared error ( RMSE ) to be a loss function as below: 
+
+3(6", 6>") = ?% 
+
+> &
+
+∑ (6" − 6>")'& 
+
+> "$%
+
+(4) 
+
+where A is the number of samples, and 6" is the i-th actual value. 6(B indicates the i-th predicted value. Here, 
+
+we want to obtain the optimal network parameter set C∗ to achieve the minimization of the loss function as 
+
+follows: 
+
+C∗ = 0DE min 
+
+> *
+
+Ｌ(C) (5) 
+
+which could be achieved by the backpropagation algorithm [9] . The forward and backward passes help us 
+
+compute the gradient efficiently. In the MLP, the update of network parameter set, including weight ( (!) and 
+
+bias ( +!) for the k-th times, is depicted in the following form: 
+
+C+ = C+,% − I∇3(C+,%) (6) 
+
+where I is the learning rate. C+,% and gradient are given as below:      
+
+> !!"#=
+> ⎣
+> ⎢
+> ⎢
+> ⎢
+> ⎢
+> ⎡&#
+> …
+> &$
+> (#
+> …
+> ($⎦
+> ⎥
+> ⎥
+> ⎥
+> ⎥
+> ⎤
+> ,∇-(!!"#)=
+> ⎣
+> ⎢
+> ⎢
+> ⎢
+> ⎢
+> ⎢
+> ⎢
+> ⎢
+> ⎡%& ((!"#)
+> %*#
+> …
+> %& ((!"#)
+> %*$
+> %& ((!"#)
+> %+#
+> …
+> %& ((!"#)
+> %+$⎦
+> ⎥
+> ⎥
+> ⎥
+> ⎥
+> ⎥
+> ⎥
+> ⎥
+> ⎤
+
+(7) 10 
+
+Transformer encoder -based model 
+
+In the present model, the attention mechanism follows the same mathematical foundation as the 
+
+Transformer [10] , in which the core operation is defined as scaled dot -product attention: 
+
+Attention (O, P, Q) = softmax V-.,
+
+> /0-
+
+W Q (8) 
+
+Here, O, P, and Q denote the query, key, and value matrices, respectively, and X+ is the dimensionality of 
+
+the key vectors. In the original Transformer, multi -head attention further extends this operation by projecting 
+
+the same input into multiple subspaces and performing attention independently in each head: 
+
+YZ[\-]40X (O, P, Q) = ^_`a0\ (ℎ40X %, … , ℎ40X 1)d2 (9) 
+
+head " = Attention (Od"
+
+> -
+
+, Pd"., Qd"3) (10) 
+
+Accordingly, the attention weights returned by the model correspond to the softmax -normalized matrix 
+
+g = softmax V-.,
+
+> /0-
+
+W (11) 
+
+whose element g"! in A matrix quantifies how strongly the --th query token attends to the ,-th key token .
+
+Compared to the original Transformer, our model setting does not begin with a learnable token embedding 
+
+derived from words or subwords. Instead, the input is a binary molecular fingerprint vector ) ∈ {0,1}4 ,
+
+where 3 is the fingerprint length. For a batch of size l, the input tensor is m ∈ {0,1}5×4. The code first 
+
+constructs an identity matrix n4 ∈ ℝ4×4, and each fingerprint bit )7," is used to gate the corresponding one -
+
+hot basis vector. Thus, the initial representation is 
+
+p7,",: 
+
+> (;)
+
+= )7," n4[-, : ] (12) 
+
+Equivalently, the full embedded tensor is :
+
+p(;) = X(:,:,newaxis ) ⊙ n4 (13) 
+
+which has shape (l, 3, 3). This means that each fingerprint position is treated as one token, and the feature 
+
+dimension of each token is als o 3. If a bit is active, its token is initialized as the corresponding one -hot vector; 
+
+if inactive, it becomes the zero vector. Therefore, unlike the original Transformer where token embeddings 
+
+are dense and learned, our model setting starts from an explicit identity -based encoding of fingerprint positions, 
+
+preserving direct interpretability of each bit from the very first layer. Furthermore, each encoder block consists 
+
+of a multi -head self -attention (MHA) module followed by a position -wise feed -forward network, with residual 
+
+connections and layer normalization applied after each sublayer. For an input tensor p=ℓ−1? ∈ ℝ5×4×0model at 11 
+
+the ℓ-th layer, where Xmodel = 3 in the present implementation, the self -attention mechani sm first projects 
+
+the input into query, key, and value spaces: 
+
+O(ℓ) = p=ℓ−1?d-
+
+> (ℓ)
+
+, P(ℓ) = p=ℓ−1?d.
+
+> (ℓ)
+
+, Q(ℓ) = p=ℓ−1?d3 
+
+> (ℓ)
+
+(14) 
+
+where d-
+
+> (ℓ)
+
+, d.
+
+> (ℓ)
+
+, and d3 
+
+> (ℓ)
+
+are le arnable projection matrices. For each attention head, the attention score 
+
+between the --th query token and the ,-th key token is computed as 
+
+w"!  
+
+> (ℓ,A)
+
+= B.
+
+> (ℓ,1)⋅D2
+> (ℓ,1)
+> /0-
+
+(15) 
+
+where X+ is the dimensionality of the key/query subspace. The attention weights are then obtained through a 
+
+softmax operation over all key positions: 
+
+g"!  
+
+> (ℓ,A)
+
+= EFG (I.2     
+
+> (ℓ,1))
+> JEFG (
+> 3
+> 2456I.24
+> (ℓ,1))
+
+(16) 
+
+Thus, :"!  
+
+> (ℓ)
+
+quantifies how strongly the --th fingerprint bit attends to the ,-th bit. Since the softmax is applied 
+
+across the key dimension, the weights satisfy 
+
+x g"! 
+
+> (ℓ,A)
+> 4
+> !$%
+
+= 1 (17) 
+
+The attention output for each token is then computed as the weighted sum of all value vectors: 
+
+z" 
+
+> (ℓ)
+
+= x :"! 
+
+> (ℓ)
+> 4
+> !$%
+
+v! 
+
+> (ℓ)
+
+(18) 
+
+In the multi -head setting, this process is conducted independently across ] heads, allowing the model to 
+
+capture multiple patterns of inter -bit dependency. The returned attention tensor therefore has 
+
+shape (l, ], 3, 3), where each element represents the attention weight from one fingerprint position to another 
+
+under a specific head. These weights can be directly used for interpretability analysis, such as constructing 
+
+bit -to -bit attention heatmaps. In particular, by ave raging across all heads in the last encoder layer, the model 
+
+produces a head -averaged attention matrix g¯ ∈ ℝ5×4×4, which is suitable for explanation on specific key that 
+
+model capture :
+
+g¯ = % 
+
+> K
+
+x g1
+
+> (4enc )
+> K
+> 1$%
+
+(19) 12 
+
+After self -attention, the block output is further refined by residual connection and layer normalization: 
+
+p|(ℓ) = LayerNorm Åp=ℓ−1? + Dropout (Ö(ℓ))Ü (20) 
+
+followed by a feed -forward network, 
+
+á(ℓ) = d' 
+
+> (ℓ)
+
+àDropout VâÅd%
+
+> (ℓ)
+
+p|(ℓ)ÜWä (21) 
+
+where â(⋅) denotes the activation function (ReLU [55] ). A second residual connection and layer 
+
+normalization are then applied: 
+
+p(ℓ) = LayerNorm åp|(ℓ) + Dropout (á(ℓ))ç (22) 
+
+By stacking multiple such encoder blocks, the model progressively updates each fingerprint -bit representation 
+
+based on both its own identity and its interactions with other bits, thereby learning higher -order dependencies 
+
+that are not explicitly encoded in the original binary fingerprint. After the final encoder layer, the model 
+
+converts the sequence of token representations into a fixed -length molecular representation using average 
+
+pooling over the sequence dimension. If the final encoder output is p(&) ∈ ℝ5×4×4 , then the pooled 
+
+vector é7 ∈ ℝ4 for the +-th sample is computed as 
+
+é7 = % 
+
+> 4
+
+x p7,",:
+
+> (&)
+> 4
+> "$%
+
+(23) 
+
+Accordingly, the mean pooled tensor has shape è ∈ ℝ5×4. Thi s tensor P serves as the direct input to the 
+
+downstream MLP. Importantly, the MLP does not receive the original fingerprint vector ) itself; rather, it 
+
+operates on a transformed global representation obtained after identity -based expansion, multi -layer self -
+
+attention, and sequence -level aggregation. Therefore, the final prediction can be summarized as 
+
+6>7 = Y3è (é7) = MLP V% 
+
+> 4
+
+x E7,",:
+
+> (&)
+> 4
+> "$%
+
+W (24) 
+
+This formulation indicates that the MLP input is a contextualized molecular representation in which each 
+
+fingerprint bit has already been updated according to its learned interactions with all other bits. 
+
+Multi -assay d ata imputation by Feature Net 
+
+Motivated by the findings of Walter et al. [35] , which demonstrated that imputation -based approaches 
+
+such as Feature Net (FN ) [35, 56, 57] substantially improve predictive performance on sparse multi -assay 13 
+
+datasets (ToxCast), we extended this methodology to our study . The FN [35, 56, 57] framework operate d in 
+
+two stages . First ly , a single -task model (XGBoost [58] ) was trained for each assay using chemical features to 
+
+predict missing labels; second ly , each assay was re -modeled (MLP/MLP+TL) by integrating chemical features 
+
+with experimentally determined or imputed auxiliary assay labels as additional inputs. This design enable d
+
+the model to explicitly leverage related assays for improved prediction of the target endpoint. Based on this 
+
+rationale, we applied the FN [35, 56, 57] framework to the multi -assay datasets SIDER, ClinTox, and ToxCast. 
+
+For SIDER, all 26 binary adverse event labels were incorporated as auxiliary assay inputs. For ClinTox, the 
+
+binary endpoint FDA_APPROVED was included as an auxiliary label for predicting the target toxicity -related 
+
+outcome. For ToxCast, which comprise d assays spanning diverse biological processes and targets, we 
+
+incorporated 553 assays as auxiliary inputs. All auxiliary endpoints used in this study were binary (0/1) labels. 
+
+The incorporatio n of FN [35, 56, 57] led to improv e predictive performance across these multi -assay datasets 
+
+(Table s S18, S21, and S22 ). Additionally , FN [35, 56, 57] is particularly advantageous for compounds with 
+
+chemically dissimilar data, for cases with multiple auxiliary assay labels, and when experimental auxiliary 
+
+labels are available as suggested in the previous study [35] . These considerations guided our integration of FN 
+
+[35, 56, 57] into our modeling framework s, thereby broadening the applicability domain and enhancing 
+
+prediction reliability under data -sparse conditions. 
+
+Training and Testing 
+
+For model development, the dataset was first divided into a training -validation set and an internal test set 
+
+at a ratio of 8:2. Within the training -validation set, five -fold cross -validation was performed to determine the 
+
+optimal hyperparameters. After hyp erparameter selection, the data were again split into training and validation 
+
+subsets at a ratio of 8:2 for final model training. Early stopping was applied during training to prevent 
+
+overfitting and improve generalization by terminating training when the validation performance no longer 
+
+improved, thereby also reducing computational cost. For subsequent molecular -level prediction and 
+
+interpretation, we used the optimal hyperparameters obtained from five -fold cross -validation. The target 
+
+molecule to be interpreted was treated as the single test sample, while the remaining molecules were split into 
+
+training and validation sets at a ratio of 8:2 for model training with early stopping. To evaluate model 
+
+performance, different metrics were adopted for classification and regression tasks. For classification tasks, 
+
+the area under the receiver operating characteristic curve (AUC -ROC) was adopted as the primary metric in 
+
+five -fold cross -validation. Unlike the F1 score, AUC -ROC is threshold -independent and therefore provide d a
+
+more comprehensive assessment of model performance across different decision boundaries. Owing to this 
+
+property, it has been widely applied in biological and biomedical d ata analysis. In contrast, for the solubility 
+
+prediction task, which was formulated as a regression problem on a continuous numerical dataset, RMSE was 
+
+used as the principal evaluation metric because it is commonly employed in the literature and enables direct 
+
+comparison with previous studies [45] . For BBBP external validation, since B3DB [44] contai ned molecules 
+
+originating from BBBP , we first removed all molecules in B3DB that shared the same CID or InChI [34] with 
+
+molecules in B BBP . We further observed that some molecules in B3DB still had the same compound names 
+
+as those in B BBP . To avoid potential data leakage, these molecules were removed from B3DB as well . After 
+
+this filtering process, the final size of B3DB was 4,368 molecules. In addition, after standardizing the 
+
+molecules in the A+P datasets, which served as the external dataset for ESOL, we checked whether any 
+
+molecules had the same SMILES strings as those in ESOL . If duplicated SMILES were identified, the 14 
+
+corresponding molecules were removed from A+P . The remaining molecules from A+P were then combined 
+
+to form the external dataset. After that , the combined size of A+P own ed 1362 molecules. To assess whether 
+
+the external dataset had a distribution comparable to that of the training dataset, visualization was performed 
+
+(Figure S 8a-b). 
+
+Table 2. Summary of dataset preprocessing. After filtering, the number of assays in ToxCast decreased 
+
+from 1,501 to 555.                                                 
+
+> Dataset ToxCast ClinTox MUTAG BBBP SIDER ESOL BACE
+> y number 15 01 →55 521127 11
+> X number 9002 1483 188 2050 1427 1128 1513
+> after process X
+> number
+> 7787 1380 186 1943 1293 1117 1500
+> Num ber of X
+> requir ing
+> imputation
+> 7422 45 none 11 111 1
+> Input fingerprint+a
+> ssays
+> fingerprint+
+> assay
+> fingerprint fingerprint fingerprint+a
+> ssays
+> fingerprint fingerprint
+> Representation
+> assay
+> NVS_ADME
+> _hCYP2C19
+> CT_TOX label p_np 'Nervous
+> system
+> disorders’
+> ‘measured
+> log solubility
+> in mols per
+> litre’
+> Class
+> Extra
+> preprocess ing
+> filter 50/50
+> Use smoteenn None Yes None Yes Yes numerical
+> data
+> None
+> y: the number of assays; and X: the number of molecules.
+
+Identifying representative substructures via attention score analyses 
+
+For MLP+TL model setting , e ach binary molecular fingerprint wa s first converted into a structured token 
+
+matrix by masking an identity matrix with the input bits, so that active bits preserve d their one -hot basis 
+
+vectors while inactive bits bec ame zero rows as shown in Equation (12 ) and (13 ). This matrix wa s then 
+
+processed by stacked Transformer encoder layer s. By averaging across all heads in the last encoder layer, the 
+
+model produce d a head -averaged attention matrix, which wa s used to explain the important structure the model 
+
+capture. For each molecule, the attention weights were summed across all queries for each key, yielding a 
+
+column -wise attention sum. The top 20 keys with the highest summed attention values were selected for each 
+
+sample (Table S33) , and the most frequently occurring bits across these rankings were subsequently 
+
+summarized at the dataset level. The top 30 most frequent bits at the dataset level were further grouped into 
+
+chemically interpretable categories repr esenting major determinants of the target properties (Figure S9a -d) .
+
+Additionally , when discussing important substructures related to BBBP, we used Morphine and Heroin as 
+
+examples. For these two compounds, we calculated the mean attention weigh t for each of the 167 MACCS 
+
+keys (the colu mn of matrix) to further examine whether substructures absent from the fingerprint (encoded as 15 
+
+0) were systematically assigned lower attention weights by the MLP+TL model. The function of the mean 
+
+attention weight on columns is shown as below:        
+
+> 01 2789 :!=4#
+> #;< 5∑7889:8;1: [=,?]#;;
+> =>?
+
+(25) 
+
+# Results 
+
+We focus on two neural network -based architectures (Figure s 1a-b): MLP and MLP+TL train ed on seven 
+
+well -known molecular datasets to compare the performance of different molecular encoding methods. We
+
+further explore the model’s internal attention weight s as an interpretability -related signal for identifying 
+
+potentially important features. Thus, this study aimed not only to assess predictive performance across 
+
+molecular representations, but also to investigate whether an intermediate modeling strategy could provide a 
+
+practical balance between predictive capability and interpretability. Overall, the MLP model achieved the best 
+
+performance on most datasets (Figure s 4a -g, Table 4) . However, in most cases, its advantage over MLP+TL 
+
+was not substantial , suggesting that MLP+TL remains a valuable alternative (Table 3, Figures S1 -S7) .
+
+Although MLP+TL did not consistently outperform MLP, it offers additional interpretability for analyzing 
+
+property -related substructures and identifying important structural patterns associated with different molecular 
+
+properties . Across datasets, the optimal fingerprint varied depending on the prediction task and model 
+
+architecture, highlighting that fingerprint choice is a critical factor in molecular property prediction (Table 3) .
+
+Comparative study of molecular property prediction s based on multi -layer perceptron and 
+
+Transformer encoder -based model 
+
+Based on five -fold cross validatio n results, f or the BACE dataset (Figure 4a, Table 4) , FCFP achieved 
+
+the highest average of AUC value in MLP (average of AUC= 0.882 ± 0.017 ), whereas ECFP performed best 
+
+in MLP+TL (average of AUC = 0.879 ± 0.025 ). On the BBBP dataset (Figure 4b, Table 4 ), FCFP performed 
+
+best, with average AUC values of 0.891 ± 0.021 and 0.871 ± 0.015 for MLP and MLP+TL, respectively. For 
+
+ClinTox (Figure 4c, Table 4 ), MACCS achieved the highest average AUC in the MLP model ( average of 
+
+AUC= 0.925 ± 0.023 ). In the MLP+TL model , FCFP yielded the highest average value of AUC ( average of 
+
+AUC =0.917 ± 0.023 ), differing by approximately 0.01 from SMARTS; however, its performance on other 
+
+evaluation metrics was weaker (Table S7 ). Therefore, considering overall performance rather than AUC alone, 
+
+we regarded SMARTS as the most suitable fingerprint for the MLP+TL model on ClinTox. On the MUTAG 
+
+dataset (Figure 4e, Table 4 ), MACCS achieved an average AUC value of 0.913 ± 0.026 with MLP, whereas 
+
+ECFP reached average AUC value of 0.920 ± 0.046 with MLP+TL. On the SIDER dataset (Figure 4f, Table 
+
+4), SMARTS achieved strong and consistent performance in MLP and MLP+TL models with average AUC 
+
+values o f 0.916 ± 0.021 an d 0.918 ± 0.013 , respectively, indicating that it is the most appropriate fingerprint 
+
+for this task. On the ToxCast dataset (Figure 4g, Table 4 ), RDKit with MLP achieved the best result owning 
+
+average AUC value of 0.974 ± 0.004 , whereas FCFP with MLP+TL reached average AUC value of 0.950 ± 
+
+0.005 . For the ESOL dataset (Figure 4d, Table 4 ), the best average RMSE values were 0.986 ± 0.063 and 
+
+1.132 ± 0.034 obtained by RDKit with MLP and MLP+TL models . According to the previous stud y [45] , the 
+
+RMSE for solubility prediction is commonly reported in the range of 0.7 -1.0; therefore, our results are within 
+
+a reasonable range. Among all datasets, ESOL and ToxCast showed the largest differences between MLP and 16 
+
+MLP+TL across evaluation metrics showing significant differences observed in 100% and 77% of the 
+
+comparisons, respectively ( Table 3, Figure s S4 and S7). Notably, SMARTS and RDKit showed the largest 
+
+performance variation across datasets, frequently ranking either first or last among the evaluated fingerprints. 
+
+In contrast, FCFP, ECFP, and MACCS tend to provide more robust and consistent representations across most 
+
+datasets and models, as they were more frequently ranked among the top three fingerprints, especially in the 
+
+MLP model (Figure s 4a-g). This pattern reinforces the notion that fingerprint selection is not merely a 
+
+preprocessing choice, but a major determinant of downstream predictive performance. 
+
+Table 3. Summary of experiment result s on seven datasets. ESOL and ToxCast demonstrated the most 
+
+significant differences between MLP and MLP+TL across various evaluation metrics, with notable differences 
+
+observed in 100% and 77% of the comparisons, respectively. SMARTS and RDKit exhibited the most 
+
+substantial per formance variation across datasets. In contrast, FCFP, ECFP, and MACCS tend to provide more 
+
+reliable and consistent representations across most datasets and models.                             
+
+> Dataset ToxCast ClinTox MUTAG BBBP SIDER ESOL BACE
+> Significant
+> difference 77% 20% 20% 0% 3% 92% 20%
+> MLP best f pRDKit MACCS MACCS FCFP SMARTS RDKit RDKit
+> MLP+TL best
+> fpFCFP SMARTS ECFP FCFP SMARTS SMARTS RDKit
+> fp: fingerprint
+
+Table 4. Performance comparison of MLP and MLP+TL across benchmark and external validation 
+
+datasets. Average five -fold cross -validation result of AUC scores for six classification datasets (BACE, 
+
+BBBP, ClinTox, MUTAG, SIDER, and ToxCast), average five -fold cross -validation result of RMSE for the 
+
+ESOL regression dataset, and performance on two external validation datasets (B3DB, A+P ).                      
+
+> ECFP FCFP MACCS PubChem RDKit SMARTS
+> MLP MLP+TL MLP MLP+TL MLP MLP+TL MLP MLP+TL MLP MLP+TL MLP MLP+TL
+> BACE 0.879
+> ±
+> 0.029
+> 0.879
+> ±
+> 0.025
+> 0.882
+> ±
+> 0.017
+> 0.859
+> ±
+> 0.025
+> 0.868
+> ±
+> 0.033
+> 0.842
+> ±
+> 0.032
+> 0.849
+> ±
+> 0.025
+> 0.570
+> ±
+> 0.106
+> 0.881
+> ±
+> 0.022
+> 0.870
+> ±
+> 0.019
+> 0.762
+> ±
+> 0.013
+> 0.722
+> ±
+> 0.034
+> BBBP 0.845
+> ±
+> 0.029
+> 0.862
+> ±
+> 0.041
+> 0.891
+> ±
+> 0.021
+> 0.871
+> ±
+> 0.015
+> 0.855
+> ±
+> 0.013
+> 0.851
+> ±
+> 0.012
+> 0.746
+> ±
+> 0.050
+> 0.751
+> ±
+> 0.042
+> 0.880
+> ±
+> 0.027
+> 0.814
+> ±
+> 0.060
+> 0.849
+> ±
+> 0.028
+> 0.816
+> ±
+> 0.035
+> ClinTox 0.836
+> ±
+> 0.036
+> 0.801
+> ±
+> 0.033
+> 0.921
+> ±
+> 0.051
+> 0.917
+> ±
+> 0.023
+> 0.925
+> ±
+> 0.023
+> 0.903
+> ±
+> 0.019
+> 0.792
+> ±
+> 0.082
+> 0.805
+> ±
+> 0.089
+> 0.814
+> ±
+> 0.032
+> 0.674
+> ±
+> 0.076
+> 0.909
+> ±
+> 0.045
+> 0.916
+> ±
+> 0.035
+> ESOL 1.178
+> ±
+> 0.045
+> 1.354
+> ±
+> 0.082
+> 1.105
+> ±
+> 0.079
+> 1.263
+> ±
+> 0.094
+> 1.008
+> ±
+> 0.040
+> 1.147
+> ±
+> 0.044
+> 1.041
+> ±
+> 0.082
+> 1.183
+> ±
+> 0.099
+> 0.986
+> ±
+> 0.063
+> 1.132
+> ±
+> 0.034
+> 1.274
+> ±
+> 0.054
+> 1.521
+> ±
+> 0.103
+> MUTAG 0.906
+> ±
+> 0.920
+> ±
+> 0.896
+> ±
+> 0.853
+> ±
+> 0.913
+> ±
+> 0.806
+> ±
+> 0.897
+> ±
+> 0.876
+> ±
+> 0.878
+> ±
+> 0.879
+> ±
+> 0.830
+> ±
+> 0.752
+> ±
+
+17 
+
+0.043 0.046 0.069 0.059 0.026 0.086 0.047 0.041 0.057 0.040 0.073 0.062 
+
+SIDER 0.882 
+
+±
+
+0.014 
+
+0.908 
+
+±
+
+0.020 
+
+0.907 
+
+±
+
+0.021 
+
+0.918 
+
+±
+
+0.009 
+
+0.881 
+
+±
+
+0.032 
+
+0.880 
+
+±
+
+0.032 
+
+0.860 
+
+±
+
+0.035 
+
+0.881 
+
+±
+
+0.025 
+
+0.772 
+
+±
+
+0.053 
+
+0.744 
+
+±
+
+0.067 
+
+0.916 
+
+±
+
+0.021 
+
+0.918 
+
+±
+
+0.013 
+
+ToxCast 0.959 
+
+±
+
+0.004 
+
+0.929 
+
+±
+
+0.009 
+
+0.971 
+
+±
+
+0.001 
+
+0.950 
+
+±
+
+0.005 
+
+0.955 
+
+±
+
+0.002 
+
+0.939 
+
+±
+
+0.009 
+
+0.971 
+
+±
+
+0.001 
+
+0.949 
+
+±
+
+0.010 
+
+0.974 
+
+±
+
+0.004 
+
+0.883 
+
+±
+
+0.011 
+
+0.907 
+
+±
+
+0.010 
+
+0.814 
+
+±
+
+0.046 
+
+B3DB 0.8035 0.7993 0.8224 0.6619 0.8105 0.8111 0.7167 0.7058 0.8308 0.7474 0.7394 0.7488 
+
+A+P 1.3849 1.4111 1.456 1.5274 1.2557 1.4211 1.1232 1.3047 1.3338 1.4542 1.3474 1.5911 
+
+(a) (b) 
+
+(c) (d) 
+
+(e) (f) 
+
+(g) 
+
+Figur e 4. Bar plots of five -fold cross -validaiton results of AUC scores showing the ranking of fingerprint 
+
+methods based on the performance of the MLP and MLP+TL model s across different datasets : (a) 
+
+BACE, (b) BBBP, (c) ClinTox, (d) ESOL, (e) MUTAG, (f) SIDER, (g) ToxCast. 18 
+
+External datasets validation for BBB penetration and solubility predictions based on multi -layer 
+
+perceptron and Transformer encoder -based model 
+
+To the validation results on B3DB for BBB penetration prediction , RDKit, FCFP and MACCS 
+
+consistently demonstrated superior performance in the MLP model (Table 4, Table S23 ). Conversely, the 
+
+performance of SMARTS and PubChem experienced a significant decline, with both scores dropping below 
+
+0.8. In the MLP+TL model, the performance of FCFP further decreased to 0.66 (Table 4, Table S23 ). On the 
+
+A+P external validation set for solubility prediction , the RDKit in the MLP+TL model exhibited the most 
+
+substantial increase in average RMSE, reaching 1.45, resulting in a drop in ranking from first to fourth ( Table 
+
+4, Table S24 ). Despite the presence of some outliers in the two datasets when usi ng MLP+TL model , which 
+
+suggest ed a weaker generalization ability . The ranking order for all molecular representations remained 
+
+largely consistent across both datasets in MLP model , indicating an overall stable performance trend (Table s
+
+S23 -24 ).
+
+Physicochemical feature groups identification for BBB penetration prediction base d on attention score 
+
+analyses 
+
+Prior studies have shown that BBB permeability is largely governed by lipophilicity, polarity, hydrogen -
+
+bonding capacity, ionization state, and flexibility [59, 60] ; therefore, the substructures identified in BBBP 
+
+were grouped according to these properties. The top -ranked MACCS keys can be organized into four 
+
+chemically meaningful groups, which together reflect ed the major determinants of BBB permeability (Table 
+
+5, Figure s S9a -b). The first group comprise d hydrophobic features , which were generally favorable for passive 
+
+BBB permeation because they increase d hydrophobic surface area, reduce d flexibility, and help ed molecule 
+
+across the lipid membrane. Representative examples include d MACCS key 163 (6M Ring). The second group 
+
+consist ed of oxygen -containing polar substructure s, which were usually unfavorable for BBB penetration 
+
+because they increase d polarity, hydrophilicity, and hydrogen -bond donor/acceptor capacity. A representative 
+
+example was MACCS key 139 (OH), highlighting detrimental effect of hydroxyl groups on passive membrane 
+
+diffusion. The third group includ ed nitrogen -containing and ionizable substructure s, as strong positive charge, 
+
+or high ionization reduce d passive BBB permeability. An example was MACCS key 121 (N Heterocycle). 
+
+The fourth group was composed of topology - and linker -related patterns , which d id not correspond to a single 
+
+functional group but reflect ed scaffold connectivity, ring topology, and molecular flexibility. An example was 
+
+MACCS key 98 (QAAAAA@1). In summary, these four groups suggest ed that the model capture d chemically 
+
+meaningful features associated with BBB permeation, including lipophilicity, polarity, hydrogen -bonding 
+
+capacity, and i onization state. Moreover, the PubChem top -ranked substructures were broadly consistent with 
+
+the conclusions from the MACCS analysis. In particular, the PubChem patterns were enriched in hydrophobic 
+
+fragments, aromatic and six -membered ring substructures , and oxygen -, nitrogen -containing features .
+
+Compared with the MACCS representation, which highlighted hydroxyl -related patterns more explicitly, the 
+
+PubChem fingerprint provided a broader substructure and therefore captured the overall chemical space in a 
+
+less functional -group -specific manner. 
+
+Table 5. Classification of the top -ranked MACCS and PubChem keys for BBBP prediction into four 
+
+chemically meaningful groups. These groups were defined according to the major physicochemical factors 
+
+known to influence blood –brain barrier permeability, including hydrophobicity, polarity, hydrogen -bonding 19 
+
+ability, ionization. 
+
+Group MACCS key structures PubChem key structures 
+
+Group 1. Hydrophobic, ring 
+
+sub structure 
+
+- Aromatic 
+
+- 6M Ring 
+
+- 6M ring > 1 
+
+- ACH2AAACH2A 
+
+- ACH2AACH2A 
+
+- CH3 > 1 
+
+- XA(A)A 
+
+- C:C -C-C-C
+
+- C-C-C-C-C-C-C
+
+- C(:C)(:C) 
+
+- >= 2 any ring size 6 
+
+- C-C(C) -C-C
+
+- C:C -C-C:C 
+
+- C-C-C(C) -C-C
+
+- C( -H)(=C) 
+
+- C(~C)(~C) 
+
+- >= 1 aromatic ring 
+
+- C(~C)(~C)(~C) 
+
+- >= 1 any ring size 6 
+
+Group 2 . O xygen -containing 
+
+polar substructures 
+
+- O
+
+- OH 
+
+- QHAAAQH 
+
+- C=O 
+
+- OACH2A 
+
+- OQ(O)O 
+
+- A$A!O > 1 
+
+- CSO 
+
+- C( -C)(=O) 
+
+- >= 1 O 
+
+- O-C:C -C-C
+
+- O(~C)(~H) 
+
+Group 3. Nitrogen -containing 
+
+and ionizable sub structure 
+
+- N Heterocycle 
+
+- AN(A)A 
+
+- ACH2N 
+
+- CH2QCH2 
+
+- NCO 
+
+- NAAO 
+
+- NAO 
+
+- NN 
+
+- N=A 
+
+- CHARGE 
+
+- N-C-C-C:C 
+
+- C-N
+
+- N-H
+
+- N(~C)(~C) 
+
+- N( -C)(=C) 
+
+Group 4. Topology - and linker -
+
+related patterns 
+
+- Heterocycle 
+
+- QAAAAA@1 
+
+- A!A$A!A 
+
+- A!CH2!A 
+
+- 8M Ring or larger 
+
+- C-S
+
+- N-O
+
+- C-Cl 
+
+- C-Se 
+
+- C-As 
+
+- C-I
+
+- C-Br 
+
+- O-C-C-N
+
+- C-Si 20 
+
+Substructure grouping identification in mutagenicity prediction based on attention score analyses 
+
+In contrast to BBBP, the MUTAG dataset is more naturally interpreted in terms of toxicophore families 
+
+rather than physicochemical determinants of membrane permeation. Based on previous mutagenicity studies, 
+
+the key structures in MUTAG are expected to reflect major mutagenicity -related features, including direct 
+
+genotoxic alerts, nitrogen -containing substructures s, aromatic or conjugated scaffolds, and substituent or 
+
+topological contexts that modulate alert strength [41, 61 -63] . As a result, its top -ranked structures are expected 
+
+to cluster into a smaller number of chemically coherent mutagenicity -related groups (Table 6, Figure s S9c -d) .
+
+Importantly, not every top -ranked fragment in MUTAG should be interpreted as a direct toxicophore. Some 
+
+features correspond to direct alerts, whereas others represent scaffold or background contexts that modulate 
+
+the strength or expression of those alerts. For example, a fragment such as Ring does not by itself constitute a 
+
+mutagenicity alert, bu t it provides stabilization that support the activity of nitro - or aromatic amine -related 
+
+toxicophores. Therefore, the structural interpretation of MUTAG should be understood at two levels: first, 
+
+direct mutagenicity alerts, such as nitro, N –O, and aromatic amine substructures ; and second, scaffold features, 
+
+such as aromatic rings, fused or conjugated systems, and substituent topology, which influence electronic 
+
+distribution and reactive intermediate formation. This distinction is chemically important becau se 
+
+mutagenicity often depends not only on the presence of an alerting functional group, but also on the structural 
+
+environment that determines its activation and reactivity. 
+
+At a finer level, the top -ranked MACCS and PubChem structures in MUTAG can be organized into five 
+
+groups (Table 6, Figure s S9c -d). The first group contain ed direct nitro/N –O-related mutagenicity alerts , such 
+
+as MACCS key 63 N=O , which were consistent with the role of nitro reduction and N –O-containing 
+
+intermediates in mutagenic activation. The second group contain ed arylamine or aniline -like nitrogen 
+
+substructure s, such as PubChem key 737 Cc1cc(N)ccc1 , which were chemically relevant because aromatic 
+
+amines can undergo metabolic activation through N -hydroxylation and subsequently generate d DNA -reactive 
+
+intermediates . The third group consist ed of aromatic, heteroaromatic, and conjugated scaffold features ,
+
+exemplified by MACCS key 165 Ring , whi ch reflect ed the planar and resonance -stabilized backgrounds that 
+
+support ed mutagenic intermediate formation. The fourth group include d oxygen -content and charge -related 
+
+patterns , such as MACCS key 185 CHARGE , which reflect ed oxidation state or electronic environments 
+
+associated with reactive functional groups. The fifth group contain ed alkyl, alkenyl, and substituent -topology 
+
+substructures , exemplified by PubChem key 634 C-C-C:C -C, which were better interpreted as alert -
+
+modulating features than as direct mutagenicity alerts. Overall, these grouped patterns indicate d that the model 
+
+was not simply attending to random fragments, but rather to a set of chemically coherent substructures that 
+
+align ed with known mechanisms underlying nitroaromatic and aromatic amine mutagenicity. In summary ,
+
+BBBP and MUTAG differ ed not only in prediction task but also in the most appropriate mode of interpretation. 
+
+For BBBP, grouped feature analysis mainly reflect ed the physicochemical requirements for crossing the BBB ,
+
+such as lipophilicity, limited hydrogen bonding and controlled ionization. For MUTAG, grouped feature 
+
+analysis instead reflect ed the presence of mutagenicity -associated toxicophores and the structural patterns that 
+
+enable d their metabol ic activation and DNA reactivity . In conclusion, our MLP+TL m odel can offer biological 
+
+insight through substructure -level interpretation across different datasets. 
+
+Table 6. Classification of the top -ranked MACCS and PubChem keys for MUTAG prediction into five 
+
+chemically meaningful groups. These groups were defined according to previously reported mutagenicity -21 
+
+related structural themes, including direct toxicophore alerts, aromatic amine - and nitro -related substructures ,
+
+conjugated aromatic scaffold, charge/oxygen -associated features, and substituent -topology effects. 
+
+Group MACCS key structures PubChem key structures 
+
+Group 1. Direct alerts (nitro / N -O) - N=O 
+
+- N-O
+
+- ON(O)C 
+
+- NAAAO 
+
+- QNQ 
+
+- QN 
+
+- QO 
+
+- N(~O)(~O) 
+
+- O=N -C:C 
+
+- O-N-C-C
+
+Group 2. Arylamine or aniline -like 
+
+nitrogen substructures 
+
+- N
+
+- N > 1 
+
+- NH 
+
+- AN(A)A 
+
+- NA(A)A 
+
+- NAAN 
+
+- AQ(A)A 
+
+- N-C:C:C -C
+
+- C(~N)(:C) 
+
+- C(~N)(:C)(:C) 
+
+- Cc1cc(N)ccc1 
+
+- CC1CC(N)CCC1 
+
+- >= 2 N 
+
+Group 3. Aromatic, heteroaromatic, and 
+
+conjugated scaffold features 
+
+- `Ring` 
+
+- `6M Ring` 
+
+- `6M ring > 1` 
+
+- `Aromatic` 
+
+- `Aromatic Ring > 1` 
+
+- 5 M ring 
+
+- A$A($A)$A 
+
+- A$A!N 
+
+- A!A$A!A 
+
+- Anot%A%Anot%A 
+
+- Nnot%A%A 
+
+- C:C -C:C 
+
+- >= 3 aromatic rings 
+
+- >= 2 aromatic rings 
+
+- >= 1 any ring size 6 
+
+- >= 1 any ring size 5 
+
+- C:C -C-C:C 
+
+- C:C -C-C-C
+
+Group 4. Oxygen -content and charge -
+
+related patterns 
+
+- CHARGE 
+
+- QQ 
+
+- O
+
+- O > 2 
+
+- O > 3 (&...) Spec 
+
+Incomplete 
+
+>=2O 
+
+Group 5. A lkyl, alkenyl, and substituent -
+
+topology substructures 
+
+- C-C-C:C -C
+
+- [#1] -C=C -[#1] 
+
+- C(~C)(:C)(:C) 
+
+- C-C-C-C-C
+
+- C-C-C-C-C-C
+
+- C( -C)( -H)(=C) 
+
+- C-C-C(C) -C-C22       
+
+> -C-C(C) -C-C
+> -C-C-C=C
+> -C-C=C -C=C
+> -C=C -C-C-C
+> -C-C-C=C -C
+> -C( -C)( -C)(=C)
+
+Comparing identified substructure between Morphine and Heroin based on attention score analyses 
+
+The comparison between Morphine and Heroin highlight ed the importance of hydroxyl groups in BBB 
+
+permeability prediction. The two molecules share the same core scaffold but differ in functional group 
+
+composition (Figure 6). This comparison wa s primarily associated with the second group, because the key 
+
+difference lie d in the presence or masking of hydroxyl -related polar substructures. Free hydroxyl groups, as 
+
+present in Morphine, increase molecular polarity and hydrogen -bond donor capacity, both of which are 
+
+generally unfavorable for BBB P. By contrast, Heroin, a diacetylated derivative of Morphine, exhibits 
+
+increased lipophilicity and therefore crosses the BBB more efficiently. As a result, Heroin penetrates the BBB 
+
+more readily, suggesting that hydroxyl -group -related features are key structural determinants of BBB 
+
+permeability [64] .
+
+Analysis of the most important substructures revealed a clear difference between the two molecules. An 
+
+OH -related substructure was identified among the top 20 most important features for Morphine, whereas no 
+
+such feature appeared among the top 20 features for Heroin (Table S3 3). This difference was also reflected in 
+
+the attention heatmap in Figure s 5a and 5c . In the MACCS fingerprint, key 139 corresponds to OH. In 
+
+morphine, free hydroxyl groups increase molecular polarity and hydrogen -bond donor capacity, both of which 
+
+tend to hinder BBB permeation. Compared with other columns , Morphine showed a darker signal in column 
+
+139, indicating higher attention weights were assigned to this feature (Figure s 5b, d ). A quantitative 
+
+comparison of the attention weights associated with key 139 further supported this observation . In Morphine, 
+
+the maximum attention weight was 0.01199, originating from query 98, whereas in Heroin, the maximum 
+
+value was 0.00711, originating from query 122 (Figure 7, Table S34 ). Morphine also exhibited a more 
+
+heterogeneous attention pattern; however, h eroin displayed a relatively uniform distribution (Figure 7). 
+
+Heroin do not have key 139 (OH) , which is mark 0 in MACCS . Subsequently, we further would like to 
+
+examine whether absent substructure encoded as 0 leading to lower attention weights assigned by MLP+TL 
+
+systematically . To address this, we calculated the mean attention weight for each of the 167 keys in Morphine 
+
+and Heroin (Figure s 8a -b). Notably, t he results showed that some keys labeled as 1 still had lower column 
+
+mean attention weights than keys labeled as (Figure 8b) . In addition, for Heroin, all keys labeled as 0 had 
+
+column mean attention weights above the global mean of the column -wise attention weights (Figure 8a ). In 
+
+other words, the keys labeled as 0 were not systematically ignored by th e model. Together, these results 
+
+indicat ed that the model is able to capture the hydroxyl -related structural difference between Morphine and 
+
+Heroin. Moreover, the analysis suggest ed that attention was not restricted only to keys encoded as 1, 
+
+supporting a more distributed pattern of feature weighting. 23    
+
+> (a) (b) (c) (d)
+
+Figure 5. (a) The a ttention score heatmap of Heroin. Key 139 appears relatively light compared with other 
+
+columns, indicating weaker attention to this feature in heroin. (b) Zoomed -in view of key 139 in Heroin. (c) 
+
+The a ttention score heatmap of Morphine. Key 139 appears relatively dark compared with other columns, 
+
+suggesting that the model assigns greater attention to the OH -related feature in morphine. (d) Zoomed -in 
+
+view of key 139 in Morphine. The y -axis represents queries, and the x -axis stands for keys. In the MACCS 
+
+fingerprint, key 139 corresponds to a hydroxyl (OH) group.  
+
+> (a) (b)
+
+Figure 6. (a) Heroin structure . (b) Morphine structure. The blue -highlighted regions mainly cover ed the 
+
+shared fused -ring scaffold, indicating that the core morphinan structure contributes substantially to the model 
+
+predictio n, and therefore classified into Group 1: hydrophobic , ring substructures. The yellow -highlighted 
+
+regions were localized around the substituent groups, suggesting that these functional groups provide d
+
+additional discriminative information between the two molecules ; these were classified into Group 2: oxygen -
+
+containing polar substructures. Meanwhile, the purple -highlighted hetero cycle s were classified into Group 4: 
+
+Topology - and linker -related patterns. 24 
+
+Figure 7. MACCS attention weights of queries (row) assigned to key 139 ( column 139, OH group) for 
+
+Heroin and Morphine. The plot illustrate d the distribution of attention weights assigned from all query 
+
+positions to key 139. Compared with Heroin, Morphine showed a more heterogeneous pattern with more 
+
+pronounced peaks, indicating stronger and more variable attention to the hydroxyl -related feat ure. 
+
+> (a)
+> (b)
+
+Figure 8. Column mean attention weights across all 167 MACCS keys for (a) Morphine and (b) 
+
+Heroin . The x -axis shows the MACCS key index, and the y -axis shows the column mean attention weight 
+
+for each key. These plots illustrate that attention was distributed across all keys rather than being restricted 
+
+only to keys encoded as 1. 25 
+
+# Discussion 
+
+In summary, our study should be viewed primarily as a fundamental investigation into the role of 
+
+molecular encoding in molecular property prediction, rather than as an effort to pursue benchmark -leading 
+
+performance through increasingly complex model design. While recent advances in molecular property 
+
+prediction have often emphasized architectural novelty on standard benchmarks, our work instead focuse d on 
+
+a more basic but essential question: how different molecular encoding methods influence d predicti on , ta sk 
+
+suitability, and model interpretability across datasets. By systematically comparing multiple encoding 
+
+methods under two representative neural network -based architectures, we provide d evidence that the 
+
+effectiveness of a fingerprint was not universal, but depend ed on the target property, dataset characteristics, 
+
+and modeling framework. In this sense, the contribution of this study lie d not only in reporting strong 
+
+predictive performance, but also in clarifying a foundational issue that was often overlooked in benchmark -
+
+driven research. Furthermore, by examining internal attention weight s in the Transformer encoder -based 
+
+framework and relating them to chemically meaningful substructures, we show ed that fingerprint studies can 
+
+also serve as a bridge between predictive modeling and mechanistic interpretation. We therefore hope d that 
+
+this work can contribute to a more principled understanding of molecular informatics, in which model 
+
+development was guided not only by performance gains, but also by careful consideration of representation 
+
+choice, task validity, interpretability, and practical relevance for drug discovery. 
+
+Although MLP+TL generally was underperformed compared with the baseline MLP model , it still 
+
+strongly provide d complementary value as an interpretable framework. Particular ly , both models (MLP and 
+
+MLP+TL) performed well on several biologically relevant classification tasks, including toxicity prediction ,
+
+mutagenicity, and adverse reaction prediction, with average AUC values consistently above 0. 9 (Table 4 ).
+
+Interpretability analysis further suggested that Transformer encoder layers could identify dataset -specific 
+
+important substructures, such as lipophilicity -related features in BBB prediction and nitro -related features in 
+
+mutagenicity prediction. Taken toget her, these findings indicate d that careful selection of molecular encoding 
+
+methods and model architecture was more important than simply adopting increasingly complex models, 
+
+while Transformer -based approaches still offer ed additional biological insight th rough substructure -level 
+
+interpretation. 
+
+Comparison with conventional machine learning methods, including XGBoost [58] and Random Forest 
+
+[65] (Table s S16 -S22 ), showed that traditional ML approaches occasionally performed slightly better 
+
+predictive performance than neural network -based architectures (MLP and MLP+TL) , although the margin 
+
+was generally small. This observation wa s consistent with previous large -scale benchmarking studies showing 
+
+that traditional machine learning models built on fixed molecular representations often remain highly 
+
+competitive in molecular property prediction, particularly when informative handcrafte d descriptors or 
+
+fingerprints are already provided as inputs [2, 7, 8] . In such settings, the representational burden is partially 
+
+handled by the fingerprint itself, allowing models such as Random Forest [65] or XGBoost [58] to perform 
+
+strongly without requiring more complex architectures. From this perspective, the slightly lower performance 
+
+of our models d oes not necessarily indicate a limitation of the proposed framework itself but may instead 
+
+reflect the characteristics of the benchmark setting. When dataset size is limited or the predictive signal is 
+
+already effectively captured by predefined fingerprints, the additional modeling flexibility offered by neural 
+
+network -based architectures may not always translate into clear improvements in conventional performance 26 
+
+metrics. Prior work has likewise suggested that more complex representation learning models often require 
+
+sufficient data scale and careful evaluation to demonstrate robust advantages, and that their gains can 
+
+otherwise be modest or unstable [2, 7] . Importantly, our goal was not solely to maximize predictive 
+
+performance, but also to investigate whether a neural network -based framework could provide interpretable 
+
+insights into fingerprint -based prediction. In this regard, the present results align with recent studies 
+
+emphasizing that model selection in molecular prediction should consider interpretability in addition to 
+
+predict ivity. Although conventional ML models may remain preferable in some tasks when performance alone 
+
+wa s prioritized, neural netw ork -based model s (MLP and MLP+TL) offer ed an intermediate alternative by 
+
+retaining competitive performance while enabling the analysis of internal attention weight s to highlight 
+
+potentially important features. 
+
+Several directions may further improve the applicability and generalizability of this framework. First, a
+
+limitation of the present study is that model evaluation was performed using five -fold cross -validation under 
+
+a fixed random seed. Although this setup provides a standard estimate of predictive performance, it may not 
+
+fully capture the variability introdu ced by data partitioning. Previous work has shown that different split 
+
+schemes and random seeds can alter the structural similarity and label divergence among training, validation, 
+
+and test sets, thereby contributing to performance variance; without suffic ient repeated evaluation, apparent 
+
+metric improvements may partly reflect statistical noise rather than robust methodological gains [7, 66] . In 
+
+addition, while scaffold -based splitting is widely used as a proxy for chemical -space generalization, it may 
+
+not fully reflect real -world generalization behavior. The scaffold split mainly probes inter -scaffold 
+
+generalization, whereas important challenges also arise from intra -scaffold variation, such as activity cliffs, 
+
+where structurally similar molecules or even molecules sharing the same scaffold can exhibit substa ntially 
+
+different properties. Conversely, molecules with different scaffolds may stil l occupy nearby regions in 
+
+chemical space. Therefore, scaffold identity alone may not be sufficient to characterize the true difficulty of 
+
+generalization. More recently, similarity -aware data splitting studies have further emphasized that evaluation 
+
+can be overly optimistic when highly similar compounds are distributed across training and test sets, because 
+
+the resulting test performance may partly rely on s imilarity -induced shortcuts rather than robust out -of -
+
+distribution generalization [66] . From this perspective, future work should consider more rigorous evaluation 
+
+protocols, such as repeated splitting with multiple random seeds, together with reporting mean performance 
+
+and standard deviation, and potentially incorporating similarity -aware or leakage -reduced splitting strategies. 
+
+Such designs would provide a more reliable assessment of model stability, uncertainty, and practical 
+
+generalizability. 
+
+Second , future studies may consider selecting between canonical SMILES and isomeric SMILES 
+
+according to both dataset characteristics and target properties. Canonical SMILES provide a standardized 
+
+string representation and are therefore commonly adopted in molecular learning tasks, whereas isomeric 
+
+SMILES preserve stereochemical information that is important for chirality -sensitive endpoints. This issue is 
+
+especially relevant for BBBP, since previous studies have suggested that BBB permeability can be 
+
+stereoselective [44] . Nevertheless, the utility of isomeric SMILES may depend on whether the downstream 
+
+encoding method is capable of preserving stereochemical distinctions. For encod ing methods that are largely 
+
+insensitive to stereochemistry, canonical and isomeric SMILES may yield identical or highly similar feature 
+
+representations, whereas chirality -aware fingerprints such as stereochemistry -enabled ECFP/FCFP [21] may 
+
+better capture these differences. This consideration is also important for SMARTS tokenizaion , where 27 
+
+preserving stereochemical information require redesigning the tokenization scheme so that stereochemical 
+
+symbols are explicitly retained. 
+
+Third , the current framework inherit ed an intrinsic dependency from FN [35, 56, 57] , namely that 
+
+auxiliary labels were required together with the primary task label. While this design may enhance prediction 
+
+by incorporating task -relevant auxiliary information, it also limit ed the portability of the model to independent 
+
+datasets in which such annotations were unavailable. This issue is particularly important for external validation, 
+
+because the practical value of a predictive framework depends not only on its internal performance, but also 
+
+on whether it can be transferred to new datasets w ithout extensive additional labeling efforts. In principle, this 
+
+limitation can be addressed in two ways. The first is to obtain ground -truth annotations for the missing 
+
+auxiliary tasks, which would maintain the fidelity of the original framework but may be labor -intensive and 
+
+unrealistic in many case s. The second is to infer the missing auxiliary labels using pretrained XGBoost [58] 
+
+models prior to downstream prediction. This latter strategy is more feasible for large -scale application, yet it 
+
+transforms the overall framework into a two -stage pipeline in which uncertainty from the auxiliary -label 
+
+prediction step may propagate to the f inal endpoint. Consequently, the benefits of auxiliary information must 
+
+be weighed against the risk of accumulated prediction error. Future studies should therefore move beyond 
+
+reporting overall accuracy and examine this dependency more explicitly. For ex ample, it would be informative 
+
+to quantify how sensitive the final model is to noise or bias in the imputed auxiliary labels, whether different 
+
+auxiliary tasks contribute unequally to performance gains, and whether model interpretability remains stable 
+
+whe n auxiliary information is inferred rather than experimentally observed. Addressing these questions would 
+
+provide a clearer understanding of the boundary between methodological effectiveness and practical 
+
+applicability and would help determine how FN can b e adapted for more realistic external prediction scenarios. 
+
+In short, our study highlights molecular encoding as a fundamental issue in molecular property prediction, and 
+
+future work should focus on more rigorous evaluation protocols, stereochemistry -aware representations for 
+
+chirality -sensitive endpoints, and a de eper understanding of how auxiliary -label dependency shapes the 
+
+robustness, interpretability, and practical generalizability of FN .
+
+# Reference 
+
+1. David, L., et al., Molecular representations in AI -driven drug discovery: a review and practical 
+
+guide. Journal of cheminformatics, 2020. 12 (1): p. 56. 
+
+2. Jiménez -Luna, J., et al., Artificial intelligence in drug discovery: recent advances and future 
+
+perspectives. Expert opinion on drug discovery, 2021. 16 (9): p. 949 -959. 
+
+3. Mayr, A., et al., DeepTox: toxicity prediction using deep learning. Frontiers in Environmental 
+
+Science, 2016. 3: p. 80. 
+
+4. Qiu, Y., et al., A comprehensive review of computational methods for drug -drug interaction 
+
+detection. IEEE/ACM transactions on computational biology and bioinformatics, 2021. 19 (4): p. 
+
+1968 -1985. 
+
+5. Sultan, A., et al., Transformers for molecular property prediction: Lessons learned from the past five 
+
+years. Journal of Chemical Information and Modeling, 2024. 64 (16): p. 6259 -6280. 
+
+6. Li, H., et al., A knowledge -guided pre -training framework for improving molecular representation 
+
+learning. Nature Communications, 2023. 14 (1): p. 7568. 28 
+
+7. Deng, J., et al., A systematic study of key elements underlying molecular property prediction. Nature 
+
+Communications, 2023. 14 (1): p. 6395. 
+
+8. Kim, D., J. Jeong, and J. Choi, Identification of optimal machine learning algorithms and molecular 
+
+fingerprints for explainable toxicity prediction models using ToxCast/Tox21 bioassay data. ACS 
+
+omega, 2024. 9(36): p. 37934 -37941. 
+
+9. Rumelhart, D.E., G.E. Hinton, and R.J. Williams, Learning representations by back -propagating 
+
+errors. nature, 1986. 323 (6088): p. 533 -536. 
+
+10. Vaswani, A., et al., Attention is all you need. Advances in neural information processing systems, 
+
+2017. 30 .
+
+11. Rosa, L.C.S., et al., Identifying substructures that facilitate compounds to penetrate the blood –brain 
+
+barrier via passive transport using machine learning explainer models. ACS Chemical 
+
+Neuroscience, 2024. 15 (11): p. 2144 -2159. 
+
+12. Baptista, D., et al., Evaluating molecular representations in machine learning models for drug 
+
+response prediction and interpretability. Journal of Integrative Bioinformatics, 2022. 19 (3): p. 
+
+20220006. 
+
+13. Lundberg, S.M. and S. -I. Lee, A unified approach to interpreting model predictions. Advances in 
+
+neural information processing systems, 2017. 30 .
+
+14. Boldini, D., et al., Effectiveness of molecular fingerprints for exploring the chemical space of natural 
+
+products. Journal of Cheminformatics, 2024. 16 (1): p. 35. 
+
+15. Hinselmann, G., et al., jCompoundMapper: An open source Java library and command -line tool for 
+
+chemical fingerprints. Journal of cheminformatics, 2011. 3(1): p. 3. 
+
+16. Ralaivola, L., et al., Graph kernels for chemical informatics. Neural networks, 2005. 18 (8): p. 1093 -
+
+1110. 
+
+17. Carhart, R.E., D.H. Smith, and R. Venkataraghavan, Atom pairs as molecular features in structure -
+
+activity studies: definition and applications. Journal of Chemical Information and Computer 
+
+Sciences, 1985. 25 (2): p. 64 -73. 
+
+18. Mahé, P., et al., The pharmacophore kernel for virtual screening with support vector machines. 
+
+Journal of chemical information and modeling, 2006. 46 (5): p. 2003 -2014. 
+
+19. Durant, J.L., et al., Reoptimization of MDL keys for use in drug discovery. Journal of chemical 
+
+information and computer sciences, 2002. 42 (6): p. 1273 -1280. 
+
+20. Klekota, J. and F.P. Roth, Chemical substructures that enrich for biological activity. Bioinformatics, 
+
+2008. 24 (21): p. 2518 -2525. 
+
+21. Rogers, D. and M. Hahn, Extended -connectivity fingerprints. Journal of chemical information and 
+
+modeling, 2010. 50 (5): p. 742 -754. 
+
+22. Bender, A., et al., Similarity searching of chemical databases using atom environment descriptors 
+
+(MOLPRINT 2D): evaluation of performance. Journal of chemical information and computer 
+
+sciences, 2004. 44 (5): p. 1708 -1718. 
+
+23. Probst, D. and J. -L. Reymond, A probabilistic molecular fingerprint for big data settings. Journal of 
+
+cheminformatics, 2018. 10 (1): p. 66. 
+
+24. Vidal, D., M. Thormann, and M. Pons, LINGO, an efficient holographic text based method to 
+
+calculate biophysical properties and intermolecular similarities. Journal of chemical information and 29 
+
+modeling, 2005. 45 (2): p. 386 -393. 
+
+25. Collobert, R. and J. Weston. A unified architecture for natural language processing: Deep neural 
+
+networks with multitask learning . in Proceedings of the 25th international conference on Machine 
+
+learning . 2008. 
+
+26. Sharma, S., S. Sharma, and A. Athaiya, Activation functions in neural networks. Towards Data Sci, 
+
+2017. 6(12): p. 310 -316. 
+
+27. He, K., et al. Deep residual learning for image recognition . in Proceedings of the IEEE conference 
+
+on computer vision and pattern recognition . 2016. 
+
+28. LeCun, Y., Y. Bengio, and G. Hinton, Deep learning. nature, 2015. 521 (7553): p. 436 -444. 
+
+29. Erhan, D., et al. The difficulty of training deep architectures and the effect of unsupervised pre -
+
+training . in Artificial intelligence and statistics . 2009. PMLR. 
+
+30. Devlin, J., et al. Bert: Pre -training of deep bidirectional transformers for language understanding . in 
+
+Proceedings of the 2019 conference of the North American chapter of the association for 
+
+computational linguistics: human language technologies, volume 1 (long and short papers) . 2019. 
+
+31. Brown, T., et al., Language models are few -shot learners. Advances in neural information processing 
+
+systems, 2020. 33 : p. 1877 -1901. 
+
+32. Dosovitskiy, A., et al., An image is worth 16x16 words: Transformers for image recognition at scale. 
+
+arXiv preprint arXiv:2010.11929, 2020. 
+
+33. Jumper, J., et al., Highly accurate protein structure prediction with AlphaFold. nature, 2021. 
+
+596 (7873): p. 583 -589. 
+
+34. Heller, S.R., et al., InChI, the IUPAC international chemical identifier. Journal of cheminformatics, 
+
+2015. 7(1): p. 23. 
+
+35. Walter, M., et al., Analysis of the benefits of imputation models over traditional QSAR models for 
+
+toxicity prediction. Journal of Cheminformatics, 2022. 14 (1): p. 32. 
+
+36. Chowdhury, G.G., Introduction to modern information retrieval . 2010: Facet publishing. 
+
+37. Salton, G. and C. Buckley, Term -weighting approaches in automatic text retrieval. Information 
+
+processing & management, 1988. 24 (5): p. 513 -523. 
+
+38. Subramanian, G., et al., Computational modeling of β-secretase 1 (BACE -1) inhibitors using ligand 
+
+based approaches. Journal of chemical information and modeling, 2016. 56 (10): p. 1936 -1949. 
+
+39. Martins, I.F., et al., A Bayesian approach to in silico blood -brain barrier penetration modeling. 
+
+Journal of chemical information and modeling, 2012. 52 (6): p. 1686 -1697. 
+
+40. Krewski, D., et al., Toxicity testing in the 21st century: a vision and a strategy. Journal of Toxicology 
+
+and Environmental Health, Part B, 2010. 13 (2 -4): p. 51 -138. 
+
+41. Debnath, A.K., et al., Structure -activity relationship of mutagenic aromatic and heteroaromatic nitro 
+
+compounds. correlation with molecular orbital energies and hydrophobicity. Journal of medicinal 
+
+chemistry, 1991. 34 (2): p. 786 -797. 
+
+42. Kuhn, M., et al., The SIDER database of drugs and side effects. Nucleic acids research, 2016. 
+
+44 (D1): p. D1075 -D1079. 
+
+43. Delaney, J.S., ESOL: estimating aqueous solubility directly from molecular structure. Journal of 
+
+chemical information and computer sciences, 2004. 44 (3): p. 1000 -1005. 
+
+44. Meng, F., et al., A curated diverse molecular database of blood -brain barrier permeability with 30 
+
+chemical descriptors. Scientific Data, 2021. 8(1): p. 289. 
+
+45. Meng, J., et al., Boosting the predictive performance with aqueous solubility dataset curation. 
+
+Scientific Data, 2022. 9(1): p. 71. 
+
+46. Huuskonen, J., Estimation of aqueous solubility for a diverse set of organic compounds based on 
+
+molecular topology. Journal of chemical information and computer sciences, 2000. 40 (3): p. 773 -
+
+777. 
+
+47. Tetko, I.V., et al., Estimation of aqueous solubility of chemical compounds using E -state indices. 
+
+Journal of chemical information and computer sciences, 2001. 41 (6): p. 1488 -1493. 
+
+48. Mansouri, K., et al., An automated curation procedure for addressing chemical errors and 
+
+inconsistencies in public datasets used in QSAR modelling. SAR and QSAR in Environmental 
+
+Research, 2016. 27 (11): p. 911 -937. 
+
+49. Wu, Z., et al., MoleculeNet: a benchmark for molecular machine learning. Chem Sci, 2018. 9(2): p. 
+
+513 -530. 
+
+50. Sun, M., et al. MoCL: data -driven molecular fingerprint via knowledge -aware contrastive learning 
+
+from molecular graph . in Proceedings of the 27th ACM SIGKDD conference on knowledge discovery 
+
+& data mining . 2021. 
+
+51. Feshuk, M., et al., The ToxCast pipeline: updates to curve -fitting approaches and database structure. 
+
+Frontiers in Toxicology, 2023. 5: p. 1275980. 
+
+52. Batista, G.E., R.C. Prati, and M.C. Monard, A study of the behavior of several methods for balancing 
+
+machine learning training data. ACM SIGKDD explorations newsletter, 2004. 6(1): p. 20 -29. 
+
+53. Pedregosa, F., et al., Scikit -learn: Machine learning in Python. the Journal of machine Learning 
+
+research, 2011. 12 : p. 2825 -2830. 
+
+54. Maas, A.L., A.Y. Hannun, and A.Y. Ng. Rectifier nonlinearities improve neural network acoustic 
+
+models . in Proc. icml . 2013. Atlanta, GA. 
+
+55. Glorot, X., A. Bordes, and Y. Bengio. Deep sparse rectifier neural networks . in Proceedings of the 
+
+fourteenth international conference on artificial intelligence and statistics . 2011. JMLR Workshop 
+
+and Conference Proceedings. 
+
+56. Varnek, A., et al., Inductive transfer of knowledge: application of multi -task learning and feature net 
+
+approaches to model tissue -air partition coefficients. Journal of chemical information and modeling, 
+
+2009. 49 (1): p. 133 -144. 
+
+57. Davis, I.L. and A. Stentz. Sensor fusion for autonomous outdoor navigation using neural networks .
+
+in Proceedings 1995 IEEE/RSJ International Conference on Intelligent Robots and Systems. Human 
+
+Robot Interaction and Cooperative Robots . 1995. IEEE. 
+
+58. Chen, T. and C. Guestrin. Xgboost: A scalable tree boosting system . in Proceedings of the 22nd acm 
+
+sigkdd international conference on knowledge discovery and data mining . 2016. 
+
+59. Pajouhesh, H. and G.R. Lenz, Medicinal chemical properties of successful central nervous system 
+
+drugs. NeuroRx, 2005. 2(4): p. 541 -553. 
+
+60. Lipinski, C.A., et al., Experimental and computational approaches to estimate solubility and 
+
+permeability in drug discovery and development settings. Advanced drug delivery reviews, 2012. 64 :
+
+p. 4 -17. 
+
+61. Dang, N.L., et al., Computational approach to structural alerts: furans, phenols, nitroaromatics, and 31 
+
+thiophenes. Chemical research in toxicology, 2017. 30 (4): p. 1046 -1059. 
+
+62. Alves, V.M., et al., Alarms about structural alerts. Green Chemistry, 2016. 18 (16): p. 4348 -4360. 
+
+63. Penning, T.M., A.L. Su, and K. El -Bayoumy, Nitroreduction: a critical metabolic pathway for drugs, 
+
+environmental pollutants, and explosives. Chemical research in toxicology, 2022. 35 (10): p. 1747 -
+
+1765. 
+
+64. Mikitsh, J.L. and A. -M. Chacko, Pathways for small molecule delivery to the central nervous system 
+
+across the blood -brain barrier. Perspectives in medicinal chemistry, 2014. 6: p. PMC. S13384. 
+
+65. Breiman, L., Random forests. Machine learning, 2001. 45 : p. 5 -32. 
+
+66. Joeres, R., D.B. Blumenthal, and O.V. Kalinina, Data splitting to avoid information leakage with 
+
+DataSAIL. Nature Communications, 2025. 16 (1): p. 3337. 
+
+67 . U.S. EPA. Data 2025. ToxCast bioactivity data invitrodb v4.3 . Retrieved from 
+
+https://www.epa.gov/chemical -research/toxicity -forecaster -toxcasttm -data on Jan 13, 2026. Data released 
+
+August 2025.
