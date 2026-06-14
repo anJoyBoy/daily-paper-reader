@@ -6,50 +6,53 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-06-13
-- 运行时间：2026-06-13 20:38:57 UTC
+- 最新运行日期：2026-06-14
+- 运行时间：2026-06-14 20:46:16 UTC
 - 运行状态：成功
-- 本次总论文数：10
-- 精读区：2
+- 本次总论文数：11
+- 精读区：3
 - 速读区：8
 
 ### 今日简报（AI）
-今日更新10篇论文，聚焦零样本Text-to-SQL、AI数学推理、材料性质预测等方向。最值得精读的是《ZAS-SQL: Distilling Rules from Failures for Zero-Shot Text-to-SQL》与《Artificial Intelligence for Mathematical Reasoning》两篇高分综述。普通读者可重点跟进零样本SQL的失败规则提炼方法，以及AI在数学推理中的神经-符号系统整合进展。
-- 详情：[/202606/13/README](/202606/13/README)
+今日精读2篇、速读3篇，聚焦量子频繁项集挖掘与图神经网络-语言模型对齐两大方向。最值得关注的是《Frequent Itemset Mining with Quantum Computing》探索量子加速数据挖掘，以及《ERAlign》用能量函数对齐GNN与LLM在文本属性图上的表示。建议普通读者优先浏览量子计算与传统算法融合的潜力，以及图-文本跨模态对齐的实际应用案例。
+- 详情：[/202606/14/README](/202606/14/README)
 
 ### 精读区论文标签
-1. [ZAS-SQL: Distilling Rules from Failures for Zero-Shot Text-to-SQL](/202606/13/2606.08245v1-zas-sql-distilling-rules-from-failures-for-zero-shot-text-to-sql)  
-   标签：评分：9.0/10、query:llm-dm
-   evidence：利用大语言模型解决文本到SQL转换这一数据挖掘任务
-2. [Artificial Intelligence for Mathematical Reasoning: An Integrated Survey of Language Models, Neuro-symbolic Systems, and Verified Discovery](/202606/13/2606.08728v1-artificial-intelligence-for-mathematical-reasoning-an-integrated-survey-of-language-models-neuro-symbolic-systems-and-verified-discovery)  
-   标签：评分：9.0/10、query:llm-dm
-   evidence：关于人工智能的全面综述，覆盖语言模型和数学推理
+1. [Frequent Itemset Mining with Quantum Computing](/202606/14/2606.09209v1-frequent-itemset-mining-with-quantum-computing)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：频繁项集挖掘算法
+2. [ERAlign: Energy-based Representation Alignment of GNNs and LLMs on Text-attributed Graphs](/202606/14/2606.10461v1-eralign-energy-based-representation-alignment-of-gnns-and-llms-on-text-attributed-graphs)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：基于能量的GNN和LLM表示对齐用于文本属性图
+3. [GraspLLM: Towards Zero-Shot Generalization on Text-Attributed Graphs with LLMs](/202606/14/2606.11898v2-graspllm-towards-zero-shot-generalization-on-text-attributed-graphs-with-llms)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：LLM用于文本属性图分析，属于大语言模型应用
 
 ### 速读区论文标签
-1. [Predicting Physical and Physical-Chemical Properties of Molecular-Based Materials Using Computational Neural Networks](/202606/13/2606.09560v1-predicting-physical-and-physical-chemical-properties-of-molecular-based-materials-using-computational-neural-networks)  
-   标签：评分：7.0/10、query:coal-liquid
-   evidence：使用神经网络预测分子材料的物理化学性质
-2. [Attention Expansion: Enhancing Keyphrase Extraction from Long Documents with Attention-Augmented Contextualized Embeddings](/202606/13/2606.10716v1-attention-expansion-enhancing-keyphrase-extraction-from-long-documents-with-attention-augmented-contextualized-embeddings)  
+1. [STORM: Stepwise Token Optimization with Reward-Guided Beam Search](/202606/14/2606.10621v1-storm-stepwise-token-optimization-with-reward-guided-beam-search)  
    标签：评分：7.0/10、query:llm-dm
-   evidence：通过注意力扩展增强长文档的关键词提取，属于文本挖掘任务
-3. [When Three-Dimensional Conformer Ensembles Improve Molecular Property Prediction Beyond Two-Dimensional Fingerprints: A Systematic Study](/202606/13/2606.08825v1-when-three-dimensional-conformer-ensembles-improve-molecular-property-prediction-beyond-two-dimensional-fingerprints-a-systematic-study)  
-   标签：评分：6.0/10、query:coal-liquid
-   evidence：研究三维构象提升分子性质预测，相关于分子表征
-4. [A systematic investigation of molecular encoding methods for drug property predictions across neural network and Transformer encoder-based model](/202606/13/2606.08973v1-a-systematic-investigation-of-molecular-encoding-methods-for-drug-property-predictions-across-neural-network-and-transformer-encoder-based-model)  
-   标签：评分：6.0/10、query:coal-liquid
-   evidence：系统研究分子编码方法用于性质预测，与分子表征相关
-5. [ERAlign: Energy-based Representation Alignment of GNNs and LLMs on Text-attributed Graphs](/202606/13/2606.10461v1-eralign-energy-based-representation-alignment-of-gnns-and-llms-on-text-attributed-graphs)  
+   evidence：基于LLM的查询扩展用于词汇检索，属于文本挖掘
+2. [Attention Expansion: Enhancing Keyphrase Extraction from Long Documents with Attention-Augmented Contextualized Embeddings](/202606/14/2606.10716v2-attention-expansion-enhancing-keyphrase-extraction-from-long-documents-with-attention-augmented-contextualized-embeddings)  
+   标签：评分：7.0/10、query:llm-dm
+   evidence：使用注意力扩展从长文档中抽取关键短语
+3. [Hubs or Fringes: Pretraining Data Selection via Web Graph Centrality](/202606/14/2606.11499v1-hubs-or-fringes-pretraining-data-selection-via-web-graph-centrality)  
+   标签：评分：7.0/10、query:llm-dm
+   evidence：使用Web图中心性的LLM预训练数据选择方法
+4. [uva-irlab-conv at SemEval-2026 Task 8: Multi-Turn RAG with Learned Sparse Retrieval and Listwise Reranking](/202606/14/2606.11945v1-uva-irlab-conv-at-semeval-2026-task-8-multi-turn-rag-with-learned-sparse-retrieval-and-listwise-reranking)  
+   标签：评分：7.0/10、query:llm-dm
+   evidence：结合LLM重排序的多轮RAG用于文本挖掘
+5. [Symbolic and Abstractive Reasoning with Complex Visual Queries](/202606/14/2606.09195v1-symbolic-and-abstractive-reasoning-with-complex-visual-queries)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：在文本属性图上对齐GNN和LLM表示以提升学习效果
-6. [Dynamic Linear Attention](/202606/13/2606.10650v1-dynamic-linear-attention)  
+   evidence：多模态大语言模型推理
+6. [Recovering the Zipfian Distribution in Unsupervised Term Discovery](/202606/14/2606.10781v1-recovering-the-zipfian-distribution-in-unsupervised-term-discovery)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：针对LLM的动态注意力机制，与LLM应用相关
-7. [miniReranker: Efficient Multimodal Reranking through Visual Cache Reuse and Interaction Sparsity](/202606/13/2606.10759v1-minireranker-efficient-multimodal-reranking-through-visual-cache-reuse-and-interaction-sparsity)  
+   evidence：基于图聚类的无监督术语发现
+7. [Leveraging Audio-LLMs to Filter Speech-to-Speech Training Data](/202606/14/2606.13507v1-leveraging-audio-llms-to-filter-speech-to-speech-training-data)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：利用多模态大语言模型的高效重排序，结合缓存重用
-8. [Hubs or Fringes: Pretraining Data Selection via Web Graph Centrality](/202606/13/2606.11499v1-hubs-or-fringes-pretraining-data-selection-via-web-graph-centrality)  
+   evidence：利用音频LLM过滤训练数据，属于LLM辅助的数据处理
+8. [Beyond Uniform Tokens: Adaptive Compression for Time Series Language Models](/202606/14/2606.13624v1-beyond-uniform-tokens-adaptive-compression-for-time-series-language-models)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：面向LLM的预训练数据选择方法
+   evidence：基于LLM的时间序列分析，属于数据挖掘技术
 
 
 <div class="dpr-home-promo-card">
