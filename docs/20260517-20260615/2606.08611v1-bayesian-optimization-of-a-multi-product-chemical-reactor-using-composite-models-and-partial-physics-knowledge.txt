@@ -1,0 +1,442 @@
+Title: Bayesian Optimization of a Multi-Product Chemical Reactor Using Composite Models and Partial Physics Knowledge
+
+URL Source: https://arxiv.org/pdf/2606.08611v1
+
+Published Time: Tue, 09 Jun 2026 01:13:26 GMT
+
+Number of Pages: 11
+
+Markdown Content:
+# Bayesian Optimization of a Multi-Product Chemical Reactor Using Composite Models and Partial Physics Knowledge 
+
+Liqiu Dong 1, Marta Zag´ orowska 2, and Mehmet Mercang¨ oz 11Department of Chemical Engineering, Imperial College London, London, UK (e-mail: liqiu.dong22@imperial.ac.uk). 
+
+> 2
+
+DCSC, Delft University of Technology, Delft, Netherlands 
+
+© 2026 the authors. This work has been accepted to IFAC for publication under a Creative Commons Licence CC-BY-NC-ND. 
+
+Abstract 
+
+We study data-driven real-time economic optimization of a multi-product chemical reac-tor when no reliable first-principles model is available beyond a steady-state energy balance. Instead of learning the economic objective directly as a black-box function, we use a com-posite formulation in which Gaussian process (GP) models predict physically meaningful outputs, including product concentrations and reactor temperature, while profit is com-puted analytically from these predictions together with raw-material, product, and utility prices. This preserves the structure of the economic objective, makes it parametric in chang-ing prices without needing retraining, and allows candidate operating points to be checked against the available energy balance through a physics residual. The GPs also provide pre-dictive uncertainty, which is exploited in a Bayesian optimization (BO) framework both for data-efficient exploration and for conservative enforcement of the reactor temperature con-straint through an upper confidence bound. The acquisition function additionally penalizes large energy-balance mismatch obtained by substituting the GP-predicted outputs and can-didate inputs into the available steady-state energy balance. The approach is demonstrated on a benchmark simulation of a non-isothermal multi-product reactor. Relative to a trust-region safe BO implementation, the proposed method achieves better simulated economic performance within the available iteration budget. Relative to a purely data-driven BO approach that does not use the available physics information, it avoids reactor temperature constraint violations. 
+
+Keywords: Autonomous systems; Bayesian optimization; Real-time optimization; Self-learning; Physics-informed learning; Safe learning; Chemical reactors. 
+
+# 1 Introduction 
+
+Real-time optimization (RTO) is used to choose operating points for process systems to improve economic performance while respecting operational and safety limits. In practice, however, the quality of the resulting operating points depends strongly on the available process model, and developing reliable first-principles models for complex systems can be costly and difficult. This motivates approaches that combine partial physical knowledge, such as conservation laws, with data-driven optimization. In this work, we pursue such a strategy for the economic optimization of a multi-product chemical reactor. Physics-informed machine learning has emerged as a powerful paradigm for embedding known physical laws and governing equations into data-driven models, often improving reli-ability and data efficiency relative to purely empirical approaches [Karniadakis et al., 2021]. 1
+
+> arXiv:2606.08611v1 [eess.SY] 7 Jun 2026
+
+In parallel, Bayesian optimization (BO) has become a widely used methodology for optimizing expensive black-box systems under limited evaluation budgets. Gaussian process (GP) sur-rogates are particularly attractive in this setting because they provide both predictions and uncertainty estimates, enabling data-efficient sequential exploration [Rasmussen and Williams, 2005, Krishnamoorthy and Doyle III, 2023]. A key challenge arises when BO is applied to safety-critical systems. Purely data-driven ex-ploration may drive the process into unsafe operating regions before the optimizer has learned where the constraints lie. For this reason, safe BO methods incorporate uncertainty-aware mechanisms into the acquisition function so that exploration remains conservative near opera-tional limits [Sui et al., 2015, Dong et al., 2024a, Korkmaz et al., 2023]. A promising extension is to further enrich BO with available physical knowledge. Recent physics-informed BO studies have shown that known governing relations can guide the search toward physically plausible re-gions and improve efficiency, although most existing applications have focused on offline design problems rather than online chemical process optimization [Khatamsaz et al., 2023, Kobayashi et al., 2025]. Rather than learning the economic objective directly as a black-box function of the manipulated variables, we adopt a composite formulation: multiple GP models map the inputs to physically meaningful steady-state outputs and plant profit is then computed ana-lytically from these outputs together with exogenous economic parameters. This preserves the structure of the economic objective and keeps the dependence on economic conditions explicit. To enforce safety, we penalize candidate inputs whose upper confidence bound violates safety constraints. In addition, we exploit partial first-principles knowledge by substituting the GP predictions into the available steady-state energy balance to define a physics residual . This residual is incorporated into the acquisition function to discourage operating points that are inconsistent with the known physics while preserving BO’s global exploration capability. The main contributions of this paper are as follows: (i) a composite BO formulation in which profit is computed analytically from GP models of the steady-state outputs, allowing economic parameters to change without retraining; (ii) a physics-residual penalty based on the steady-state energy balance, embedded in the acquisition function to discourage physically inconsistent sampling; and (iii) a demonstration on a non-isothermal multi-product reactor, showing improved economic performance over a trust-region safe BO baseline and avoidance of temperature-constraint violations relative to a purely data-driven BO baseline. In the remainder of this paper, Section 2 describes the preliminaries for safe data-driven RTO under uncertainty. Section 3 introduces the proposed methodology and the acquisition function that integrates physics residuals as a penalty term. Section 4 describes the case study and the RTO problem formulation, while Section 5 presents and discussed the results compared to other learning-based approaches. Finally, Section 6 provides a conclusion. 
+
+# 2 Background 
+
+2.1 Bayesian optimization 
+
+Bayesian optimization (BO) in its basic form addresses unconstrained optimization problems in which function evaluations are expensive and the analytical form of the objective is unavailable: 
+
+u∗ ∈ arg min  
+
+> u∈U
+
+J( u), (1) where u ∈ U ⊂ Rnu is the decision vector and J( u) is an unknown black-box objective. BO iteratively seeks near-optimal solutions by combining a probabilistic surrogate model of J with an acquisition function αn(u) [Rasmussen and Williams, 2005]: 
+
+un+1 ∈ arg min  
+
+> u∈U
+
+αn(u), (2) 2The surrogate models are usually obtained from measured data, for example in the form of Gaussian processes [Srinivas et al., 2012, Rasmussen and Williams, 2005]. 
+
+2.2 Safe BO in process control 
+
+2.2.1 Composite BO 
+
+In process optimization, the quantities of interest are typically functions of the steady-state plant outputs x : Rnu → Rnx , rather than direct observations of a scalar objective. The economic performance can therefore be written as a known function of the outputs and inputs, while operational limits are imposed on selected output components. This leads to a composite BO formulation in which surrogate models are built for the steady-state outputs, while the objective is evaluated analytically from those predictions. In this work, a separate GP is used for each steady-state output component xi(u), i = 1 , . . . , n x. After n iterations, the available data are: 
+
+Dn = {(uk, xk)}nk=1 , (3) For output i, the latent input–output relation is modeled as: 
+
+xi(u) ∼ GP (0 , k i(u, u′)) , (4) with noisy observations: 
+
+xobs  
+
+> i,k
+
+= xi(uk) + εi,k , εi,k ∼ N (0 , σ 2
+
+> n,i
+
+). (5) For any candidate input u, the GP posterior is Gaussian: 
+
+xi(u) | D n ∼ N  μi(u), σ 2 
+
+> i
+
+(u) , (6) with mean and variance: 
+
+μi(u) = ki(u)⊤  Ki + σ2
+
+> n,i
+
+I−1 x(n) 
+
+> i
+
+, (7) 
+
+σ2 
+
+> i
+
+(u) = ki(u, u) − ki(u)⊤  Ki + σ2
+
+> n,i
+
+I−1 ki(u), (8) where Un = [ u1, . . . , un]⊤, x(n) 
+
+> i
+
+= [ xobs  
+
+> i, 1
+
+, . . . , x obs  
+
+> i,n
+
+]⊤, Ki = Ki(Un, Un), and ki(u) = Ki(Un, u). Collecting the GP mean predictions gives: 
+
+μ(u) := [ μ1(u), . . . , μ nx (u)] ⊤. (9) 
+
+2.2.2 Constrained BO 
+
+Operational limits are captured by safety constraints, often written as: 
+
+c(x, u) ≤ 0 (10) where c() is a function of outputs x and inputs u, for instance c(x, u) = x − xmax where xmax 
+
+is constant. When constraints (10) are learned from limited data, a common BO strategy is to use uncertainty-aware conservative estimates [Sui et al., 2015, Dong et al., 2024a, Korkmaz et al., 2023]. For an upper-bound constraint, this leads to the upper confidence bound: ˆcUCB (u) := μc(u) + βσ c(u), (11) where μc(u) and σc(u) are the GP posterior mean and standard deviation for the constraint, and β > 0 controls conservatism [Srinivas et al., 2012]. Inputs for which ˆ cUCB (u) violates (10) are treated as risky and can be penalized or excluded within the acquisition function. 32.2.3 Partial physics information 
+
+In addition to learned constraints, partial first-principles knowledge may also be available. In many chemical-process applications, a complete model of the plant is unavailable, but specific physical relationships, such as steady-state mass or energy balances, are still known. These rela-tionships can be used to check whether surrogate predictions are physically consistent [Khatam-saz et al., 2023, Kobayashi et al., 2025, Dong et al., 2024b]. If a known steady-state relation is: 
+
+Fp(x, u) = 0 , (12) then a model–physics residual can be defined by substituting the GP mean predictions (9) into (12). A large residual indicates that the candidate operating point is inconsistent with the available physics. The residual is evaluated at the GP mean predictions rather than through uncertainty bounds, since unlike the safety constraint it is not a one-sided risk quantity but a measure of inconsistency between the surrogate prediction and the available physical knowledge. These two elements, conservative handling of uncertain safety constraints and residual-based use of partial physics knowledge, provide the basis for the methodology developed in the next section. 
+
+# 3 Methodology 
+
+We consider a system with manipulated inputs u ∈ U ⊂ Rnu . For any candidate input u,the plant reaches a steady state characterized by the output vector x. Rather than learning the economic objective directly as a scalar black-box function of u, we exploit the fact that the objective can be written analytically as a known function of the steady-state outputs and inputs J( x, u; θ), where θ denotes exogenous economic parameters such as raw-material prices, product prices, and utility costs. The system is also subject to safety constraints of the form (10) and must satisfy physical relations (12). To model the steady-state plant response, we employ a set of independent GPs, one for each output component xi(u), i = 1 , . . . , n x, as indicated in Section 2.2. For any candidate input u, the GP models provide posterior means and standard deviations for each output component defined by (9). The economic objective is then evaluated in composite form at the GP mean predictions, i.e. through J( μ(u), u; θ). This preserves the analytical structure of the objective and keeps the dependence on the economic parameters explicit. 
+
+3.1 Composite acquisition function 
+
+We propose a composite acquisition function, αP I (u), that balances economic exploitation, statistical exploration, conservative safety handling, and consistency with the available physics: 
+
+αP I (u) = J( μ(u), u; θ)
+
+| {z }
+
+> Exploitation
+
++ −z
+
+> nx
+
+X
+
+> i=1
+
+σi(u)
+
+!| {z }
+
+> Exploration
+
++ λ P safe (u)
+
+| {z }
+
+> Safety
+
++ γ P phys (u)
+
+| {z }
+
+> Physics
+
+. (13) where z ≥ 0, λ ≥ 0, and γ ≥ 0 are tuning parameters. The first term, Exploitation, favors eco-nomically attractive operating points, the second, Exploration, promotes exploration in regions of high predictive uncertainty, the third term, Psafe , penalizes candidate points that are likely to violate safety constraints, and the fourth term, Pphys , penalizes inconsistency with the available physical relations. The selection of acquisition-function weights is problem-dependent. Even in standard GP-UCB, the exploration parameter controls the exploitation–exploration trade-off and is often chosen heuristically. Automatic tuning of acquisition functions has been stud-ied, but no universal rule exists for composite acquisitions that combine economic and safety [Srinivas et al., 2012]. 4Algorithm 1 Physics-residual-guided BO 
+
+Require: a safe dataset D0, an input domain U, an evaluation budget N , fixed acquisition-function weights  
+
+> 1:
+
+for n = n0, . . . , N − 1 do  
+
+> 2:
+
+Fit GPs for xi(u), i = 1 , . . . , n x, using Dn 
+
+> 3:
+
+Compute μ(u) and σi(u) from the GP posteriors  
+
+> 4:
+
+Compute uncertainty-aware safety penalty Psafe (u) 
+
+> 5:
+
+Compute residual Rp(u) and penalty Pphys (u) 
+
+> 6:
+
+Form physics-informed acquisition function αP I (u) 
+
+> 7:
+
+Select the next operating point using (2)  
+
+> 8:
+
+Apply un+1 to obtain xn+1  
+
+> 9:
+
+Update Dn+1 = Dn ∪ { (un+1 , xn+1 )} 
+
+> 10:
+
+end for  
+
+> 11:
+
+return best feasible evaluated point according to J( x, u; θ)
+
+3.1.1 Uncertainty-aware safety constraint 
+
+Using (11), the penalty term is written as: 
+
+Psafe (u) = 
+
+> nc
+
+X
+
+> j=1
+
+12
+
+tanh  αsafe ˆcUCB  
+
+> j
+
+(u) + 1  , (14) where αsafe > 0 controls the sharpness of the transition around the constraint boundary, nc is the number of safety constraints and ˆ cUCB  
+
+> j
+
+(u) is the conservative upper-confidence estimate of the j-th constraint. 
+
+3.1.2 Physics-informed residual penalty 
+
+To incorporate partial first-principles knowledge, we substitute the GP mean predictions into the available steady-state physical relation (12). This gives the model–physics residual: 
+
+Rp(u) = Fp(μ(u), u), (15) from which the physics penalty is defined as: 
+
+Pphys (u) = ∥R p(u)∥. (16) 
+
+3.2 Sequential optimization procedure 
+
+The proposed optimization loop is summarized in Algorithm 1. Starting from an initial dataset of safe operating points D0, the independent GP models are fitted to the measured steady-state outputs. At each BO iteration, the next candidate input is obtained from (2) with (13). The plant is evaluated at un+1 , the resulting steady-state output vector is added to the dataset D,and the GP models are updated. This process is repeated until the available evaluation budget is exhausted. 
+
+# 4 Case Study 
+
+We evaluate the proposed method on a non-isothermal continuous stirred-tank reactor (CSTR), following the standard structure of CSTR benchmark models with Arrhenius kinetics, competing reaction pathways, and heat-transfer dynamics [Chen et al., 1995]. This system exhibits strong nonlinearity, competing parallel reactions, and a critical temperature safety limit, which together create a challenging non-convex optimization problem. 54.1 Reactor system and reaction kinetics 
+
+As shown in Fig. 1, the reactor involves two irreversible and exothermic parallel reactions: 
+
+A + B r1
+
+−→ D, A r2
+
+−→ C. (17) Here, D is the desired product, while C is a lower-value side product. The reaction rates are assumed to follow elementary kinetics: 
+
+r1 = k1CACB , r2 = k2CA, (18) with Arrhenius rate constants: 
+
+kj (T ) = k0,j exp 
+
+ −EA,j 
+
+RT 
+
+
+
+, j = 1 , 2, (19) where k0,j is the pre-exponential factor, EA,j is the activation energy, T is the reactor temper-ature, and R is the universal gas constant. 
+
+Figure 1: A schematic of the Continuous Stirred-Tank Reactor (CSTR). 
+
+4.2 Dynamic simulation model 
+
+The plant is simulated using five coupled ordinary differential equations representing the species and energy balances. Assuming constant volume V , density ρ, and heat capacity cp, the model is: 
+
+dC A
+
+dt = FV (CA, in − CA) − r1 − r2, (20) 
+
+dC B
+
+dt = FV (CB, in − CB ) − r1, (21) 
+
+dC C
+
+dt = − FV CC + r2, (22) 
+
+dC D
+
+dt = − FV CD + r1, (23) 
+
+dT dt = FV (Tin − T ) + 1
+
+ρc p
+
+> 2
+
+X
+
+> j=1
+
+(−∆Hj )rj + U A V ρc p
+
+(Tc − T ). (24) 6where Ci denotes the concentration of species i, and Tc is the coolant temperature. The inlet concentrations are parameterized by the total inlet concentration Ctot and the feed fraction of species A, denoted by fA:
+
+CA, in = fACtot , CB, in = (1 − fA)Ctot . (25) All remaining model parameters are listed in Table 1. The model (20)-(24) will be used to simulate the real plant and obtain steady-state measurements used for the surrogate models. For optimization purposes, we assume that only the energy balance equation (24) is available. 
+
+4.3 Steady-state optimization problem 
+
+The decision vector is: 
+
+u = [ fA, T scaled  
+
+> c
+
+]⊤ ∈ [0 , 1] 2, (26) where fA is the inlet fraction of species A and T scaled  
+
+> c
+
+is a normalized coolant-temperature variable. The physical coolant temperature is recovered by linear scaling: 
+
+Tc = Tc, min + T scaled  
+
+> c
+
+(Tc, max − Tc, min ), (27) with Tc, min = 273 K and Tc, max = 623 K. For any input u, the plant evaluation returns the steady-state output vector: 
+
+x(u) = [ CA, C B , C C , C D, T ]⊤. (28) The optimization problem is therefore formulated as minimization of the objective: min  
+
+> u∈[0 ,1] 2
+
+J( x(u), u), (29) where the profit function is (minus sign indicates profit maximization): J( x, u) = − (F (PC CC + PDCD − PACA, in − PB CB, in ) − PHeat U A |Tc(u) − T |). (30) The economic parameters used in the profit calculation are PA = 5 .0 $/mol, PB = 2 .0 $/mol, 
+
+PC = 7 .0 $/mol, PD = 19 .0 $/mol, and PHeat = 1 × 10 −5 $/(kW · s). The reactor is subject to the temperature safety constraint: 
+
+T ≤ Tmax , Tmax = 670 .0 K . (31) 
+
+4.4 Case-specific acquisition function 
+
+The steady-state outputs x(u) = [ CA, C B , C C , C D, T ]⊤ are modeled using five independent GPs. For a candidate input u = [ fA, T scaled  
+
+> c
+
+]⊤, the conservative temperature estimate is defined as: ˆT UCB (u) = μT (u) + 2 σT (u), (32) and the CSTR-specific acquisition function is written as: 
+
+αCSTR (u) = J( μ(u), u) − z
+
+> 5
+
+X
+
+> i=1
+
+σi(u) + λ
+
+2
+
+h
+
+tanh 
+
+
+
+αsafe 
+
+  ˆT UCB (u) − Tmax 
+
+
+
++ 1 
+
+i
+
++ γ Rp(u),
+
+(33) where J( μ(u), u) denotes the profit evaluated from the GP mean predictions using (30). The second term promotes exploration, the third penalizes candidate points that may violate the 7(a) Seed Scenario I (b) Seed Scenario II (c) Seed Scenario III   
+
+> Figure 2: Optimization trajectories overlaid on the ground-truth economic profit landscape. The dark gray region denotes the infeasible operating area ( T > 670 K). Blue trajectories represent the Baseline algorithm. Green trajectories represent the trust-region method. Red trajectories represent the proposed algorithm.
+
+temperature constraint, and the final term penalizes inconsistency with the available steady-state energy balance through the energy balance residual Rp, computed as: 
+
+Rp(u) = FV
+
+ Tin − μT (u) + 1
+
+ρc p
+
+> 2
+
+X
+
+> j=1
+
+(−∆Hj ) ˆ rj (u) + U A V ρc p
+
+ Tc(u) − μT (u) , (34) where the reaction rates implied by the GP mean predictions are: ˆr1(u) = k1
+
+ μT (u) μCA (u) μCB (u),
+
+ˆr2(u) = k2
+
+ μT (u) μCA (u). (35) Thus, Rp(u) is obtained by setting dT /dt = 0 in (24) and substituting the GP mean predictions into the steady-state energy balance. For the results reported in this paper, the acquisition-function hyperparameters were set to z = 2 .5, λ = 10 9, γ = 2 and αsafe = 5. GP models were implemented with scikit-learn’s 
+
+GaussianProcessRegressor , using an RBF kernel and standardized inputs and outputs. 
+
+# 5 Results and Discussion 
+
+To visualize the optimization landscape, a high-fidelity reference map was generated by sim-ulating the reactor on a fine 30 × 30 grid over the input space. Figure 2 shows the resulting profit landscape, with the infeasible region defined by T > T max highlighted in dark gray. The figure also overlays optimization trajectories from three distinct safe initializations. The base-line method (blue trajectories) is guided only by the GP mean and uncertainty. As a result, it explores near or within the high-temperature region in order to learn the constraint boundary, leading to several evaluations in an unsafe and physically inconsistent area. By contrast, the proposed method (red trajectories) uses the steady-state energy-balance residual to identify such regions as implausible before sampling them. The added physics term therefore steers the search toward operating points that are both promising and physically consistent, while avoiding un-necessary exploration of the hazardous region. For comparison, we also tested a distance-based trust-region strategy (green trajectories), conceptually similar to SafeOpt in that it restricts new evaluations to the neighborhood of previously validated points [Sui et al., 2015]. Although this mechanism avoids unsafe exploration, it expands too cautiously and may converge slowly or remain trapped in local optima, as illustrated in Fig. 2c. The proposed method achieves a better compromise between safety and global exploration because the residual penalty provides additional structure beyond purely distance-based restrictions. 8Table 1: Parameter values used in the CSTR case study 
+
+Parameter Description Symbol Value Unit 
+
+Reaction Kinetics 
+
+Pre-exponential factor (Rxn 1) k0,1 1 L/(mol ·s) Pre-exponential factor (Rxn 2) k0,2 10 1/s Activation energy (Rxn 1) EA, 1 21500 J/mol Activation energy (Rxn 2) EA, 2 91500 J/mol Universal gas constant R 8.314 J/(mol ·K) 
+
+Thermodynamics 
+
+Enthalpy of reaction 1 ∆H1 -1300 kJ/mol Enthalpy of reaction 2 ∆H2 -400 kJ/mol Specific heat capacity cp 1 kJ/(kg ·K) Liquid density ρ 1 kg/L 
+
+Process Operations 
+
+Reactor volume V 1000 LVolumetric flow rate F 5 L/s Heat-transfer coefficient U A 25 kW/K Total inlet concentration Ctot 2.0 mol/L Inlet temperature Tin 300 KTo assess robustness, we performed 15 independent optimization runs, each initialized from a different pair of safe seed points. These seed points were generated by randomly sampling the input domain and rejecting candidates whose simulated steady state violated the temperature constraint. This mimics the use of historically available safe operating data. The corresponding convergence and temperature profiles are shown in Figs. 3 and 4.  
+
+> Figure 3: Convergence profiles of the economic profit (J) over 10 iterations for 15 independent runs. The algorithm demonstrates robust convergence to global optimum regardless of initialization. Note the trajectory of Seed 15 (highlighted), which successfully escapes a local optimum to reach global maximum.
+
+Figure 3 shows that all runs move toward the high-profit region despite different initial conditions. Most runs converge rapidly, while Seed 15 converges more slowly because it is initialized near a suboptimal local peak. Even in this more difficult case, the exploration term eventually drives the optimizer into unexplored regions and enables escape toward the global optimum. 9Figure 4: Evolution of the reactor temperature ( T ) for all optimization runs. The horizontal dashed line marks the critical safety constraint ( Tmax = 670 K). All runs strictly adhere to the safety threshold. 
+
+Figure 4 shows that the reactor temperature remains below the safety limit in all 15 runs. This indicates that the combination of the uncertainty-aware temperature penalty and the physics-residual penalty is effective in preventing unsafe evaluations throughout the optimiza-tion. 
+
+# 6 Conclusion 
+
+This work proposed a physics-informed BO framework for safe and data-efficient RTO when a complete plant model is unavailable but selected physical relations remain known. Rather than learning the economic objective directly, the method models the steady-state reactor outputs with independent GPs and evaluates profit analytically from the GP mean predictions. Safety is handled conservatively through an upper confidence bound on reactor temperature, while physical consistency is encouraged through a penalty based on the steady-state energy-balance residual. The CSTR case study showed that the proposed method converges reliably to the economically favorable operating region from multiple safe initializations while respecting the temperature constraint throughout the optimization. Relative to a baseline BO variant without the physics penalty, the method avoids unnecessary sampling in the unsafe high-temperature region. Relative to a purely distance-based safe exploration strategy, it provides less conservative and more effective global search. These results suggest that embedding partial first-principles knowledge into the acquisition function can substantially improve BO for safety-critical process optimization problems. The same idea can be extended to other applications in which only incomplete but trustworthy physical relations are available. 
+
+# Acknowledgements 
+
+Marta Zag´ orowska acknowledges support for this research by the Delft Technology Fellowship. 
+
+# References 
+
+Hong Chen, H Kremling, and Frank Allg¨ ower. Nonlinear predictive control of a benchmark cstr. Proceedings of the 3rd European Control Conference, Rome-Italy. , pages 3247–3252, 01 1995. 10 Liqiu Dong, Tong Liu, and Mehmet Mercang¨ oz. Real-time optimization of fuel cell cogenera-tion systems with safety-aware self-learning algorithms. In 2024 UKACC 14th International Conference on Control (CONTROL) , pages 104–110. IEEE, 2024a. Liqiu Dong, Marta Zagorowska, Tong Liu, Alex Durkin, and Mehmet Mercang¨ oz. PI-CoF: A Bilevel Optimization Framework for Solving Active Learning Problems using Physics-Information. In 2024 IEEE Conference on Control Technology and Applications (CCTA) ,pages 101–106, 2024b. doi: 10.1109/CCTA60707.2024.10666639. George Em Karniadakis, Ioannis G. Kevrekidis, Lu Lu, Paris Perdikaris, Sifan Wang, and Liu Yang. Physics-informed machine learning. Nature Reviews Physics , 3(6):422–440, June 2021. ISSN 2522-5820. doi: 10.1038/s42254-021-00314-5. Danial Khatamsaz, Raymond Neuberger, Arunabha M. Roy, Sina Hossein Zadeh, Richard Otis, and Raymundo Arr´ oyave. A physics informed bayesian optimization approach for material design: Application to NiTi shape memory alloys. npj Computational Materials , 9(1):221, December 2023. ISSN 2057-3960. doi: 10.1038/s41524-023-01173-7. Wataru Kobayashi, Takuma Otsuka, Yuki K. Wakabayashi, and Gensai Tei. Physics-informed Bayesian optimization suitable for extrapolation of materials growth. npj Computational Materials , 11(1):36, February 2025. ISSN 2057-3960. doi: 10.1038/s41524-025-01522-8. Buse Sibel Korkmaz, Marta Zag´ orowska, and Mehmet Mercang¨ oz. Safe optimization of an indus-trial refrigeration process using an adaptive and explorative framework. IFAC-PapersOnLine ,56(2):1400–1405, 2023. ISSN 2405-8963. doi: https://doi.org/10.1016/j.ifacol.2023.10.1811. 22nd IFAC World Congress. Dinesh Krishnamoorthy and Francis J. Doyle III. Model-free real-time optimization of process systems using safe Bayesian optimization. 69(4):e17993, 2023. ISSN 1547-5905. doi: 10.1002/ aic.17993. Carl Edward Rasmussen and Christopher K. I. Williams. Gaussian Processes for Machine Learning . The MIT Press, November 2005. ISBN 978-0-262-25683-4. doi: 10.7551/mitpress/ 3206.001.0001. Niranjan Srinivas, Andreas Krause, Sham M. Kakade, and Matthias W. Seeger. Information-theoretic regret bounds for gaussian process optimization in the bandit setting. IEEE Transactions on Information Theory , 58(5):3250–3265, May 2012. ISSN 1557-9654. doi: 10.1109/tit.2011.2182033. URL http://dx.doi.org/10.1109/TIT.2011.2182033 .Yanan Sui, Alkis Gotovos, Joel Burdick, and Andreas Krause. Safe Exploration for Optimization with Gaussian Processes. In Proceedings of the 32nd International Conference on Machine Learning , pages 997–1005. PMLR, June 2015. 11

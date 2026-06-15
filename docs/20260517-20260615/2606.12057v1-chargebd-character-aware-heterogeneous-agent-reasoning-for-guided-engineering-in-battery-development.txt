@@ -1,0 +1,588 @@
+Title: ChargeBD: Character-Aware Heterogeneous Agent Reasoning for Guided Engineering in Battery Development
+
+URL Source: https://arxiv.org/pdf/2606.12057v1
+
+Published Time: Thu, 11 Jun 2026 01:15:22 GMT
+
+Number of Pages: 56
+
+Markdown Content:
+# ChargeBD: Character-Aware Heterogeneous Agent Reasoning for Guided Engineering in Battery Development 
+
+Rui Huang 1, †, Zekun Jiang 1, †, Xingyu Niu 1, Yuqiang Li 2,Xinying Gu 2,* , Tianhang Zhou 1,3,* 
+
+> 1
+
+College of Energy Innovation, State Key Laboratory of Heavy Oil Processing, China University of Petroleum (Beijing), Beijing 102249, China 
+
+> 2
+
+Shanghai Artificial Intelligence Laboratory, Shanghai, China 
+
+> 3
+
+ZH Energy Storage Technology (Beijing) Co., Ltd., Beijing, China 
+
+> †
+
+These authors contributed equally. *Corresponding authors. 
+
+guqinying@pjlab.org.cn , zhouth@cup.edu.cn 
+
+# Abstract 
+
+Redox-flow battery (RFB) research spans molecular design, electrolyte optimization, electrode and membrane materials, stack operation, system management, and safety analysis, making it a constrained, multi-scale, and multi-objective energy-storage R&D problem. Although large language models (LLMs) can support scientific knowledge integration and proposal generation, generic LLM reasoning remains insufficiently adaptive across innovation-oriented exploration, rule-based execution, mechanistic model-ing, and system-level trade-offs. Here we introduce ChargeBD, a character-aware heterogeneous-agent reasoning framework for guided engineering in battery development. Starting from a 50-question RFB-specific task set, we construct a 500-question ESS-LLM Benchmark and define MBTI-inspired persona agents as structured cognitive-bias templates rather than psychometric instruments or rep-resentations of real personalities. DeepSeek-V3-Plus is selected as the shared base model, and 16 MBTI-inspired persona agents are evaluated to construct a persona capability matrix and a cognitive advantage matrix. ChargeBD then performs task-persona matching and dual-path on-demand wake-up through score-driven and dimension-driven activation, followed by parallel generation, cross-review, disagreement convergence, and multi-level fusion. In the 100-task core validation set, on-demand dynamic activation achieved a higher overall score than the fixed quartet while reducing token us-age by 48.2% and inference time by 50.2%, with an average of 2.6 activated agents. We further implement the ChargeBD Web Platform as an interactive workflow system that exposes task decom-position, dual-path persona activation, concurrent persona reasoning, and chief-engineer synthesis as a transparent and auditable workflow. Together, the benchmark results and interactive workflow system indicate that ChargeBD can support configurable, transparent, and resource-aware multi-agent reasoning workflows for AI-assisted energy-storage R&D. The source code of ChargeBD is publicly available at 
+
+https://github.com/cupzhoutianhang/mbti-agent-cluster .
+
+Keywords: redox flow batteries; energy storage; large language models; multi-agent systems; character-aware reasoning; heterogeneous agents; battery development 1
+
+> arXiv:2606.12057v1 [stat.AP] 10 Jun 2026
+
+# 1 Introduction 
+
+Large language models (LLMs) are increasingly used as scientific reasoning interfaces rather than only text generators. In chemistry, materials science, and battery research, LLMs have been used for literature mining, structured data extraction, domain knowledge organization, and battery-oriented reasoning support [1–5]. Molecular and materials design studies further show that language models and generative AI workflows can assist candidate generation and design-space exploration [6, 7]. Broader AI-for-science and autonomous-chemistry examples further contextualize these workflows [8, 9]. Tool-augmented and multi-agent studies extend this role toward task planning, tool orchestration, intermediate review, and coordinated scientific workflows [10–16]. These applications show that LLMs can organize distributed knowledge and translate research intent into reviewable workflows. However, they also expose a limitation: a fluent response is not necessarily a constraint-consistent engineering decision, especially when the task requires multi-step reasoning, domain-specific verification, and adaptation across heterogeneous scientific objectives [17–19]. This limitation is consequential in long-duration, grid-scale energy storage, where value depends on more than cell-level energy density or round-trip efficiency. Storage technologies must also be evaluated by duration, safety, lifetime, siting flexibility, capital cost, controllability, and reliability under uncertain renewable output [20]. Redox flow batteries (RFBs) are a representative stationary-storage platform because the electrochemical power unit and externally stored electrolyte inventory can be designed with partial independence, enabling flexible scaling of power and energy capacity [21]. Their promise is tied to safety, long cycle life, modular scalability, and low-cost deployment pathways rather than to a single material descriptor [21,22]. This makes RFBs suitable for evaluating AI-assisted reasoning under industrially meaningful constraints. RFB research is not a single-material optimization problem. Practical development spans redox-active molecular design, electrolyte formulation, electrode kinetics, membrane selectivity, stack and flow-field architecture, flow management, state estimation, control, reliability, and safety protection. RFB reviews and modeling studies emphasize that these layers are coupled across molecular, cell, stack, and plant scales [21,23]. Component-level studies further illustrate how electrolyte composition, electrode kinetics, membranes, flow fields, and system energy losses shape feasible designs [24–28]. Thus, an apparently plausible design may fail because it violates transport constraints, manufacturability, operating safety, or system-level energy-loss boundaries. The engineering background and multi-scale coupling that motivate this study are summarized in Figure 1. The same full-chain structure creates differentiated cognitive demands. Molecular and electrolyte design often require exploratory hypothesis generation, whereas electrode, membrane, flow-field, and stack questions require mechanism tracking, parameter feasibility, and awareness of coupled transport and electrochemical processes [23–28]. System-control and state-estimation tasks require consistency with dynamic models, while safety and scale-up questions require conservative reasoning about failure modes, margins, and operational risk [23, 28–30]. RFB research therefore requires the ability to shift reasoning style across exploratory, mechanistic, quantitative, risk-aware, and integration-oriented tasks. AI and machine-learning methods have become increasingly visible in scientific and engineering work-flows, including molecular discovery, materials screening, and model-based optimization in electro-chemical energy-storage research [6, 29–32]. Recent LLM-related studies further suggest that language models can help organize literature-derived knowledge, chemical information, battery-domain evidence, and task-level reasoning steps in scientific workflows [1–5]. Tool-augmented chemistry systems addition-ally show how language models can be connected to domain operations and external modules [11, 33]. These studies indicate that LLMs can serve as useful knowledge-processing and reasoning-support tools for scientific research. However, most existing applications still emphasize information extraction, knowl-edge organization, tool use, or task-specific assistance, leaving the question of how an LLM-based system should adjust its reasoning strategy less explored when the target problem changes across a complex engineering workflow. 2Figure 1. Multi-scale coupling mechanism of redox flow batteries. The figure summarizes the engineering background of RFB research across molecular design, electrolyte regulation, electrode and membrane materials, stack operation, system management, and safety analysis, highlighting the coupled physicochemical and engineering constraints that motivate constrained AI-assisted reasoning. 
+
+3This issue becomes especially relevant in RFB research, where useful answers must remain compatible with coupled electrochemical, materials, transport, safety, and system-level constraints [21, 23, 29, 30]. Component-level constraints enter through electrolyte formulation, electrode and membrane behavior, flow-field architecture, and system energy-loss boundaries [24–28]. These constraints are not encoun-tered uniformly across the research chain; they appear with different priorities in molecular design, component optimization, stack operation, system modeling, and safety assessment. As a result, the required reasoning style also changes with task type. For example, a molecular-design task may empha-size redox potential, solubility, and stability, whereas modeling, stack-operation, or safety tasks require mechanistic consistency, parameter awareness, conservative risk assessment, or multi-objective trade-off reasoning. Therefore, the key difficulty is not only whether an LLM can provide relevant knowledge, but whether its reasoning process can adapt to different cognitive demands within the RFB research chain. Existing agentic and multi-agent studies provide useful precedents for structuring LLM-based scientific workflows. Tool-augmented chemistry agents show that external tools and expert-designed modules can compensate for some limitations of LLMs in chemistry-specific operations [11, 16, 33]. Scientific multi-agent frameworks further show that role division, intermediate review, and workflow-level coordination can support more organized hypothesis generation and evaluation [10, 12–15]. These studies motivate structured collaboration, but the RFB setting raises a more task-specific question: how should a system decide which reasoning roles are needed when the problem shifts among exploratory design, mechanistic analysis, engineering verification, and safety-oriented decision making? Persona prompting offers one way to introduce controllable reasoning-style differences within the same base model. Recent work on role-playing agents, personalization, and persona-conditioned LLMs indicates that personas can guide model behavior according to specific contexts, roles, and task ex-pectations [34–37]. In this study, MBTI is used as a structured typological vocabulary for organizing prompt-induced decision styles, drawing only on its type vocabulary and four-dimensional preference structure [38,39]. Its prior use in engineering-team learning contexts further suggests that, when used de-scriptively, such type descriptors can serve as tools for organizing collaboration preferences and decision heuristics [40]. MBTI-inspired persona agents are designed as role templates with different reasoning emphases, such as exploratory abstraction, theoretical modeling, structured verification, system-level organization, and risk-aware analysis. Following this task-demand perspective, ChargeBD connects task-demand dimensions with persona-capability dimensions and activates suitable character-aware agents on demand rather than relying on a single fixed prompt or a fixed collaboration group. This framing shifts the research question away from identifying a single best persona and toward determining which reasoning capabilities each task requires. A set of 16 persona prompts alone is insufficient if all agents are always activated or if fixed groups are used regardless of task demand. ChargeBD therefore links five task-demand dimensions to six persona-capability dimensions and supports on-demand activation through matching-score and dimension-driven paths. The ESS-LLM Benchmark provides the task substrate by organizing RFB and broader energy-storage problems across materials R&D, stack engineering, system modeling, safety analysis, and integration-oriented reasoning, as shown in Figure 2. Building on this motivation, ChargeBD integrates 16 MBTI-inspired persona agents, a persona-capability matrix, task-persona matching, dual-path activation, parallel reasoning, cross-review, dispute conver-gence, and multi-level answer fusion into a task-adaptive workflow. The standardized evaluation control and persona prompting design are introduced in Figure 4, the ChargeBD framework is summarized in Figure 5, and the wake-up mechanism is shown in Figure 6. The accompanying ChargeBD Web Platform serves as the implementation-level outcome of this framework, translating ChargeBD into a configurable, transparent, and auditable interactive interface for reasoning tasks in energy-storage engineering research. It is not treated as the source of benchmark scores or as experimental validation of battery performance. Accordingly, this study makes four contributions. First, it frames RFB research as a constrained, multi-scale, multi-objective energy-storage R&D setting and constructs the ESS-LLM Benchmark for 4Figure 2. Hierarchical topic organization and category distribution of the ESS-LLM Benchmark. The figure shows the construction of the ESS-LLM Benchmark from major energy-storage task categories to subtopics and representative problem instances, supporting balanced evaluation across materials R&D, stack engineering, system modeling, safety analysis, and system integration. 
+
+evaluating reasoning under engineering boundaries. Second, it defines MBTI-inspired persona agents as structured cognitive-bias templates on a shared base model, enabling controlled comparison of prompt-induced reasoning styles without psychometric claims. Third, it proposes task-persona matching and dual-path activation connecting five task-demand dimensions with six persona-capability dimensions. Fourth, it evaluates an on-demand character-aware multi-agent workflow and presents the ChargeBD Web Platform as a transparent, configurable interface for AI-assisted energy-storage research. 52 Methods 
+
+2.1 RFB task set and ESS-LLM Benchmark 
+
+This study uses RFB R&D as the starting point for domain-specific benchmark construction because it spans molecular design, electrolyte regulation, electrode and membrane materials, stack operation, system management, and safety analysis. We first constructed a 50-question RFB-specific task set covering five categories, with each task annotated for objectives, physicochemical constraints, and evaluation priorities. The full RFB-specific task classification is provided in Supplementary Table S1. The 50-task set embeds realistic constraints into each problem. For example, an organic RFB molecular-design task requires candidate redox-active molecules to balance redox potential, solubility, stability, synthetic feasibility, cost, and environmental safety. The representative input in Figure 3 illustrates how application scenarios, degradation mechanisms, physicochemical boundaries, and multi-objective requirements are combined so that the benchmark evaluates constrained design reasoning rather than only factual recall. 
+
+> Figure 3. Constraint structure and task composition of an RFB molecular-design benchmark problem.
+> The figure illustrates how a representative molecular-design task is organized around application demand, degradation mechanisms, performance targets, physicochemical boundaries, and multi-objective constraints. The model output must balance redox potential, molecular stability, solubility, synthetic feasibility, cost, and environmental safety, ensuring that the benchmark evaluates reasoning within constrained physicochemical spaces rather than only knowledge recall.
+
+In these tasks, each prompt usually contains an application scenario, a failure or degradation phenomenon, target indicators, and limiting conditions. Model outputs are first constrained by problem invariants, I:answers must not violate thermodynamic laws, electrochemical boundaries, reaction feasibility, safety red lines, or explicit engineering specifications. An output that violates these invariants is treated as factually incorrect even if its language is fluent. The RFB-specific set is then expanded into the 500-question ESS-LLM Benchmark by generalizing the same constraint-oriented task structure to materials R&D, stack engineering, system modeling, safety analysis, and system integration. Each major category contains 100 questions and is divided into subtopics to support balanced persona-agent evaluation. The full taxonomy and task objectives are provided in Supplementary Table S2. 6Tasks in the ESS-LLM Benchmark are not only classified by technical topic but also represented by task-demand weights. To support task-persona matching, each task is represented as a five-dimensional task-demand weight vector: 
+
+wprob = (𝑤 1, 𝑤 2, 𝑤 3, 𝑤 4, 𝑤 5),
+
+> 5
+
+∑︁ 
+
+> 𝑖 =1
+
+𝑤 𝑖 = 1 (1) Here, 𝑤 𝑖 denotes the demand weight on the 𝑖 -th task dimension. This representation allows one problem to contain materials design, engineering implementation, model derivation, safety boundaries, and system integration simultaneously. For example, a high-energy-density RFB molecular-design task is mainly materials-oriented, but synthetic feasibility, electrolyte compatibility, long-term stability, and system safety introduce nonzero weights in other dimensions. The five-dimensional task-weight representation used in ESS-LLM is defined in the surrounding text, and feature-annotation statistics are provided in Supplementary Table S3. 
+
+2.2 Persona-agent design and task-persona matching 
+
+In ChargeBD, character-aware reasoning is implemented through MBTI-inspired persona prompts, which are used as structured cognitive-bias templates rather than psychometric representations of real person-alities. MBTI types are therefore used as computational heuristics that condition the same base model with different reasoning preferences, risk orientations, and decision priorities. Two prompt strategies distinguish generic professional prompting from persona-conditioned prompting. Strategy A sets the base model as a senior all-around energy-storage expert and emphasizes scientific rigor, logical consistency, and multi-scale reasoning without a persona bias. Strategy B adds a specific MBTI type, cognitive-feature description, and value sequence on the same professional base. The prompt-template comparison in Figure 4(b) defines this controlled A/B contrast, and the full prompts are provided in Supplementary Note S1. Based on Strategy B, this study constructs 16 MBTI-inspired persona agents. Each agent shares the same base model, task input, and evaluation protocol, differing only in the system-level persona prompt. Performance differences are therefore interpreted as prompt-conditioned cognitive-bias effects under a unified model capability. To quantify persona-task adaptation, this study maps the 16 persona agents into a six-dimensional persona-capability space. The persona-capability matrix is denoted as: 
+
+Ccap =
+
+
+
+𝑐 1,1 𝑐 1,2 · · · 𝑐 1,6
+
+𝑐 2,1 𝑐 2,2 · · · 𝑐 2,6
+
+... ... . . . ...𝑐 16 ,1 𝑐 16 ,2 · · · 𝑐 16 ,6
+
+
+
+, Ccap ∈ R16 ×6 (2) Here, 𝑐 𝑖, 𝑗 denotes the score of the 𝑖 -th persona agent on the 𝑗 -th capability dimension: innovation insight, material-design ability, theoretical modeling, logical completeness, professional accuracy, and safety-analysis ability. The complete 16 × 6 matrix is reported in Table 4 and supplies capability-side inputs for matching score computation. We define the capability-demand vector as 
+
+w′ = (𝑤 ′
+
+> 1
+
+, 𝑤 ′
+
+> 2
+
+, . . . , 𝑤 ′
+
+> 6
+
+).
+
+The five-dimensional task-demand weights and six-dimensional persona-capability dimensions are not one-to-one. Materials-R&D tasks require both innovation insight and material-design ability, while 7Figure 4. Standardized evaluation control and persona prompting strategy design. (a) Unified API invocation and standardized control framework for multi-model evaluation, including model calling, response parsing, exception handling, and structured result collection. (b) Strategy A/B prompt-template comparison, contrasting the standard professional baseline prompt with the MBTI-augmented persona prompt used to induce structured cognitive-bias templates. 
+
+8safety-analysis tasks require safety-analysis ability, logical completeness, and professional accuracy. We therefore use a linear mapping to convert wprob = (𝑤 1, 𝑤 2, 𝑤 3, 𝑤 4, 𝑤 5) into the six-dimensional capability-demand vector w′ = (𝑤 ′
+
+> 1
+
+, 𝑤 ′
+
+> 2
+
+, . . . , 𝑤 ′
+
+> 6
+
+), as defined in Table 1. 
+
+Table 1. Mapping from task dimensions to capability demands. Dimension Mapping formula Main contributing task dimensions 
+
+Innovation insight 𝑤 ′ 
+
+> 1
+
+= 0.6𝑤 1 + 0.4𝑤 3 Materials R&D (60%), system modeling (40%) Material-design 𝑤 ′ 
+
+> 2
+
+= 0.8𝑤 1 + 0.2𝑤 2 Materials R&D (80%), stack engineering (20%) Theoretical modeling 𝑤 ′ 
+
+> 3
+
+= 0.6𝑤 3 + 0.3𝑤 2 + 0.1𝑤 5 System modeling (60%), stack engineering (30%), system integration (10%) Logical completeness 𝑤 ′ 
+
+> 4
+
+= 0.5𝑤 4 + 0.5𝑤 5 Safety analysis (50%), system integration (50%) Professional accuracy 𝑤 ′ 
+
+> 5
+
+= 0.5𝑤 2 + 0.5𝑤 4 Stack engineering (50%), safety analysis (50%) Safety-analysis ability 𝑤 ′ 
+
+> 6
+
+= 0.9𝑤 4 + 0.1𝑤 1 Safety analysis (90%), materials R&D (10%) 
+
+After obtaining w′, the demand-capability matching score between task 𝑇 and persona agent 𝑃 𝑖 is defined as: 
+
+𝑀 (𝑇, 𝑃 𝑖 ) =
+
+> 6
+
+∑︁ 
+
+> 𝑗 =1
+
+𝑤 ′ 
+
+> 𝑗
+
+𝑐 𝑖, 𝑗 (3) Here, 𝑤 ′ 
+
+> 𝑗
+
+is the weight of the 𝑗 -th capability demand, and 𝑐 𝑖, 𝑗 is the score of persona agent 𝑖 on that dimension. The matching score is a weighted sum rather than an embedding or distance measure; a higher value indicates stronger fit between persona capability and task demand. To decide whether a persona should participate in subsequent reasoning, we use a score-driven threshold of 𝜃 score = 100 , selected from the statistical relationship between matching-score intervals and actual task scores; full threshold statistics are provided in Supplementary Note S2. This matching interface then drives on-demand wake-up. 
+
+2.3 On-demand activation and fusion mechanism 
+
+After task-persona matching is defined, ChargeBD uses a dual-path on-demand wake-up mechanism to decide which persona agents should participate in each task. Unlike fixed configurations, which call the same agents for all tasks, the mechanism runs an overall matching-score path and a dimension-weight path in parallel. Figure 5 situates this activation step within the full ChargeBD workflow, linking task-persona matching to on-demand activation, cross-review, and multi-level fusion. The demand-driven wake-up mechanism in Figure 6 specifies how the two activation paths are converted into a dynamic architecture selection step after task-persona matching. The first path is score-driven activation, which selects persona agents whose overall matching score exceeds the threshold: 
+
+Activate 𝐴 (𝑃 𝑖 ) = 𝐼 [𝑀 (𝑇, 𝑃 𝑖 ) ≥ 𝜃 score ] (4) where 𝐼 [·] denotes the indicator function and 𝜃 score = 100 is the matching-score activation threshold. The second path is dimension-driven activation, which selects the highest-priority agents in a dimension-specific persona pool when a task dimension has a high weight: 
+
+Activate 𝐵 (𝑃 𝑖 ) = 𝐼 [∃ 𝑘 : 𝑤 𝑘 ≥ 𝜃 dim , 𝑃 𝑖 ∈ Pool 𝑘 , Rank 𝑘 (𝑃 𝑖 ) ≤ Count (𝑤 𝑘 )] (5) 9Figure 5. ChargeBD framework for character-aware heterogeneous-agent reasoning in battery development. The figure presents the overall ChargeBD workflow, including task parsing, MBTI-inspired persona conditioning, multi-agent collaboration, and fused decision support for constrained energy-storage research tasks. 
+
+Here, 𝜃 dim = 20% is the minimum dimension weight required to trigger activation, Pool 𝑘 is the persona pool adapted to the 𝑘 -th task dimension, Rank 𝑘 (𝑃 𝑖 ) is the priority rank of persona agent 𝑃 𝑖 in that pool, and Count (𝑤 𝑘 ) is the number of agents activated for the dimension according to its weight. The final activation decision is the union of the two paths: 
+
+Activate (𝑃 𝑖 ) = Activate 𝐴 (𝑃 𝑖 ) ∨ Activate 𝐵 (𝑃 𝑖 ) (6) To control computational cost, the maximum number of activated agents is constrained by 𝐾 max = 6. If the union of the two activation paths exceeds this bound, the top 𝐾 max agents are retained according to 
+
+𝑀 (𝑇, 𝑃 𝑖 ). The activation procedure therefore uses four fixed hyperparameters: 𝜃 score = 100 , 𝜃 dim = 20% ,the segmented rule below, and 𝐾 max = 6:
+
+Count (𝑤 𝑘 ) =
+
+
+
+0, 𝑤 𝑘 < 20% ,
+
+1, 20% ≤ 𝑤 𝑘 < 30% ,
+
+2, 30% ≤ 𝑤 𝑘 < 50% ,
+
+3, 𝑤 𝑘 ≥ 50% 
+
+(7) Threshold statistics, cross-review criteria, and fusion-strategy comparisons are provided in Supplemen-tary Tables S4–S7. After activation, selected persona agents enter parallel generation, cross-review, disagreement con-vergence, and multi-level fusion. All activated agents receive the same task input, but their persona 10 Figure 6. Demand-driven multi-agent wake-up mechanism and dynamic architecture selection. The figure describes the demand-driven wake-up mechanism used by ChargeBD, including task-persona matching, conversion from task-demand weights to capability-demand weights, score-driven activation, dimension-driven activation, and dynamic architecture selection under the maximum activation constraint. 
+
+prompts induce different initial reasoning paths. Cross-review identifies invariant violations, causal gaps, parameter inconsistencies, and alternative proposals; unresolved disagreements trigger revision until convergence or the maximum number of rounds is reached. The initial output of each activated persona agent is denoted as: 
+
+𝑆 𝑖 = Agent 𝑖 (𝑇 ), {𝑆 1, 𝑆 2, . . . , 𝑆 𝑛 } = ParallelProcess  𝑇, {Agent 1, . . . , Agent 𝑛 } (8) where 𝑇 is the input task, Agent 𝑖 is the 𝑖 -th activated persona agent, 𝑆 𝑖 is its initial solution, and 𝑛 is the number of activated agents. The process runs for at most five rounds or stops earlier when the disagreement level satisfies the convergence condition. The agent cross-review criteria are provided in Supplementary Table S6, and the fusion-strategy comparison is provided in Supplementary Table S7. The global disagreement level 𝐷 is computed as a weighted sum of the relative differences of current 11 disputed variables: 
+
+𝐷 = 1
+
+𝑚 
+
+> 𝑚
+
+∑︁ 
+
+> 𝑗 =1
+
+𝑤 𝑗 𝛿 𝑗 (9) Here, 𝑚 is the number of disputed variables, 𝑤 𝑗 is the associated task-dimension weight, and 𝛿 𝑗 is the maximum relative difference in the current round: 
+
+𝛿 𝑗 = max 𝑖 (𝑣 𝑖, 𝑗 ) − min 𝑖 (𝑣 𝑖, 𝑗 )
+
+range 𝑗 
+
+(10) where 𝑣 𝑖, 𝑗 is the value assigned by agent 𝑖 to variable 𝑗 , and range 𝑗 is its reasonable range. When 
+
+𝛿 𝑗 > 15% , variable 𝑗 is disputed. For high-risk tasks, routine engineering tasks, and conceptual exploration tasks, the convergence thresholds are 𝐷 < 5% , 𝐷 < 10% , and 𝐷 < 15% , respectively. If convergence is not reached, unresolved variables remain as open issues with their rationales. The multi-level fusion step first performs weighted fusion of quantitative or semi-quantitative information: 
+
+𝑆 weighted =
+
+> 𝑛
+
+∑︁ 
+
+> 𝑖 =1
+
+˜𝑤 𝑖 𝑆 𝑖 (11) where ˜𝑤 𝑖 is the fusion weight and is distinguished from the task-dimension weight 𝑤 𝑖 . The fusion weight is determined by the agent’s prior capability score, relevance to the current task, and match to the dominant dimension: 
+
+˜𝑤 𝑖 = Score 𝑖 · Relevance 𝑖 · DimMatch 𝑖 
+
+Í𝑛 𝑗 =1 Score 𝑗 · Relevance 𝑗 · DimMatch 𝑗 
+
+(12) The second layer is dimension-expert adjudication: for qualitative conclusions or conflicting key judg-ments, TopAgent 𝑘 denotes the best-performing activated agent for task dimension 𝑘 and adjudicates the result. The third layer is consistency correction. If weighted fusion conflicts substantially with the dimension-expert judgment, the latter is prioritized and the conflict source is marked. Full formulas are provided in Supplementary Note S3. Finally, the system checks physical-law consistency, logical coherence, engineering feasibility, and safety compliance. Failed checks are marked as uncertainty or risk sources. Algorithm 1 gives the corresponding pseudocode. 
+
+2.4 Evaluation protocol 
+
+All experiments use the same API-calling, parsing, scoring, and resource-statistics pipeline so that mod-els, persona prompts, and collaboration structures are compared under consistent conditions. Figure 4(a) defines the standardized invocation and control framework, while Table 2 records the basic configura-tion of the five candidate Chinese large language models. Three benchmark resources serve different evaluation functions. The RFB-specific set evaluates specialized RFB reasoning and supports initial base-model selection. The ESS-LLM Benchmark provides the broader energy-storage task pool for persona-agent evaluation, capability-matrix calibration, and the ESS-LLM-derived generalization subset used in base-model selection. The 100-task core validation set compares fixed multi-agent configurations and on-demand wake-up, with 20 questions sampled from each of the five categories. The primary scoring dimensions are professional knowledge accuracy, logical-analysis ability, and proposal innovation. Each dimension is scored on a 0-100 scale, and the overall score is computed as: 12 Algorithm 1 Dual-path on-demand wake-up and multi-level fusion 
+
+Require: Task 𝑇 ; task-weight vector wprob ; persona capability matrix Ccap ; thresholds 𝜃 score and 𝜃 dim ;maximum activated agents 𝐾 max 
+
+Ensure: Final fused answer 𝑆 final  
+
+> 1:
+
+Map wprob to capability-demand vector w′. 
+
+> 2:
+
+for each persona agent 𝑃 𝑖 do  
+
+> 3:
+
+Compute 𝑀 (𝑇, 𝑃 𝑖 ) = Í 𝑗 𝑤 ′ 
+
+> 𝑗
+
+𝑐 𝑖, 𝑗 . 
+
+> 4:
+
+end for  
+
+> 5:
+
+Score-driven activation: S𝐴 = {𝑃 𝑖 | 𝑀 (𝑇, 𝑃 𝑖 ) ≥ 𝜃 score }. 
+
+> 6:
+
+for each task dimension 𝑘 do  
+
+> 7:
+
+if 𝑤 𝑘 ≥ 𝜃 dim then  
+
+> 8:
+
+Select top Count (𝑤 𝑘 ) agents from Pool 𝑘 . 
+
+> 9:
+
+end if  
+
+> 10:
+
+end for  
+
+> 11:
+
+Dimension-driven activation: S𝐵 is the union of selected dimension agents.  
+
+> 12:
+
+Activated set: A𝑇 = S𝐴 ∪ S 𝐵 . 
+
+> 13:
+
+if |A 𝑇 | > 𝐾 max then  
+
+> 14:
+
+Retain the top 𝐾 max agents in A𝑇 according to 𝑀 (𝑇, 𝑃 𝑖 ). 
+
+> 15:
+
+end if  
+
+> 16:
+
+Parallel reasoning: {𝑆 1, . . . , 𝑆 𝑛 } = ParallelProcess (𝑇, A𝑇 ). 
+
+> 17:
+
+Agents review, revise, and iterate until 𝐷 satisfies the task-specific convergence threshold or the maximum number of rounds is reached.  
+
+> 18:
+
+Compute weighted fusion, apply dimension-expert adjudication, and perform consistency correction.  
+
+> 19:
+
+return 𝑆 final with uncertainty and unresolved-risk notes if needed. 
+
+Score = 0.30 × Knowledge + 0.40 × Logic + 0.30 × Innovation (13) Professional knowledge accuracy evaluates terminology, mechanisms, data, and domain facts; logical-analysis ability evaluates decomposition, causal chains, and multi-constraint consistency; and proposal innovation evaluates novelty and practical inspiration. Before scoring, problem invariants I are checked. Answers violating thermodynamic laws, electrochemical boundaries, safety red lines, or explicit engi-neering specifications are treated as factually incorrect and excluded from subsequent scoring across the three dimensions. All model calls are made through a unified RESTful API. Responses are parsed into structured outputs for scoring, cross-review, and resource statistics, including problem analysis, key-constraint identification, proposal design, parameter suggestions, and feasibility assessment. The complete schema is provided in Supplementary Note S4. Resource usage is recorded for each configuration, including token usage, inference time, memory usage, and average activated agents. These metrics compare output quality and collaboration cost for fixed and on-demand strategies. 
+
+Table 2. Basic information of the five candidate Chinese large language models. Item DeepSeek Qwen GLM Doubao Kimi Foundation Model Information 
+
+Developer DeepSeek Alibaba Cloud Zhipu AI ByteDance Moonshot AI Version DeepSeek-V3-Plus Qwen2.5-Plus-72B GLM-4-Plus Doubao-Pro-2 Kimi-K2 Parameter Size 686 B 72 B 176 B 132 B Undisclosed Model Type MoE + RL Transformer GLM Transformer MoE 
+
+Core Technical Parameters 
+
+Context Length 128 K 64 K 128 K 64 K 256 K Token Limit 4 K 8 K 4 K 8 K 4 K Response < 1 s < 1 s < 1.5 s < 0.8 s < 1.2 s 
+
+13 3 Results 
+
+3.1 Base-model selection and persona-prompting validation 
+
+Base-model selection was first performed on the RFB-specific task set to ensure that subsequent persona-agent and multi-agent experiments were built on a sufficiently stable RFB reasoning capability. Five candidate LLMs–DeepSeek-V3-Plus, Qwen2.5-Plus-72B, GLM-4-Plus, Doubao-Pro-2, and Kimi-K2– were evaluated on the same 50 RFB-specific tasks under the same API settings, structured-output schema, and three-dimensional scoring protocol. The two-stage comparison in Table 3 identifies the strongest and most balanced candidate for the subsequent persona-agent experiments.                                                                       
+
+> Table 3. Comprehensive performance comparison of five candidate models on the two-stage test sets. Metric dimension DeepSeek-V3-Plus Qwen2.5-Plus-72B GLM-4-Plus Doubao-Pro-2 Kimi-K2 Flow Battery Problem – Average Scores by Evaluation Criteria
+> Knowledge Accuracy 91.2 87.6 87.1 84.3 85.3 Logical Analysis 89.7 86.5 85.9 83.3 83.9 Solution Innovation 87.3 85.3 86.5 83.4 83.6 Average Score 89.4 86.5 86.4 83.7 84.2
+> ESS-LLM Benchmark – Average Scores by Evaluation Criteria
+> Knowledge Accuracy 88.2 85.8 84.5 83.2 82.5 Logical Analysis 87.5 85.2 84.0 82.5 81.8 Solution Innovation 85.8 84.5 85.2 83.0 82.2 Average Score 87.2 85.2 84.5 82.9 82.2
+> ESS-LLM Benchmark – Average Scores by Problem Type
+> Materials R&D 88.5 86.2 85.0 83.5 82.8 Stack Engineering 86.8 85.5 84.2 83.0 82.5 System Modeling 87.2 85.8 86.5 83.5 83.0 Safety Analysis 86.5 84.8 84.0 84.5 83.2 System Integration 85.8 84.5 85.2 83.8 83.5
+
+DeepSeek-V3-Plus achieved the highest overall score among the five candidate models and showed relatively balanced performance across professional knowledge, logical analysis, and proposal innovation. Its advantage was most relevant to this study in RFB tasks that required simultaneous consideration of electrochemical mechanisms, materials constraints, and system-level engineering boundaries. Therefore, DeepSeek-V3-Plus was selected as the shared base model for all subsequent persona-agent and multi-agent experiments. The RFB-specific comparison in Figure 7 supports this choice by evaluating candidate models across task category, capability dimension, R&D stage, and score stability. Figure 7(a,b) indicates that DeepSeek-V3-Plus was more balanced across the five RFB task categories and the three core capability dimensions. Figure 7(c) shows that all models experienced performance fluctuations as tasks moved from materials design to system-level problems, but the decline was smaller for DeepSeek-V3-Plus. The score distri-bution in Figure 7(d) further supports its relatively higher output stability. These results support using DeepSeek-V3-Plus as the unified base model. Beyond the RFB-specific evaluation, model selection was also checked using the broader ESS-LLM Benchmark categories for energy-storage consistency. The two-stage model comparison is summarized in Table 3. To evaluate whether the selected base model responds to persona prompts in a task-dependent and repeatable manner, this study compares Strategy A, the generic expert prompt, with Strategy B, the MBTI-augmented persona prompt. The experiment changes only the persona layer in the system prompt, while keeping the base model and scoring protocol unchanged. Figure 8 provides the resulting generic-versus-persona comparison across energy-storage task dimensions and persona configurations. 14 Figure 7. Candidate model performance and stability on the RFB task set. The figure compares candidate LLMs on the RFB-specific benchmark across task categories, capability dimensions, R&D stages, and score distributions, supporting the selection of DeepSeek-V3-Plus as the shared base model. 
+
+Figure 8. Model generalization and persona prompting validation across energy-storage tasks. The composite figure summarizes model generalization performance across broader energy-storage task dimensions and validates the task-dependent effect of MBTI-inspired persona prompting relative to the standard professional baseline. Positive gains indicate that Strategy B outperformed Strategy A in the corresponding task category or persona configuration. 
+
+15 Table 4. Performance metrics of 16 MBTI-inspired persona agents across six capability dimensions. MBTI Type Innovation Insight Material Design Theoretical Modeling Logical Completeness Professional Accuracy Safety Analysis Overall Score                                                                                                                 
+
+> ISTJ 86.5 89.8 88.0 93.5 94.2 93.8 90.7 INTJ 91.8 92.5 89.5 90.2 89.8 88.5 90.4 ENTJ 89.2 91.2 90.0 90.5 89.8 89.5 90.4 ESTJ 85.8 90.8 88.2 92.5 93.0 92.5 89.9 INTP 92.5 90.8 94.2 90.5 88.5 87.8 89.4 INFJ 89.5 86.8 90.5 89.0 88.5 90.2 89.1 ENTP 93.0 89.5 92.5 88.5 87.0 86.8 88.5 ISTP 87.0 87.5 88.2 89.5 89.8 88.8 88.5 ENFJ 88.2 85.2 88.2 88.5 87.8 89.5 87.9 ENFP 91.0 85.5 89.8 87.0 86.2 87.8 87.9 ESTP 87.5 87.0 87.2 88.5 89.0 87.5 87.8 ISFJ 85.5 86.2 87.0 88.0 88.8 88.8 87.4 ESFJ 85.0 86.5 87.5 87.8 88.5 88.5 87.3 INFP 90.5 85.0 88.5 86.5 85.8 87.2 87.3 ISFP 88.5 85.0 86.8 86.8 86.5 87.0 86.8 ESFP 87.8 85.5 86.5 86.2 85.8 86.8 86.4
+
+Persona prompting affected not only wording but also reasoning organization and decision emphasis in some task categories. Some MBTI-inspired persona agents achieved higher overall scores than Strategy A. INTP and INTJ obtained overall improvements of 2.0 and 1.7 points, respectively. At the category level, the number of effective persona types was bounded: only three to five persona types produced gains above 0.5 points in each problem category. Materials R&D and system-modeling tasks benefited more from intuitive-thinking persona prompts associated with abstract reasoning and mechanistic exploration, whereas safety-analysis tasks depended more on persona prompts emphasizing structured execution and risk-boundary identification. These findings support the task-dependent effect of MBTI-inspired persona prompting in energy-storage tasks, while also showing that persona augmentation should be treated as a conditional adaptation mechanism rather than a universally beneficial prompt strategy. Based on these two evaluations, DeepSeek-V3-Plus was selected as the shared base model for all subse-quent persona-agent and multi-agent collaboration experiments, and Strategy B was used to construct the 16 MBTI-inspired persona agents. The subsequent persona-level analysis examines their capability dif-ferentiation, cognitive advantage matrix, and single-persona coverage boundaries on the full ESS-LLM Benchmark. 
+
+3.2 Persona-dependent cognitive advantages 
+
+After selecting DeepSeek-V3-Plus and observing the task-dependent gains of Strategy B, this study evaluated 16 MBTI-inspired persona agents on the full 500-task ESS-LLM Benchmark. The purpose was not to validate MBTI as a psychometric instrument, but to evaluate whether different persona prompts induce distinguishable reasoning biases that adapt differently to energy-storage R&D tasks. In other words, the 16 persona agents are treated as structured cognitive-bias templates that generate comparable reasoning preferences under the same model capability, task inputs, and scoring protocol. Table 4 and Figure 9(a) jointly show that persona prompting did not produce a uniform gain across the 16 MBTI-inspired persona agents. Higher-performing agents were mainly found among the ISTJ, INTJ, ENTJ, ESTJ, and INTP types, but their advantages differed across materials R&D, stack engineering, system modeling, safety analysis, and system integration. This pattern indicates that persona prompts mainly shifted reasoning priorities under different task demands rather than improving all categories uniformly. 16 The six-dimensional capability comparison in Figure 9(b) further shows that no single persona agent dominated innovation insight, material-design ability, theoretical modeling, logical completeness, profes-sional accuracy, and safety-analysis ability simultaneously. Agents associated with divergent exploration and abstract modeling performed better in innovation insight and theoretical modeling, whereas agents associated with structured execution and constraint checking were more stable in logical completeness, professional accuracy, and safety analysis. This differentiation supports the persona-capability matrix defined by the task-persona matching formulation and shows that the cognitive advantage matrix should be interpreted as a multidimensional capability structure rather than a single ranking.  
+
+> Figure 9. Cognitive-advantage matrix of 16 MBTI-inspired persona agents. The figure shows task-category performance, capability-dimension differentiation, MBTI-letter aggregate trends, and top-persona performance patterns, demonstrating that persona prompts induce structured but task-dependent cognitive advantages. (a) Persona-task performance matrix across five energy-storage task categories; (b) top persona agents in six capability dimensions; (c) aggregated statistics based on MBTI single-letter dimensions, interpreted as prompt-induced cognitive-bias patterns rather than psychometric conclusions; (d-h) knowledge accuracy, logical reasoning, and proposal-innovation performance of top persona agents across task categories.
+
+The MBTI-letter aggregation in Figure 9(c) provides a coarse view of prompt-induced cognitive bias. The T/F dimension suggests that logical filtering, factual consistency, and technical constraints tended to improve stability. The J/P dimension suggests that structured execution, boundary checking, and procedural closure may be useful for strongly constrained engineering tasks. The N/S dimension distinguishes abstract mechanistic exploration from concrete parameter checking. These results reflect output biases induced by prompt templates and do not constitute conclusions about real personality types. 17 The task-category panels in Figure 9(d-h) explain why the top persona agents differ by domain. Materials-R&D tasks involve molecular-structure hypotheses, performance-stability trade-offs, and multi-objective design, revealing advantages of abstract reasoning and exploratory persona agents. System-modeling tasks emphasize state variables, coupling relationships, and mechanistic abstraction, whereas stack engineering, safety analysis, and system integration contain more process constraints, failure boundaries, and engineering feasibility requirements. These patterns indicate that no single persona agent maintains a stable advantage across all task dimensions. The score-interval distributions in Figure 10 quantify the remaining blind spots of the top five single-persona agents across the 500 energy-storage tasks. Even the strongest overall persona agent retained low-score intervals and category-specific shortcomings. ISTJ still had 37% of tasks below 93 points; INTJ had 64% of tasks below 93 points, including 14% below 85 points; and ENTJ and ESTJ each had no more than 60% of tasks at or above 93 points. These distributions show that a high average score does not imply complete task coverage and that top persona agents still have single-persona blind spots.  
+
+> Figure 10. Blind spots of top single-persona agents across 500 energy-storage tasks. The figure summarizes score-distribution characteristics for the top single-persona agents, showing that no single persona template fully covers the multi-dimensional task space and that high-ranking persona agents still generate low-score samples in specific task categories.
+
+Overall, the 16 MBTI-inspired persona agents exhibit a distinguishable cognitive advantage matrix in energy-storage R&D tasks. Their advantages differ across task categories and capability dimensions, and no persona agent maintains an absolute advantage in all dimensions. Therefore, relying on the best single persona is insufficient for full cognitive coverage in multi-scale, multi-objective, and strongly constrained energy-storage tasks. Fixed multi-agent combination results are then used to evaluate whether complementary reasoning can compensate for these blind spots. 
+
+3.3 On-demand dynamic activation 
+
+After identifying persona-dependent cognitive advantages and single-persona blind spots on the ESS-LLM Benchmark, we first examined whether fixed persona combinations could provide complementary coverage. Figure 11(a-e) evaluates fixed dyad, triad, and quartet configurations selected from the high-performing persona pool and summarizes their performance/resource evolution. The INTJ + INTP dyad, INTJ + INTP + ISTJ triad, and INTJ + INTP + ISTJ + ENTJ quartet progressively improved task coverage, 18 with overall scores increasing from 90.4 for the INTJ single-persona baseline to 92.2, 94.3, and 94.8, respectively (Table 5). Among fixed dyads, INTJ + INTP performed strongly, reflecting complementarity between structured abstraction and theoretical exploration. Adding ISTJ in the triad introduced stronger constraint checking and factual closure, while the quartet INTJ + INTP + ISTJ + ENTJ further added system-level coordination and proposal integration. However, the transition from triad to quartet mainly filled local gaps in an already covered capability structure rather than adding a new dominant capability dimension.  
+
+> Figure 11. Fixed collaboration and on-demand dynamic activation performance. The merged figure preserves the original fixed-combination and on-demand dynamic activation result panels (a)-(h): (a) top persona source pool, (b-d) fixed dyad, triad, and quartet collaboration results, (e) performance and resource evolution across fixed configuration scales, (f) score-interval distribution on the 100-task core validation set, and (g-h) performance benchmarks by energy-storage task type and cognitive-demand category. Complete fixed-combination and on-demand activation metrics are provided in Table 5 and Table 6.
+
+The bottleneck of fixed collaboration comes from its static configuration. All tasks call the same persona agents, which may introduce redundant review in narrow tasks and still suffer task-persona mismatch when task demand lies outside the fixed group’s capability region. These results indicate that complementarity alone is insufficient; the participating persona agents must also be selected according to task demand. To address this static-configuration bottleneck, ChargeBD applies on-demand dynamic activation on the 100-task core validation set. The mechanism dynamically selects MBTI-inspired persona agents according to task weights, persona matching scores, and key capability dimensions, followed by parallel generation, cross-review, and multi-level fusion. Operationally, on-demand activation combines score-driven selection with dimension-driven compen-sation. Score-driven activation selects agents with high overall matching, while dimension-driven acti-vation compensates for specialized demand in high-weight dimensions. Together, they allow a smaller collaboration scale for narrow tasks and more complementary agents for multi-dimensional tasks. Table 5 provides the quantitative fixed-versus-dynamic comparison that supports this transition from static complementarity to adaptive coordination. The fixed quartet INTJ + INTP + ISTJ + ENTJ achieved an overall score of 94.8, whereas the On-Demand Dynamic configuration reached 95.3. It also reduced 19 resource use from 11,200 to 5,800 tokens, from 22.5 to 11.2 s, and from 6.2 to 2.9 GB, with an average of 2.6 activated agents. Relative to the fixed quartet, token usage decreased by 48.2%, inference time decreased by 50.2%, and resource efficiency increased from 40% to 82%. 
+
+Table 5. Comprehensive performance comparison between fixed and on-demand dynamic configurations. Configuration Performance Metrics Overall Score Token Consumption Inference Time (s) Memory Usage (GB) Average Active Agents 
+
+INTJ (Single) 90.4 4,200 8.2 2.1 1.0 INTJ+INTP (Pair) 92.2 6,300 12.5 3.2 2.0 INTJ+INTP+ISTJ (Trio) 94.3 8,400 16.8 4.5 3.0 INTJ+INTP+ISTJ+ENTJ (Quartet) 94.8 11,200 22.5 6.2 4.0 On-Demand Dynamic 95.3 5,800 11.2 2.9 2.6 Configuration Efficiency and Score Distribution Resource Efficiency 95–100 Score Ratio 93–95 Score Ratio 90–93 Score Ratio 85–90 Score Ratio 
+
+INTJ (Single) 45% 18% 36% 59% 24% INTJ+INTP (Pair) 58% 19% 40% 62% 25% INTJ+INTP+ISTJ (Trio) 49% 25% 51% 77% 18% INTJ+INTP+ISTJ+ENTJ (Quartet) 40% 29% 55% 80% 15% On-Demand Dynamic 82% 32% 59% 83% 13% 
+
+> Note: The score-threshold columns are cumulative proportions except the 85–90 column, which denotes the proportion of samples in the 85–90 score interval. The average number of activated agents for On-Demand Dynamic is task-dependent and equals 2.6 on average.
+
+Table 6. Activation-configuration distribution of on-demand dynamic wake-up combinations. Activation Configuration Active Agents Frequency Proportion Mean Score Token Change vs. Quartet 
+
+INTJ 1 1 1% 93.5 -9,000 INTP 1 1 1% 93.0 -9,000 INTJ+INTP 2 20 20% 95.0 -7,000 INTJ+ISTJ 2 12 12% 94.5 -7,000 INTP+ENTJ 2 8 8% 95.0 -7,000 ISTJ+ESTJ 2 8 8% 94.8 -7,000 INTJ+INTP+ISTJ 3 18 18% 95.8 -5,000 INTJ+INTP+ENTJ 3 12 12% 95.5 -5,000 INTJ+ISTJ+ENTJ 3 8 8% 95.5 -5,000 INTJ+INTP+ISTJ+ENTJ 4 12 12% 96.2 0
+
+Total 2.6 100 100% 95.3 -5,400   
+
+> Note: All configurations are dynamically activated based on task requirements. ΔTokens represents the change in token consumption relative to the fixed four-agent combination (INTJ+INTP+ISTJ+ENTJ). The number of activated agents in the total row (2.6) represents the weighted average of all 100 test samples.
+
+Table 6 reports the activation-configuration distribution, showing that the advantage of on-demand activation does not come from simply increasing the number of agents, but from finer task-capability matching. The fixed quartet calls four persona agents for every task, whereas the on-demand configuration adjusts the activation scale, excludes low-relevance agents, and reduces redundant review and integration cost. For multi-dimensional tasks, it can still activate multiple complementary agents to maintain cognitive coverage. Figure 11(f) supports the score-distribution interpretation on the 100-task core validation set. Compared with the fixed quartet, on-demand activation placed more tasks in the 95-100 interval (32 vs. 29), 20 increased the proportion at or above 93 points (59% vs. 55%), and reduced tasks below 85 points (4 vs. 5). This suggests improved average score, broader high-quality output coverage, and lower tail risk. Panels (g,h) in Figure 11 further support the adaptation argument by grouping the results by task type and cognitive demand. For high-innovation-demand tasks, the system tended to activate agents associated with abstract exploration, mechanistic reasoning, and theoretical modeling. For high-constraint or practice-oriented tasks, it tended to include agents emphasizing logical completeness, professional accuracy, and risk-boundary identification. Compared with fixed combinations, this task-level selection mechanism aligned prompt-induced cognitive biases more closely with current problem demand. Overall, on-demand dynamic activation improved the performance-resource trade-off of fixed collabo-ration. It maintained and slightly exceeded the fixed quartet score while reducing token usage, inference time, memory usage, and average participating agents. These findings suggest that MBTI-inspired per-sona agents are useful not only as diverse cognitive templates, but also as templates that can be organized through task-persona matching. The ChargeBD Web Platform is then used to demonstrate how ChargeBD can be exposed as a transparent and auditable reasoning process. 
+
+3.4 ChargeBD Web Platform workflow demonstration 
+
+The benchmark analyses above provide offline evidence for base-model selection, persona-agent differen-tiation, fixed-collaboration behavior, and on-demand dynamic activation. The ChargeBD Web Platform, evolved from the earlier MBTI-Agent-Cluster prototype, implements the proposed reasoning workflow as an interactive and auditable interface. The system complements benchmark evaluation by expos-ing process-level behavior, including task decomposition, persona selection, persona-specific rationale summaries, and final synthesis. The workflow system uses a React 19, TypeScript, and Vite frontend, a Node.js and Express backend, and a DeepSeek-compatible API layer. The interface contains a conversation-history sidebar, chat workspace, workflow timeline, and expert-library overlay showing 16 MBTI-inspired persona agents, allowing users to inspect the interaction state and persona-agent pool rather than only a final answer. The implemented workflow follows five stages. First, the user problem is analyzed through five-dimensional task-weight decomposition covering materials R&D, stack engineering, system model-ing, safety analysis, and system integration. Second, the system performs dual-path wake-up using a matching-score path and a dimension-driven activation path. Third, selected persona agents generate concurrent persona-specific rationale and answer streams. Fourth, a chief-engineer synthesis stage inte-grates the selected expert outputs into a unified answer. Fifth, the system supports multi-turn interaction by retaining conversation history and carrying forward concise context from earlier turns. The workflow system also makes activation inspectable. The dispatch card presents five-dimensional weights, Path A and Path B activation routes, selected-agent rationales, persona roles, matching scores, and trigger conditions. During generation, the interface separates intermediate rationale summaries from final answer content. Two interaction modes are implemented. In collaborative mode, the system performs on-demand persona activation and multi-agent synthesis, corresponding to the fixed-collaboration and dynamic-activation analyses above. In single-expert mode, the user can specify one MBTI persona agent, providing an interface-level analogue of the single-persona comparisons. The benchmark scores reported above are produced by the offline evaluation protocol, not by the interactive workflow system. The ChargeBD Web Platform should therefore be interpreted as an operational workflow demonstrator and inspection interface for ChargeBD rather than as an experimental battery-validation platform. 21 4 Discussion 
+
+This study starts from RFB R&D tasks and expands them into the ESS-LLM Benchmark for multi-scale, multi-objective, and physicochemically constrained energy-storage reasoning. The results show that DeepSeek-V3-Plus can serve as the shared base model, MBTI-inspired persona prompting produces task-dependent effects, and the 16 persona agents form a distinguishable cognitive advantage matrix. Fixed combinations reduce some blind spots but show diminishing marginal utility, whereas on-demand activation improves the performance-resource trade-off by selecting task-relevant persona templates. MBTI is not used here as a psychometric instrument, nor does the framework infer real personality attributes of models or humans. MBTI-inspired persona agents are structured cognitive-bias templates: reusable prompts that induce different reasoning preferences, risk orientations, task priorities, and output organization patterns in the same base model. Their methodological value is to create controlled prompt-induced reasoning variation and compare its adaptation to task demands under the same model, input, and scoring protocol. The persona-dependent cognitive-advantage results show that persona prompting is task-dependent rather than uniformly beneficial. Different agents have different advantages across task categories and capability dimensions, and even high-scoring single agents retain blind spots. For energy-storage R&D tasks combining materials exploration, mechanistic modeling, engineering constraints, and safety boundaries, a high average score is not equivalent to full task coverage because failures often arise from local constraint violations rather than from absent broad knowledge. Fixed dyads, triads, and quartets improve average performance relative to the single-persona baseline, supporting complementarity among persona agents. However, gains diminish as the number of agents increases. Because a fixed configuration cannot adjust participants according to task weights and capability demands, it can introduce redundancy in narrow tasks while still suffering task-persona mismatch in others. The core of on-demand activation is adaptive coordination, not simply an increase in agent count. Score-driven activation selects agents with high overall matching, while dimension-driven activation compensates for specialized high-weight demands. The on-demand activation results suggest that multi-agent value depends on both cognitive diversity and the selective use of appropriate cognitive-bias templates under resource constraints. The ChargeBD Web Platform adds an implementation-level perspective to these benchmark results. Offline metrics quantify score, resource use, and activation statistics, whereas the workflow system exposes task decomposition, persona selection, persona-specific rationale streams, and chief-engineer synthesis. This process visibility is important because candidate hypotheses, constraints, risks, and final recommendations need to remain traceable for expert inspection. The benchmark and workflow system should be interpreted as computational reasoning-support evidence rather than experimental materials validation. They evaluate whether ChargeBD can organize constrained reasoning efficiently under a standardized protocol and make the process more inspectable. Expert review, electrochemical simulation, or experiment remains necessary before any measurable R&D claim is made. Several limitations remain. First, MBTI-inspired persona agents are heuristic prompt templates rather than psychometric models. Second, task annotation and task-weight assignment involve human design choices that may affect distribution and interpretation. Third, the scoring protocol may be influenced by evaluator bias, scoring-dimension selection, and structured-output format. Fourth, because all persona agents are instantiated on one shared base model, cross-model replication is required before treating the observed persona-task matching patterns as model-independent. Fifth, while the ChargeBD Web Platform demonstrates workflow operation and process transparency, it does not yet incorporate a separate multi-round agent-to-agent review loop, an electrochemical simulation loop, or an experimental feedback loop. 22 Future work should release the benchmark, prompt templates, and scoring protocol for reproduction; test task-persona matching across base models and engineering-science domains; automate task-weight parsing; and connect ChargeBD with expert review, electrochemical simulation, or experimental feed-back where appropriate. For RFB scenarios, candidate molecules, electrolyte formulations, electrode structures, and system-control strategies should enter stricter verification chains before measurable R&D claims are made. 
+
+# 5 Conclusion 
+
+This study starts from RFB R&D tasks and constructs an RFB-specific task set, which is further expanded into the ESS-LLM Benchmark to evaluate multidimensional cognitive demands in complex energy-storage research. It constructs MBTI-inspired persona agents as structured cognitive-bias templates rather than psychometric instruments. Through task-persona matching, dual-path on-demand wake-up, and multi-level fusion, ChargeBD establishes a computable connection among task demands, persona capability structures, and collaborative outputs. Under the settings of this study, base-model benchmarking supports the selection of a shared base model, and persona prompting shows task-dependent effects. The 16 persona agents form a distinguishable cog-nitive advantage matrix, while single-persona agents retain blind spots. Fixed multi-agent combinations improve task coverage but show diminishing marginal utility as group size increases. In contrast, on-demand dynamic activation improves the performance-resource trade-off. The ChargeBD Web Platform further demonstrates how ChargeBD can be operationalized as an interactive workflow system for task parsing, persona selection, concurrent persona reasoning, and chief-engineer synthesis. Overall, this study provides a computational framework for adaptive multi-agent collaboration in complex scientific and engineering R&D tasks. ChargeBD should be interpreted as a reasoning-support framework whose benchmark results and ChargeBD Web Platform demonstrate task-adaptive persona selection, transparent collaboration, and resource-aware synthesis. Future work can combine open benchmarks, cross-model evaluation, expert review, simulation feedback, and experimental assessment to examine the stability and practical R&D value of this framework. 
+
+Acknowledgements 
+
+Rui Huang and Zekun Jiang contributed equally to this work. The authors acknowledge financial support from the Shanghai Municipal Special Program for Basic Research on “General Artificial Intelligence Large Models” (Grant No. 2025SHZDZX025D02), undertaken by China University of Petroleum (Bei-jing). The authors also thank the Shanghai Artificial Intelligence Laboratory for helpful discussions and support. 
+
+# References 
+
+[1] Jiang X, Wang W, Tian S, et al. Applications of natural language processing and large language models in materials discovery[J]. NPJ Computational Materials, 2025, 11(1). DOI:10.1038/s41524-025-01554-0. [2] Zhang J, Li J, Zhao G, et al. Mining Solid-State Electrolytes from Metal–Organic Framework Databases through Large Language Models and Representation Clustering[J]. Journal of the Amer-ican Chemical Society, 2025, 147(44): 40496-40506. 23 [3] Zhong, Y.; Leng, Y.; Chen, S.; Li, P.; Zou, Z.; Liu, Y.; Wan, J. Accelerating battery research with retrieval-augmented large language models: Present and future. Energy Storage Science and Technology 2024, 13(9), 3214-3225. DOI:10.19799/j.cnki.2095-4239.2024.0604. [4] Yuan, Y.; Gao, Y.; Zhang, J.; Gao, Y.; Wang, C.; Chen, X.; Zhang, Q. The application of large language models in energy storage research. Energy Storage Science and Technology 2024, 13(9), 2907-2919. DOI:10.19799/j.cnki.2095-4239.2024.0176. [5] Zuo, W.; Zheng, H.; He, T.; Vishwanath, V.; Chan, M. K. Y.; Stevens, R. L.; Amine, K.; Xu, G.-L. Large language models for batteries. Joule 2025, 9, 102037. DOI:10.1016/j.joule.2025.102037. [6] Zeni C, Pinsler R, Zügner D, et al. A generative model for inorganic materials design[J]. Nature, 2025, 639(8055): 624-632. [7] Bhattacharya D, Cassady H J, Hickner M A, et al. Large language models as molecu-lar design engines[J]. Journal of Chemical Information and Modeling, 2024, 64:7086-7096. DOI:10.1021/acs.jcim.4c01396. [8] Wang, H.; Fu, T.; Du, Y.; Gao, W.; Huang, K.; Liu, Z.; Chandak, P.; Liu, S.; et al. Scientific discovery in the age of artificial intelligence. Nature 2023, 620, 47-60. DOI:10.1038/s41586-023-06221-2. [9] Boiko, D. A.; MacKnight, R.; Kline, B.; Gomes, G. Autonomous chemical research with large lan-guage models. Nature 2023, 624, 570-578. DOI:10.1038/s41586-023-06792-0; arXiv:2304.05332. [10] Hu X, Chen S, Chen L, et al. Automating structure–activity analysis for electrochemical nitrogen reduction catalyst design through multi-agent collaborations[J]. National Science Review, 2025, 12(11): nwaf372. [11] Bran, A. M.; Cox, S.; Schilter, O.; Baldassari, C.; White, A. D.; Schwaller, P. Augmenting large language models with chemistry tools. Nature Machine Intelligence 2024, 6, 525-535. DOI:10.1038/s42256-024-00832-8; arXiv:2304.05376. [12] Ghafarollahi, A.; Buehler, M. J. SciAgents: Automating Scientific Discovery Through Bioin-spired Multi-Agent Intelligent Graph Reasoning. Advanced Materials 2025, 37(22), e2413523. DOI:10.1002/adma.202413523; arXiv:2409.05556. [13] Li, X.; Huang, Z.; Quan, S.; Peng, C.; Ma, X. SLM-MATRIX: a multi-agent trajectory reason-ing and verification framework for enhancing language models in materials data extraction. npj Computational Materials 2025, 11, 241. DOI:10.1038/s41524-025-01719-x. [14] Odobesku, R.; Romanova, K.; Mirzaeva, S.; Zagorulko, O.; Sim, R.; Khakimullin, R.; Razlivina, J.; Dmitrenko, A.; Vinogradov, V. Agent-based multimodal information extraction for nanomaterials. 
+
+npj Computational Materials 2025, 11, 194. DOI:10.1038/s41524-025-01674-7. [15] Rupprecht, S.; Gao, Q.; Karia, T.; Schweidtmann, A. M. Multi-agent systems for chemical engi-neering: a review and perspective. Current Opinion in Chemical Engineering 2026, 51, 101209. DOI:10.1016/j.coche.2025.101209; arXiv:2508.07880. [16] Pham, T. D.; Tanikanti, A.; Keceli, M. ChemGraph as an agentic framework for computational chemistry workflows. Communications Chemistry 2026, 9, 33. DOI:10.1038/s42004-025-01776-9; arXiv:2506.06363. [17] Hao L, Cao H, Feng B, et al. Beyond chemical qa: Evaluating llm’s chemical reasoning with modular chemical operations[J]. Advances in Neural Information Processing Systems, 2026, 38. 24 [18] Mirza, A.; Alampara, N.; Kunchapu, S.; Rios-Garcia, M.; Emoekabu, B.; Krishnan, A.; Gupta, T.; Schilling-Wilhelmi, M.; et al. A framework for evaluating the chemical knowledge and reasoning abilities of large language models against the expertise of chemists. Nature Chemistry 2025, 17, 1027-1034. DOI:10.1038/s41557-025-01815-x; arXiv:2404.01475. [19] Zhang, J.; Gan, J.; Wang, X.; Jia, Z.; Gu, C.; Chen, J.; Zhu, Y.; Ma, M. D.; Zhou, D.; Li, L.; Wang, W. MatSciBench: Benchmarking the reasoning ability of large language models in materials science. arXiv preprint arXiv:2510.12171, 2025. [20] Sepulveda, N. A.; Jenkins, J. D.; Edington, A.; Mallapragada, D. S.; Lester, R. K. The design space for long-duration energy storage in decarbonized power systems. Nature Energy 2021, 6, 506-516. DOI:10.1038/s41560-021-00796-8. [21] Weber, A. Z.; Mench, M. M.; Meyers, J. P.; Ross, P. N.; Gostick, J. T.; Liu, Q. Redox flow batteries: a review. Journal of Applied Electrochemistry 2011, 41, 1137-1164. DOI:10.1007/s10800-011-0348-2. [22] Darling, R. M.; Gallagher, K. G.; Kowalski, J. A.; Ha, S.; Brushett, F. R. Pathways to low-cost electrochemical energy storage: a comparison of aqueous and nonaqueous flow batteries. Energy & Environmental Science 2014, 7, 3459-3477. DOI:10.1039/C4EE02158D. [23] Puleston, T.; Clemente, A.; Costa-Castello, R.; Serra, M. Modelling and estimation of vanadium redox flow batteries: a review. Batteries 2022, 8, 121. DOI:10.3390/batteries8090121. [24] Jing M, Wei Z, Su W, et al. Improved electrochemical performance for vanadium flow battery by optimizing the concentration of the electrolyte[J]. Journal of Power Sources, 2016, 324: 215-223. [25] Shaheen I, Chiu W H, Lee Y X, et al. Heterogeneous graphite felt electrodes decorated with nanos-tructured graphitic carbon nitride for enhanced redox kinetics in vanadium redox flow batteries[J]. Journal of Power Sources, 2026, 667: 239216. [26] He S, Chai S, Li H. Nafion-Based Proton Exchange Membranes for Vanadium Redox Flow Batter-ies[J]. ChemSusChem, 2025, 18(10): e202402506. [27] Gundlapalli R, Bhattarai A, Ranjan R, et al. Characterization and scale-up of serpentine and interdigitated flow fields for application in commercial vanadium redox flow batteries[J]. Journal of Power Sources, 2022, 542: 231812. [28] Zou T, Shi X, Yu L. Study on energy loss of 35 kW all vanadium redox flow battery energy storage system under closed-loop flow strategy[J]. Journal of Power Sources, 2021, 490: 229514. [29] He, Q. Z.; Stinis, P.; Tartakovsky, A. M. Physics-constrained deep neural network method for estimating parameters in a redox flow battery. Journal of Power Sources 2022, 528, 231147. DOI:10.1016/j.jpowsour.2022.231147; arXiv:2106.11451. [30] Chen, W.; Fu, Y.; Stinis, P. Physics-informed machine learning of redox flow battery based on a two-dimensional unit cell model. Journal of Power Sources 2023, 584, 233548. DOI:10.1016/j.jpowsour.2023.233548; arXiv:2306.01010. [31] Gao Y C, Chen X, Yuan Y H, et al. Accelerating battery innovation: AI-powered molecular discovery[J]. Chemical Society Reviews, 2025, 54(21): 9630-9684. [32] Ma C, Yao C, Xu J, et al. Machine learning toward electrochemical energy storage materials and devices: A review[J]. Sustainable Materials and Technologies, 2026: e01990. [33] Tang X, Hu T, Ye M, et al. Chemagent: Self-updating library in large language models improves chemical reasoning[J]. arXiv preprint arXiv:2501.06590, 2025. 25 [34] Besta M, Chandran S, Gerstenberger R, et al. Psychologically enhanced AI agents[J]. arXiv preprint arXiv:2509.04343, 2025. [35] Tseng Y M, Huang Y C, Hsiao T Y, et al. Two tales of persona in llms: A survey of role-playing and personalization[C]//Findings of the Association for Computational Linguistics: EMNLP 2024. 2024: 16612-16631. [36] Wang, X.; Xiao, Y.; Huang, J.; Yuan, S.; Xu, R.; Guo, H.; Tu, Q.; Fei, Y.; Leng, Z.; Wang, W.; Chen, J.; Li, C.; Xiao, Y. InCharacter: Evaluating personality fidelity in role-playing agents through psychological interviews. In Proceedings of ACL 2024 , 1840-1873. DOI:10.18653/v1/2024.acl-long.102. [37] Cui, J.; Lv, L.; Wen, J.; Wang, R.; Tang, J.; Tian, Y.; Yuan, L. Machine Mindset: an MBTI exploration of large language models. arXiv preprint arXiv:2312.12999, 2023. [38] Myers I, McCaulley M. MBTI Manual: A Guide to the Development and Use of the Myers-Briggs Type Indicator[M]. Palo Alto: Consulting Psychologists Press, 1985. [39] Jung C G. Psychological Types[M]. London: Routledge, 1923. [40] Rodríguez Montequín V, Mesa Fernández J M, Balsera J V, et al. Using MBTI for the success assessment of engineering teams in project-based learning[J]. International journal of technology and design education, 2013, 23(4): 1127-1146. 26 Supplementary Information Supplementary Note S1. Prompt templates and persona-agent definitions 
+
+The prompt-source archive contains the Strategy A standard expert baseline prompt, the general Strategy B MBTI-augmented prompt template, and the persona-specific Strategy B prompt screenshots used to instantiate the 16 MBTI-inspired agents. To preserve readability, each prompt screenshot is displayed as a separate supplementary figure, and the corresponding image files are retained in the prompt_figures/ 
+
+folder. Full prompt text is not reconstructed in the SI to avoid transcription errors. Field Strategy A Strategy B Domain role Senior energy-storage expert Same professional base Persona variable Not used MBTI type placeholder Cognitive feature Not used Type-specific reasoning preference Value priority General scientific rigor Type-specific value ordering Task input Same task input Same task input Output constraints Same structured output requirements Same structured output requirements The 16 persona agents differ only in the system-level persona block. All other settings are shared across agents, including the base model, task input, API protocol, scoring protocol, and structured output requirements. The 16 MBTI-inspired persona agents are: ISTJ, ISFJ, INFJ, INTJ, ISTP, ISFP, INFP, INTP, ESTP, ESFP, ENFP, ENTP, ESTJ, ESFJ, ENFJ, and ENTJ. The complete prompt screenshots are provided in Supplementary Figures S1–S18. 
+
+# Supplementary Note S2. Threshold statistics for on-demand activation          
+
+> Supplementary Table S2. Activation parameters used in on-demand wake-up.
+> Parameter Value Role
+> 𝜃 score 100 Default score-driven activation threshold.
+> 𝜃 dim 20% Minimum dimension weight for dimension-driven activation.
+> 𝐾 max 6Maximum number of activated agents.
+
+The dimension-driven path activates 0, 1, 2, or 3 agents for a dimension when 𝑤 𝑘 falls in < 20% , 20% –
+
+30% , 30% –50% , or ≥ 50% , respectively. Supplementary Table S4 shows that higher matching-score intervals correspond to higher average task scores. Supplementary Table S5 compares candidate threshold values. The operating threshold 𝜃 score = 100 is selected as the balanced operating threshold because it improves performance while preserving multi-agent coverage. The higher threshold candidates, 
+
+𝜃 score = 105 and 𝜃 score = 110 , are not used as defaults because they activate fewer agents and may reduce cognitive coverage. 27 Supplementary Note S3. Multi-level fusion and disagreement convergence 
+
+S3.1 Cross-review and dispute marking 
+
+Activated agents first generate independent solutions. Cross-review then checks invariant violations, causal gaps, parameter inconsistencies, and alternative proposals. A variable is marked as disputed when 
+
+𝛿 𝑗 > 15% ; disputed variables are either revised or retained as unresolved risk notes if convergence is not reached. 
+
+𝛿 𝑗 = max 𝑖 (𝑣 𝑖, 𝑗 ) − min 𝑖 (𝑣 𝑖, 𝑗 )
+
+range 𝑗 
+
+.
+
+S3.2 Convergence and stopping rules 
+
+𝐷 = 1
+
+𝑚 
+
+> 𝑚
+
+∑︁ 
+
+> 𝑗 =1
+
+𝑤 𝑗 𝛿 𝑗 .
+
+The convergence thresholds are 𝐷 < 5% for high-risk tasks, 𝐷 < 10% for routine engineering tasks, and 
+
+𝐷 < 15% for conceptual exploration tasks. The maximum number of revision rounds is 5. Unresolved variables after the maximum number of rounds are preserved as risk or uncertainty notes. 
+
+S3.3 Fusion and adjudication rules 
+
+Quantitative and semi-quantitative items are fused using capability-, relevance-, and dimension-match-weighted aggregation. Qualitative conflicts are adjudicated by the best-performing activated agent for the relevant task dimension. If weighted fusion conflicts with dimension-expert judgment in safety-critical or high-risk tasks, the dimension-expert judgment is prioritized and the conflict is marked. Supplementary Table S6 gives the cross-review criteria, and Supplementary Table S7 compares the fusion strategies. 
+
+# Supplementary Note S4. Structured output schema and API protocol 
+
+All candidate models, persona prompts, and collaboration structures are compared under the same API-calling, parsing, scoring, and resource-statistics pipeline. The five candidate Chinese LLMs are DeepSeek-V3-Plus, Qwen2.5-Plus-72B, GLM-4-Plus, Doubao-Pro-2, and Kimi-K2; DeepSeek-V3-Plus is used as the shared base model for persona-agent and multi-agent experiments. Parameter Value temperature 0.7 top_p 0.95 max_tokens 4096 timeout 180 s retry 3concurrency 5The primary scoring dimensions are professional knowledge accuracy, logical-analysis ability, and proposal innovation. The overall score uses weights of 30%, 40%, and 30%: 
+
+Score = 0.30 × Knowledge + 0.40 × Logic + 0.30 × Innovation .
+
+28 Field Description Used for problem_analysis Decomposition of task background, objectives, and implied subproblems. Task interpretation and response organization. key_constraints Physical, chemical, engineering, and safety con-straints used for invariant checking. Constraint tracking and factual screening. proposal_design Main design proposal, reasoning path, or solution structure. Evaluation of solution quality and logic. parameter_suggestions Quantitative or semi-quantitative parameters when applicable. Engineering feasibility and resource-aware comparison. feasibility_assessment Scientific and engineering feasibility assessment. Practical evaluation and expert review. risk_uncertainty_notes Unresolved risks, uncertainty, or conditions requir-ing expert review. Safety review and limitation marking. Resource statistics include token usage, inference time, memory usage, and average activated agents. 29 Supplementary Figure S1. Strategy A standard professional baseline prompt. 
+
+30 Supplementary Figure S2. General Strategy B MBTI-augmented prompt template. 
+
+31 Supplementary Figure S3. Strategy B INTJ persona prompt. 
+
+32 Supplementary Figure S4. Strategy B INTP persona prompt. 
+
+33 Supplementary Figure S5. Strategy B ENTJ persona prompt. 
+
+34 Supplementary Figure S6. Strategy B ENTP persona prompt. 
+
+35 Supplementary Figure S7. Strategy B ISTJ persona prompt. 
+
+36 Supplementary Figure S8. Strategy B ISFJ persona prompt. 
+
+37 Supplementary Figure S9. Strategy B ESTJ persona prompt. 
+
+38 Supplementary Figure S10. Strategy B ESFJ persona prompt. 
+
+39 Supplementary Figure S11. Strategy B INFJ persona prompt. 
+
+40 Supplementary Figure S12. Strategy B INFP persona prompt. 
+
+41 Supplementary Figure S13. Strategy B ENFJ persona prompt. 
+
+42 Supplementary Figure S14. Strategy B ENFP persona prompt. 
+
+43 Supplementary Figure S15. Strategy B ISTP persona prompt. 
+
+44 Supplementary Figure S16. Strategy B ISFP persona prompt. 
+
+45 Supplementary Figure S17. Strategy B ESTP persona prompt. 
+
+46 Supplementary Figure S18. Strategy B ESFP persona prompt. 
+
+47 Supplementary Table S5. Classification and examples of the RFB-specific task set. 
+
+Category Complexity ID Question title Evaluation 
+
+Molecular design and synthesis High FB MD 01 Design of high-energy-density organic redox-active molecules Innovative design capability and materials-domain knowledge FB MD 03 Optimization of electrochemical stability of organic molecules FB MD 05 Optimization of synthetic routes for organic molecules FB MD 07 Challenges in scalable synthesis of organic molecules FB MD 10 Exploration and design of new organic molecules Medium FB MD 02 Strategies for improving organic-molecule solubility FB MD 04 Cost-control design of organic molecules FB MD 08 Compatibility design between organic molecules and electrodes FB MD 09 Long-term cycling stability of organic molecules Low FB MD 06 Toxicity assessment and environmentally benign design of organic molecules Electrolyte optimization High FB EO 11 Electrolyte concentration optimization for vanadium redox flow batteries Technical optimization and electrochemical principles FB EO 12 Electrolyte additive selection for vanadium redox flow batteries FB EO 14 Solvent-system optimization for organic redox flow batteries FB EO 15 Wide-temperature stability of organic redox flow battery electrolytes FB EO 16 Long-term cycling stability of organic redox flow battery electrolytes Medium FB EO 13 pH regulation of organic redox flow battery electrolytes FB EO 17 Zinc dendrite suppression in zinc-based redox flow battery electrolytes FB EO 18 pH buffering in zinc-based redox flow battery electrolytes FB EO 20 Cost control of organic redox flow battery electrolytes Low FB EO 19 Improvement of ionic conductivity in organic redox flow battery electrolytes Electrode and membrane materials High FB EM 21 Pore-structure optimization of carbon-based electrodes Materials science and surface chemistry FB EM 23 Selectivity optimization of ion-exchange membranes FB EM 25 Electrode stability in organic redox flow batteries FB EM 28 Optimization of electrode compaction density in organic redox flow batteries Continued on next page 
+
+48 Supplementary Table S5. Classification and examples of the RFB-specific task set. Continued. 
+
+Category Complexity Question ID Question title Evaluation focus 
+
+FB EM 30 Design of composite membrane materials Medium FB EM 22 Surface functionalization of carbon-based electrodes FB EM 24 Mechanical-strength enhancement of ion-exchange membranes FB EM 26 Catalytic-activity enhancement of carbon-based electrodes FB EM 29 Optimization of conductive networks in carbon-based electrodes Low FB EM 27 Electrode design for zinc-based redox flow batteries System management High FB SM 31 Design of thermal-management systems for redox flow batteries Systems engineering and control theory FB SM 32 Optimization of fluid circulation in redox flow batteries FB SM 33 Improvement of SOC estimation accuracy for redox flow batteries FB SM 34 SOH assessment of redox flow batteries FB SM 35 Online monitoring of electrolyte concentration in redox flow batteries Medium FB SM 36 System-control strategies for organic redox flow batteries FB SM 37 System-efficiency optimization of redox flow batteries FB SM 39 Modular design of redox flow battery systems FB SM 40 Intelligent diagnostic systems for organic redox flow batteries Low FB SM 38 Cost-benefit analysis of organic redox flow batteries Safety analysis High FB SA 41 Overheating analysis and safety assessment of redox flow batteries Safety engineering and risk assessment FB SA 43 Electrical-safety design of redox flow batteries FB SA 45 Mechanical-safety design of redox flow batteries FB SA 47 Operating safety procedures for organic redox flow batteries FB SA 50 Long-term stability prediction of organic redox flow batteries Medium FB SA 42 Materials-safety assessment of organic redox flow batteries FB SA 44 Fire-risk assessment of redox flow batteries FB SA 46 Leakage detection and protection for redox flow batteries FB SA 48 Design of safety-monitoring systems for redox flow batteries Continued on next page 
+
+49 Supplementary Table S5. Classification and examples of the RFB-specific task set. Continued. 
+
+Category Complexity Question ID Question title Evaluation focus 
+
+Low FB SA 49 Environmental compliance and recycling of redox flow batteries 
+
+50 Supplementary Table S6. Problem categories in the ESS-LLM Benchmark. 
+
+Major category Subcategory Questions ID range 
+
+Battery materials R&D Advanced cathode materials and crystal-structure design 24 Q01–Q24 Anode materials and interfacial evolution 20 Q25–Q44 Advanced electrolytes and solid-state ionics 22 Q45–Q66 Emerging battery systems and electrocatalysis 19 Q67–Q85 Advanced characterization, manufacturing, and multiscale simulation 15 Q86–Q100 Stack engineering and process Cell-manufacturing process physics 23 Q101–Q123 Module assembly and connection technologies 24 Q124–Q147 Thermal management, fluid processes, and safety physics 20 Q148–Q167 High-voltage electrical architecture and insulation protection 19 Q168–Q186 System integration and reliability testing 14 Q187–Q200 System modeling and estimation Mechanistic modeling and model reduction 20 Q201–Q220 State estimation and filtering algorithms 24 Q221–Q244 Parameter identification and impedance analysis 18 Q245–Q262 Data-driven modeling and lifetime prediction 18 Q263–Q280 Multiphysics coupling and aging mechanisms 20 Q281–Q300 Safety analysis and evaluation Thermal runaway, fire, and explosion physics 26 Q301–Q326 Mechanical abuse and structural safety 17 Q327–Q343 High-voltage electrical safety and protection 19 Q344–Q362 Fault diagnosis and early-warning mechanisms 14 Q363–Q376 Electrical faults and electromagnetic safety 13 Q377–Q389 Insulation monitoring and reliability 11 Q390–Q400 System integration and optimization Grid interaction and power control 26 Q401–Q426 Multi-cluster parallel operation and topology control 14 Q427–Q440 State estimation and fault diagnosis 24 Q441–Q464 Parameter identification and performance analysis 18 Q465–Q482 Data-driven operation and cloud-edge collaboration 18 Q483–Q500 
+
+51 Supplementary Table S7. Statistics of feature annotations across the five major problem categories. 
+
+Problem category No. of questions High innovation demand High rigor requirement High complexity High practical orientation 
+
+Materials R&D 100 65 (65%) 50 (50%) 45 (45%) 40 (40%) Stack engineering 100 25 (25%) 70 (70%) 55 (55%) 75 (75%) System modeling 100 55 (55%) 60 (60%) 50 (50%) 35 (35%) Safety analysis 100 20 (20%) 80 (80%) 40 (40%) 60 (60%) System integration 100 30 (30%) 50 (50%) 45 (45%) 80 (80%) 
+
+52 Supplementary Table S9. Average persona scores across matching-degree intervals. 
+
+Matching-degree interval Average score Standard deviation Sample size Performance evaluation Comparison with baseline 
+
+𝑀 (𝑇, 𝑃 𝑖 ) ≥ 110 93.8 ±1.5 185 Excellent +7.0 
+
+100 ≤ 𝑀 (𝑇, 𝑃 𝑖 ) < 110 92.5 ±1.8 420 Good +5.7 
+
+90 ≤ 𝑀 (𝑇, 𝑃 𝑖 ) < 100 89.2 ±2.3 680 Moderate +2.4 
+
+80 ≤ 𝑀 (𝑇, 𝑃 𝑖 ) < 90 86.5 ±2.8 720 Fair -0.3 
+
+𝑀 (𝑇, 𝑃 𝑖 ) < 80 84.2 ±3.2 395 Poor -2.6 
+
+Note: The difference is calculated based on the overall average score of 86.8 for Strategy A (general expert baseline). 
+
+53 Supplementary Table S11. Statistical basis for matching-score threshold selection. 
+
+Threshold candidate Average score Proportion 
+
+≥ 93 
+
+Proportion 
+
+≥ 90 
+
+Comparison with Strategy A Avg. activated agents 
+
+𝜃 score = 90 88.5 42% 68% +1.7 6.2 
+
+𝜃 score = 95 90.8 55% 82% +4.0 4.5 
+
+𝜃 score = 100 92.5 65% 89% +5.7 3.8 
+
+𝜃 score = 105 93.8 72% 95% +7.0 2.3 
+
+𝜃 score = 110 94.2 78% 97% +7.4 1.5 
+
+Note: The operating threshold used in the main manuscript is 𝜃 score = 100 , which balances score improvement and activated-agent coverage. Higher candidate thresholds produce higher average scores but activate fewer agents, and are therefore not used as the default operating point. 
+
+54 Supplementary Table S13. Agent cross-review criteria. 
+
+Review dimension Review criterion Review method 
+
+Problem Invariant ( I) No violation of physical / chemical / engineering laws Knowledge base-driven rule engine check Cognitive Trade-off Axis ( A) Rationality of the three trade-off axes Dimensional analysis and personality consistency verification Logical Consistency Self-consistency of the causal chain Logical reasoning engine and contra-diction detection Innovativeness Novelty and feasibility of the solution Comparison with historical solutions, domain expert evaluation 
+
+55 Supplementary Table S15. Fusion-strategy comparison. 
+
+Fusion strategy Overall score Dimension coverage Detail retention Avg. token consumption Avg. inference time (s) 
+
+Select-Best Only 91.5 50% 45% 4,200 8.2 Simple Weighting 93.2 80% 75% 6,800 13.5 Dimensional Expert Voting 93.8 90% 85% 8,200 16.0 Multi-Level Fusion 94.5 100% 95% 9,500 19.5 
+
+56
