@@ -1,0 +1,1916 @@
+Title: Probabilistic Contrastive Pretraining for Multi-task ADME Property Prediction
+
+URL Source: https://arxiv.org/pdf/2606.11508v1
+
+Published Time: Thu, 11 Jun 2026 00:19:02 GMT
+
+Number of Pages: 29
+
+Markdown Content:
+# Probabilistic Contrastive Pretraining for Multi-task ADME Property Prediction 
+
+Yifan Xue 
+
+NVIDIA Santa Clara, CA 95051 
+
+evax@nvidia.com 
+
+Srimukh Prasad Veccham 
+
+NVIDIA Santa Clara, CA 95051 
+
+sveccham@nvidia.com 
+
+Saee Paliwal 
+
+NVIDIA Santa Clara, CA 95051 
+
+saeep@nvidia.com 
+
+Tyler Shimko 
+
+NVIDIA Santa Clara, CA 95051 
+
+tshimko@nvidia.com 
+
+Micha Livne 
+
+NVIDIA Santa Clara, CA 95051 
+
+mlivne@nvidia.com 
+
+Abstract 
+
+Accurate prediction of absorption, distribution, metabolism, and excretion (ADME) properties is critical to drug discovery, but remains challenging because ADME endpoints are noisy, interdependent, and often data-limited. We propose a molec-ular graph-transformer pretraining framework that combines chemistry-specific self-supervision with contrastive mutual information machine learning (cMIM). Our method encodes molecular graphs into latent variables, reconstructs SMILES strings from the graph-derived latent codes, and augments the contrastive objective with domain-specific self-supervised chemistry tasks. Rather than treating these tasks as auxiliary regularizers with separately tuned loss weights, we formulate reconstruction, contrastive discrimination, and chemistry-specific supervision as unit-weighted log-probability factors in a single probabilistic latent-variable ob-jective. For fine-tuning, we propose a multi-task GNN readout architecture with task-specific multilayer perceptron heads, preserving shared representation learning while mitigating negative transfer and improving the modeling of heterogeneous, nonlinear task relationships. Across the Biogen, ExpansionRX, and ChEMBL-MT benchmarks, the resulting Contrastive KERMT pretraining strategy consistently improves downstream prediction on these multi-task ADME benchmarks relative to the KERMT baseline with gains of 7.6% on Biogen, 9.9% on ExpansionRX, and 9.5% on ChEMBL-MT datasets averaging over endpoints with statistically sig-nificant differences. We further show that adding ADME-adjacent molecules to the pretraining corpus improves transfer, and that the contrastive component sharpens chemically meaningful latent neighborhoods. These results suggest that cMIM improves ADME representation learning by adding global latent-neighborhood shaping to KERMT’s local chemistry-specific self-supervision, and that the combi-nation transfers better than either component alone under controlled pretraining and the stated fine-tuning protocols. 
+
+1 Introduction 
+
+Absorption, distribution, metabolism, and excretion (ADME) properties are central to drug discovery because they determine whether a potent molecule can become a viable therapeutic candidate: it must reach the right exposure, persist for an appropriate duration, and avoid unfavorable pharmacokinetic behavior [Balani et al., 2005, Pellegatti, 2012]. In practice, ADME optimization is closely tied to safety assessment, since poor pharmacokinetics can amplify toxicity risk and promising compounds 
+
+> Preprint.
+> arXiv:2606.11508v1 [cs.LG] 9 Jun 2026
+
+must ultimately balance exposure, efficacy, and safety. Measuring these properties requires a mixture of physicochemical assays, in vitro experiments, and in vivo studies, which are costly, slow, and often available only for limited regions of chemical space. As a result, drug discovery programs increasingly rely on in silico models to prioritize compounds before experimental testing [Lombardo et al., 2017, Cáceres et al., 2020, Beckers et al., 2023]. Pretrained molecular graph models are a natural fit for this setting, but practical ADME prediction still poses three coupled challenges. First, learned latent neighborhoods should be chemically meaningful: molecules that are close in representation space should also be close in structure and property space. Second, downstream ADME datasets are multi-task, noisy, and imbalanced: multi-task prediction can regularize data-limited endpoints through shared representations, but a single shared prediction head can underfit endpoint-specific nonlinearities or induce negative transfer when task correlations are weak [Xu et al., 2017]. Third, the unlabeled molecules used for pretraining may differ substantially from the ADME assays used for fine-tuning, making corpus design an important part of transfer. Existing molecular GNNs, self-supervised objectives, contrastive methods, and multi-task formulations address parts of this picture; we review them in Section 5. We introduce Contrastive KERMT, a graph-transformer pretraining and fine-tuning framework for ADME prediction. The pretraining objective adapts contrastive Mutual Information Machine learning (cMIM ) to molecules by encoding a molecular graph, reconstructing its SMILES representation, and using an in-batch contrastive term to shape the latent space. Our main methodological change is to incorporate chemistry-specific self-supervised tasks, including KERMT/GROVER-style atom, bond, and functional-group prediction [Adrian et al., 2025], as observed variables in the same probabilistic latent-variable objective. These tasks are therefore unit-weighted log-probability factors rather than auxiliary regularizers with separately tuned loss weights. For downstream prediction, we combine the pretrained backbone with task-specific MLP heads so each endpoint can learn its own late-stage transformation while still sharing a common molecular representation. Our contributions are threefold: (i) we propose a probabilistic extension of cMIM that combines global latent-neighborhood shaping with KERMT-style chemistry-specific self-supervision in a single latent-variable objective, avoiding an additional hyperparameter search over auxiliary regularization weights; (ii) we introduce task-specific multi-layer perceptron heads for ADME fine-tuning, where each endpoint-specific head is updated only by its corresponding task loss; and (iii) we show that Contrastive KERMT improves downstream ADME prediction across Biogen, ExpansionRX, and ChEMBL-MT, and that adding ADME-aligned molecules to the pretraining corpus further improves transfer. 
+
+2 Method 
+
+Graph-to-SMILES Pretraining We use contrastive Mutual Information Machine learning [Livne, 2025] to shape the latent space of a molecular graph transformer before ADME fine-tuning. For molecule i, let xi = ( gi, s i) denote the underlying molecule together with two equivalent molecular views: its 2D molecular graph gi and its canonical SMILES string si [Weininger, 1988]. We use 
+
+gi and si as interchangeable identifiers of the same molecule xi, while assigning them different roles in the graph-to-SMILES model. The encoder is the KERMT graph-transformer backbone and defines a variational distribution qθ (z | gi) over molecule-level latent codes. The decoder is an autoregressive SMILES transformer and defines pθ (si | zi). Thus, unlike a standard graph autoencoder, the model encodes graph representation and reconstructs the molecular string. This graph-to-SMILES construction encourages the latent code to preserve information that is shared across molecular views rather than overfitting to a single input representation. A schematic overview of the MIM and cMIM graphical model is provided in Figure 4 in the Appendix. 
+
+MIM objective The original MIM objective learns a latent-variable model that maximizes mutual information between inputs and latent codes while encouraging clustered latent structure [Livne et al., 2019, 2020]. Here we use A-MIM , an asymmetric variant where only the posterior is sampled during training, but not the prior. Given a batch B = {xi = ( gi, s i)}Bi=1 and latent samples zi ∼ qθ (z | gi),the graph-to-SMILES A-MIM loss is 
+
+ˆLA-MIM = − 1
+
+B
+
+> B
+
+X
+
+> i=1
+
+
+
+log pθ (si | zi) + 12 (log qθ (zi | gi) + log p(zi)) 
+
+
+
+, (1) 2where p(z) is a standard normal prior. The first term rewards reconstruction of the SMILES view from the graph-derived latent code. The symmetric latent-density term keeps sampled codes likely under both the encoder and the prior, which regularizes the representation and encourages a structured latent distribution. The SMILES likelihood is evaluated autoregressively as log pθ (si | zi) = 
+
+P|si| 
+
+> u=1
+
+log pθ (si,u | si,<u , zi). We use teacher forcing with a character-level SMILES tokenizer and do not length-normalize the reconstruction term. 
+
+Contrastive MIM cMIM adds a binary contrastive-like auxiliary random variable that does not require in-batch positive pairs [Livne, 2025] and encourages global separation of the latent codes. Instead, it uses the batch to estimate the contribution of mismatched negative samples. We define the batch-conditioned probability 
+
+pθ (k con = 1 | gi, zi; B) = exp(sim( zi, zi)/τ )exp(sim( zi, zi)/τ ) + 1
+
+> B−1
+
+P  
+
+> j̸=i
+
+exp(sim( zi, zj )/τ ) , (2) where sim( ·, ·) is cosine similarity and τ is a temperature. Unlike augmentation-based contrastive objectives, the positive logit in cMIM is not a learned attraction between two augmented molecular views. With cosine similarity, sim( zi, zi) = 1 , so the positive score is the fixed reference value 
+
+exp(1 /τ ). The attraction between a molecule and its latent code is supplied by the MIM terms, namely the graph-to-SMILES reconstruction likelihood and the latent-density terms. The cMIM binary variable instead compares this matched sample against an in-batch Monte Carlo estimate of mismatched latent similarities, thereby repelling unrelated samples and improving global angular separation. Thus, cMIM removes the need for positive-pair molecular augmentations while still using in-batch mismatched samples to estimate the negative expectation. The cMIM loss is then 
+
+ˆLcMIM = ˆLA-MIM − 1
+
+B
+
+> B
+
+X
+
+> i=1
+
+log pθ (k con = 1 | gi, zi; B). (3) The reconstruction and latent-density terms preserve local information and cluster structure, while the contrastive term spreads unrelated samples apart in the latent space. This combination is useful for ADME modeling because downstream predictors need both chemically smooth neighborhoods and discriminative separation between molecules with different property profiles. 
+
+Chemistry-specific auxiliary variables We propose to augment the cMIM loss with domain-specific self-supervised tasks by extending the contrastive auxiliary variable with chemistry-specific variables. This turns the contrastive objective from a purely instance-discrimination signal into a joint objective where latent codes also predict chemically meaningful structure. Let yi,t = task t(gi, s i)
+
+be the target for chemistry task t, computed without assay labels, and let pθ (k t = yi,t | gi, zi) be the corresponding prediction head. In our setting these tasks are the chemically informed KERMT [Adrian et al., 2025] pretraining targets, such as atom-context, bond-context, and functional group prediction, when those heads are active. Defining ¯k = (k con , k1, . . . , kT), the extended objective is 
+
+ˆLx-cMIM = ˆLcMIM − 1
+
+B
+
+X
+
+> i,t
+
+log pθ (k t = yi,t | gi, zi). (4) Equation (4) sums over batch elements and active chemistry tasks and reduces to Eq. (3) when T = 0 ;its expanded log-probability form is given in Appendix A. Written this way, reconstruction, latent regularization, contrastive discrimination, and chemistry-specific supervision are all log-probability factors in a single joint objective. By “unit weighting” we mean unit scalar coefficients on each log-probability factor — not equal gradient magnitudes. Each factor enters as its native sample-level log-probability: the SMILES likelihood summed over tokens, latent-density terms over latent dimensions, and chemistry objectives reduced as in KERMT. Algorithm 1 in Appendix A summarizes the full pretraining loop. 
+
+3 Experimental Setup 
+
+3.1 Datasets and Benchmarks 
+
+We use datasets in two distinct roles. Pretraining corpora provide unlabeled molecules for learning the encoder representations; these corpora vary in scale and in-domain ADME coverage. Downstream 
+
+3xi 
+
+> gi
+> graph
+> si
+> SMILES
+> KERMT encoder
+> atom/bond vocab
+> functional groups Lvocab
+> latent
+> zi
+> Transformer decoder
+> Lrec
+> +Lcon
+> Hybrid objective
+> KERMT path
+> cMIM path
+
+Figure 1: Architecture of Contrastive KERMT. KERMT uses the shared graph-transformer encoder with vocabulary-prediction heads; cMIM-only uses the encoder with the SMILES decoder and cMIM loss; Contrastive KERMT combines both paths. See Table 5 for a component-level comparison. 
+
+benchmarks provide labeled assay endpoints for evaluating property prediction after fine-tuning. The pretraining corpora are ZINC15_ChEMBL-11M, the larger ZINC15_ChEMBL-up-208M corpus, and several ADME-adjacent augmentations built from Biogen molecules, MolMIM-generated molecules seeded from Biogen, ExpansionRX, and ChEMBL-MT. The downstream benchmarks are Biogen, ExpansionRX, and ChEMBL-MT, containing 4, 9, and 25 prediction tasks respectively. Detailed information about dataset construction, curation, and split definitions is provided in Appendix C. 
+
+3.2 Pretraining Model Variants 
+
+Within the extended cMIM framework of Eq. (4) , we compare three pretraining variants that toggle two components: the cMIM block (graph-to-SMILES reconstruction plus in-batch contrastive dis-crimination) and the KERMT chemistry-specific pretraining targets (atom-context, bond-context, and functional group prediction). All variants share the KERMT (Kinetic GROVER Multi-Task) [Adrian et al., 2025] encoder, an extension of the GROVER graph transformer [Rong et al., 2020] with local atom/bond message passing, global attention, and four encoder readouts available for downstream use: two atom-level and two bond-level readouts obtained by pooling atom and bond features under atom-context and bond-context attention. The encoder uses hidden size 800, 6 message-passing-plus-attention layers, 4 attention heads per layer, 1 MT block, PReLU activations, and 0.1 dropout. Component-level differences are summarized in Table 5. 
+
+KERMT This is the cMIM-block-off ablation and recovers the original KERMT pretraining recipe: the encoder is trained only with atom-context prediction, bond-context prediction, and functional group classification heads applied from both atom and bond representations. 
+
+cMIM-only This variant removes the KERMT pretraining-target heads and trains the encoder with the base cMIM objective alone—Eq. (3) , equivalently Eq. (4) with T = 0 —so its only pretraining signals are graph-to-SMILES reconstruction and in-batch contrastive discrimination. A mean-pooled encoder readout is mapped through a learned projection to a 512-dimensional latent distribution, and a 3-layer, 8-head transformer decoder [Vaswani et al., 2017] with 2048 FFN dimensions and rotary positional encoding [Su et al., 2024] reconstructs the input SMILES from the latent code. 
+
+Contrastive KERMT Contrastive KERMT activates both cMIM and the KERMT pretraining targets, yielding the full objective in Eq. (4) . The auxiliary targets are treated as additional observed variables in the joint latent-variable model rather than as separately weighted regularizers, so the local atom/bond supervision and the global contrastive-reconstruction signal enter as unit-weighted log-probability factors. This preserves the probabilistic interpretation and avoids loss-weight tuning. The architecture therefore includes all components of KERMT and cMIM-only (Figure 1). Pretraining hyperparameters and implementation details for all three variants are reported in Appendix E. 
+
+3.3 Pretraining Corpora and Configurations 
+
+Each pretraining configuration is a pairing of one model variant from Section 3.2 with one unlabeled molecular corpus from Section 3.1. Table 1 lists the configurations evaluated in this work. The first three rows isolate the effect of the pretraining objective at fixed corpus scale by training KERMT, 4cMIM-only, and Contrastive KERMT on the same 11M-molecule base corpus. The remaining rows keep the full Contrastive KERMT objective fixed and vary the pretraining corpus. The corpus ablations span a size axis (11M → 208M molecules) and three in-domain augmentation strategies layered on top of the base corpus: Biogen molecules alone; Biogen plus 30k synthetic molecules generated from Biogen seeds; and a pooled ADME-adjacent corpus combining Biogen, ExpansionRX, and ChEMBL-MT. We use MolMIM [Reidenbach et al., 2022] to produce the synthetic extensions, and verify in Appendix F that they remain close to their Biogen seeds in chemical space. Implementation details, including training budgets, are reported in Appendix E. Some in-domain pretraining configurations include molecules that also appear in downstream validation or test splits, always without assay labels. These settings therefore evaluate label-free corpus adaptation rather than a strict molecule-holdout pretraining protocol. Supervised fine-tuning and model selection still use the downstream train/validation/test labels only according to the stated splits. Table 1: Pretraining configurations. See full corpus definitions in Appendix C.                   
+
+> Model Variant Pretraining corpus Samples KERMT ZINC15_ChEMBL-11M 11M cMIM-only ZINC15_ChEMBL-11M 11M Contrastive KERMT ZINC15_ChEMBL-11M 11M Contrastive KERMT ZINC15_ChEMBL-up-208M 208M Contrastive KERMT ZINC15_ChEMBL-11M + Biogen 11.004M Contrastive KERMT ZINC15_ChEMBL-up-208M + Biogen 208.004M Contrastive KERMT ZINC15_ChEMBL-11M + Biogen + 30k generated 11.034M Contrastive KERMT ZINC15_ChEMBL-11M + Biogen + ExpansionRX + ChEMBL-MT 11.125M
+
+3.4 Downstream Fine-tuning Protocol 
+
+For downstream evaluation, each pretraining configuration produces an encoder initialization that is fine-tuned end-to-end on each labeled ADME benchmark. The downstream tasks are the assay endpoints within a benchmark: 4 tasks for Biogen, 9 for ExpansionRX, and 25 for ChEMBL-MT. We compare a task-specific readout against a default shared-head readout to distinguish downstream prediction architecture from pretraining variant or corpus; all fine-tuning implementation details are provided in Appendix E. A complementary representation-quality assessment via linear probing on frozen embeddings is provided in Appendix H. All pretraining-only modules, including the SMILES decoder, posterior parameter head, and cMIM contrastive branch, are discarded before downstream fine-tuning. Every pretrained variant is fine-tuned through the same KERMT encoder/readout interface, so downstream differences reflect the learned encoder initialization rather than additional cMIM inference-time capacity. 
+
+4 Results 
+
+For the results shown below, we use different metrics for different experimental questions. Sec-tion 4.1 evaluates representation geometry, so we use nearest-neighbor preservation metrics: Trustworthiness@ 10 , Precision@ 10 , Violation Rate, and conditional Q0.9 distance. Section 4.2 compares predictive performance across model families using Pearson’s R, which is scale-invariant and standard for comparing endpoint-wise ranking and correlation across heterogeneous ADME assays. Section 4.3 analyzes within-family pretraining and corpus ablations using MAE, because MAE measures absolute assay-prediction error and is directly interpretable within each benchmark. Full fine-tuning runs provide the main downstream evidence, while latent-neighborhood preservation and frozen linear probing are diagnostic representation-level analyses used to interpret how cMIM changes the encoder. Metric definitions and endpoint-level results are provided in the appendices. 
+
+4.1 Effect of cMIM on Latent Neighborhoods 
+
+To test whether cMIM improves latent geometry, we compare the cMIM-only encoder with the matched KERMT-style baseline on Biogen and ExpansionRX. For each molecule, we retrieve 
+
+k = 10 latent nearest neighbors and evaluate whether those neighbors remain close along three chemically meaningful axes: canonical-SMILES edit distance, Morgan-fingerprint distance [Rogers 5and Hahn, 2010] ( 1−Tanimoto similarity [Bajusz et al., 2015]), and measured ADME-property distance. We report Trustworthiness@ 10 [Venna and Kaski, 2001] and Precision@ 10 (higher is better), plus Violation Rate and conditional Q0.9 distance (lower is better); Appendix B gives the metric definitions. Table 2: cMIM-normalized relative advantage ( ∆% ) over the matched KERMT baseline on latent-neighborhood preservation for Biogen ( B) and ExpansionRX ( E). Columns are the comparison spaces used to judge latent-neighbor quality. For higher-is-better metrics, ∆% = 100 · (mcMIM −
+
+mKERMT )/|mcMIM |. For lower-is-better metrics we switch the subtraction order. Positive values always indicate that cMIM improves over the matched KERMT baseline.                                      
+
+> Metric SMILES Morgan FP Property BEBEBE
+> ↑Trustworthiness@ 10 10.7% 9.2% 3.0% 3.3% 1.1% 2.0%
+> ↑Precision@ 10 40.3% 30.1% 42.3% 28.3% 0.0% 10.0%
+> ↓Violation Rate 13.1% 24.4% 27.6% 22.7% 0.2% 2.0%
+> ↓Cond. Q0.96.5% 10.8% 2.0% 17.6% 2.4% 0.8%
+
+Table 2 shows that cMIM improves nearly every metric, comparison axis, and benchmark. In cMIM-normalized relative terms, the largest gains are in neighborhood overlap: Precision@ 10 rises by 
+
+40 .3% /42 .3% on Biogen for SMILES/Morgan FP and by 30 .1% /28 .3% on ExpansionRX, with a further 10 .0% gain in ExpansionRX property space. Failure-oriented metrics move in the same direction: Violation Rate drops most on Biogen Morgan FP ( 27 .6% ) and ExpansionRX SMILES (24 .4% ), and conditional Q0.9 distance decreases for all axes on both benchmarks. Thus, the contrastive objective primarily sharpens chemically local neighborhoods while preserving property-relevant structure. 
+
+4.2 Performance on ADME Benchmarks 
+
+Table 3: Number of ADME tasks on which each model is the best or statistically indistinguishable from the best under Tukey HSD, using Pearson’s R metric across Biogen, ExpansionRX, and ChEMBL-MT datasets. Bold marks the per-dataset maximum in the “Best” column. Fixed descriptor baselines are excluded here because they underperform the neural baselines in this multi-task setting.                                       
+
+> Biogen ExpansionRX ChEMBL-MT Model Best Indist. Best Indist. Best Indist. Contrastive KERMT 315414 10 KERMT 0425122 KPGT 0305514 MolCLR 010117Chemprop 132318
+
+We compare the performance of Contrastive KERMT against both fixed descriptors and graph neural network models, including both pretrained and non-pretrained variants. We evaluate on three ADME-focused multi-task datasets: Biogen, ExpansionRX, and ChEMBL-MT. All neural baselines are evaluated under the same downstream split, preprocessing, target transformations, missing-label handling, early-stopping criterion, and benchmark-specific evaluation metric. Pretraining data access differs across model families. Within-family KERMT comparisons use matched pretraining-corpus access when isolating the effect of adding cMIM. The pretraining molecular corpus of KERMT and KPGT (Knowledge-guided Pretraining Graph Transformer) models overlap with ChEMBL-MT. By contrast, ExpansionRX is new and was not included in the pretraining corpus of external baselines. Chemprop, Morgan+MLP, and RDKit+MLP use no unsupervised pretraining. We therefore interpret cross-baseline results as comparisons of complete modeling recipes under the same downstream evaluation setup, while within-family KERMT ablations isolate objective and corpus effects under controlled pretraining access. Although MoleculeNet [Wu et al., 2018] and Therapeutic Data Commons [Huang et al., 2022] datasets have been used extensively in prior work, we do not benchmark on them due to data curation errors, invalid structures, and limited relevance to real-world multi-objective drug discovery process tasks [Walters, 2023]. See Appendix C for detailed dataset descriptions. 6In Table 3, Contrastive KERMT has the best performance on 3 of 4 endpoints in the Biogen dataset, 5 of 9 endpoints in the ExpansionRX dataset, and 14 out of 25 endpoints in the ChEMBL-MT dataset. When Contrastive KERMT does not have the best performance, it is usually statistically indistinguishable from the best under Tukey HSD. For example, in the ChEMBL-MT dataset, our Contrastive KERMT model almost always shows the best or statistically indistinguishable from the best performance across endpoints (see Figure 10). KPGT [Li et al., 2023], pretrained on RDKit fingerprint and molecular descriptors, shows the next best performance. The KERMT model also shows strong performance, being statistically indistinguishable from the best-performing model on 22 ADME endpoints. Chemprop, a widely used GNN-based molecular property prediction model based on the directed message passing neural network architecture [Yang et al., 2019, Heid et al., 2024, Graff et al., 2026], is not a pretrained model and shows the best performance on permeability assays in the ExpansionRX dataset (see Figure 9). In single-source datasets like Biogen (Figure 2) and ExpansionRX, Contrastive KERMT achieves the best or statistically indistinguishable performance on most endpoints. Fixed descriptor models underperform the neural baselines in this multi-task setting. 0.55 0.60 0.65 0.70 0.75 0.80                
+
+> Contrastive KERMT
+> KERMT
+> KPGT
+> MolCLR
+> Chemprop
+> RDKit Descriptor + MLP
+> Morgan FP + MLP
+> HLM CLint
+> 0.55 0.60 0.65 0.70 0.75 0.80
+> RLM CLint
+> 0.700 0.725 0.750 0.775 0.800 0.825 0.850
+> Pearson's R
+> Contrastive KERMT
+> KERMT
+> KPGT
+> MolCLR
+> Chemprop
+> RDKit Descriptor + MLP
+> Morgan FP + MLP
+> MDCK
+> 0.55 0.60 0.65 0.70 0.75
+> Pearson's R
+> logS
+
+Figure 2: Tukey HSD plot of Pearson’s R comparing Contrastive KERMT model performance on Biogen dataset with all baselines. ANOVA p-values < 10 −4 for all assays. Blue: best method, Gray: statistically indistinguishable from the best method, Red: statistically worse than the best method. 
+
+4.3 Ablation: Which design choices explain the gains? 
+
+To complement the cross-baseline comparison of Section 4.2, we report a within-family ablation across the pretraining objective (vocab, cMIM, vocab+cMIM), the corpus size (11M → 208M molecules), and three flavors of in-domain augmentation (Biogen seeds, MolMIM-generated ex-tensions, and pooled ADME-adjacent corpora). Each pretrained backbone is fine-tuned on Biogen, ExpansionRX, and ChEMBL-MT following the protocol of Section 3.4. 
+
+cMIM complements KERMT but does not replace it. Adding the cMIM objective on top of the original KERMT vocabulary-prediction signals yields significant-endpoint conditional improvements (mean per-endpoint ∆% over endpoints with a significant two-sample t-test vs. kermt_base ; Ap-pendix G.1) on every benchmark (Biogen +7 .6% , ExpansionRX +8 .7% , ChEMBL-MT +8 .7% ). cMIM-only, however, is statistically indistinguishable from the baseline on Biogen and ChEMBL-MT, and significantly worse than baseline on ExpansionRX. The vocabulary-prediction signal therefore remains essential, and the observed gains come from combining the two objectives rather than from the contrastive objective in isolation. We do not evaluate a contrastive-only variant because the cMIM contrastive behavior is defined as part of the complete MIM objective rather than as a standalone loss [Livne, 2025]. 
+
+Corpus expansion improves performance, with pooled ADME-adjacent corpora generalizing most consistently. Figure 3 visualizes how mean MAE varies across the two pretraining-corpus expansion axes (size and in-domain coverage) for each benchmark. Scaling the base corpus from 11M to 208M improves ExpansionRX and ChEMBL-MT under mean MAE, but not Biogen; Biogen benefits more from in-domain Biogen augmentation than from broad corpus scaling alone. Consistent with this, adding in-domain Biogen molecules to the 11M base matches the best Biogen mean 7MAE (Table 6) and substantially improves ExpansionRX transfer; further mixing in 30k MolMIM-generated extensions gives the strongest configuration on ExpansionRX ( +9 .9% ), suggesting that exposure to Biogen-seeded generative neighborhoods transfers to a held-out ADME dataset. Pooling all three ADME-adjacent corpora (Biogen + ExpansionRX + ChEMBL-MT) is the single best model on ChEMBL-MT ( +9 .5% , p < 10 −4) and has the highest worst-case improvement across the three benchmarks (every benchmark sees at least +6 .9% ), indicating that broader in-domain diversity at pretraining provides the most uniform transfer signal across ADME endpoints. A complementary frozen-representation diagnostic in Appendix H shows the same pattern: Contrastive KERMT improves average linear-probe performance over KERMT on both Biogen-source and ExpansionRX-source embeddings, whereas cMIM-only is weak. This supports the interpretation that the combined objective changes the pretrained representation itself, not only the fine-tuned prediction head. 
+
+Task-specific fine-tuning layers consistently improve performance. Across all three benchmarks, matched default-vs-task-specific comparisons for the kermt_base baseline show that task-specific layers reduce mean MAE: Biogen ( 0.339 → 0.332 ), ExpansionRX ( 0.380 → 0.375 ), and ChEMBL-MT ( 0.466 → 0.460 ). The same pattern holds for Contrastive KERMT on Biogen, where both protocols were run, with reductions of 0.6–1.9% across all configurations (Table 6). 11M 208M        
+
+> Pretraining corpus size
+> None
+> (0)
+> Biogen
+> (~3.5K)
+> Biogen + 30k
+> MolMIM-gen (~33K)
+> Biogen + ExpansionRX
+> + ChEMBL-MT (~125K)
+> In-domain coverage (log molecule count)
+> Biogen
+> 0.339
+> 0.339
+> 0.321
+> 0.325
+> 0.321 0.324
+> 0.326
+> 0.324
+> 11M 208M
+> Pretraining corpus size
+> ExpansionRX
+> 0.375
+> 0.394
+> 0.365
+> 0.362
+> 0.364 0.361
+> 0.359
+> 0.360
+> 11M 208M
+> Pretraining corpus size
+> ChEMBL-MT
+> 0.460
+> 0.458
+> 0.450
+> 0.445
+> 0.449 0.446
+> 0.445
+> 0.442
+> 0.323
+> 0.325
+> 0.328
+> 0.330
+> 0.333
+> 0.335
+> 0.338
+> Mean MAE (lower is better)
+> 0.360
+> 0.365
+> 0.370
+> 0.375
+> 0.380
+> 0.385
+> 0.390
+> 0.395
+> Mean MAE (lower is better)
+> 0.443
+> 0.445
+> 0.448
+> 0.450
+> 0.453
+> 0.455
+> 0.458
+> 0.460
+> Mean MAE (lower is better)
+> KERMT cMIM-only Contrastive KERMT
+
+Figure 3: Effect of pretraining-corpus scale and in-domain ADME coverage on downstream mean MAE. The horizontal axis indicates base corpus size; the vertical axis indicates added ADME-adjacent molecules on a log-count scale. Marker shape denotes pretraining objective; color and printed value denote mean MAE. Only evaluated configurations are shown. 
+
+5 Related Work 
+
+Molecular GNNs Graph neural networks naturally represent molecules by mapping atoms and bonds to graph structure. Message passing neural networks unified early molecular graph mod-els [Gilmer et al., 2017], directed message passing remains widely used through Chemprop [Yang et al., 2019, Heid et al., 2024, Graff et al., 2026], and attention-based GNNs such as Attentive FP capture task-relevant nonlocal interactions [Xiong et al., 2020]. More recent graph transformers and hybrid message-passing/attention models, including MolGPS, show that molecular GNNs can scale to larger models and datasets [Masters et al., 2022, Sypetkowski et al., 2024]. We build on this 2D graph-transformer lineage and focus on strengthening the pretraining signal for ADME prediction. 
+
+Self-supervised molecular pretraining Self-supervised learning pretrains on large unlabeled chemical libraries before fine-tuning, and has been shown to improve performance, particularly in low-data regimes. SMILES Transformer, ChemBERTa, and MoLFormer adapt language-modeling objectives to SMILES strings [Honda et al., 2019, Chithrananda et al., 2020, Ross et al., 2022], whereas graph and graph-transformer methods pretrain on topology, functional groups, or auxiliary computed chemical properties [Wan et al., 2025]. KPGT injects descriptors and fingerprints [Li et al., 2023] into pretraining. Uni-Mol and SCAGE add 3D conformer information [Zhou et al., 2023, Qiao et al., 2025]. Most relevant to our setting, GROVER uses contextual prediction at atom- and 8bond-level and functional-group identification at molecule level [Rong et al., 2020]; KERMT extends GROVER to multi-task fine-tuning [Adrian et al., 2025]. Contrastive KERMT retains KERMT’s atom, bond, and functional-group objectives while adding SMILES reconstruction and the cMIM contrastive objective, allowing us to test whether global latent-space structure complements local chemical prediction tasks. 
+
+Contrastive molecular representation learning Contrastive learning is a commonly used method in graph and molecular representation learning: InfoGraph maximizes mutual information between graph- and substructure-level representations [Sun et al., 2020], GraphCL defines positives through graph augmentations [You et al., 2020], and MolCLR adapts this recipe to molecular transfer benchmarks [Wang et al., 2022]. These methods rely on augmentation-defined positive pairs. By contrast, MIM learns latent variables by maximizing mutual information while encouraging clustered structure [Livne et al., 2019, 2020], and cMIM adds in-batch contrastive discrimination without requiring graph perturbations [Livne, 2025]. We extend cMIM with chemistry-specific auxiliary variables and KERMT-style vocabulary prediction to preserve local chemical structure while shaping a globally discriminative latent space. 
+
+Multi-task ADME modeling ADME optimization is multi-objective, and multi-task neural net-works have long been used in QSAR and ADME modeling to reflect this [Dahl et al., 2014]. Industry studies show that shared graph representations can help data-sparse endpoints borrow signal from data-rich and/or correlated assays [Montanari et al., 2020, Walter et al., 2024]. Pretrained chemical models have also been adapted to multi-task ADME prediction [Adrian et al., 2025]. As multi-task learning can also suffer from task competition or negative transfer when endpoints differ in relation, noise, scale, or protocol [Standley et al., 2020], we use task-specific readout heads on top of shared molecular representations to mitigate this issue. 
+
+6 Discussion 
+
+Contrastive KERMT combines graph-to-SMILES cMIM with KERMT’s atom/bond vocabulary and functional group prediction tasks as unit-weighted log-probability factors in a single joint objective. The within-family ablations show that these signals are complementary: cMIM-only is weak downstream, while Contrastive KERMT improves over KERMT on all three benchmarks. Latent-neighborhood analysis supports the mechanism, showing improved preservation of SMILES, Morgan fingerprint, and property-neighborhood structure. Adding in-domain ADME molecule to pretraining further improves transfer. Unlike knowledge-guided approaches such as KPGT [Li et al., 2023], which explicitly predict fingerprints and descriptors, cMIM implicitly incorporates fingerprint-awareness without explicitly using it in pretraining. 
+
+Limitations. Our evaluation is restricted to ADME endpoints in three multi-task datasets and one KERMT graph-transformer backbone architecture; transfer to other molecular properties or GNN architectures remains untested. Several corpus-adaptation experiments also include unlabeled downstream validation/test molecules. This reflects realistic label-free chemical space adaptation, but not a strict inductive benchmark, so we interpret these results as label-free/transductive pretraining gains. Industry deployment would also require retraining as target chemical space evolves, adding compute burden for large-scale pretraining [Rich et al., 2024]. Overall, the evidence supports Contrastive KERMT as an additive pretraining strategy for ADME representation learning: KERMT supplies local chemistry-specific self-supervision, cMIM reshapes global latent neighborhoods through reconstruction and contrastive separation, and the combination transfers better than either component alone under matched pretraining and fine-tuning protocols. 
+
+References 
+
+Matthew Adrian, Yunsie Chung, and Alan C. Cheng. Denoising drug discovery data for improved absorption, distribution, metabolism, excretion, and toxicity property prediction. Journal of Chemical Information and Modeling , 64(16):6324–6337, 2024. doi: 10.1021/acs.jcim.4c00639. URL https://doi.org/10.1021/acs.jcim.4c00639 . PMID: 39108185. 9Matthew Adrian, Yunsie Chung, Kevin Boyd, Saee Paliwal, Srimukh Prasad Veccham, and Alan C Cheng. Multitask finetuning and acceleration of chemical pretrained models for small molecule drug property prediction. arXiv preprint arXiv:2510.12719 , 2025. Jeremy R. Ash, Cas Wognum, Raquel Rodríguez-Pérez, Matteo Aldeghi, Alan C. Cheng, Djork-Arné Clevert, Ola Engkvist, Cheng Fang, Daniel J. Price, Jacqueline M. Hughes-Oliver, and W. Patrick Walters. Practically significant method comparison protocols for machine learning in small molecule drug discovery. Journal of Chemical Information and Modeling , 65(18):9398–9411, 2025. doi: 10.1021/acs.jcim.5c01609. URL https://doi.org/10.1021/acs.jcim.5c01609 .PMID: 40932128. Dávid Bajusz, Anita Rácz, and Károly Héberger. Why is Tanimoto index an appropriate choice for fingerprint-based similarity calculations? Journal of Cheminformatics , 7(20), 2015. doi: 10.1186/s13321-015-0069-3. URL https://doi.org/10.1186/s13321-015-0069-3 .Suresh K. Balani, Gerald T. Miwa, Liang-Shang Gan, Jing-Tao Wu, and Frank W. Lee. Strategy of utilizing in vitro and in vivo adme tools for lead optimization and drug candidate selection. 
+
+Current Topics in Medicinal Chemistry , 5(11):1033–1038, 2005. ISSN 1568-0266/1873-4294. doi: 10.2174/156802605774297038. URL https://www.eurekaselect.com/article/24205 .Maximilian Beckers, Noé Sturm, Finton Sirockin, Nikolas Fechner, and Nikolaus Stiefl. Prediction of small-molecule developability using large-scale in silico admet models. Journal of Medicinal Chemistry , 66(20):14047–14060, 2023. doi: 10.1021/acs.jmedchem.3c01083. PMID: 37815201. Guy W. Bemis and Mark A. Murcko. The properties of known drugs. 1. molecular frameworks. 
+
+Journal of Medicinal Chemistry , 39(15):2887–2893, 1996. doi: 10.1021/jm9602928. URL 
+
+https://doi.org/10.1021/jm9602928 .Darko Butina. Unsupervised data base clustering based on Daylight’s fingerprint and Tanimoto similarity: A fast and automated way to cluster small and large data sets. Journal of Chemical Information and Computer Sciences , 39(4):747–750, 1999. doi: 10.1021/ci9803381. URL 
+
+https://doi.org/10.1021/ci9803381 .Seyone Chithrananda, Gabriel Grand, and Bharath Ramsundar. ChemBERTa: Large-scale self-supervised pretraining for molecular property prediction. arXiv preprint arXiv:2010.09885 , 2020. URL https://arxiv.org/abs/2010.09885 .Elena L Cáceres, Matthew Tudor, and Alan C Cheng. Deep learning approaches in predicting admet properties. Future Medicinal Chemistry , 12(22):1995–1999, 2020. doi: 10.4155/fmc-2020-0259. PMID: 33124448. George E. Dahl, Navdeep Jaitly, and Ruslan Salakhutdinov. Multi-task neural networks for qsar predictions. arXiv preprint arXiv:1406.1231 , 2014. doi: 10.48550/arXiv.1406.1231. URL 
+
+https://arxiv.org/abs/1406.1231 .Cheng Fang, Ye Wang, Richard Grater, Sudarshan Kapadnis, Cheryl Black, Patrick Trapa, and Simone Sciabola. Prospective validation of machine learning algorithms for absorption, distribution, metabolism, and excretion prediction: An industrial perspective. Journal of Chemical Information and Modeling , 63(11):3263–3274, 2023. Justin Gilmer, Samuel S. Schoenholz, Patrick F. Riley, Oriol Vinyals, and George E. Dahl. Neural message passing for quantum chemistry. In Proceedings of the 34th International Conference on Machine Learning - Volume 70 , ICML’17, page 1263–1272. JMLR.org, 2017. David E. Graff, Nathan K. Morgan, Jackson W. Burns, Anna C. Doner, Brian Li, Shih-Cheng Li, Joel Manu, Angiras Menon, Hao-Wei Pang, Haoyang Wu, Akshat Shirish Zalte, Jonathan W. Zheng, Connor W. Coley, William H. Green, and Kevin P. Greenman. Chemprop v2: An efficient, modular machine learning package for chemical property prediction. Journal of Chemical Information and Modeling , 66(1):28–33, 2026. doi: 10.1021/acs.jcim.5c02332. URL https://doi.org/10. 1021/acs.jcim.5c02332 . PMID: 41453060. 10 Esther Heid, Kevin P. Greenman, Yunsie Chung, Shih-Cheng Li, David E. Graff, Florence H. Vermeire, Haoyang Wu, William H. Green, and Charles J. McGill. Chemprop: A machine learning package for chemical property prediction. Journal of Chemical Information and Modeling , 64(1):9–17, jan 2024. ISSN 1549-9596. doi: 10.1021/acs.jcim.3c01250. URL https://pubs.acs.org/doi/ 10.1021/acs.jcim.3c01250 .Shion Honda, Shoi Shi, and Hiroki R. Ueda. SMILES transformer: Pre-trained molecular fingerprint for low data drug discovery. arXiv preprint arXiv:1911.04738 , 2019. URL https://arxiv.org/ abs/1911.04738 .Kexin Huang, Tianfan Fu, Wenhao Gao, Yue Zhao, Yusuf Roohani, Jure Leskovec, Connor W Coley, Cao Xiao, Jimeng Sun, and Marinka Zitnik. Artificial intelligence foundation for therapeutic science. Nature chemical biology , 18(10):1033–1036, 2022. Brian P. Kelley. Descriptastorus: Descriptor computation and storage for machine learning. https: //github.com/bp-kelley/descriptastorus , 2018. Accessed: 2026-04-20. Greg Landrum et al. rdkit/rdkit: 2025_09_4 (q3 2025) release, September 2025. URL https: //doi.org/10.5281/zenodo.18098214 .Han Li. Kpgt: Knowledge-guided pre-training of graph transformer for molecular property prediction (code repository). https://github.com/lihan97/KPGT , 2023. GitHub repository, accessed: 2025-05-01. Han Li, Ruotian Zhang, Yaosen Min, Dacheng Ma, Dan Zhao, and Jianyang Zeng. A knowledge-guided pre-training framework for improving molecular representation learning. Nature Communi-cations , 2023. doi: 10.1038/s41467-023-43214-1. Micha Livne. Contrastive mutual information learning: Toward robust representations without positive-pair augmentations. arXiv preprint arXiv:2509.21511 , 2025. Micha Livne, Kevin Swersky, and David J Fleet. High mutual information in representation learning with symmetric variational inference. arXiv preprint arXiv:1910.04153 , 2019. Micha Livne, Kevin Swersky, and David J Fleet. Sentencemim: A latent variable language model. 
+
+arXiv preprint arXiv:2003.02645 , 2020. Franco Lombardo, Prashant V. Desai, Rieko Arimoto, Kelly E. Desino, Holger Fischer, Christo-pher E. Keefer, Carl Petersson, Susanne Winiwarter, and Fabio Broccatelli. In silico absorption, distribution, metabolism, excretion, and pharmacokinetics (adme-pk): Utility and best prac-tices. an industry perspective from the international consortium for innovation through quality in pharmaceutical development. Journal of Medicinal Chemistry , 60(22):9097–9113, 2017. doi: 10.1021/acs.jmedchem.7b00487. URL https://doi.org/10.1021/acs.jmedchem.7b00487 .PMID: 28609624. Dominic Masters, Josef Dean, Kerstin Klaser, Zhiyi Li, Sam Maddrell-Mander, Adam Sanders, Hatem Helal, Deniz Beker, Ladislav Rampášek, and Dominique Beaini. Gps++: An optimised hybrid mpnn/transformer for molecular property prediction. arXiv preprint arXiv:2212.02229 ,2022. David Mendez, Anna Gaulton, A Patrícia Bento, Jon Chambers, Marleen De Veij, Eloy Félix, María Paula Magariños, Juan F Mosquera, Prudence Mutowo, Michał Nowotka, et al. Chembl: towards direct deposition of bioassay data. Nucleic acids research , 47(D1):D930–D940, 2019. Floriane Montanari, Lara Kuhnke, Antonius Ter Laak, and Djork-Arné Clevert. Modeling physico-chemical admet endpoints with multitask graph convolutional networks. Molecules , 25(1), 2020. ISSN 1420-3049. doi: 10.3390/molecules25010044. URL https://www.mdpi.com/ 1420-3049/25/1/44 .Mario Pellegatti. Preclinical in vivo adme studies in drug development: a critical review. Expert Opinion on Drug Metabolism & Toxicology , 8(2):161–172, 2012. doi: 10.1517/17425255.2012. 652084. URL https://doi.org/10.1517/17425255.2012.652084 . PMID: 22248306. 11 Jianbo Qiao, Junru Jin, Ding Wang, Saisai Teng, Junyu Zhang, Xuetong Yang, Yuhang Liu, Yu Wang, Lizhen Cui, Quan Zou, Ran Su, and Leyi Wei. A self-conformation-aware pre-training framework for molecular property prediction with substructure interpretability. Na-ture Communications , 16:4382, 2025. doi: 10.1038/s41467-025-59634-0. URL https: //doi.org/10.1038/s41467-025-59634-0 .Danny Reidenbach, Micha Livne, Rajesh K Ilango, Michelle Gill, and Johnny Israeli. Improving small molecule generation using mutual information machine. arXiv preprint arXiv:2208.09016 ,2022. Alexander S. Rich, Yvonne H. Chan, Benjamin Birnbaum, Kamran Haider, Joshua Haimson, Michael Hale, Yongxin Han, William Hickman, Klaus P. Hoeflich, Daniel Ortwine, Ay¸ segül Özen, and David B. Belanger. Machine learning adme models in practice: Four guidelines from a suc-cessful lead optimization case study. ACS Medicinal Chemistry Letters , 15(8):1169–1173, 2024. doi: 10.1021/acsmedchemlett.4c00290. URL https://doi.org/10.1021/acsmedchemlett. 4c00290 .David Rogers and Mathew Hahn. Extended-connectivity fingerprints. Journal of Chemical Information and Modeling , 50(5):742–754, 2010. doi: 10.1021/ci100050t. URL https: //doi.org/10.1021/ci100050t . PMID: 20426451. Yu Rong, Yatao Bian, Tingyang Xu, Weiyang Xie, Ying Wei, Wenbing Huang, and Junzhou Huang. Self-supervised graph transformer on large-scale molecular data. Advances in neural information processing systems , 33:12559–12571, 2020. Jerret Ross, Brian Belgodere, Vijil Chenthamarakshan, Inkit Padhi, Youssef Mroueh, and Payel Das. Large-scale chemical language representations capture molecular structure and properties. 
+
+Nature Machine Intelligence , 4:1256–1264, 2022. doi: 10.1038/s42256-022-00580-7. URL 
+
+https://doi.org/10.1038/s42256-022-00580-7 .Skipper Seabold and Josef Perktold. statsmodels: Econometric and statistical modeling with python. In 9th Python in Science Conference , 2010. Robert P. Sheridan. Time-split cross-validation as a method for estimating the goodness of prospective prediction. Journal of Chemical Information and Modeling , 53(4):783–790, 2013. doi: 10.1021/ ci400084k. URL https://doi.org/10.1021/ci400084k . PMID: 23521722. Trevor Standley, Amir R. Zamir, Dawn Chen, Leonidas Guibas, Jitendra Malik, and Silvio Savarese. Which tasks should be learned together in multi-task learning? In Proceedings of the 37th International Conference on Machine Learning , volume 119 of Proceedings of Machine Learning Research , pages 9120–9132. PMLR, 2020. URL https://proceedings.mlr.press/v119/ standley20a.html .Teague Sterling and John J. Irwin. ZINC 15 – ligand discovery for everyone. Journal of Chemical Information and Modeling , 55(11):2324–2337, 2015. doi: 10.1021/acs.jcim.5b00559. URL 
+
+https://doi.org/10.1021/acs.jcim.5b00559 .Jianlin Su, Murtadha Ahmed, Yu Lu, Shengfeng Pan, Bo Wen, and Yunfeng Liu. RoFormer: Enhanced transformer with rotary position embedding. Neurocomputing , 568:127063, 2024. doi: 10.1016/j.neucom.2023.127063. URL https://doi.org/10.1016/j.neucom.2023.127063 .Fan-Yun Sun, Jordan Hoffmann, Vikas Verma, and Jian Tang. InfoGraph: Unsupervised and semi-supervised graph-level representation learning via mutual information maximization. In 
+
+International Conference on Learning Representations , 2020. URL https://openreview.net/ forum?id=r1lfF2NYvH .Maciej Sypetkowski, Frederik Wenkel, Farimah Poursafaei, Nia Dickson, Karush Suri, Philip Fradkin, and Dominique Beaini. On the scalability of gnns for molecular graphs. Advances in Neural Information Processing Systems , 37:19870–19906, 2024. Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, and Illia Polosukhin. Attention is all you need. In Advances in Neural Information Processing Systems , volume 30, 2017. 12 Jarkko Venna and Samuel Kaski. Neighborhood preservation in nonlinear projection methods: An experimental study. In Proceedings of the International Conference on Artificial Neural Networks (ICANN 2001) , pages 485–491. Springer, 2001. doi: 10.1007/3-540-44668-0_68. Moritz Walter, Jens M. Borghardt, Lina Humbeck, and Miha Skalic. Multi-task adme/pk pre-diction at industrial scale: leveraging large and diverse experimental datasets. Molecular Informatics , 43(10):e202400079, 2024. doi: https://doi.org/10.1002/minf.202400079. URL 
+
+https://onlinelibrary.wiley.com/doi/abs/10.1002/minf.202400079 .Patrick Walters. We need better benchmarks for machine learning in drug discovery. https://practicalcheminformatics.blogspot.com/2023/08/ we-need-better-benchmarks-for-machine.html , 2023. Accessed: 2026-04-30. Yue Wan, Jialu Wu, Tingjun Hou, Chang-Yu Hsieh, and Xiaowei Jia. Multi-channel learning for integrating structural hierarchies into context-dependent molecular representation. Nature Communications , 16(1):413, 2025. doi: 10.1038/s41467-024-55082-4. URL https://doi.org/ 10.1038/s41467-024-55082-4 .Yuyang Wang. Molclr: Molecular contrastive learning of representations via graph neural networks (code repository). https://github.com/yuyangw/MolCLR , 2022. GitHub repository, accessed: 2026-04-30. Yuyang Wang, Jianren Wang, Zhonglin Cao, and Amir Barati Farimani. Molecular contrastive learn-ing of representations via graph neural networks. Nature Machine Intelligence , 4(3):279–287, 2022. doi: 10.1038/s42256-022-00447-x. URL https://doi.org/10.1038/s42256-022-00447-x .David Weininger. SMILES, a chemical language and information system. 1. introduction to method-ology and encoding rules. Journal of Chemical Information and Computer Sciences , 28(1):31–36, 1988. doi: 10.1021/ci00057a005. URL https://doi.org/10.1021/ci00057a005 .C. Wognum, J. R. Ash, M. Aldeghi, R. Rodríguez-Pérez, C. Fang, A. C. Cheng, D. J. Price, D.-A. Clevert, O. Engkvist, and W. P. Walters. A call for an industry-led initiative to critically assess machine learning for real-world drug discovery. Nature Machine Intelligence , 6:1120–1121, 2024. doi: 10.1038/s42256-024-00911-w. Zhenqin Wu, Bharath Ramsundar, Evan N. Feinberg, Joseph Gomes, Caleb Geniesse, Aneesh S. Pappu, Karl Leswing, and Vijay Pande. Moleculenet: a benchmark for molecular machine learning. Chemical Science , 9(2):513–530, 2018. doi: 10.1039/C7SC02664A. URL https: //doi.org/10.1039/C7SC02664A .Zhaoping Xiong, Dingyan Wang, Xiaohong Liu, Feisheng Zhong, Xiaozhe Wan, Xutong Li, Zhaojun Li, Xiaomin Luo, Kaixian Chen, Hualiang Jiang, and Mingyue Zheng. Pushing the boundaries of molecular representation for drug discovery with the graph attention mechanism. Journal of Medicinal Chemistry , 63(16):8749–8760, 2020. doi: 10.1021/acs.jmedchem.9b00959. URL 
+
+https://doi.org/10.1021/acs.jmedchem.9b00959 . PMID: 31408336. Yuting Xu, Junshui Ma, Andy Liaw, Robert P. Sheridan, and Vladimir Svetnik. Demystifying multi-task deep neural networks for quantitative structure–activity relationships. Journal of Chemical Information and Modeling , 57(10):2490–2504, 2017. doi: 10.1021/acs.jcim.7b00087. URL 
+
+https://doi.org/10.1021/acs.jcim.7b00087 . PMID: 28872869. Kevin Yang, Kyle Swanson, Wengong Jin, Connor Coley, Philipp Eiden, Hua Gao, Angel Guzman-Perez, Timothy Hopper, Brian Kelley, Miriam Mathea, Andrew Palmer, Volker Settels, Tommi Jaakkola, Klavs Jensen, and Regina Barzilay. Analyzing learned molecular representations for property prediction. Journal of Chemical Information and Modeling , 59(8):3370–3388, 2019. doi: 10.1021/acs.jcim.9b00237. URL https://doi.org/10.1021/acs.jcim.9b00237 . PMID: 31361484. Yuning You, Tianlong Chen, Yongduo Sui, Ting Chen, Zhangyang Wang, and Yang Shen. Graph contrastive learning with augmentations. In Advances in Neural Information Processing Systems ,volume 33, pages 5812–5823, 2020. URL https://papers.nips.cc/paper/2020/hash/ 3fe230348e9a12c13120749e3f9fa4cd-Abstract.html .13 Gengmo Zhou, Zhifeng Gao, Qiankun Ding, Hang Zheng, Hongteng Xu, Zhewei Wei, Linfeng Zhang, and Guolin Ke. Uni-Mol: A universal 3d molecular representation learning framework. In 
+
+International Conference on Learning Representations , 2023. URL https://openreview.net/ forum?id=IfFZr1gl0b .
+
+A cMIM Overview 
+
+Figure 4 summarizes the latent-variable view used in Section 2. The left panel shows the base MIM construction, where an encoder maps an observed molecule to a latent code and a decoder reconstructs an observed molecular view from that code. The right panel shows the cMIM extension used in this work: the same latent code is also connected to auxiliary variables ¯k, allowing contrastive discrimination and chemistry-specific self-supervised targets to enter the objective as probabilistic factors rather than separately weighted regularizers. 
+
+z
+
+x
+
+z
+
+x
+
+z
+
+x
+
+(a) (b) (c) 
+
+z
+
+x ¯k
+
+z
+
+x ¯k
+
+(d) (e) Figure 4: (Left) The MIM view learns compatible encoder and decoder factorizations through a shared latent code. In our molecular instantiation, the encoder consumes a 2D molecular graph and the decoder reconstructs a SMILES sequence. (Right) cMIM augments this latent-variable objective with auxiliary variables ¯k, including a contrastive variable and optional chemistry-specific self-supervised variables. Expanding Eq. (4) gives the per-batch objective 
+
+ˆLx-cMIM = − 1
+
+B
+
+> B
+
+X
+
+> i=1
+
+h
+
+log pθ (si | zi) + 12 (log qθ (zi | gi) + log p(zi)) + log pθ (k con = 1 | gi, zi; B) + 
+
+> T
+
+X
+
+> t=1
+
+log pθ (k t = yi,t | gi, zi)
+
+i
+
+.
+
+(5) Algorithm 1 summarizes the full graph-to-SMILES cMIM pretraining loop corresponding to Eq. (5) .
+
+Algorithm 1 Graph-to-SMILES cMIM pretraining 
+
+Require: Batch B = {xi = ( gi, s i)}Bi=1 ; optional self-supervised tasks {task t}Tt=1  
+
+> 1:
+
+while not converged do  
+
+> 2:
+
+Sample zi ∼ qθ (z | gi) for all i ∈ { 1, . . . , B } 
+
+> 3:
+
+Compute SMILES reconstruction terms log pθ (si | zi) 
+
+> 4:
+
+Compute latent-density terms log qθ (zi | gi) and log p(zi) 
+
+> 5:
+
+Compute contrastive probabilities pθ (k con = 1 | gi, zi; B) using in-batch negatives  
+
+> 6:
+
+Compute optional targets yi,t = task t(gi, s i) and probabilities pθ (k t = yi,t | gi, zi) 
+
+> 7:
+
+Form ˆLx-cMIM using Eq. (5)  
+
+> 8:
+
+θ ← θ − η∇θ ˆLx-cMIM  
+
+> 9:
+
+end while 
+
+B Latent-Geometry Evaluation Metrics 
+
+Section 4.1 evaluates whether latent nearest neighbors remain close under three external comparison axes: edit distance between canonical SMILES strings [Weininger, 1988], Morgan-fingerprint 14 distance [Rogers and Hahn, 2010] ( 1−Tanimoto similarity [Bajusz et al., 2015]), and distance between measured ADME-property vectors. Trustworthiness@ k [Venna and Kaski, 2001] measures whether points close in latent space are also close in the comparison space, so higher values indicate fewer misleading latent neighbors. Precision@ k measures the fraction of each molecule’s k latent nearest neighbors that also appear among its k nearest neighbors in the comparison space. Violation Rate measures how often latent-near pairs have large comparison-space distance, and conditional 
+
+Q0.9 reports the 90th percentile of comparison-space distance among latent-near pairs. The first two metrics are better when larger; the latter two are better when smaller. 
+
+C Datasets 
+
+Datasets in this work serve two roles: (i) pretraining the KERMT backbone, where we vary the corpus scale and optionally add in-domain or generated molecules as augmentation, and (ii) downstream tasks including fine-tuning on ADME property prediction (Section 4.3) and linear probing (Appendix H). The three downstream benchmarks — Biogen, ExpansionRX, and ChEMBL-MT — are drawn from experimental ADME assays measured in active drug-discovery campaigns. Realistic ML evaluation for ADME prediction depends on such assay-derived benchmarks because assay noise, protocol variability, and source heterogeneity are difficult to capture with synthetic or public-database-derived targets [Walters, 2023, Wognum et al., 2024]. Table 1 shows which datasets are combined in each pretraining configuration. 
+
+Pretraining base corpora. 
+
+• ZINC15_ChEMBL-11M : the standard 11M pretraining set regenerated following the protocol of the original GROVER work [Rong et al., 2020], which combines molecules drawn from ZINC15 [Sterling and Irwin, 2015] (licensed under custom ZINC/UCSF license) and ChEMBL [Mendez et al., 2019] (licensed under CC Attribution-ShareAlike 3.0 Unported license). • ZINC15_ChEMBL-up-208M : a superset of ZINC15_ChEMBL-11M that adds approx-imately 197M additional ZINC15 molecules [Sterling and Irwin, 2015]. The additional ZINC15 samples are drawn probabilistically (random seed 42 ) from the full ZINC15 catalog (∼1.78B molecules) at a target sample size of 200M, merged with the 11M base, and canonicalized with RDKit (duplicates across sources are removed). This corpus lets us study the effect of pretraining-data volume at a fixed model size. 
+
+Biogen. The Biogen ADME dataset [Fang et al., 2023] comprises six endpoints with 3.5K unique molecules. We discarded two of the six endpoints — human and rat plasma protein binding — due to their small size (194 and 168 unique molecules respectively, compared to 2,172–3,086 across the four endpoints we kept). We use the Human Liver Microsomal Clearance (intrinsic), Rat Liver Microsomal Clearance (intrinsic), MDR1-MDCK efflux ratio, and solubility at pH 6.8. We split the dataset into train, validation, and test sets using a Bemis–Murcko scaffold split [Bemis and Murcko, 1996], ensuring that molecules with the same scaffold appear in the same split. This split avoids leakage between the splits and tests the ability of our models to generalize to new regions of chemical space unseen during training. 
+
+MolMIM-generated augmentation. Molecules generated with sample_from_embeddings.py 
+
+from the MolMIM repository [Reidenbach et al., 2022], conditioned on embeddings of the Biogen molecules above as seeds, using Gaussian perturbation with noise σ = 0 .8 and 50 samples per seed. From the resulting pool of ∼103,000 unique novel molecules we draw a 30,000-molecule subset (random seed 42 ) for use as a pretraining augmentation. This augmentation corpus is used only for pretraining, not downstream evaluation. 
+
+ExpansionRX (OpenADMET). We use the dataset released by ExpansionRX as part of the OpenADMET Blind challenge in January 2026. This dataset comprises 7.6K molecules with nine measured endpoints. These nine endpoints consist of physicochemical properties (LogD and kinetic solubility), clearance properties (human and mouse liver microsomal intrinsic clearance), protein binding (mouse plasma protein binding, mouse brain protein binding, and mouse Gastrocnemius Muscle Binding), and permeability endpoints (Caco-2 efflux ratio and Caco-2 Papp A>B). We use the 15 temporal split provided by the challenge organizers, using molecules synthesized earlier in the drug discovery campaign to train and validate models. Temporal split provides a more realistic estimate of prospective predictive model performance than random or leave-class-out splits [Sheridan, 2013]. We use molecules synthesized later in the campaign as the test set reflecting retrospective performance in a real-world setting. 
+
+ChEMBL-MT. The ChEMBL Multi-Task (ChEMBL-MT) dataset is curated from the ChEMBL database [Mendez et al., 2019] by Adrian et al. [Adrian et al., 2025]. It consists of 25 endpoints with 114K molecules. Among all endpoints considered in this work, hERG inhibition in ChEMBL-MT is the only toxicity endpoint; the remaining endpoints are ADME assays. We use the Taylor-Butina cluster splits [Butina, 1999] published in Adrian et al. . In our benchmarks, all endpoints except hERG fall under the ADME category; hERG is included as a toxicity endpoint. The Biogen and ExpansionRX datasets are single-source datasets with each endpoint measured under very similar experimental conditions. The ChEMBL-MT dataset, however, consists of endpoints aggregated from multiple sources with experiments run in different conditions spanning a large time period. This gives rise to batch effects which cannot be completely accounted for. All three datasets are amenable to multi-task learning. By probing our models on these three datasets, each with its unique characteristics, we attempt to comprehensively and realistically represent the ADME prediction problem. Table 4 summarizes the size, endpoint count, source type, split, and license of the three downstream datasets. Table 4: Summary of the three downstream datasets and splits used to evaluate fine-tuning perfor-mance.                  
+
+> Biogen ExpansionRX ChEMBL-MT Size 3.5K molecules 7.6K molecules 114K molecules # assays 4 endpoints 9 endpoints 25 endpoints Source type Single source Single source Multi source Split Scaffold split Temporal split Taylor-Butina cluster split License MIT License CC-BY-4.0 GPL license
+
+D Additional Architecture Figures 
+
+We provide detailed architecture diagrams of the three model variants: KERMT (Figure 5), cMIM-only (Figure 6), and Contrastive KERMT (Figure 7). Table 5: Comparison of the three model variants. All variants share the same KERMT encoder; cMIM-only and Contrastive KERMT add a SMILES decoder, and Contrastive KERMT additionally retains the vocabulary prediction heads. Parameter counts are reported for the 11M-molecule pretraining configuration; the Contrastive KERMT total varies within ±0.1M across the augmented configurations in Table 1 because the SMILES, atom, and bond vocabularies are rebuilt per pretraining corpus.                     
+
+> Component KERMT cMIM-only Contrastive KERMT Encoder (message passing + transformer) ✓✓✓
+> SMILES decoder (reconstruction) ✓✓
+> Vocabulary prediction heads ✓✓
+> Pretraining objective vocab cMIM vocab + cMIM Total parameters (pretraining) 56.95M 62.04M 70.61M
+> Downstream fine-tuning/inference model same KERMT backbone; pretraining-only modules discarded
+> Total parameters (downstream) 56.95M 56.95M 56.95M
+
+16 MPN 
+
+> (Q, K, V)
+> Atom Branch
+> Aggregation and FFN
+> MPN
+> (Q, K, V)
+> Bond Branch
+> Transformer Encoder
+> Graph
+> Generator
+> Smiles
+> Graph
+> Representation
+> Atom Embeddings
+> atom_from_atom
+> atom_from_bond
+> Bond Embeddings
+> bond_from_atom
+> bond_from_bond
+> Atom Vocabulary Prediction
+> Multi- class Classification
+> Bond Vocabulary Prediction
+> Multi- class Classification
+> Readout
+> Molecular Embedding
+> Functional Group Prediction
+> Multi- label Classification
+> Loss Calculator
+> Prediction Loss + Disagreement Loss
+
+Figure 5: Architecture of the KERMT variant. The encoder (message passing + transformer) is followed directly by the vocabulary-prediction heads and loss calculator; no SMILES decoder or cMIM loss is used. 
+
+E Implementation Details 
+
+The Contrastive KERMT implementation builds on the KERMT architecture described by Adrian et al. [Adrian et al., 2025]. The code is publicly available at https://github.com/ NVIDIA-BioNeMo/KERMT .
+
+Pretraining configuration. All pretraining runs use self-supervised targets computed on the fly, and the cMIM and Contrastive KERMT runs additionally use in-batch negatives for the contrastive term; no positive-pair molecular augmentations are required. For variants with a contrastive component, the cMIM temperature is fixed to τ = 0 .1. Across pretraining variants, runs share the same KERMT encoder backbone and optimizer settings and use random seed 0; the variants differ in their pretraining objective and pretraining-only modules. Training budgets vary with corpus size: 11M-base configurations, including all augmented 11M variants, are trained for 100 epochs with 20 warmup epochs; the 208M-base run is trained for 6 epochs with 2 warmup epochs; and the 208M-base + Biogen run is trained for 4 epochs with 2 warmup epochs. For cMIM variants, the posterior head predicts a diagonal Gaussian qθ (zi | gi) = N (μi, diag( σ2
+
+i )) . Latent samples are drawn with the reparameterization trick. For numerical stability, the variance is clipped below 10 −6.The posterior head is a pretraining-only module and is discarded before downstream fine-tuning. Loss aggregation follows the probabilistic factors in Eq. (4) . SMILES reconstruction uses the teacher-forced autoregressive negative log-likelihood with a character-level tokenizer, summed over tokens for each molecule. Gaussian posterior and prior log densities are summed over latent dimensions. KERMT atom, bond, and functional-group objectives are computed as in KERMT, with atom and 17 bond heads averaged before entering the joint objective. Pretraining targets are self-supervised and can be computed on the fly for any molecule. For downstream multi-task fine-tuning, losses are computed only for observed assay labels. 
+
+Hardware and compute. All pretraining runs use a single node with 8 NVIDIA A100 GPUs on an internal compute cluster, with synchronous data-parallel training (NCCL backend). Per-GPU batch size is 128 , giving an effective global batch of 1,024 molecules per optimizer step across all variants and corpora. Per-run wall-clock cost is approximately 3 weeks for 11M-base configurations (100 epochs), 6 weeks for the 208M-base + Biogen configuration (4 epochs), and 8 weeks for the 208M-base configuration (6 epochs). Fine-tuning runs are substantially smaller and use a single A100 GPU per (variant, corpus, seed) configuration. At fixed corpus size, wall-clock pretraining time and GPU-hours were comparable across KERMT, cMIM-only, and Contrastive KERMT. Pretraining-only modules are discarded before fine-tuning, so downstream inference uses the same KERMT encoder/readout interface across pretrained variants. 
+
+Fine-tuning protocols. The task-specific fine-tuning configuration uses a 2-layer shared MLP trunk followed by a 3-layer task-specific MLP head per endpoint (Figure 8). The default configuration follows the standard KERMT [Rong et al., 2020] fine-tuning recipe with a single 3-layer shared MLP and no per-endpoint specialization. All fine-tuning MLPs use hidden size 700. For both configurations, each pretrained backbone initializes property prediction on the three ADME-focused benchmarks of Appendix C, and we fine-tune end-to-end for 100 epochs. Pretraining-only modules are discarded before fine-tuning: downstream models use the same KERMT encoder/readout interface regardless of whether pretraining included cMIM. Scores are averaged over five seeds {0, 1, 2, 3, 4},except for ChEMBL-MT where we use four runs comprising two cluster-split folds and two seeds 
+
+{0, 1} per fold. We ran the default protocol for the KERMT baseline on all three benchmarks as a no-task-specific reference; for cMIM-only and Contrastive KERMT, we ran the default protocol only on Biogen because task-specific layers consistently improved Biogen performance and were therefore adopted for ExpansionRX and ChEMBL-MT. 
+
+Baseline implementations. Fixed-descriptor baselines include Morgan fingerprints computed with RDKit [Landrum et al., 2025] (licensed under BSD 3-Clause License) at radius 2, folded into 1024 bits and passed to a 3-layer feed-forward network, and 200 RDKit 2D descriptors normalized with 
+
+descriptastorus [Kelley, 2018] (licensed under BSD 3-Clause License). Chemprop uses the directed message passing neural network implementation in the Chemprop package [Graff et al., 2026] (licensed under MIT License), with external-dataset hyperparameters from Adrian et al. [Adrian et al., 2024]. MolCLR is a graph isomorphism network trained contrastively through augmentations; we adapt the official MolCLR codebase [Wang, 2022] (licensed under MIT License) for multi-task prediction. KPGT, a line graph transformer that incorporates RDKit descriptor and fingerprint knowledge, uses the official codebase [Li, 2023] (licensed under Apache License 2.0) with default hyperparameters. The KERMT baseline shares the Contrastive KERMT backbone architecture and uses hyperparameters from Adrian et al. [Adrian et al., 2025]. 
+
+Statistical testing. For cross-baseline comparisons, we test differences across models separately for each endpoint using one-way Analysis of variance (ANOVA) over independent training runs, followed by Tukey’s Honest Significant Difference (HSD) test from the statsmodels Python package [Seabold and Perktold, 2010]. The run-level samples correspond to random seeds for Biogen and ExpansionRX and seed/fold combinations for ChEMBL-MT. Tukey HSD accounts for multiple pairwise model comparisons [Ash et al., 2025], and plotted confidence intervals are halfwidths computed using Tukey’s Q critical value. We report p-values in scientific notation or as thresholds when appropriate. These cross-baseline ANOVA/Tukey tests are distinct from the two-sample t-tests used for the significant-endpoint conditional averages in Appendix G.1. The resulting Tukey HSD comparison plots are shown in Figure 2 (Biogen, in Section 4.2), Figure 9 (ExpansionRX), and Figure 10 (ChEMBL-MT). 
+
+F Pretraining Data Source Distribution Analysis 
+
+To understand how consistent the data sources used across pretraining and downstream evaluation (Section 3.3 and Section 3.4) are in chemical space, we run a nearest-neighbor source-composition 18 analysis on molecule embeddings. For each molecule we retrieve its top-20 cosine nearest neighbors (excluding self) and count the proportion that belongs to each data source. Averaging these per-molecule proportions over molecules grouped by source yields a confusion matrix whose i-th row gives the average neighbor-source composition for molecules of source i: the diagonal measures self-source purity (a high value indicates a well-separated source) and off-diagonal entries measure how strongly two sources share chemical space. We report the analysis in two embedding spaces. Figure 11 uses Contrastive KERMT embeddings and is directly relevant to our pretraining setup. Figure 12 uses MolMIM [Reidenbach et al., 2022] embeddings, included as an independent reference latent space learned from a different objective on a different corpus. Two patterns are worth highlighting, both visible in both embedding spaces: • MolMIM-generated molecules cluster with their Biogen seeds. The neighbors of each generated subset are dominated by the Biogen seed set and by the other generated subsets, confirming that our MolMIM-based augmentation (Section 3.3) does not drift far from the seed distribution. • ExpansionRX behaves as an outlier relative to the rest of the corpus. Its self-source proportion is unusually high, and molecules from other sources rarely retrieve ExpansionRX neighbors. The remaining sources (Biogen, its MolMIM-generated variants, and ChEMBL-MT) mix with each other comparatively evenly, while ExpansionRX occupies a distinct region of chemical space—effectively an out-of-distribution slice relative to the other ADME-adjacent corpora. This pattern is robust across both embedding spaces, indicating that it is a property of the data rather than of any particular encoder. 
+
+G Per-endpoint Fine-tuning Results 
+
+Table 6 reports the raw mean MAE across endpoints for every (pretraining variant, corpus, fine-tuning protocol) configuration we evaluated. Figures 13, 14, and 15 report the per-endpoint fine-tuning performance on Biogen, ExpansionRX, and ChEMBL-MT respectively. The ranking across variants is consistent across all three benchmarks despite the differing task counts. Table 6: Mean MAE across endpoints for each (pretraining variant, fine-tuning protocol) configuration. Lower is better; bold marks the best (lowest) MAE per benchmark column. Compact corpus names: “11M base” = ZINC15_ChEMBL-11M, “208M base” = ZINC15_ChEMBL-up-208M; OA = ExpansionRX, CM = ChEMBL-MT (full corpus definitions in Table 1). Protocol, seed, and missing-run details are provided in Appendix E.                                                                       
+
+> Pretraining objective Pretraining corpus Fine-tuning Biogen ExpansionRX ChEMBL-MT vocab ( kermt_base )11M base default 0.339 0.380 0.466 vocab ( kermt_base )11M base task-specific 0.332 0.375 0.460 cMIM-only 11M base default 0.339 NA NA cMIM-only 11M base task-specific NA 0.394 0.458 Contrastive KERMT 11M base default 0.324 NA NA Contrastive KERMT 11M base task-specific 0.321 0.365 0.450 Contrastive KERMT 208M base default 0.327 NA NA Contrastive KERMT 208M base task-specific 0.325 0.362 0.445 Contrastive KERMT 11M base + Biogen default 0.327 NA NA Contrastive KERMT 11M base + Biogen task-specific 0.321 0.364 0.449 Contrastive KERMT 208M base + Biogen task-specific 0.324 0.361 0.446 Contrastive KERMT 11M base + Biogen + 30k MolMIM task-specific 0.326 0.359 0.445 Contrastive KERMT 11M base + Biogen + OA + CM task-specific 0.324 0.360 0.442
+
+G.1 Significant endpoints contributing to aggregate improvements 
+
+The aggregate improvements reported in the abstract and Section 4.3 (e.g., +7 .6% / +9 .9% / +9 .5% 
+
+on Biogen / ExpansionRX / ChEMBL-MT) are significant-endpoint conditional averages: they average per-endpoint percent change only over endpoints with a statistically significant difference (two-sample t-test, p < 0.05 ) versus the corresponding reported kermt_base baseline. Table 6 19 reports the corresponding all-endpoint macro mean MAE for every evaluated configuration. Tables 7, 8, and 9 list the significant endpoints and their per-endpoint ∆% for the three abstract-headline comparisons. Table 7: Biogen: significant endpoints contributing to the +7 .6% aggregate for ck_task_specific 
+
+vs. kermt_base (default-protocol baseline).     
+
+> Endpoint ∆%
+> HLM_CLint +8 .12%
+> MDCK +7 .15%
+> Aggregate (mean) +7.63 %
+
+Table 8: ExpansionRX: significant endpoints contributing to the +9 .9% aggregate for 
+
+ck_biogen_sampled30k_task_specific vs. kermt_base (default-protocol baseline).      
+
+> Endpoint ∆%
+> Log_MLM_CLint +10 .5%
+> Log_KSOL +10 .4%
+> Log_Caco2_Efflux +8 .7%
+> Aggregate (mean) +9.87 %
+
+Table 9: ChEMBL-MT: significant endpoints contributing to the +9 .5% aggregate for 
+
+ck_biogen_oa_cm_task_specific vs. kermt_base (default-protocol baseline).           
+
+> Endpoint ∆%
+> Monkey_fraction_unbound_plasma +16 .4%
+> thermo_logSaq +15 .1%
+> Rat_fraction_unbound_plasma +10 .5%
+> kinetic_logSaq +8 .5%
+> Human_fraction_unbound_plasma +7 .4%
+> CL_total_rat +7 .3%
+> CYP3A4_inhibition +5 .7%
+> VDss_human +5 .3%
+> Aggregate (mean) +9.51 %
+
+H Linear Probing on Frozen Embeddings 
+
+Beyond the contrastive-geometry analysis (Section 4.1) and the cross-baseline and ablation evaluations (Sections 4.2 and 4.3), we also assess the quality of the pretrained representations via a linear-probing analysis on frozen molecule-level embeddings. Probing isolates how much chemistry signal is already linearly accessible from the pretrained latent space, independent of any downstream-prediction head, and lets us check whether the same configurations that win on fine-tune also win on this representation-quality measurement. 
+
+Probe protocol. We extract frozen molecule-level embeddings from the Biogen and ExpansionRX datasets (Appendix C) and fit simple linear models on 17 basic molecular descriptors computed with RDKit (Table 10): 9 classification tasks (logistic regression, accuracy) and 8 regression tasks (ridge regression, R2). Each probe is fit with 5-fold cross-validation and we report the cross-validation mean per task. Probing evaluates all four encoder readouts independently (mean-pooled to molecule level), then aggregates over the four readouts as described in the caption of Table 11. 
+
+Contrastive KERMT dominates the linearly-accessible signal. On both embedding sources Contrastive KERMT ( ck ) lifts average performance well above KERMT ( kermt_base ): from 
+
+0.796 → 0.867 on Biogen-source and 0.756 → 0.807 on ExpansionRX-source embeddings. cMIM-only collapses on probing, confirming the same pattern observed in fine-tuning (Section 4.3): the 20 Table 10: Linear probing tasks derived from RDKit descriptors. Classification targets are two binary druglikeness flags (Lipinski, Veber) and seven integer-count descriptors used directly as discrete-valued multiclass labels; regression targets are continuous descriptors.          
+
+> Classification (9) Regression (8) NumHDonors MolecularWeight NumHAcceptors LogP NumRotatableBonds TPSA NumRings NumAtoms NumAromaticRings NumHeavyAtoms NumHeteroatoms NumBonds NumStereocenters FractionCSP3 Lipinski BertzCT Veber
+
+Table 11: Linear probing results across the 17 descriptor tasks of Table 10, evaluated on Biogen-source and ExpansionRX-source molecule embeddings. Wins counts per-dataset best-in-class outcomes across all (model, readout) combinations. Avg columns average over the four readouts; Best columns report the score of the single best-performing readout. Bold marks the best entry per column within each dataset; ties are bolded jointly.                                                                                                                         
+
+> Avg over readouts Best readout Model Wins Clf Reg All Clf Reg All
+> Biogen-source embeddings (17 tasks):
+> kermt_base 1.0 0.832 0.755 0.796 0.868 0.867 0.868
+> cmim_only 0.0 0.706 0.703 0.704 0.842 0.906 0.872
+> ck 0.0 0.855 0.881 0.867 0.882 0.932 0.905
+> ck_upscale 0.0 0.851 0.883 0.866 0.879 0.937 0.906
+> ck_biogen 1.0 0.857 0.883 0.870 0.885 0.937 0.909
+> ck_upscale_biogen 9.0 0.850 0.895 0.871 0.884 0.949 0.915
+> ck_biogen_sampled30k 3.0 0.856 0.882 0.868 0.882 0.946 0.912
+> ck_biogen_oa_cm 3.0 0.857 0.846 0.852 0.882 0.946 0.912
+> ExpansionRX-source embeddings (17 tasks):
+> kermt_base 1.0 0.876 0.649 0.756 0.897 0.781 0.835
+> cmim_only 0.0 0.769 0.542 0.649 0.872 0.804 0.836
+> ck 0.0 0.888 0.735 0.807 0.903 0.827 0.863
+> ck_upscale 0.0 0.884 0.745 0.810 0.900 0.850 0.873
+> ck_biogen 3.0 0.887 0.775 0.828 0.904 0.854 0.878
+> ck_upscale_biogen 1.0 0.886 0.744 0.811 0.907 0.834 0.868
+> ck_biogen_sampled30k 4.0 0.887 0.763 0.821 0.908 0.838 0.871
+> ck_biogen_oa_cm 8.0 0.886 0.738 0.808 0.904 0.875 0.889
+
+cMIM contrastive signal is informative only when combined with the vocabulary-prediction objectives, not as a standalone replacement. 
+
+The probing-best configuration is dataset-specific. On Biogen-source embeddings, the upscale-plus-Biogen configuration ( ck_upscale_biogen ) wins the most tasks ( 9/17 , the highest count anywhere in the table) and produces the best regression readout ( R2 = 0 .949 ) and the best readout-averaged regression score ( 0.895 ). On ExpansionRX-source embeddings, the pooled configuration (ck_biogen_oa_cm ) wins the most tasks ( 8/17 ) and produces the best regression readout ( R2 =0.875 ). The two corpus designs map onto the two evaluation sets, though with different sharpness: on Biogen-source probing, ck_upscale_biogen (208M base + Biogen) is the dominant winner across the win count and most aggregate columns; on the more chemically-diverse ExpansionRX source the picture is mixed, with the pooled ck_biogen_oa_cm leading the win-count and best-readout columns and the Biogen-only ck_biogen leading the readout-averaged columns. 
+
+Probing supports the fine-tune model selection. The pooled ck_biogen_oa_cm configuration — the model selected for cross-baseline comparison in Section 4.2 — leads the win-count and best-21 readout columns on the ExpansionRX source, and is tied for the best readout-averaged classification score on the Biogen source. 22 MPN 
+
+(Q, K, V) 
+
+Atom Branch 
+
+Aggregation and FFN 
+
+MPN 
+
+(Q, K, V) 
+
+Bond Branch 
+
+Transformer Encoder 
+
+Graph 
+
+Generator 
+
+Smiles 
+
+Graph 
+
+Representation 
+
+Atom Embeddings 
+
+atom_from_atom 
+
+atom_from_bond 
+
+Bond Embeddings 
+
+bond_from_atom 
+
+bond_from_bond 
+
+Readout 
+
+Molecular Embedding 
+
+Latent Distribution 
+
+FFN 
+
+mean 
+
+log_scale  z~normal(mean, log_scale) 
+
+Transformer Decoder CMIM Loss Calculator 
+
+Loss Calculator 
+
+CMIM Loss + Reconstruction Loss Figure 6: Architecture of cMIM-only. The encoder is followed by a readout, latent-distribution head, and SMILES transformer decoder; the cMIM loss is computed from the latent codes together with the reconstruction loss from the decoder. Vocabulary-prediction heads are not used. 23 MPN 
+
+(Q, K, V) 
+
+Atom Branch 
+
+Aggregation and FFN 
+
+MPN 
+
+(Q, K, V) 
+
+Bond Branch 
+
+Transformer Encoder 
+
+Graph 
+
+Generator 
+
+Smiles 
+
+Graph 
+
+Representation 
+
+Atom Embeddings 
+
+atom_from_atom 
+
+atom_from_bond 
+
+Bond Embeddings 
+
+bond_from_atom 
+
+bond_from_bond 
+
+Readout 
+
+Molecular Embedding 
+
+Latent Distribution 
+
+FFN 
+
+mean 
+
+log_scale  z~normal(mean, log_scale) 
+
+Transformer Decoder CMIM Loss Calculator 
+
+Loss Calculator 
+
+KERMT Loss + CMIM Loss + Reconstruction Loss 
+
+Atom Vocabulary Prediction 
+
+Multi- class Classification 
+
+Bond Vocabulary Prediction 
+
+Multi- class Classification 
+
+Functional Group Prediction 
+
+Multi- label Classification Figure 7: Architecture of Contrastive KERMT, which combines all components of KERMT and cMIM-only: the encoder, the vocabulary-prediction heads, and the SMILES decoder with its cMIM loss are all active in a single pretraining objective. 
+
+KERMT encoder 
+
+Shared MLP 
+
+Task-specific head 1 
+
+Task-specific head 2 · · · Task-specific head T
+
+Endpoint 1 Endpoint 2 · · · Endpoint T
+
+Figure 8: Task-specific MLP heads, one per endpoint, on top of a shared MLP trunk for downstream fine-tuning. 24 0.70 0.75 0.80 0.85 
+
+Contrastive KERMT 
+
+KERMT 
+
+KPGT 
+
+MolCLR 
+
+Chemprop 
+
+RDKit Descriptor + MLP 
+
+Morgan FP + MLP 
+
+LogD      
+
+> 0.55 0.60 0.65 0.70 0.75 0.80
+
+Solubility      
+
+> 0.25 0.30 0.35 0.40 0.45 0.50
+
+HLM 
+
+CLint       
+
+> 0.450 0.475 0.500 0.525 0.550 0.575 0.600
+
+Contrastive KERMT 
+
+KERMT 
+
+KPGT 
+
+MolCLR 
+
+Chemprop 
+
+RDKit Descriptor + MLP 
+
+Morgan FP + MLP 
+
+MLM 
+
+CLint     
+
+> 0.3 0.4 0.5 0.6 0.7
+
+Caco-2 
+
+Papp     
+
+> 0.45 0.50 0.55 0.60 0.65
+
+Caco-2 
+
+Efflux     
+
+> 0.5 0.6 0.7 0.8 0.9
+
+Pearson's R 
+
+Contrastive KERMT 
+
+KERMT 
+
+KPGT 
+
+MolCLR 
+
+Chemprop 
+
+RDKit Descriptor + MLP 
+
+Morgan FP + MLP 
+
+MPPB        
+
+> 0.675 0.700 0.725 0.750 0.775 0.800 0.825 0.850
+
+Pearson's R 
+
+MBPB     
+
+> 0.52 0.54 0.56 0.58 0.60
+
+Pearson's R 
+
+MGMB Figure 9: Tukey HSD plot comparing Contrastive KERMT model performance on ExpansionRX dataset with all baselines. The ANOVA p-values were < 10 −4 for all assays. Blue: best method, Gray: statistically indistinguishable from the best method, Red: statistically worse than the best method. 25 0.45 0.50 0.55 0.60 0.65 0.70 
+
+Contrastive KERMT 
+
+KERMT 
+
+KPGT 
+
+MolCLR 
+
+Chemprop 
+
+RDKit Descriptor + MLP 
+
+Morgan FP + MLP 
+
+CL_microsome_human (ANOVA p=0.000) 
+
+0.35 0.40 0.45 0.50 0.55 0.60 
+
+CL_microsome_mouse (ANOVA p=0.000) 
+
+0.2 0.3 0.4 0.5 0.6 
+
+CL_microsome_rat (ANOVA p=0.000) 
+
+0.2 0.0 0.2 0.4 
+
+Contrastive KERMT 
+
+KERMT 
+
+KPGT 
+
+MolCLR 
+
+Chemprop 
+
+RDKit Descriptor + MLP 
+
+Morgan FP + MLP 
+
+CL_total_dog (ANOVA p=0.000) 
+
+0.2 0.3 0.4 0.5 
+
+CL_total_human (ANOVA p=0.000) 
+
+0.0 0.2 0.4 0.6 
+
+CL_total_monkey (ANOVA p=0.000) 
+
+0.0 0.1 0.2 0.3 0.4 
+
+Contrastive KERMT 
+
+KERMT 
+
+KPGT 
+
+MolCLR 
+
+Chemprop 
+
+RDKit Descriptor + MLP 
+
+Morgan FP + MLP 
+
+CL_total_rat (ANOVA p=0.000) 
+
+0.0 0.1 0.2 0.3 0.4 0.5 
+
+CYP2C8_inhibition (ANOVA p=0.001) 
+
+0.30 0.35 0.40 0.45 0.50 0.55 
+
+CYP2C9_inhibition (ANOVA p=0.000) 
+
+0.30 0.35 0.40 0.45 0.50 0.55 0.60 0.65 
+
+Contrastive KERMT 
+
+KERMT 
+
+KPGT 
+
+MolCLR 
+
+Chemprop 
+
+RDKit Descriptor + MLP 
+
+Morgan FP + MLP 
+
+CYP2D6_inhibition (ANOVA p=0.000) 
+
+0.40 0.45 0.50 0.55 0.60 0.65 
+
+CYP3A4_inhibition (ANOVA p=0.000) 
+
+0.45 0.50 0.55 0.60 0.65 0.70 0.75 
+
+Dog_fraction_unbound_plasma (ANOVA p=0.006) 
+
+0.70 0.75 0.80 0.85 
+
+Contrastive KERMT 
+
+KERMT 
+
+KPGT 
+
+MolCLR 
+
+Chemprop 
+
+RDKit Descriptor + MLP 
+
+Morgan FP + MLP 
+
+Human_fraction_unbound_plasma (ANOVA p=0.000) 
+
+0.50 0.55 0.60 0.65 0.70 0.75 
+
+Monkey_fraction_unbound_plasma 
+
+(ANOVA p=0.018) 
+
+0.45 0.50 0.55 0.60 
+
+Rat_fraction_unbound_plasma (ANOVA p=0.019) 
+
+0.50 0.55 0.60 0.65 0.70 
+
+Contrastive KERMT 
+
+KERMT 
+
+KPGT 
+
+MolCLR 
+
+Chemprop 
+
+RDKit Descriptor + MLP 
+
+Morgan FP + MLP 
+
+Papp_Caco2 (ANOVA p=0.000) 
+
+0.25 0.30 0.35 0.40 0.45 0.50 0.55 
+
+Pgp_human (ANOVA p=0.000) 
+
+0.50 0.55 0.60 0.65 0.70 0.75 
+
+hERG_binding (ANOVA p=0.000) 
+
+0.60 0.65 0.70 0.75 0.80 0.85 
+
+Contrastive KERMT 
+
+KERMT 
+
+KPGT 
+
+MolCLR 
+
+Chemprop 
+
+RDKit Descriptor + MLP 
+
+Morgan FP + MLP 
+
+LogD_pH_7.4 (ANOVA p=0.000) 
+
+0.675 0.700 0.725 0.750 0.775 0.800 0.825 
+
+kinetic_logSaq (ANOVA p=0.000) 
+
+0.750 0.775 0.800 0.825 0.850 0.875 0.900 
+
+thermo_logSaq (ANOVA p=0.000) 
+
+0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60 
+
+Contrastive KERMT 
+
+KERMT 
+
+KPGT 
+
+MolCLR 
+
+Chemprop 
+
+RDKit Descriptor + MLP 
+
+Morgan FP + MLP 
+
+VDss_dog (ANOVA p=0.000) 
+
+0.35 0.40 0.45 0.50 0.55 0.60 0.65 
+
+VDss_human (ANOVA p=0.001) 
+
+0.3 0.4 0.5 0.6 0.7 
+
+VDss_monkey (ANOVA p=0.000) 
+
+0.2 0.3 0.4 0.5 0.6 
+
+Pearson's R 
+
+Contrastive KERMT 
+
+KERMT 
+
+KPGT 
+
+MolCLR 
+
+Chemprop 
+
+RDKit Descriptor + MLP 
+
+Morgan FP + MLP 
+
+VDss_rat (ANOVA p=0.000) Figure 10: Tukey HSD plot comparing Contrastive KERMT model performance on ChEMBL-MT dataset with all baselines. Blue: best method, Gray: statistically indistinguishable from the best method, Red: statistically worse than the best method. 26 ZINC15+ChEMBL 11M 
+
+> Biogen
+> Biogen based generated 10k
+> Biogen based generated 30k
+> ExpansionRX
+> ChEMBL-MT fold0
+> ChEMBL-MT fold1
+
+Neighbor Source 
+
+ZINC15+ChEMBL 11M 
+
+Biogen 
+
+Biogen based generated 10k 
+
+Biogen based generated 30k 
+
+ExpansionRX 
+
+ChEMBL-MT fold0 
+
+ChEMBL-MT fold1 
+
+> Query Source
+
+0.27 0.13 0.19 0.18 0.06 0.08 0.09 
+
+0.11 0.22 0.17 0.16 0.15 0.10 0.09 
+
+0.17 0.17 0.19 0.18 0.10 0.10 0.10 
+
+0.16 0.18 0.19 0.18 0.11 0.09 0.10 
+
+0.01 0.05 0.03 0.03 0.84 0.02 0.02 
+
+0.10 0.15 0.14 0.13 0.08 0.20 0.20 
+
+0.10 0.14 0.14 0.14 0.08 0.20 0.20 
+
+Nearest Neighbor Source Distribution kermt_atom_concat (top-20) 
+
+0.0 
+
+0.2 
+
+0.4 
+
+0.6 
+
+0.8 
+
+1.0 
+
+> Proportion
+
+Figure 11: Top-20 nearest-neighbor source composition in Contrastive KERMT embedding space. Each row gives the average source composition of the top-20 cosine neighbors of molecules from that source; the diagonal is self-source purity. ExpansionRX separates from every other source while the remaining sources mix with each other. ZINC15+ChEMBL 11M 
+
+> Biogen
+> Biogen based generated 10k
+> Biogen based generated 30k
+> ExpansionRX
+> ChEMBL-MT fold0
+> ChEMBL-MT fold1
+
+Neighbor Source 
+
+ZINC15+ChEMBL 11M 
+
+Biogen 
+
+Biogen based generated 10k 
+
+Biogen based generated 30k 
+
+ExpansionRX 
+
+ChEMBL-MT fold0 
+
+ChEMBL-MT fold1 
+
+> Query Source
+
+0.14 0.14 0.15 0.14 0.13 0.15 0.14 
+
+0.08 0.18 0.14 0.14 0.14 0.17 0.16 
+
+0.11 0.17 0.15 0.15 0.13 0.15 0.14 
+
+0.10 0.17 0.15 0.15 0.13 0.15 0.15 
+
+0.04 0.09 0.06 0.06 0.61 0.07 0.07 
+
+0.07 0.15 0.11 0.10 0.11 0.23 0.22 
+
+0.08 0.15 0.10 0.11 0.12 0.23 0.21 
+
+Nearest Neighbor Source Distribution molmim (top-20) 
+
+0.0 
+
+0.2 
+
+0.4 
+
+0.6 
+
+0.8 
+
+1.0 
+
+> Proportion
+
+Figure 12: Top-20 nearest-neighbor source composition in MolMIM [Reidenbach et al., 2022] embedding space, included as an independent reference. The same qualitative patterns hold: MolMIM-generated pools overlap with their Biogen seeds, and ExpansionRX stands apart from the other sources. 27 HLM_CLint_mean 
+
+> MDCK_mean
+> RLM_CLint_mean
+> logS_mean
+> Overall
+
+Task 
+
+0.0 
+
+0.1 
+
+0.2 
+
+0.3 
+
+0.4 
+
+0.5 
+
+0.6 
+
+0.7 
+
+> MAE (lower is better)
+> 0.320
+> 0.289
+> 0.402
+> 0.344
+> 0.339
+> 0.309
+> 0.278
+> 0.402
+> 0.339
+> 0.332
+> 0.328
+> 0.285
+> 0.394
+> 0.348
+> 0.339
+> 0.302
+> 0.275
+> 0.389
+> 0.329
+> 0.324
+> 0.294
+> 0.268
+> 0.389
+> 0.333
+> 0.321
+> 0.303
+> 0.275
+> 0.389
+> 0.340
+> 0.327
+> 0.299
+> 0.273
+> 0.388
+> 0.338
+> 0.325
+> 0.304
+> 0.272
+> 0.385
+> 0.347
+> 0.327
+> 0.293
+> 0.269
+> 0.380
+> 0.341
+> 0.321
+> 0.303
+> 0.273
+> 0.395
+> 0.334
+> 0.326
+> 0.300
+> 0.267
+> 0.390
+> 0.339
+> 0.324
+> 0.297
+> 0.276
+> 0.389
+> 0.335
+> 0.324
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+Model Comparison - Test MAE by Task 
+
+kermt_base (n=5) 
+
+kermt_base_task_specific (n=5) 
+
+cmim_only (n=5) 
+
+ck (n=5) 
+
+ck_task_specific (n=5) 
+
+ck_upscale (n=5) 
+
+ck_upscale_task_specific (n=5) 
+
+ck_biogen (n=5) 
+
+ck_biogen_task_specific (n=5) 
+
+ck_biogen_sampled30k_task_specific (n=5) 
+
+ck_biogen_oa_cm_task_specific (n=5) 
+
+ck_upscale_biogen_task_specific (n=5) Figure 13: Fine-tuning performance on the Biogen ADME dataset across model variants and pretrain-ing corpora. The KERMT baseline ( kermt_base ) is shown first in each panel for reference. LogD 
+
+> Log_Caco2_Efflux
+> Log_Caco2_Papp_A>B
+> Log_HLM_CLint
+> Log_KSOL
+> Log_MBPB
+> Log_MGMB
+> Log_MLM_CLint
+> Log_MPPB
+> Overall
+
+Task 
+
+0.0 
+
+0.1 
+
+0.2 
+
+0.3 
+
+0.4 
+
+0.5 
+
+0.6 
+
+0.7 
+
+0.8 
+
+> MAE (lower is better)
+> 0.393
+> 0.489
+> 0.472
+> 0.429
+> 0.417
+> 0.225
+> 0.287
+> 0.458
+> 0.247
+> 0.380
+> 0.396
+> 0.479
+> 0.469
+> 0.400
+> 0.396
+> 0.251
+> 0.299
+> 0.423
+> 0.263
+> 0.375
+> 0.461
+> 0.479
+> 0.468
+> 0.418
+> 0.477
+> 0.247
+> 0.293
+> 0.420
+> 0.284
+> 0.394
+> 0.390
+> 0.471
+> 0.470
+> 0.405
+> 0.387
+> 0.232
+> 0.286
+> 0.396
+> 0.252
+> 0.365
+> 0.382
+> 0.455
+> 0.463
+> 0.401
+> 0.385
+> 0.233
+> 0.288
+> 0.394
+> 0.259
+> 0.362
+> 0.388
+> 0.460
+> 0.457
+> 0.393
+> 0.395
+> 0.234
+> 0.289
+> 0.406
+> 0.257
+> 0.364
+> 0.393
+> 0.447
+> 0.453
+> 0.413
+> 0.373
+> 0.220
+> 0.290
+> 0.410
+> 0.228
+> 0.359
+> 0.377
+> 0.459
+> 0.460
+> 0.397
+> 0.375
+> 0.226
+> 0.300
+> 0.395
+> 0.255
+> 0.360
+> 0.388
+> 0.458
+> 0.452
+> 0.411
+> 0.375
+> 0.225
+> 0.288
+> 0.403
+> 0.249
+> 0.361
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+Model Comparison - Test MAE by Task 
+
+ExpansionRX_kermt_base (n=5) 
+
+ExpansionRX_kermt_base_task_specific (n=5) 
+
+ExpansionRX_cmim_only_task_specific (n=5) 
+
+ExpansionRX_ck_task_specific (n=5) 
+
+ExpansionRX_ck_upscale_task_specific (n=5) 
+
+ExpansionRX_ck_biogen_task_specific (n=5) 
+
+ExpansionRX_ck_biogen_sampled30k_task_specific (n=5) 
+
+ExpansionRX_ck_biogen_oa_cm_task_specific (n=5) 
+
+ExpansionRX_ck_upscale_biogen_task_specific (n=5) 
+
+Figure 14: Fine-tuning performance on ExpansionRX across model variants and pretraining corpora. Trends are consistent with the Biogen results: the Contrastive KERMT configurations outperform the single-objective backbones, and adding ADME-adjacent corpora to the pretraining mix provides further gains. 28 CL_microsome_human 
+
+> CL_microsome_mouse
+> CL_microsome_rat
+> CL_total_dog
+> CL_total_human
+> CL_total_monkey
+> CL_total_rat
+> CYP2C8_inhibition
+> CYP2C9_inhibition
+> CYP2D6_inhibition
+> CYP3A4_inhibition
+> Dog_fraction_unbound_plasma
+> Human_fraction_unbound_plasma
+> LogD_pH_7.4
+> Monkey_fraction_unbound_plasma
+> Papp_Caco2
+> Pgp_human
+> Rat_fraction_unbound_plasma
+> VDss_dog
+> VDss_human
+> VDss_monkey
+> VDss_rat
+> hERG_binding
+> kinetic_logSaq
+> thermo_logSaq
+> Overall
+> Task
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> 1.2
+> 1.4
+> 1.6
+> MAE (lower is better)
+> 0.357
+> 0.441
+> 0.439
+> 0.454
+> 0.482
+> 0.414
+> 0.482
+> 0.486
+> 0.509
+> 0.576
+> 0.604
+> 0.409
+> 0.376
+> 0.514
+> 0.442
+> 0.426
+> 0.430
+> 0.449
+> 0.417
+> 0.408
+> 0.369
+> 0.454
+> 0.480
+> 0.287
+> 0.959
+> 0.466
+> 0.360
+> 0.435
+> 0.455
+> 0.460
+> 0.473
+> 0.353
+> 0.488
+> 0.495
+> 0.512
+> 0.573
+> 0.598
+> 0.413
+> 0.361
+> 0.525
+> 0.436
+> 0.428
+> 0.424
+> 0.418
+> 0.405
+> 0.387
+> 0.371
+> 0.460
+> 0.476
+> 0.276
+> 0.910
+> 0.460
+> 0.369
+> 0.433
+> 0.467
+> 0.439
+> 0.456
+> 0.324
+> 0.423
+> 0.514
+> 0.512
+> 0.593
+> 0.606
+> 0.388
+> 0.376
+> 0.576
+> 0.420
+> 0.448
+> 0.432
+> 0.432
+> 0.402
+> 0.385
+> 0.354
+> 0.447
+> 0.491
+> 0.293
+> 0.856
+> 0.458
+> 0.362
+> 0.442
+> 0.432
+> 0.423
+> 0.471
+> 0.326
+> 0.453
+> 0.499
+> 0.506
+> 0.592
+> 0.586
+> 0.414
+> 0.348
+> 0.515
+> 0.394
+> 0.424
+> 0.427
+> 0.415
+> 0.409
+> 0.383
+> 0.360
+> 0.455
+> 0.475
+> 0.267
+> 0.878
+> 0.450
+> 0.354
+> 0.433
+> 0.439
+> 0.425
+> 0.479
+> 0.338
+> 0.442
+> 0.490
+> 0.495
+> 0.568
+> 0.582
+> 0.402
+> 0.348
+> 0.507
+> 0.401
+> 0.412
+> 0.420
+> 0.410
+> 0.406
+> 0.393
+> 0.370
+> 0.448
+> 0.469
+> 0.265
+> 0.834
+> 0.445
+> 0.360
+> 0.446
+> 0.436
+> 0.424
+> 0.466
+> 0.330
+> 0.445
+> 0.499
+> 0.508
+> 0.578
+> 0.580
+> 0.414
+> 0.348
+> 0.516
+> 0.388
+> 0.413
+> 0.425
+> 0.417
+> 0.404
+> 0.388
+> 0.366
+> 0.442
+> 0.474
+> 0.269
+> 0.885
+> 0.449
+> 0.361
+> 0.471
+> 0.436
+> 0.421
+> 0.474
+> 0.332
+> 0.447
+> 0.494
+> 0.500
+> 0.576
+> 0.571
+> 0.427
+> 0.343
+> 0.510
+> 0.399
+> 0.407
+> 0.429
+> 0.397
+> 0.404
+> 0.387
+> 0.363
+> 0.444
+> 0.459
+> 0.263
+> 0.816
+> 0.445
+> 0.355
+> 0.443
+> 0.432
+> 0.420
+> 0.473
+> 0.345
+> 0.446
+> 0.480
+> 0.499
+> 0.572
+> 0.569
+> 0.409
+> 0.349
+> 0.506
+> 0.370
+> 0.410
+> 0.420
+> 0.402
+> 0.400
+> 0.386
+> 0.356
+> 0.452
+> 0.469
+> 0.262
+> 0.814
+> 0.442
+> 0.365
+> 0.443
+> 0.436
+> 0.413
+> 0.467
+> 0.345
+> 0.456
+> 0.490
+> 0.496
+> 0.582
+> 0.588
+> 0.417
+> 0.353
+> 0.506
+> 0.394
+> 0.422
+> 0.426
+> 0.412
+> 0.392
+> 0.383
+> 0.347
+> 0.448
+> 0.467
+> 0.265
+> 0.841
+> 0.446 * * *
+> **
+> *
+> * *
+> *
+> *
+> * * * *
+> *
+> *
+> *
+> *
+> *
+> **
+> *
+> *
+> *
+> *
+> *
+> *
+> **
+> * * * **
+> *
+> *
+> *
+> *
+> *
+> * *
+> *
+> * *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> *
+> Model Comparison - Test MAE by Task
+> chemblmt_kermt_base (n=4)
+> chemblmt_kermt_base_task_specific (n=4)
+> chemblmt_cmim_only_task_specific (n=4)
+> chemblmt_ck_task_specific (n=4)
+> chemblmt_ck_upscale_task_specific (n=4)
+> chemblmt_ck_biogen_task_specific (n=4)
+> chemblmt_ck_biogen_sampled30k_task_specific (n=4)
+> chemblmt_ck_biogen_oa_cm_task_specific (n=4)
+> chemblmt_ck_upscale_biogen_task_specific (n=4)
+
+Figure 15: Fine-tuning performance on ChEMBL-MT across model variants and pretraining corpora. 29

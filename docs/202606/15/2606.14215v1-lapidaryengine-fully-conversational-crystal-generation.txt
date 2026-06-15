@@ -1,0 +1,434 @@
+Title: LapidaryEngine: Fully Conversational Crystal Generation
+
+URL Source: https://arxiv.org/pdf/2606.14215v1
+
+Published Time: Mon, 15 Jun 2026 00:37:38 GMT
+
+Number of Pages: 16
+
+Markdown Content:
+# LapidaryEngine: Fully Conversational Crystal Generation 
+
+Yusei Ito 1,2∗ Yuta Suzuki 1 Tomoya Murata 1† Masaki Adachi 11Lattice Lab, Toyota Motor Corporation, 2The University of Osaka The emergence of Large Language Models (LLMs) has inspired the vision of generating bespoke crystal materials directly from natural-language instructions, enabling users to design materials through intuitive, con-versational interaction. Existing text-to-crystal generative models represent important early steps toward this goal, but they suffer from two critical limitations: (i) restricted input formats that require highly structured de-scriptions (e.g., chemical formulas), and (ii) one-directional generation, where models can map text → crystal but cannot perform the inverse. These limitations prevent fully conversational workflows and hinder alignment with users’ inherently ambiguous and evolving desiderata. We address these challenges with LapidaryEngine, the first model to support fully conversational crystal generation. LapidaryEngine accepts free-form natural-language requests and performs iterative refinement and editing in a dialogue-like manner. The key innovation is a pivot representation—a third, intermediate form that enables bidirectional translation between text and crys-tal structures despite the absence of direct paired datasets. Leveraging this pivot allows robust interpretation of user feedback and precise structural control. We demonstrate LapidaryEngine across diverse tasks, including insulator discovery, stability optimization, compositional modification, and structural editing, showcasing its ability to align generated materials with user intent in an interactive manner. 
+
+# 1 Introduction 
+
+Given the remarkable success of generative models in image [1], video [2], and music synthesis [3], it is natural to expect the recent breakthroughs in generative modeling to extend to materials design—indeed, the number of AI-for-materials papers has rocketed dramatically [4, 5, 6, 7, 8]. In particular, with the emergence of human-level performance in Large Language Models (LLMs) [9, 10, 11], the community is now racing to apply these capabilities to core challenges in scientific fields, including hypothesis generation, experimental planning, and automated scientific reasoning [12, 13, 14, 15]. One of the most transformative aspects of LLMs is the ability to formulate scientific problems directly in natural language—tasks that previously required carefully crafted, domain-specific formalisms for simulations and experiments. Among these new possibilities, text-to-crystal generation stands out: it offers an interface through which users can specify desired materials simply by writing natural-language descriptions. Because traditional materials-science tools—such as atomistic simulations or quantum-chemical analysis—have long been inaccessible to non-experts, text-to-crystal systems hold the promise of democratizing expert knowledge. Much like how non-experts can now write novels or create illustrations with generative models, engineers and designers could soon generate bespoke materials tailored to their needs. Two early works, Chemeleon and GenMS, represent pioneering steps toward text-to-crystal models, demonstrating promising results in their respective applications [16, 17]. Chemeleon shows that crystals can be generated from only a vague textual prompt describing the composition, and in the Zn-Ti-O system it explores the chemical space to propose new candidate crystal structures beyond the known phases. GenMS demonstrates that natural language descriptions specifying a crystal family, such as perovskites, can be used to correctly generate crystal structures consistent with that family. However, these approaches do not yet achieve the goal of democratization. Why? Because crafting precise instructions itself requires expert-level or even oracle-level knowledge. Natural-language descriptions can be inherently ambiguous. For example, consider the prompt: “Generate an insulating material that has not yet been reported in the literature.” The space of possible answers is vast, leaving open questions about the material family, the required degree of insulation (e.g., bandgap), and various physical or chemical constraints. To specify these details, users must already possess a clear and technically grounded design target. Moreover, at the scientific frontier, even experts operate under uncertainty: they often do not know whether a hypothesized structure can be synthesized or whether it will exhibit the desired properties. Their design goals typically evolve through iterative trial and error. 
+
+> ∗
+
+The work was done while the first author was an intern at Lattice Lab, Toyota Motor Corporation. 
+
+> †
+
+Corresponding author: tomoya_murata_aa@mail.toyota.co.jp 
+
+1
+
+> arXiv:2606.14215v1 [cs.LG] 12 Jun 2026
+
+LapidaryEngine: Fully Conversational Crystal Generation User’s prompt           
+
+> -Physical property
+> -Chemical property
+> -Function
+> -Structural feature
+> -etc.
+> -Formula
+> -Lattice
+> -Symmetry
+> -Local environment
+> -etc.
+> Structural description
+> LLM
+> No dataset available
+> Crystal structure
+> Pivot representation
+> GNN -based
+> generative model
+> Rule -based
+> generation
+
+Feedback iteration 
+
+> The simulation gives a bandgap of 3.87 eV.
+> I want to push it a bit higher.
+> Bandgap
+
+Objective: An insulating material that has not yet been reported and is stable            
+
+> Replace strontium with a more readily available element.
+> Sr 3ZrBiF 13 (3.87 eV)
+> 1234
+> Sr 3ZrBiF 13 (4.62 eV) Ca 3ZrBiF 13 (4.48 eV) Ca 3ZrBiF 13 (4.76 eV)
+> Try expanding the lattice so that the distance
+> between neighboring units becomes larger.
+> Increase distance
+
+# (a) 
+
+# (b) 
+
+Figure 1: Key idea and example of LapidaryEngine . (a) As there is no dataset that directly links textual descriptions to crystal structures, our approach introduces a pivot representation bridging linguistic and structural modalities. (b) Examples of crystal structures generated by our framework. Starting from a prompt requesting an insulator with a large bandgap, the model produces an initial structure and iteratively refines it through natural language feedback. Requiring users to provide well-specified, error-free instructions a priori therefore conflicts with how real materials discovery proceeds and severely limits applicability. A more natural and user-friendly interface for materials design is iterative refinement, exemplified by the conversa-tional paradigm popularized by ChatGPT. Users should be able to begin with a vague idea, progressively clarify their requirements as they learn more, and ultimately converge to a well-specified target through a dialogue-like interac-tion. However, enabling conversational crystal generation is far from trivial. The two existing text-to-crystal systems [16, 17] cannot support such interactive refinement. This stems from two fundamental limitations: (a) Restricted instruction formats. Existing approaches typically constrain textual inputs to highly structured de-scriptions—such as chemical formulas, space groups, or symmetry tokens [17]. These rigid formats deviate substantially from natural language, requiring expert-level knowledge to construct valid prompts. Moreover, they exclude intentionally ambiguous or partially specified requests, which are essential for true democratization and early-stage ideation. (b) One-directional modeling. Current methods map text → crystal , but not crystal → text [16, 17]. Without a reverse pathway, the model cannot interpret the previously generated structure, assess how it aligns with the user’s evolving intent, or incorporate feedback from earlier rounds. As a result, iterative refinement is impossible: the system has no mechanism to update or adjust the design based on the output of prior iterations. In response, we propose LapidaryEngine—the first-of-its-kind model to enable fully conversational, multi-round re-finement of crystal structures. Our key innovation is the introduction of a pivot representation , inspired by classical pivot-based machine translation. Just as two languages without parallel data (e.g., Kiswahili and Japanese) can com-2LapidaryEngine: Fully Conversational Crystal Generation 
+
+municate via a shared third language (English), we establish a pivot representation that bridges text and crystal struc-ture. Crucially, while direct datasets of (property, crystal) pairs do not exist, both modalities can be bidirectionally mapped to a structural description—our pivot representation. As illustrated in Fig. 1(a), this pivot provides a common semantic ground through which text and crystal structures become mutually interpretable, enabling stable, iterative, conversational refinement for the first time. We demonstrated LapidaryEngine on diverse tasks. Figure 1(b) shows the main result. Starting from a prompt that requests an insulating material (i.e., one with a large bandgap), an initial structure is generated as a rough hypothesis. The system then refines this structure through iterative user feedback, beginning with coarse guidance and progres-sively incorporating the constraints that naturally arise during crystal structure design. This framework is not posed as a conventional optimization task. Instead, it allows the user’s desiderata, including preferences, design intentions, and domain-specific considerations, to be continuously injected and reflected in the evolving structure. In addition, we conducted two tasks aimed at improving verifiable physical properties. Each task was repeated 1,000 times, and statistical analysis confirmed that the targeted physical properties were improved. We open-source our code and model to the community. 
+
+# 2 Results 
+
+Toward fully conversational crystal generation, we show that a pivot representation based on structural descriptions resolves both flexibility and bidirectionality challenges. The key idea is simple: instead of directly editing the crystal structure—which is discrete, highly constrained, and difficult to manipulate—we edit a textual description that rep-resents the structural information. This allows all refinement steps to remain entirely within the text domain, where LLMs excel at controlled editing and iterative improvement. By shifting the problem from the joint (text, crystal) space to the text-only pivot space, we can fully exploit the strengths of LLMs while maintaining precise control over the generated structures. We demonstrate that this design solves the limitations that existing methods fail to overcome. 
+
+2.1 Pivot representation 
+
+Although no generative model currently supports crystal → text , there exists a rule-based text generator for crystal structures: Robocrystallographer [18]. Crucially, because it is rule-based, its mapping is essentially bijective: acrystal has one corresponding textual description, and vice versa. This property makes the Robocrystallographer-style output an ideal pivot representation, enabling unambiguous, bidirectional translation between text and crystal. Editing the pivot therefore directly controls the crystal structure, addressing both challenges described above. As illustrated in Fig. 1(a), our workflow proceeds as follows. We first map the user’s imprecise natural-language prompt to a precise pivot description using an LLM. We then employ a GNN-based diffusion model [17] trained on paired (pivot, crystal) data to generate candidate structures. Through the pivot, we can interpret ambiguous or high-level requests, overcoming the limitation of restricted instruction formats (Issue (a)). Moreover, the pivot enables true bidirectional refinement. After generating a candidate structure, we convert the crystal back into its pivot description and update it based on user feedback. The refined pivot is then decoded again into a new crystal structure. This closed-loop pipeline resolves the second limitation—one-directional text-only generation—and makes iterative, conversation-style crystal design possible. The full workflow is illustrated in Fig. 2. To maximize generative quality, we adopt a Best-of-N sampling strategy [19, 20]: for each pivot description, the model generates N candidate structures, verifies their physical plausibility (e.g., stability indicators, valid compositions), and selects the candidate most aligned with the input description. After a structure is produced, it is presented to the user for feedback ( e.g. , comments like “too distorted,” “replace zirconia with titanium”) or quantitative metrics ( e.g. , density, conductivity). The LLM receives this feedback alongside the pivot representation of the previously generated crystal and refines the pivot accordingly. A new crystal is then generated from the updated pivot, and the whole process repeats until the user is satisfied. Through this iterative loop, the system progressively aligns the generated structures with the user’s evolving desiderata. In this way, our framework mirrors—and directly augments—the traditional materials discovery workflow, which has long relied on repeated feedback and trial-and-error to refine candidate structures. We provide details of the algorithm and its explanation in Sec. 4.1. 3LapidaryEngine: Fully Conversational Crystal Generation User prompt 
+
+Structure description 
+
+LLM                                       
+
+> LiCoO 2is Caswellsilverite structured and crystallizes in
+> the trigonal !𝑅 3𝑚 space group …
+> Design a cathode material for
+> rechargeable batteries that
+> exhibits high energy density
+> as well as excellent structural
+> and thermal stability.
+> NaCl is Halite, Rock Salt structured and
+> crystallizes in the cubic 𝐹 &𝑚 3𝑚 space
+> group .Na 1+is bonded to six equivalent
+> Cl 1-atoms to form amixture of corner
+> and edge -sharing NaCl 6octahedra .
+
+Crystal structure 
+
+Rule -based generation 
+
+GNN -based 
+
+Generative model 
+
+Generated structure description     
+
+> LiCoO 2is Caswellsilverite structured …
+
+User feedback  
+
+> Cobalt is expensive,
+> so I would prefer
+> to avoid using it.
+
+# +
+
+# Training data 
+
+Structural description 
+
+LLM 
+
+Crystal structure 
+
++ Validity check 
+
++ Text alignment check 
+
+Figure 2: Overview of LapidaryEngine, feedback-enabled framework for text-guided crystal structure gener-ation. The LLM interprets the prompt provided by the user into a pivot structure description, and the GNN-based generative model generates a crystal structure according to this description. Based on the previously generated crystal structure and the user’s feedback, the LLM then creates a description of the structure for the next generation. This approach enables the framework to leverage the LLM’s knowledge of materials science and the GNN-based model’s geometric reasoning capability. 
+
+2.2 Quantitative analysis 
+
+To quantitatively evaluate the effectiveness of the feedback mechanism, we tested LapidaryEngine in two cases: (a) generation focusing on structural stability and (b) generation focusing on large bandgap. Two types of prompts were used for generation: (a) Stability-focused generation: Generate a highly stable material with low formation energy that has not yet been reported. (b) Bandgap-focused generation: Generate a large bandgap material that has not yet been reported and is stable (i.e., has a low formation energy). For each prompt type, we generated crystal structures and conducted five rounds of feedback. We then analyzed the feedback trajectory, confirming that the formation energy progressively decreased in the stability-focused case and that the bandgap increased in the bandgap-focused case. To enable rapid feedback cycles required for statistically reliable performance evaluation, we calculated material properties using an ML model and automatically generated feedback with an LLM. Specifically, we employed Crys-talFramer [21], a crystal property predictor trained on the MEGNet dataset [22], instead of performing computationally expensive DFT calculations [23, 24]. The pretrained weights provided by the authors were used for both formation energy and bandgap prediction. The feedback processes were conducted using Alibaba’s Qwen3-Next-80B-A3B-Thinking model [11], and the prompt is provided in Appendix A. The LLM was provided with the generated structure’s Robocrystallographer description and the property prediction results from the ML model, and it was then prompted to give feedback based on them. We also adopted the same Qwen3 model for the generating process. We used the LLMs 4LapidaryEngine: Fully Conversational Crystal Generation (a) (b) 
+
+> Property -only feedback
+> LLM only
+> Proposed
+> Property -only feedback
+> LLM only
+> Proposed
+
+Stability -focused generation Bandgap -focused generation 
+
+> Bette r
+> Bette r
+
+Figure 3: Average formation energy and bandgap with standard deviation at each feedback iteration for (a) stability-focused generation and (b) bandgap-focused generation. For comparison, we also present the results from property-only feedback and those obtained when the LLM directly generates complete crystal structure information. The proposed method progressively improves the targeted properties across multiple iterations and outperforms the other approaches. These results show that it makes effective use of feedback and highlight the combined strengths of the LLM and the GNN crystal generator. Data points are connected by lines for visual clarity. without any fine-tuning, and we selected Qwen3 since it runs locally, allows the environment to stay consistent for re-producible results, and is released under the Apache 2.0 license, which makes it easy to use. Please note that while the same model was used, the feedback and generation sessions were conducted separately, without shared conversation logs, to replicate human feedback conditions. Previous methods generate crystal structures in a single step without incorporating feedback. Accordingly, the case with one feedback iteration corresponds to the baseline. We further compare our method with two additional baseline settings. Property-only feedback : We replace the LLM feedback with only the property values predicted by Crys-talFramer, to assess whether the model can leverage the linguistic feedback. LLM only : we ask the LLM to directly generate complete crystal structures in the Crystallographic Information File (CIF) format, which is a domain-specific text representation of the full three-dimensional atomic configuration. This baseline corresponds to a simple approach where the entire generation process, including atomic coordinates, is carried out only in the language space without using the GNN-based generator, which is better suited to capturing complex three-dimensional atomic arrangements. Figure 3 shows the average formation energy and bandgap at each iteration for stability-focused generation (Panel (a)) and bandgap-focused generation (Panel (b)), where the values represent the mean and standard deviation obtained from five sets of 200-generation runs. In both cases, the proposed method outperformed the property-only feedback case, indicating that it effectively leveraged feedback to generate improved structures in subsequent iterations. The improvement observed even with property-only feedback case may result from the LLM producing new structures based on its internal knowledge, a behavior also noted in studies on self-refinement in language models [25]. When crystal structures were generated solely by the LLM (with CIF format information produced directly by the model), the stability-focused generation showed a gradual increase in formation energy over iterations, indicating decreasing stability, and the bandgap-focused generation performed less effectively than the proposed method. These differences highlight the complementary strengths of the LLM, which expresses structural descriptions linguistically, and the GNN, which captures the geometric characteristics of crystal structures. We also verified the stability of the bandgap-focused generation using the formation energies predicted by Crystal-Framer [21]. Structures with predicted formation energies below 0 eV/atom were considered stable, and we calculated the proportion of stable structures among 1,000 generated samples. The proposed method achieved a stability rate of 77.2%, and the property-only feedback setting reached 77.8%. In contrast, the LLM that generated CIF files di-rectly achieved 50.2%. These results indicate that the proposed method satisfies both the requirement for an increased bandgap and the requirement for structural stability with high accuracy. Furthermore, we assessed the generative capability of the model. As the structural and compositional filter-ing ensured the physical validity of the generated structures, we checked two additional key metrics, uniqueness 
+
+5LapidaryEngine: Fully Conversational Crystal Generation 
+
+Table 1: Uniqueness and novelty of generated crystal structures. Generation prompt Method Uniqueness (%) Novelty (%) 
+
+Stability-focused Proposed 98.9 100 property-only feedback 98.4 100 LLM only 87.2 100 Bandgap-focused Proposed 99.8 100 property-only feedback 99.7 100 LLM only 81.8 100 CsY 2ZrZn ( Eform = 0.456eV/atom) CsZn Cl 3 (Eform = -1.708eV/atom) 
+
+# To redesign for stability: 
+
+# - Add anions (e.g., O 2-, Cl -, Br -, I -) to achieve charge neutrality. 
+
+# - Correct the stoichiometry to satisfy overall charge balance. 
+
+# - Replace unrealistic metal –metal bonds with metal –anion coordination. 
+
+# - Redefine Y 3+ and Zr 4+ coordination as octahedral (not linear). 
+
+> Octahedral &
+> metal -anion coordination
+
+Figure 4: An Example of structure refinement through the feedback process. The model successfully incorporated linguistic feedback into both compositional and structural refinements. Crystal structures are visualized by Vesta [28]. and novelty . Uniqueness represents the ratio of distinct structures obtained after removing duplicates using the 
+
+StructureMatcher module in pymatgen [26]. Novelty denotes the proportion of generated structures for which no similar structures exist among the 210,579 entries of the Materials Project database as of October 2025 [27], as determined by StructureMatcher .Table 1 summarizes the uniqueness and novelty observed in each case. Regarding uniqueness, in the methods com-bined with GNN, almost all of the 1,000 generated structures were distinct, while in the case where the LLM directly generated complete crystal structure information, the rate was in the 80% range. These differences suggest that when the LLM is allowed to output structural descriptions in natural language rather than directly producing specialized formats such as CIF, it can more fully leverage its generative capability. As for novelty, the rate was 100% in all cases. Since the prompts explicitly instructed the model to create new structures, it seems that the LLM followed those instructions faithfully. Our evaluation was conducted using only the Materials Project dataset, and we acknowledge that the LLM’s internal knowledge extends beyond this source; therefore, the assessment is not entirely exhaustive. Nevertheless, we confirmed that the generated structures were not ones that are widely known. 6LapidaryEngine: Fully Conversational Crystal Generation 
+
+2.3 Qualitative analysis 
+
+In addition to the quantitative evaluation presented in Sec. 2.2, we qualitatively examined the feedback obtained at each iteration and analyzed how the structure evolved accordingly. Figure 4 presents an example of the stability-focused generation task described in Sec. 2.2, showing the structures before and after feedback together with a summary of the corresponding comments. In the example shown in Fig. 4, the initially generated structure was pointed out to lack anions, and it was suggested to replace the unrealistic metal–metal bonds with metal–anion bonds. In addition, it was recommended that metallic atoms such as ytterbium and zirconium adopt an octahedral coordination rather than a linear one. Reflecting these suggestions, the refined structure forms a halide perovskite structure, where the previously identified issues have been resolved, and the predicted formation energy improved from 0.456 eV/atom to –1.708 eV/atom. From this result, it is evident that the received feedback was correctly reflected in the generated structures. In particular, it is remarkable that not only elemental substitutions but also structural modifications were accurately performed. We also demonstrated in Fig. 1(b) that crystal structures can be designed not only through organized feedback from an LLM but also through human colloquial feedback. Using the insulator discovery task as an example, we illustrated how the crystal structure evolved over three rounds of feedback. In the first round, we simply provided predicted prop-erty values obtained from the crystal structure encoder. The model then modified the structure while preserving the composition, successfully widening the bandgap. In the second round, we instructed the model to replace strontium with a more readily available element. Although the bandgap slightly decreased, strontium was replaced with calcium, which is abundant on Earth. In the third round, we asked the model to increase the distance between structural units to disrupt conduction pathways. The model responded by editing the structure while maintaining the composition, re-sulting in enlarged inter unit distances. Overall, these results demonstrate that our framework supports an iterative and conversational design process, in which initially vague user desiderata are gradually refined into more concrete design constraints, including restrictions on elemental composition, rather than being treated as a fixed property optimization problem. 
+
+2.4 Crystal editing based on textual instructions 
+
+While Fig. 2 and Algorithm 1 show a process that begins with a text prompt to generate a crystal structure from scratch, LapidaryEngine also enables crystal editing, creating new structures from existing ones under textual guidance. This approach parallels image-to-image generation, where an image is modified according to text prompts [29, 30, 31]. In this setting, the generation process is initialized with an existing crystal structure and a feedback prompt, and the procedure then starts from the upper-right part of the feedback loop in Fig. 2 (i.e., line 10 of Algorithm 1). We conducted the crystal editing experiment in two cases: (a) a relatively simple element-substitution case and (b) a structural-modification case. In the former, we instructed the model to replace the chlorine atoms in the CsCl structure with gold atoms. In the latter, we performed an editing task to transform the distorted perovskite structure of CaTiO 3
+
+into an undistorted perovskite structure. In the compositional editing shown in Fig. 5(a), we confirmed that the chlorine atoms are correctly substituted with gold atoms. Interestingly, this substitution results in a change in the lattice constant from 4.12 ˚ A to approximately 4.27 ˚ A, with the generated CsAu exhibiting a larger value than CsCl. This trend is consistent with previous experi-mental reports, which give lattice constants of 4.12 ˚ A for CsCl and 4.26 ˚ A for CsAu [32, 33], and suggests that lattice expansion accompanies structural stabilization. As for the structural editing results shown in Fig. 5(b), the distorted perovskite structure of CaTiO 3 was successfully transformed into a distortion-free, regular perovskite structure, which indicates that our model is capable of capturing and correcting geometric structural information. From these results, we verified that LapidaryEngine can intuitively modify crystal structures based on textual instruc-tions given for the original structure. It was also confirmed that the model not only follows the instructions but also adjusts structures such as lattice constants to achieve a more stable crystal configuration. 
+
+# 3 Discussion 
+
+In this study, we demonstrated that introducing a linguistic description of structure as an intermediate representation makes it possible to connect text and crystal structures in a feedback-capable manner. We adopted the notation of Robocrystallographer as the pivot representation, as it provides the most intuitive linguistic expression [18]. However, 7LapidaryEngine: Fully Conversational Crystal Generation Prompt: Please make it a distortion -free perovskite structure. 
+
+CaTiO 3 (Distorted) CaTiO 3 (Distortion -free) 
+
+# (b) Structural editing 
+
+# (a) Compositional editing 
+
+Prompt: Please replace the chlorine atom with a gold atom. 
+
+CsCl CsAu 
+
+4.12Å 
+
+4.12Å 4.12Å 4.27Å 
+
+4.28Å 
+
+4.26Å 
+
+Figure 5: Crystal editing demonstrations: (a) Elemental substitution in CsCl and (b) Structural editing in a perovskite structure. We confirmed that the model successfully edited the crystal structures in accordance with the text instructions and adjusted structural parameters such as lattice constants to achieve more stable configurations. Crystal structures are visualized by Vesta [28]. other approaches such as SLICES [34] have also been developed to describe crystal structures linguistically [35]. A comparative investigation of these representations will be left for future work. The crystal structure generation module of our proposed framework is based on Chemeleon [17] and does not impose any symmetry constraints. As a result, most of the generated structures are classified in the lowest space group 
+
+P1 , although they often roughly satisfy higher crystallographic symmetries. The remaining deviations from exact symmetry reflect the weak sensitivity of the loss function to strict enforcement of these symmetries. For instance, in the generated structure shown in Fig. 5(a), the lattice parameters are approximately equal in length but not identical. Recently, considerable progress has been made in crystal generation methods that explicitly incorporate symmetry [36, 37, 38, 39, 40]. Extending these advances toward symmetry-aware text-to-crystal structure generation remains an area for future work. Another promising approach is to incorporate postprocessing methods, such as DFT relaxation and symmetry detection [41] with large tolerance to correct subtle discrepancies. Additionally, symmetry itself has a hierarchical nature, and just as symmetry decreases during phase transitions, natural structural variations in crystals 8LapidaryEngine: Fully Conversational Crystal Generation 
+
+should also follow this hierarchy [42]. Integrating this hierarchical aspect of symmetry into the iterative generation process ( e.g. , allowing the next generation step to adopt symmetry one level lower or higher than that of the original structure) will be an important direction for future research. In the quantitative evaluation in Sec. 2.2, although the feedback came from an LLM rather than human experts, the predicted physical properties shifted toward more favorable values. Similar performance improvements through LLM feedback have been reported in other domains [25], and it is intriguing that the same effect was also observed in the highly complex task of crystal generation. This ability to autonomously explore high-quality crystal structures indicates that the proposed approach can serve as a component within an agent-based workflow for materials discovery. When combined with the rapidly growing field of autonomous experimentation, it becomes a powerful engine for progress in crystal design and marks an important step toward a self-driving laboratory that can independently iterate design, synthesis, and evaluation [43, 44]. In this study, we focused on quantifiable properties such as formation energy and bandgap, which can be evaluated through DFT calculations or their surrogate machine learning models. Meanwhile, the performance required in prac-tical materials development is often not something that can be directly and quantitatively assessed; rather, it tends to involve a combination of diverse and sometimes qualitative requirements. Demonstrating our method in an actual ma-terials development context would demand advanced expertise and practical knowledge specific to the field, and thus was not performed in this work. The potential of this approach to extend to complex materials development remains an interesting open question. 
+
+# 4 Methods 
+
+4.1 Details of LapidaryEngine 
+
+Algorithm 1 summarizes the proposed framework described in Sec. 2.1. The initially provided target property de-scription p1 is converted into a Robocrystallographer-format structural description d1 by using an LLM, and a pure noise state is prepared for crystal generation via a GNN-based diffusion model. Then the loop begins, consisting of two main stages. The first stage (lines 4–7) generates a crystal structure from the structural description, while the second stage (lines 8–13) receives feedback on the generated crystal structure and, based on the result, produces the next structural description and the noise state to be denoised during generation. Each stage is described in detail in the following Sec. 4.1.1 and Sec. 4.1.2. 
+
+4.1.1 Crystal structure generation from structural descriptions 
+
+We employed Chemeleon [17] to generate crystal structures from Robocrystallographer format descriptions [18]. De-tails of the model are provided in Sec. 4.2. To encourage the model to generate crystals that are physically plausible and more faithful to the given text, we generated N = 10 candidate samples ( i.e. , each starting from a different pure noise state). Among them, only the samples satisfying both structural and compositional validity were retained, following the validity criteria commonly used in previous studies [45, 36, 38]. Specifically, structural validity was determined by ensuring that no pair of atoms was closer than 0.5 ˚ A, while compositional validity was checked by confirming overall charge neutrality using the SMACT library [46]. Finally, the structure with the highest alignment score—analogous to the CLIP score [47], which indicates the degree of semantic consistency between the generated structure and the text description—was selected as the final output. This alignment score was computed by encoding the crystal structures and the text with encoders trained during the contrastive learning stage of Chemeleon (see Sec. 4.2), and then measur-ing the cosine similarity between their embeddings. Note that if none of the structures passes the validity check, the iteration is reset and repeated. 
+
+4.1.2 Crystal structure refinement 
+
+To design the next crystal structure, feedback pfb  
+
+> k
+
+= Feedback (ck) is provided based on the generated crystal structure ck. Although only ck appears as an argument, it should be noted that the feedback is not derived solely from 
+
+ck itself, but from various results ( e.g. , simulation and experimental results). We then obtain the Robocrystallographer representation of the previously generated crystal structure and supply it to the LLM along with feedback, as illustrated in the prompt shown in Appendix C. Rather than initiating the next crystal structure generation from a pure noise state, the diffusion process starts from a partially noised version of the original structure, ensuring that the refinement stays guided by the initial configuration. We control the level of noise through the denoising strength parameter α ∈ (0 , 1] ,a technique commonly used in image-to-image tasks [29]. 9LapidaryEngine: Fully Conversational Crystal Generation 
+
+Algorithm 1 LapidaryEngine 
+
+Require: Input: 
+
+Target property text p1 (e.g. , “high electrical conductivity”) Structural description-conditioned crystal diffusion model G
+
+Number of feedback iterations K
+
+Number of generations per iteration N (default: 10) Denoising strength α ∈ (0 , 1] (default: 0.1) 
+
+Ensure: Optimized crystal structure c∗ 
+
+> 1:
+
+d1 ← LLM interpret (p1) ▷ Details in Appendix B  
+
+> 2:
+
+Initialize {Z i}Ni=1 with a pure noise state for the diffusion model  
+
+> 3:
+
+for k = 1 to K do  
+
+> 4:
+
+Generate structure ck from structural description: ▷ Details in Sec. 4.1.1  
+
+> 5:
+
+Sample N candidate structures {c(i) 
+
+> k
+
+}Ni=1 using the diffusion model G
+
+c(i) 
+
+> k
+
+= G(Zi, condition = dk) 
+
+> 6:
+
+Evaluate structural and compositional validity, and filter out invalid samples: 
+
+{c(i) 
+
+> k
+
+} ← { c(i) 
+
+> k
+
+| isValid (c(i) 
+
+> k
+
+) = True } 
+
+> 7:
+
+Compute text–structure alignment scores and pick best: 
+
+ck ← arg max  
+
+> i
+
+AlignmentScore (c(i) 
+
+> k
+
+, d k) 
+
+> 8:
+
+Feedback and refinement: ▷ Details in Sec. 4.1.2  
+
+> 9:
+
+Provide feedback based on the generated structure pfb  
+
+> k
+
+← Feedback (ck) 
+
+> 10:
+
+Convert ck to structural description dgen  
+
+> k
+
+← Robocrystallographer (ck) 
+
+> 11:
+
+Update structural description with feedback pfb  
+
+> k
+
+:
+
+dk+1 ← LLM refine (pfb  
+
+> k
+
+, d gen  
+
+> k
+
+) 
+
+> 12:
+
+Initialize next step from partially noised state: 
+
+{Z i}Ni=1 ← Add noise (ck, strength = α) 
+
+> 13:
+
+Denoise from {Z i}Ni=1 in the next iteration  
+
+> 14:
+
+end for  
+
+> 15:
+
+return c∗ ← cK
+
+In this approach, crystal structure generation from feedback begins not from a pure noise state but from a partially noisy state of the previously generated crystal structure corresponding to the diffusion time step T × α, where T
+
+denotes the fully noisy state and α controls the diffusion strength. This partial noising process enables the model to refine or adjust the output while preserving its overall character. We examined the effect of the strength parameter α in Appendix D. 
+
+4.2 Crystal structure generation model 
+
+We strictly followed Chemeleon for the model that generates crystal structures from linguistic structural descriptions. After briefly describing the model architecture, we provide a detailed explanation of the dataset and training details. For a more comprehensive description of the architecture, please refer to the original paper [17]. 
+
+4.2.1 Model architecture 
+
+Chemeleon is a text-guided generative model that generates crystal structures through a denoising diffusion process conditioned on text embeddings from a pretrained text encoder. During training, Gaussian noise is added to crystal structures, and the model is trained to predict the added noise. During inference, the model starts from a pure noise state and progressively denoises it to generate complete crystal structures. For the lattice constants and atomic positions, 10 LapidaryEngine: Fully Conversational Crystal Generation 
+
+it follows the framework of Denoising Diffusion Probabilistic Models (DDPM) [48], while for the atomic species, it adopts the Discrete Denoising Diffusion Probabilistic Models (D3PM) framework [49]. Chemeleon comprises two key elements. The first component is Crystal CLIP, a cross-modal contrastive learning module for pretraining the text encoder MatTPUSciBERT [50] by aligning its embeddings with the corresponding crystal structure embeddings produced by the GNN. By bringing positive text–crystal pairs closer together and pushing negative pairs farther apart, Crystal CLIP learns a shared latent space where textual representations reflect structural geometric information. The second element is a classifier-free guided denoising diffusion model [51] that predicts the noise added to each variable of the crystal structure ( i.e. , lattice matrices, atomic coordinates, and atom types), conditioned on the text embeddings produced by the text encoder of Crystal CLIP. The denoising network builds upon the DiffCSP frame-work [52], which was originally developed for crystal structure prediction tasks. By aligning linguistic embeddings with the geometric information of crystal structures through CLIP and training the denoising model conditioned on these embeddings, the model can generate crystal structures that follow textual instructions. 
+
+4.2.2 Dataset and training details 
+
+We used the MEGNet dataset [22], which is a snapshot of the Materials Project database [27]. Following the official split, the dataset was divided into 60,000, 5,000, and 4,239 samples for training, validation, and testing, respectively. After generating textual descriptions using Robocrystallographer, we trained the model on this dataset. The training of Chemeleon consists of two stages: (1) contrastive pretraining of the Crystal CLIP module, and (2) text-conditioned diffusion model training for crystal generation. In the contrastive learning stage, the text encoder and the GNN-based crystal encoder are trained together so that their embeddings align within a shared latent space, which helps the text embedding capture geometric information. The text embeddings are obtained from the [CLS] token of the text encoder output, and the crystal embeddings are produced by averaging the node features from the GNN-based crystal structure encoder. The training objective combines text-to-graph and graph-to-text cross-entropy losses with a symmetric contrastive formulation. A batch size of 128 is used with the Adam optimizer [53], where the learning rates for the text and graph encoders are set to 1×10 −5
+
+and 1 × 10 −4, respectively. Training proceeds for up to 1,000 epochs, employing early stopping if the validation loss does not improve for 300 epochs. A learning rate scheduler with ReduceLROnPlateau (patience = 200 epochs) is applied for stability. During diffusion model training, the text encoder is kept frozen, and the pretrained Crystal CLIP embeddings are used as conditional inputs. The denoising network is optimized using the Adam optimizer with a learning rate of 1 × 10 −3,maintaining the same batch size and scheduling settings as in the contrastive learning stage. The loss function consists of three components: atom species, lattice, and coordinate denoising losses. Both training stages were performed on four NVIDIA H200 (141 GB) GPUs and took 30 hours for contrastive learning and 20 hours for diffusion model training. 
+
+# Competing interests 
+
+All authors declare no financial or non-financial competing interests. 
+
+# Author contributions 
+
+Y.I. initiated the study, designed and implemented the method, conducted all numerical and experimental analyses, and drafted the initial manuscript. Y.S. supervised the study, provided advice on the method and experimental design, and reviewed the draft manuscript. T.M. provided advice on the method and experimental design and reviewed the draft manuscript. M.A. revised the manuscript and provided overall project supervision, including resources, funding, and institutional support. 
+
+# References 
+
+[1] Rombach, R., Blattmann, A., Lorenz, D., Esser, P. & Ommer, B. High-resolution image synthesis with latent diffusion models. Preprint at https://doi.org/10.48550/arXiv.2112.10752 (2021). 11 LapidaryEngine: Fully Conversational Crystal Generation 
+
+[2] Liu, Y. et al. Sora: A review on background, technology, limitations, and opportunities of large vision models. Preprint at https://doi.org/10.48550/arXiv.2402.17177 (2024). [3] Agostinelli, A. et al. MusicLM: Generating Music From Text. Preprint at https://doi.org/10.48550/ arXiv.2301.11325 (2023). [4] Wang, H. et al. Scientific discovery in the age of artificial intelligence. Nature 620 , 47–60 (2023). [5] Stokes, J. M. et al. A deep learning approach to antibiotic discovery. Cell 180 , 688–702.e13 (2020). [6] Jumper, J. et al. Highly accurate protein structure prediction with alphafold. Nature 596 , 583–589 (2021). [7] Merchant, A. et al. Scaling deep learning for materials discovery. Nature 624 , 80–85 (2023). [8] Zeni, C. et al. A generative model for inorganic materials design. Nature 639 , 624–632 (2025). [9] OpenAI. GPT-4 technical report. Preprint at https://doi.org/10.48550/arXiv.2303.08774 
+
+(2023). [10] Gemini Team. Gemini: A family of highly capable multimodal models. Preprint at https://doi.org/10. 48550/arXiv.2312.11805 (2023). [11] Yang, A. et al. Qwen3 technical report. Preprint at https://doi.org/10.48550/arXiv.2505.09388 
+
+(2025). [12] Lewkowycz, A. et al. Solving quantitative reasoning problems with language models. In Advances in Neural Information Processing Systems (NeurIPS 2022) (2022). [13] Lu, C. et al. The ai scientist: Towards fully automated open-ended scientific discovery. Preprint at https: //doi.org/10.48550/arXiv.2408.06292 (2024). [14] Abdel-Rehim, A. et al. Scientific hypothesis generation by large language models: laboratory validation in breast cancer treatment. J. R. Soc. Interface. 22 , 20240674 (2025). [15] Swanson, K., Wu, W., Bulaong, N. L., Pak, J. E. & Zou, J. The virtual lab of ai agents designs new sars-cov-2 nanobodies. Nature 646 , 716–723 (2025). [16] Yang, S. et al. Generative hierarchical materials search. In The Thirty-eighth Annual Conference on Neural Information Processing Systems (NeurIPS 2024) (2024). [17] Park, H., Onwuli, A. & Walsh, A. Exploration of crystal chemical space using text-guided generative artificial intelligence. Nat. Commun. 16 , 4379 (2025). [18] Ganose, A. M. & Jain, A. Robocrystallographer: automated crystal structure text descriptions and analysis. MRS Commun. 9, 874–881 (2019). [19] Cobbe, K. et al. Training verifiers to solve math word problems. Preprint at https://doi.org/10.48550/ arXiv.2110.14168 (2021). [20] Nakano, R. et al. WebGPT: Browser-assisted question-answering with human feedback Preprint at https: //doi.org/10.48550/arXiv.2112.09332 (2021). [21] Ito, Y., Taniai, T., Igarashi, R., Ushiku, Y. & Ono, K. Rethinking the role of frames for SE(3)-invariant crys-tal structure modeling. In The Thirteenth International Conference on Learning Representations (ICLR 2025) 
+
+(2025). [22] Chen, C., Ye, W., Zuo, Y., Zheng, C. & Ong, S. P. Graph networks as a universal machine learning framework for molecules and crystals. Chem. Mater. 31 , 9 (2019). [23] Hohenberg, P. & Kohn, W. Inhomogeneous electron gas. Phys. Rev. 136 , B864–B871 (1964). [24] Kohn, W. & Sham, L. J. Self-consistent equations including exchange and correlation effects. Phys. Rev. 140 ,A1133–A1138 (1965). [25] Madaan, A. et al. Self-refine: Iterative refinement with self-feedback. In Thirty-seventh Conference on Neural Information Processing Systems (NeurIPS 2023) (2023). 12 LapidaryEngine: Fully Conversational Crystal Generation 
+
+[26] Ong, S. P. et al. Python materials genomics (pymatgen): A robust, open-source python library for materials analysis. Comput. Mater. Sci. 68 , 314–319 (2013). [27] Horton, M. K. et al. Accelerated data-driven materials science with the materials project. Nat. Mater. 24 , 1522– 1532 (2025). [28] Momma, K. & Izumi, F. VESTA3 for three-dimensional visualization of crystal, volumetric and morphology data. J. Appl. Crystallogr. 44 , 1272–1276 (2011). [29] Couairon, G., Verbeek, J., Schwenk, H. & Cord, M. Diffedit: Diffusion-based semantic image editing with mask guidance. Preprint at https://doi.org/10.48550/arXiv.2210.11427 (2022). [30] Chang, H. et al. Muse: Text-to-image generation via masked generative transformers. In Proceedings of the 40th International Conference on Machine Learning (ICML 2023) , vol. 202, 4055–4075 (2023). [31] Kawar, B. et al. Imagic: Text-based real image editing with diffusion models. In Conference on Computer Vision and Pattern Recognition 2023 (CVPR 2023) (2023). [32] Wyckoff, I. R. W. G. The crystal structures of the alkali halides. J. Wash. Acad. Sci. 11 , 429–434 (1921). [33] Tinelli, G. & Holcomb, D. NMR and structural properties of csau and rbau. J. Solid State Chem. 25 , 157–168 (1978). [34] Xiao, H. et al. An invertible, invariant crystal representation for inverse design of solid-state materials using generative deep learning. Nat. Commun. 14 , 7027 (2023). [35] Jia, S., Varma, A., Manivannan, P., Chayapathy, D. & Fung, V. Benchmarking text representations for crystal structure generation with large language models. In AI for Accelerated Materials Design - ICLR 2025 (2025). [36] Jiao, R., Huang, W., Liu, Y., Zhao, D. & Liu, Y. Space group constrained crystal generation. In The Twelfth International Conference on Learning Representations (ICLR 2024) (2024). [37] Zhu, R., Nong, W., Yamazaki, S. & Hippalgaonkar, K. WyCryst: Wyckoff inorganic crystal generator framework. 
+
+Matter 7, 3469–3488 (2024). [38] Levy, D. et al. SymmCD: Symmetry-preserving crystal generation with diffusion models. In The Thirteenth International Conference on Learning Representations (ICLR 2025) (2025). [39] Ekstr¨ om Kelvinius, F. et al. WyckoffDiff – a generative diffusion model for crystal symmetry. In Proceedings of the 42nd International Conference on Machine Learning (ICML 2025) , Proceedings of Machine Learning Research (2025). [40] Kazeev, N. et al. Wyckoff transformer: Generation of symmetric crystals. Preprint at https://doi.org/ 10.48550/arXiv.2503.02407 (2025). [41] Atsushi Togo, K. S. & Tanaka, I. Spglib: a software library for crystal symmetry search. Sci. Technol. Adv. Mater., Meth. 4, 2384822–2384836 (2024). [42] Englert, U. Symmetry relationships between crystal structures. applications of crystallographic group theory in crystal chemistry. by ulrich m¨ uller. Angew. Chem., Int. Ed. 52 , 11973–11973 (2013). [43] Burger, B. et al. A mobile robotic chemist. Nature 583 , 237–241 (2020). [44] Tom, G. et al. Self-driving laboratories for chemistry and materials science. Chem. Rev. 124 , 16 (2024). [45] Xie, T., Fu, X., Ganea, O.-E., Barzilay, R. & Jaakkola, T. Crystal diffusion variational autoencoder for periodic material generation. Preprint at https://doi.org/10.48550/arXiv.2110.06197 (2021). [46] Davies, D. W. et al. SMACT: Semiconducting materials by analogy and chemical theory. Journal of Open Source Software 4, 1361 (2019). [47] Hessel, J., Holtzman, A., Forbes, M., Le Bras, R. & Choi, Y. CLIPScore: A reference-free evaluation metric for image captioning. In Proceedings of the 2021 Conference on Empirical Methods in Natural Language Processing (EMNLP 2021) , 7514–7528 (2021). 13 LapidaryEngine: Fully Conversational Crystal Generation 
+
+[48] Ho, J., Jain, A. & Abbeel, P. Denoising diffusion probabilistic models. In Advances in Neural Information Processing Systems (NeurIPS 2020) (2020). [49] Austin, J., Johnson, D. D., Ho, J., Tarlow, D. & Van Den Berg, R. Structured denoising diffusion models in discrete state-spaces. Advances in Neural Information Processing Systems (NeurIPS 2021) 34 , 17981–17993 (2021). [50] Gupta, T., Zaki, M., Krishnan, N. M. A. & Mausam. MatSciBERT: A materials domain language model for text mining and information extraction. npj Comput. Mater. 8, 102 (2022). [51] Ho, J. & Salimans, T. Classifier-free diffusion guidance. Preprint at https://doi.org/10.48550/ arXiv.2207.12598 (2022). [52] Jiao, R. et al. Crystal structure prediction by joint equivariant diffusion. In Thirty-seventh Conference on Neural Information Processing Systems (NeurIPS 2023) (2023). [53] Kingma, D. P. & Ba, J. Adam: A Method for Stochastic Optimization. In The Third International Conference on Learning Representations (ICLR 2015) (2015). 14 Appendix 
+
+# A Prompt for feedback 
+
+We used the following prompt for feedback. Although this step is intended to be performed by an expert, we conducted it using an LLM for quantitative evaluation. Prompt for feedback You are a scientist specializing in materials science with expertise in designing crystal structures. I want to create the following material: “ prompt p1”. I will provide the crystal structure and its property, so please give me advice on how to update the crystal structure. 
+
+# B Prompt for initial structural description from property 
+
+The following prompt was adopted for LLM interpret , which generates structural descriptions of crystal structures from user input. Since the crystal structure generation model requires a predefined number of atoms, we instructed the LLM to output this information using the --n atoms tag. Prompt for LLM interpret You are a scientist specializing in materials science with expertise in designing crystal structures. Describe the structural features typically associated with materials that exhibit the specified physical property. Provide detailed information on crystal symmetry, lattice type, bonding characteristics, coordination environ-ments, and common structural motifs. Present the output in **Markdown format**. **Instructions:** - Follow the example format exactly. - Do not use general chemical formulas (e.g., ABO 3). - Responses that do not follow the format will be considered incorrect. - Carefully consider what type of crystal structure is necessary to realize the given property. - At the end of the description, return the number of atoms in the unit cell using the tag format - -n atoms=integer. - Assume that I will attempt to synthesize the proposed structure and evaluate its physical properties. **Example** BaTiO 3 adopts a cubic perovskite structure and crystallizes in the cubic space group Pm-3m. Ba 2+ is co-ordinated by twelve equivalent O 2− atoms to form BaO 12 cuboctahedra, which share corners with twelve equivalent BaO 12 cuboctahedra, faces with six equivalent BaO 12 cuboctahedra, and faces with eight equiva-lent TiO 6 octahedra. All Ba–O bond lengths are 2.83 ˚ A. Ti 4+ is coordinated by six equivalent O 2− atoms to form TiO 6 octahedra, which share corners with six equivalent TiO 6 octahedra and faces with eight equivalent BaO 12 cuboctahedra. The corner-sharing TiO 6 octahedra are not tilted. All Ti–O bond lengths are 2.00 ˚ A. Each O 2− is bonded in a distorted linear coordination to four equivalent Ba 2+ and two equivalent Ti 4+ atoms. - -n atoms=20 15 LapidaryEngine: Fully Conversational Crystal Generation 
+
+# C Prompt for refining structural descriptions 
+
+To refine the structural description, we used the following prompt for LLM refine . The italicized parts should be replaced with the corresponding descriptions of the generated crystal structures. Prompt for LLM refine The synthesis of the crystal structure you proposed yielded “ Formula ”, whose structure is as follows: “Robocrystallographer’s description dgen  
+
+> k
+
+.” –“User Instruction pfb  
+
+> k
+
+.”–Can you refine the crystal structure? Please respond full crystal structure description in accordance with the format specified in the instructions. Do not return any other things. 
+
+# D Effect of diffusion strength 
+
+We examined the effect of the diffusion strength parameter α introduced in Sec. 4.1 by measuring the success rate ,defined as the proportion of cases in which at least one valid crystal structure appeared in each of the five iterations. The validity of each structure was evaluated using the same method described in line 6 of Algorithm 1. In each iteration, 30 crystal structures were generated. For each value of the strength parameter, we conducted 300 trials for stability-focused generation. Figure A.1(a) shows the dependence of the success rate on the diffusion strength, and Panel (b) illustrates the evolution of the average formation energy through the iterations. Figure A.1(a) shows a clear tendency for the success rate to decrease as the diffusion strength α increases. This trend can be attributed to the reduced influence of structural information from the previous step at each iteration as α increases, which leads to greater structural variation and makes it more difficult to pass the validity check. In contrast, the mean values of the formation energy tended to improve with increasing α, as shown in Fig. A.1(b). These results suggest that weakening the dependence on the previous structure allows the exploration of new favorable structures, while strengthening the dependence steers the process toward exploitation. Therefore, the value of strength α should be carefully tuned according to the goal, whether one aims to make only minor structural modifications or to discover entirely new structures. Formation Energy (b) (a) Generation success rate 
+
+Figure A.1: Comparison of generation performance under different diffusion strengths. Panels (a) and (b) show the effects of varying diffusion strength α on the generation success rate, and mean formation energy, respectively. (a) The generation success rate decreases as α increases, indicating that weaker influence from the previous step leads to greater structural variation and makes it more difficult to pass the validity check. (b) Mean formation energy values improve with larger α, suggesting that reduced dependence on previous structures promotes the discovery of more favorable configurations. 16

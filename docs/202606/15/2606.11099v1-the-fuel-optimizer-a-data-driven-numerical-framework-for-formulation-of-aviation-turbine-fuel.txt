@@ -1,0 +1,449 @@
+Title: The Fuel Optimizer: A Data-Driven Numerical Framework for Formulation of Aviation Turbine Fuel
+
+URL Source: https://arxiv.org/pdf/2606.11099v1
+
+Published Time: Wed, 10 Jun 2026 01:27:13 GMT
+
+Number of Pages: 26
+
+Markdown Content:
+# The Fuel Optimizer : A Data-Driven Numerical Framework for Formulation of Aviation Turbine Fuel 
+
+## Ana Larrañaga ∗1,2 , Steven L. Brunton 1,2 , Jacobo Porteiro 3, and Dario Lopez-Pintor 41Department of Mechanical Engineering, University of Washington, Seattle, WA 98195, United States 
+
+> 2
+
+NSF AI Institute in Dynamic Systems, University of Washington, Seattle, WA 98195, United States 
+
+> 3
+
+CINTECX, Universidade de Vigo, Grupo de Tecnoloxía Enerxética (GTE), Vigo, 36310, Spain 
+
+> 4
+
+Sandia National Laboratories, 7011 East Ave, Livermore, 94550, CA, United States 
+
+> *
+
+corresponding author: alarra@uw.edu 
+
+Abstract 
+
+The Fuel Optimizer is an inverse design framework for sustainable aviation fuels that starts from a user-defined merit function and identifies the optimal combination of chemical species or hydrocarbon families that optimize a combination of targets. As a case study, a database of fuel blends meeting selected property standards was simulated in a reactor model to obtain pollutant emissions at cruise conditions. A surrogate model was developed to reduce the com-putational cost of evaluating candidate blends, taking fuel composition as input and predicting emissions as output. A genetic algorithm was used to optimize fuel formulation according to two merit functions designed to break the nitrogen oxides - CO trade-off, and minimize pol-lutant emissions over the landing-and-take-off cycle. Constraints included selected property standards (including seal swelling) and composition limits. Fuel candidates from the frame-work outperformed the training database across all merit functions, and the optimal candidates were validated through reactor simulations. 
+
+Keywords: Synthetic Aviation Turbine Fuel, surrogate model, optimization, nvP M , N O x, CO 
+
+The aviation industry is actively working to diversify its fuel supply by increasing the use of synthetic aviation turbine fuels (SATFs), "drop-in" replacements for conventional jet fuel producible from renewable feedstocks [1]. To meet the demands of commercial aviation, SATFs must comply with ASTM D1655 [2] and ASTM D7566 [3], which define property requirements for turbine fuels in terms of safety, materials compatibility, and performance. SATFs must also contain specific hydrocarbon classes, including normal and iso-paraffins, aromatics, and cycloalkanes, to meet operational requirements, though their relative pro-portions directly affect engine emissions and performance [4, 5]. To date, only eight SATF pathways have been approved under ASTM D7566. New pathways must follow the rigorous qualification process outlined in ASTM D4054 [6], which includes several rounds of property, material compatibility, and engine tests, estimated to cost around $100M per candidate [7]. Each new pathway is therefore a high-risk investment, and fuel designers must rely on predictive models to evaluate whether a candidate blend meets specifications before committing to testing-scale production. Existing models, however, lack the predictive capability to capture fuel effects on engine performance, partly owing to the complexity of fuel-engine interactions, for which machine learning (ML) approaches are particularly well-suited. 1
+
+> arXiv:2606.11099v1 [math.OC] 9 Jun 2026
+
+ML techniques have emerged as powerful tools for modeling the complex, nonlinear interactions between fuel composition, combustion chemistry, and engine operating conditions, enabling more accurate predic-tion of NO x, CO, unburned hydrocarbons, and soot than traditional semi-empirical approaches [8]. Lar-rañaga et al. [9] developed a ML surrogate to predict the derived cetane number of complex fuel blends, capturing the interactions between physical properties and autoignition chemistry that govern ignition quality. Shao et al. [10] benchmarked multiple ML algorithms against density, net heat of combustion, vis-cosity, freeze point, and flash point, finding that the best-performing algorithm varied by property, reflect-ing differing degrees of non-linearity in the composition-property relationships. Aygun et al. [11] trained a convolutional neural network on operational and emissions data from a mixed-flow turbofan to predict fuel consumption, CO, and NO x as a function of engine pressure ratio and thrust, though fuel composition effects were not considered. Ma et al. [12] proposed a ML approach for real-time emission estimation across all flight stages using aircraft operational and atmospheric data as inputs, reporting emissions 22% to 78% higher than International Civil Aviation Organization (ICAO) reference values and identifying operational strategies with potential reductions of 5% to 65%; however, the study was limited to conventional kerosene at a single airport, leaving its generalizability unclear. To the best of the authors’ knowledge, no numeri-cal framework to date combines fuel design flexibility, sufficiently low computational cost, and acceptable accuracy in a single tool. To address this gap, we developed the Fuel Optimizer , a data-driven framework for the inverse design of SATF blends based on a user-defined merit function that optimizes pollutant emissions, fuel properties, or composition targets subject to user-defined constraints. The framework is based on a library of pure compo-nents including paraffins, iso-paraffins, cycloalkanes, aromatics, olefins, alcohols, ketones, furans, ethers, and esters. Engine-out emissions were generated via 1D reactor-network simulations calibrated against detailed combustor models and used to train a neural-network surrogate that evaluates candidate blends at a fraction of the computational cost. An optimization algorithm then explores the feasible composition space to identify optimum blends for a given merit function, with the goal of narrowing down promising candidates before committing to costly qualification testing. 
+
+# 1 Background 
+
+## 1.1 High-Fidelity Combustion and Emissions Modeling 
+
+A 1D reactor network model of a CFM56-7B27 turbofan engine was used to evaluate the performance and emissions of the multi-component fuel blends of the database [13, 14]. The reactor model was developed in ANSYS CHEMKIN and uses a series of perfectly stirred reactors and plug flow reactors interconnected to simulate the combustor, turbine and nozzle of the engine. The combustor is divided in six different zones (or reactors) that includes a rich-burn primary zone, a stoichiometric flame front, an intermediate zone and a dilution zone together with two wall zones to capture combustion inefficiencies and wall-quenching ef-fects. The fuel and air flows into each zone were adjusted to match the fuel equivalence ratio in the primary zone and the mass-averaged temperature in the intermediate, dilution and wall zones from numerical sim-ulations [15]. The volume and residence time of each zone were estimated based on the adjusted flows and the geometric parameters of the engine [16]. The pressure ratios and geometric parameters of the turbine and nozzle were used to solve the temperature and pressure evolution within the turbomachinery, which was imposed in a series of plug flow reactors in CHEMKIN for prediction of engine nozzle-out emissions. Combustion chemistry was solved using a detailed chemical kinetic mechanism for aviation fuels. The gas-phase mechanism was developed by Lawrence Livermore National Laboratory (LLNL), consists of 8478 species and 33318 reactions, and is a combination of a detailed model for diesel- and aviation-like fuels from Wang et al. [17] coupled with a polycyclic aromatic hydrocarbon (PAH) model from Kukkadapu et al. [18] and a nitrogen oxides (NO x) model from Glarborg et al. [19]. The mechanism has been validated against ignition delay time, laminar flame speed and reactor speciation measurements elsewhere [20, 21, 22]. Soot was modeled following a sectional method approach. This mechanism includes nucleation from gas-phase cyclo-penta pyrene (C18H10) [23], hydrogen abstraction carbon addition (HACA) growth from Kazakov et al. [24], PAH condensation [25], oxidation from Leistner et al. [26] and free-molecular coagulation. 2The model has been validated against engine emission measurements with Jet A from the International Civil Aviation Organization (ICAO) databank [27], including NO x, carbon monoxide (CO), particulate mass (PM) and particle number (PN), and a comparison between the experiments and simulations is included in the Supplementary Material. More details about this model and its performance can be found in [13, 14, 28]. The 2508 multi-component blends of the fuel database and a surrogate fuel for Jet A proposed by Lopez-Pintor et al. [13] were simulated in the reactor model at cruise-representative conditions (30 % thrust, com-bustor inlet temperature of 613 K and combustor pressure of 11.3 bar). The exhaust temperature, the engine-out mole fractions of NO x (nitric oxide plus nitrogen dioxide), CO, carbon dioxide (CO 2) and water (H 2O), the soot mass flow rate, and the particle number density at the exhaust were incorporated into the database, which is included in the supplementary material of this paper. 
+
+## 1.2 Exploration vs Exploitation 
+
+Optimization tasks usually have to balance exploitation (i.e., the refinement of solutions within known high-performing regions) and exploration (i.e., broad sampling of the search space to avoid convergence to local optima) [29]. Gradient-based and deterministic methods are appropriate for exploitation but are ill-suited to high-dimensional, multimodal, or combinatorially complex scenarios, where the global optimum may be separated from any locally accessible solution. Genetic algorithms (GAs) address this limitation through a population-based search mechanism in which selection, crossover, and mutation operators act collectively to maintain diversity and cover a broad range of the solution space across successive genera-tions [29]. 
+
+Algorithm 1 General genetic algorithm structure                                                               
+
+> Require: Population size N, generations G, fitness f, feasible set S, rates pc,pm
+> Ensure: Best solution x∗
+> 1: Initialize P0={xi}Ni=1 , where xi∈ S
+> 2: for g= 1 to Gdo
+> 3: φi←f(xi)∀xi∈Pg
+> 4: Psel
+> g←SELECT (Pg,{φi})
+> 5: Pcross
+> g←CROSSOVER (Psel
+> g, p c)
+> 6: Pg+1 ←MUTATE (Pcross
+> g, p m)
+> 7: Discard xi/∈ S from Pg+1
+> 8: end for
+> 9: x∗←arg min xi∈S
+> gPgf(xi)
+> 10: return x∗
+
+The population-based nature of GAs (see Algorithm 1) retains information not only about the best solutions, but about the full distribution of evaluated candidates. In the present work, the chemical space of possible blends is high-dimensional and combinatorially large, making a complete evaluation intractable. The main objective is not to converge to a single optimal blend, but to identify which chemical families and pure fuel components persistently appear in high-performing formulations. By analyzing candidate composition across generations, it is possible to infer which regions of chemical space are recurrently selected by the fitness criterion, orienting the search toward the most promising blend components [30]. 
+
+# 2 Methodology 
+
+## 2.1 Fuel Component Library and Blend Generation 
+
+SATF candidates were formulated by combining 51 single component species that included n-alkanes (car-bon chain length from 9 to 20), iso-alkanes (single and multi-branched), cyclo-alkanes (mono and di-cyclic), aromatics (mono and di-cyclic), olefins (mono and dienes), alcohols (normal and branched), ethers, esters, ketones and furans. These 51 species were selected to cover a wide range of molecular structures while con-sidering the availability of chemical kinetic models and their ability to meet ASTM D1655 constrains [2]. A 3brute-force Monte Carlo approach was implemented to formulate 2508 multi-component blends with 3 to 5 components and with a minimum species content of 2 %mole that met the ASTM D1655 requirements for density, viscosity, distillation, freeze point, flash point and neat heat of combustion. To minimize database bias, all the species of the palette were forced to be present in at least 50 of the multi-component blends. More details of the fuel database and fuel property estimation methods are included in Supplementary Material. 
+
+## 2.2 Surrogate Modeling of 1D Reactor Plume Model 
+
+One of the main limitations of the original 1D reaction plume model for optimization tasks is its computa-tional cost, as a single evaluation requires several minutes on a standard laptop. Since genetic algorithms typically evaluate thousands of candidate blends per iteration, direct integration of the model into the opti-mization framework becomes computationally impractical. To overcome this limitation, a surrogate model was developed to predict the same outputs as the original model from the proportions of the chemical species in each blend (see Fig. 1). Given to the nonlinear nature of the underlying physics and the available dataset, a neural network ar-chitecture was adopted. Because the optimization objective is primarily based on emission-related metrics used in the merit function, special attention was given to the prediciton accuracy for PN, PM, CO and NOx, rather than for the complete set of outputs. Relative to the original 1D model, the surrogate reduces evalu-ation time by approximately three orders of magnitude. Additional details on the model architecture and hyperparameter tuning are provided in the Supplementary Material. 
+
+## 2.3 Optimization 
+
+As previously mentioned, a genetic algorithm (GA) was selected to encourage exploration of the feasible fuel-blend space. The optimization vector consisted of 10 elements: five corresponding to the species iden-tifiers in the database and five corresponding to the mass fractions of each species in the blend. A minimum mass fraction of 2% was imposed to ensure that each component had a measurable effect on the objective function, while the sum of all mass fractions was constrained to unity. The GA hyperparameters are reported in the Supplementary Material. In practice, the algorithm was al-lowed to explore the widest possible range of blends for each species in the database. For this purpose, one species identifier was fixed to guarantee its presence in the blend, whereas the remaining nine parameters were optimized. As discussed later in this section, additional constraints were introduced to ensure realistic fuel properties and practically feasible blends. It is important to note that all candidate blends evaluated by the GA are stored and tracked to enable an in-depth analysis of the chemical families most frequently selected for the optimization of the different merit functions. In a future research line, this information could be used to introduce an additional optimization stage focused on the best-performing species and associated chemical families, thereby reducing the search space. 
+
+2.3.1 Merit Functions 
+
+The Fuel Optimizer has been tested using a single objective that combines relevant targets predicted by the surrogate model. The analysis focuses on two different merit functions (MFs): 
+
+M F k = X
+
+> i
+
+wi
+
+i − iJetA 
+
+σi, DB 
+
+, k ∈ { 1, 2} (1) where σi, DB is the corresponding standard deviation derived from the fuel blend database, and iJetA denotes the baseline for target i corresponding to Jet A. For both merit functions, negative values, which represent an improvement with respect to Jet A, are desired. 4Offline  Online Evaluation of Test Blend 
+
+> 2. Training of surrogate model:
+> 1. Creating the database:
+
+BLEND DATABASE ( 2kX )  
+
+> AIR
+> AIR
+> COMBUSTOR PLUME TURBINE
+> Evolution of SOx, NOx, soot and ice crystals
+> SYNTHETIC
+> AVIATION FUEL
+
+α1
+
+α2
+
+α3
+
+α4
+
+α5    
+
+> 6min
+> α1
+> α2
+> ⋮
+> αN
+> N=52 species
+> 6ms
+> (*) There can be multiple species within the same chemical family.
+> Blend
+
+j : (α1, . . . , α5, s1, . . . , s5)
+
+GA on (α1, . . . , α5, s1, . . . , s5)                        
+
+> α1,s1Alcohol
+> −Aldehyde
+> α2,s2Ketone
+> −Cyclo−alkane
+> −Ester
+> α3,s3Ether
+> α4,s4Furan
+> −N−alkane
+> α5,s5Iso−alkane
+> −Olefin
+> Targets :Pollutant Emissions
+> Blend Properties :ASTM D1655
+> PD
+> PN
+> PM
+> NO
+> NO2
+> CO2
+> H2O
+> CO
+> Temp
+> α1
+> α2
+> ⋮
+> αN
+
+Optimize 
+
+subject to 
+
+Constraints 
+
+FUEL DATABASE ( 52X )                      
+
+> Property Min Max Unit
+> 10% Distillation
+> Temperature
+> -205 [C]
+> Final Boiling Point -300 [C]
+> Flash Point 38 -[C]
+> Density @ 15C 775 840 [kg/m 3]
+> Freezing Point --40 [C]
+> Viscosity @ -20C -100 8[mm.s]
+> Net Heat of Comb.
+> Combustion\
+> 42.8 -[MJ/kg]
+> PD
+> PN
+> PM
+> NO
+> NO2
+> CO2
+> H2O
+> CO
+> Temp
+> PD
+> PN
+> PM
+> NO
+> NO2
+> CO2
+> H2O
+> CO
+> Temp
+
+Figure 1: This work consists of two separate tasks. The first one corresponds to the offline training of the surrogate model (orange), which includes the generation of a fuel blend database containing all chemical species in the pure components database and the subsequent training of the neural network. The second stage corresponds to the online optimization procedure, in which the trained surrogate model is embedded within a genetic algorithm loop. Each candidate blend is evaluated using the surrogate model to compute the corresponding merit functions, MF1 and MF2, while the blends are constrained according to the Standard Specification for Aviation Turbine Fuels (ASTM D1655). All candidate blends evaluated by the algorithm, together with their corresponding merit function values, are stored and tracked to analyze which chemical families are preferentially selected for each optimization objective. 
+
+• CO-NO x trade-off : M F 1 is intended to break the CO-NO x emissions trade-off typically seen in jet engines, using equal weighting wCO = wN O x = 0 .5, such that 
+
+M F 1 = wCO 
+
+CO − CO JetA 
+
+σCO, DB 
+
++ wN O x
+
+N O x − N O x, JetA 
+
+σN O x,DB 
+
+,
+
+Variations in operating parameters that tend to reduce NO x, such as decreasing the residence time or the combustor temperature, also lead to incomplete combustion raising CO emissions and vice versa. Even though this trade-off is not linear, for simplicity, the same weight was imposed to both CO and NO x in this case study. • LTO regulated emissions : M F 2 is intended to minimize regulated emissions. Weighting factors, 
+
+wP N = 0 .12 , wP M = 0 .16 , and wN O x = 0 .72 , have been defined based on how the emission values over the LTO cycle of the CFM56-7B27 turbofan engine reported in the ICAO databank compare against the legal limits. The targets are PN, PM, and NO x, such that 
+
+M F 2 = wP N 
+
+P N − P N JetA 
+
+σP N, DB 
+
++ wP M 
+
+P M − P M JetA 
+
+σP M, DB 
+
++ wN O x
+
+N O x − N O x, JetA 
+
+σN O x,DB 
+
+,
+
+For this engine, NO x emission limits are significantly more difficult to meet than PN and PM emission limits, and this has been reflected in the weighting factors of M F 2.
+
+2.3.2 Constraints 
+
+The Fuel Optimizer allows the user to define a set of constraints for the optimization algorithm. The number of components in each fuel candidate was set to 5, with a minimum mole content of 2 % for each individual component. It is important to note that the palette of species available for the generation of blend candi-dates, and the number of components in each fuel candidate, are variable and can be modified depending on the interest on specific chemical species or families. The GA input vector is structured such that the first five elements represent the molar proportions of the fuel components, while the remaining five elements specify the corresponding component indices in the database. The molar proportions are constrained to sum to 1. 5Alcohols 
+
+Furans 
+
+Aldehydes 
+
+Ketone 
+
+Ethers 
+
+Esters 
+
+N-alkanes 
+
+Iso-alkanes 
+
+Cyclo-alkanes 
+
+Aromatics 
+
+Ole fi ns 
+
+## OPTIMIZATION CASE STUDIES :Fuel palette includes: 
+
+with oxygenates 
+
+MF1  MF2 
+
+without oxygenates 
+
+limited to:  (1) seal swelling 
+
+(2) max(%ole fi n)=5% 4 SCENARIOS 
+
+Exploratory 
+
+Practical Figure 2: This study explores two fuel blend optimization scenarios: (1) fuel blends that contain oxygenates (purple), and (2) fuel blends without oxygenates but subject to additional constraints (green). The second case is a more practical optimization scenario while the first is more exploratory. Two merit functions, MF1 and MF2, are optimized. MF1 focuses on CO-NOx trade-off and MF2 focused on LTO regulated emissions. 
+
+Fuel candidates must also meet the ASTM D1655 requirements for density, viscosity, distillation, freeze point, flash point and neat heat of combustion (same physical property constraints used in the generation of the database, see section 2.1 for details). In a more exploratory approach, no other constraints were im-posed and the Fuel Optimizer was allowed to include species from all chemical families of the palette. Then, a more practical approach was considered where oxygenated components were eliminated from the palette and the maximum olefinic content of fuel candidates was restricted to 5 % as per ASTM D1655 limits. Ad-ditionally, nitrile seal swelling properties of the fuel components of the palette have been obtained from the literature [31][32] and used to estimate the seal swell of fuel candidates using a linear blending rule based on liquid volume fractions [31]. In this second approach, fuel candidates must show a minimum swell rate equal to that of conventional kerosene (defined as 12.4% ± 2.3% from 16 different samples from the liter-ature [31][32]), ensuring fuel system functionality. These two sets of constraints will be referred to as the 
+
+exploratory approach and the practical approach hereafter, respectively (see Fig. 2). 
+
+# 3 Results & Discussion 
+
+This section presents the results obtained with the surrogate models developed for the different versions of the database, together with the optimization results. The GA results are analyzed to examine the diversity of the database and to validate the optimal blends, ensuring that their performance is consistent with the predicted behavior by the surrogate model. 
+
+## 3.1 Performance Evaluation 
+
+Two surrogate models were trained independently for the two Fuel Optimizer configurations. The models achieved prediction errors below 10% for the targets relevant to MF1 and MF2, which include particulate mass (PM), particle number (PN), NO x and CO (see the Supplementary Material for details on model accu-racy). Once trained, the models were included in the optimization loop, as shown in Fig 1. Fig. 3 shows a comparison of the performance of the fuel candidates obtained with the GA against those of the database obtained by brute force for the four cases described in Fig. 2. Results highlight the ability of the GA to generate thousands of fuel candidates that are better than those obtained from a brute force approach, leading to merit function mean values that are systematically more negative (i.e., better) than those of the database (for the reader’s reference, conventional kerosene shows a merit function value equal to 0). The GA improved the results of the database in all cases, with the optimum fuel from the GA leading to better merit function values than the optimum fuel of the database. 
+
+## 3.2 Chemical Family Analysis for GA Results 
+
+Exploratory Fuel Optimizer. Fig. 4 shows the occurrence frequency of each family among all fuel candi-dates generated by the GA. Frequency is represented by color intensity in a merit function vs. proportion 6CO-NOx trade-off 
+
+Exploratory Practical a) 
+
+LTO regulated emissions 
+
+Practical  Exploratory b) Figure 3: Comparison between the brute-force database (green, labeled DB) and the feasible candidate blends evaluated by the GA (blue, labeled GA) for all optimization scenarios. The left panels correspond to the CO–NO x trade-off (MF1), whereas the right panels correspond to the LTO regulated-emissions objective function (MF2). The bottom panels represent the practical approach, in which oxygenates are excluded and constraints on olefin content and seal-swelling performance are imposed, while the top panels correspond to the exploratory approach with fewer constraints. The mean merit-function value and standard deviation for each case are indicated in the corresponding panels. 
+
+map for MF1 (left) and MF2 (right) for the exploratory approach. The number of times each family is present among all fuel candidates (n) divided by the number of species of each family available in the palette (k), which is a metric of the preference of the GA for each family, is included in the figure. Alcohols, furans, esters and ethers are significantly less selected than the other families, so they are not included in the figure (but results for these families are included in the supplementary material). Frequency results indicate that cyclo-alkanes are the most selected family for both merit functions (especially for MF2). This is because n-butyl cyclohexane acts as a super-component that meets all ASTM property constraints while having combustion properties that align well with the MF1 and MF2 targets (as it will be discussed in detail below). In general, all families were able to achieve similar minimum merit function values, indicating that 
+
+good fuel candidates can be formulated from any chemical family with the right combination of components (exceptions include furans, esters and ethers for MF1, and furans for MF2, see supplementary materials for details). However, Fig. 4 shows clear preferences in the proportion in which each chemical family is present among the best fuel candidates. For MF1 (NO x-CO tradeoff), the best candidates show a clear preference for increasing the ketone content and for a low aromatic content combined with moderate amounts of iso-alkanes and olefins. In general, higher air-fuel stoichiometric ratios lead to more diluent per unit of chemical energy released, lower adi-abatic flame temperatures and lower thermal NO x formation, which is associated with better MF1 values. Similarly, aviation fuels with lower neat heat of combustion also tend to show lower adiabatic flame temper-atures and lower NO x, with oxygen content being a dominant factor affecting this property. On the other hand, CO emissions are controlled by the ability of the fuel to burn in the wall regions and to complete the CO-to-CO 2 oxidation reactions within the combustor residence time. Fuels with higher flame speed generally show higher resistance to quenching and require less residence time to complete combustion. Therefore, the genetic algorithm was expected to maximize the air-fuel stoichiometric ratio and oxygen content of the fuel to minimize NO x, and maximize flame speed to minimize CO emissions. Among all the species of the palette, cyclopentanone (ketone) stands out for its high oxygen content and flame speed, and has physical properties that allow blending at relatively high fractions ( ∼20 %). Thus, for the exploratory approach where oxygenated species were considered, cyclopentanone was identified as the key species to break the NO x-CO tradeoff (note how the MF1 value systematically improves as the ketone content increases in Fig. 4). For MF2 (LTO emissions), the best candidates are achieved with very large concentrations of cyclo-alkanes and low aromatic and iso-alkane content. As expected, MF2 improved as the aromatic content and, to a less extent, the iso-alkane content of the fuel candidates decreased because of the negative impact of these chemical families on soot emissions. Cyclo-alkanes, and more specifically n-butyl cyclohexane, have been 7a) CO-NOx trade-off (MF1) w/ oxygenates b) LTO regulated emissions (MF2) w/ oxygenates Figure 4: Results for the exploratory approach analyzed by chemical family, focusing on the most relevant families included in the database (additional results are provided in the Supplementary Material). Figure (a) on the left corresponds to the CO–NO x trade-off optimization, whereas figure (b) on the right corresponds to the LTO regulated-emissions optimization. The merit-function value is plotted on the y-axis, while the proportion of each chemical family in the blend is plotted on the x-axis. The color intensity represents the frequency of occurrence, with darker regions indicating a higher density of blends within a given composition range. The annota-tions in each subplot indicate the ratio between the number of occurrences of a given family among all candidate blends ( n) and the number of species of that family available in the database ( k), which serves as an indicator of the preference of the GA for each family. 
+
+identified as the key chemical family to decrease regulated emissions, with MF2 decreasing as the n-butyl cyclohexane content increased. This is because the slower burn rate of cyclo-alkanes led to lower combustor temperatures and, therefore, lower NO x. As it will be shown later, this slower burn rate of cyclo-alkanes led to higher CO emissions, but CO was not included in MF2 and, therefore, it was ignored by the optimization algorithm. 
+
+Practical Fuel Optimizer. Fig. 5 shows the occurrence frequency of each family among all fuel candidates generated by the GA with frequency represented by color intensity in a merit function vs. proportion map. Results for MF1 (top) and MF2 (bottom) are shown for the practical approach. Similarly to figure 4, the ratio between the number of times each family is present among all fuel candidates and the number of species of each family available in the palette (n/k) is included in the figure. Cyclo-alkanes are again the most selected family for both merit functions, with the GA showing a very strong preference for this family for the MF2 case. On the other hand, olefins are significantly less used than other chemical families, consistent with the limitation of maximum 5 % olefinic content imposed in the practical approach. Except for the olefins, all the chemical families show similar mean and minimum merit function values, indicating that near-optimum fuel candidates are achieved by combining components from all chemical families. An analysis of the proportion of each chemical family against its merit function value indicate that, for MF1 (NO x-CO tradeoff), there is not single chemical family that is strongly preferred in high concentrations, with the optimum blend resulting from the combination of aromatics, cyclo-alkanes, iso-alkanes and n-alkanes. (Note that ketones are not a blending option in the practical approach). MF1 tends to improve as the aromatic content of the candidate decreases because aromatics have low burning rates and tend to increase CO emissions. 8a) CO-NOx trade-off (MF1) w/o oxygenates 
+
+b) LTO regulated emissions (MF2) w/o oxygenates Figure 5: Results for the practical approach analyzed by chemical family, considering that in this case the database is limited to not include oxygenates. Figure (a) on the top corresponds to the CO–NO x trade-off optimization, whereas figure (b) on the bottom corresponds to the LTO regulated-emissions optimization. The merit-function value is plotted on the y-axis, while the proportion of each chemical family in the blend is plotted on the x-axis. The color intensity represents the frequency of occurrence, with darker regions indicating a higher density of blends within a given composition range. The annotations in each subplot indicate the ratio between the number of occurrences of a given family among all candidate blends ( n) and the number of species of that family available in the database ( k), which serves as an indicator of the preference of the GA for each family. 
+
+For MF2 (LTO emissions), the merit function value improves as the cyclo-alkane content increases up to concentrations around 80 % and the content of the other chemical families decreases. As discussed before, n-butyl cyclohexane acts as a super component that can be blended in very large proportions while meeting ASTM constraints and leading to lower NO x thanks to lower combustion temperatures due to its slower burn rate. MF2 also benefits from low aromatic and iso-alkane proportions due to the high soot propensity of these components (especially aromatics). Nevertheless, a minimum amount of aromatics is required to meet the seal swelling constraint with the best blends showing 4 - 8 % aromatics combined with larger amounts of cyclo-alkanes. 9b) CO-NOx trade-off (MF1) w/o oxygenates a) CO-NOx trade-off (MF1) w/ oxygenates Figure 6: Detailed analysis of the 50 best unique fuel blends by chemical family (left panels) and by individual chemical species (right panels) for the CO–NO x trade-off objective function. The top panels correspond to the exploratory approach, which considers the complete database, whereas the bottom panels correspond to the practical approach, in which oxygenates are excluded and additional constraints on olefin content and seal-swelling performance are imposed. The minimum merit-function value is indicated in the left panels by a dashed black line, following the same analysis presented in Figs. 4 and 5 for the relationship between merit-function value and chemical-family composition. The right panels show the average contribution of each species to the top 10 blends together with the frequency with which each species appears among the optimal blends. 
+
+## 3.3 Top Best Chemical Families and Species for GA Results 
+
+The hydrocarbon family distribution of the top 50 best performing fuel candidates is shown in Fig. 6 against their merit function values for MF1 and for the exploratory (top) and practical (bottom) approaches. The figure shows also the occurrence frequency and proportion of the 10 most common species within the top 50 candidates. For the exploratory approach, cyclopentanone (CPN, a ketone) is present in all 50 best blends with a proportion close to 25 %. Larger CPN fractions were not viable due to its low energy density (32.6 MJ/kg), which would lead to fuel candidates that would not meet the ASTM limits for lower heating value (min. 42.8 MJ/kg). In these top performing blends, CPN is mixed with moderate amounts of large olefins and iso-alkanes (C12 - C16) that provide high air/fuel stoichiometric ratios (for low NO x emissions), while maintaining high burning rates (for low CO emissions) and the physical properties required to meet constraints. For the practical approach, decahydronaphthalene (decalin, a cyclo-alkane) is the is the most common species among the top performing candidates. Decalin is selected by the GA as a compromise alterna-tive to aromatics to meet the seal swelling requirement while maintaining low CO emissions (note that aromatics tend to increase CO due to a very low reactivity and slow burning rate). Similarly to the ex-10 b) LTO regulated emissions (MF2) w/o oxygenates 
+
+a) LTO regulated emissions (MF2) w/ oxygenates Figure 7: Detailed analysis of the 50 best unique fuel blends by chemical family (left panels) and by individual chemical species (right panels) for the LTO regulated emissions objective function. The top panels correspond to the exploratory approach, which considers the complete database, whereas the bottom panels correspond to the practical approach, in which oxygenates are excluded and addi-tional constraints on olefin content and seal-swelling performance are imposed. The minimum merit-function value is indicated in the left panels by a dashed black line, following the same analysis presented in Figs. 4 and 5 for the relationship between merit-function value and chemical-family composition. The right panels show the average contribution of each species to the top 10 blends together with the frequency with which each species appears among the optimal blends. 
+
+ploratory approach, decalin is blended with moderate amounts of iso-alkanes or, less frequently, n-alkanes for high air/fuel stoichiometric ratios (for low NO x emissions) and to meet physical property constraints. Interestingly, low amounts of aromatics are sometimes selected, likely to meet seal swelling constraints. When this occurs, the GA selects highly branched mono-aromatics (trimethyl benzene or xylene) that show higher laminar flame speeds than non-branched mono- and di-aromatics. The hydrocarbon family distribution of the top 50 best performing fuel candidates for MF2 is shown in Fig. 7 against their merit function values for the exploratory (top) and practical (bottom) approaches. Similarly to Fig. 6, the Fig. includes the occurrence frequency and proportion of the 10 most common species within the top 50 candidates. For MF2 and the exploratory approach, the top 50 best performing blends are all composed of very large fractions of n-butyl cyclohexane (NBCH, average proportion of 78 %) with mild amounts of CPN (average proportion of 7.1 %). NBCH and CPN both have low soot propensity and tend to decrease NO x due to either a slow burning rate (NBCH) or a high oxygen content (CPN). The GA tends to blend these components with multiple n-alkanes to fill the gaps while keeping soot propensity low. For MF2 and the practical approach, NBCH is again a super component present in very large fractions (ap-11 Table 1: Detailed composition of optimum fuel blends for the CO–NO x trade-off (MF1) and LTO regulated emissions (MF2) in the different optimization case scenarios: (1) top section corresponds to the exploratory approach, and (2) bottom section corresponds to the practical approach. See the Supplementary Material for a glossary of species identifiers. 
+
+CO-NOx trade-off (MF1) LTO regulated emissions (MF2) Species Class Prop. (%) Species Class Prop. (%) Exploratory  HMN Iso-alkane 26.2 NBCH Cyclo-alkane 79.2 NC11H24 N-alkane 12.3 NC10H22 N-alkane 3.6 NC15H32 N-alkane 15.7 NC11H24 N-alkane 2.5 XC12H26 Iso-alkane 21.1 CPN Aldehyde/Ketone 10.7 CPN Aldehyde/Ketone 24.7 C10H22-2 Iso-alkane 4.0 
+
+> Practical
+
+O-XYL Aromatic 14.8 NBCH Cyclo-alkane 77.6 NC13H28 N-alkane 26.6 NC12H26 N-alkane 5.7 HMN Iso-alkane 26.3 DECALIN Cyclo-alkane 9.0 NBCH Cyclo-alkane 11.5 A2CH3 Aromatic 2.0 C10H22-2 Iso-alkane 20.8 C11H24-2 Iso-alkane 5.7 
+
+prox. 70 %) that provides low soot propensity, lower NO x, and physical properties within ASTM limits. In this case, large amounts of cyclo-alkanes are combined with a minimum amount of aromatics to meet the seal swelling constraint, with mono-aromatic species (methylethyl benzene and tetrahydronapththalene) being preferred over di-aromatics because they represent a better compromise between seal swelling and soot propensity. 
+
+## 3.4 Validation of Optimum Blends 
+
+The optimum blends obtained for both MF1 and MF2 and following the exploratory and the practical ap-proaches (which composition is described in table 1, see Supplementary Material for a glossary of species identifiers) have been simulated in the 1D reactor network model described in section 1.1 at the four oper-ating points of the LTO cycle. Fig. 8 shows the reactor network results compared against both experimental measurements and simulations with Jet A. The results corroborate the findings of the Fuel Optimizer . Brak-ing the CO-NO x tradeoff (MF1) is challenging, with the optimum fuel blends for MF1 showing merit func-tion values of -1.185 and -0.357 for the exploratory and the practical approaches, respectively. The optimum fuel of the exploratory approach shows lower CO emissions than Jet A at all conditions, and lower NO x
+
+at all conditions except idle (due to the positive effect of cyclopentanone of flame speed and flame tem-perature). However, the optimum fuel of the practical approach marginally improves NO x while showing similar CO levels than Jet A, suggesting that conventional hydrocarbons cannot break the CO-NO x tradeoff as oxygenated fuels do. The optimum fuel blends for MF2 showed almost zero soot mass and lower PN than Jet A at all conditions, suggesting that synthetic fuels mainly composed by alkanes shift the particle size distribution towards smaller diameters. While the optimum MF2 blend from the exploratory approach led to significantly lower PN values than Jet A, the optimum MF2 blend from the practical approach showed less benefits due to the aromatic content needed to meet the seal swell requirement. Interestingly, both optimum MF2 fuel candidates showed much higher CO emissions than Jet A. This is because CO was not included in MF2 and, therefore, CO emission values were not taken into consideration by the genetic algorithm. This result highlights the importance of a careful definition of the merit function and constraints, since the GA will exploit the gaps in the merit function to take advantage and provide good results. For this example, an additional constraint limiting the maximum allowable CO emissions will limit the ability of the GA to exploit the existing gap in MF2. However this is out of the scope of this paper, which main focus is to describe the Fuel Optimizer showing two examples of its capability rather than propose the perfect merit function for SATF design (which would be very subjective and user-specific). 12 Figure 8: Results for the optimal fuel candidates identified by the Fuel Optimizer for MF1 (CO–NO x trade-off) and MF2 (LTO regulated emissions), evaluated under both exploratory and practical scenarios. The selected blends were simulated using the 1D reactor net-work under LTO conditions and compared against both experimental and simulated Jet A data, which serves as the baseline reference for performance improvement. 
+
+## 3.5 Implications for SATF Certification 
+
+The ASTM D4054 qualification process represents a significant financial and temporal bottleneck, requiring years of effort, millions of dollars, and thousands of gallons of fuel to advance a novel pathway to ap-proval [33]. The inverse design methodology presented here effectively introduces a "Tier 0" computational gate, evaluating thousands of potential blend compositions in seconds to eliminate candidates that would predictably fail D1655 limits or deliver negligible emissions reductions, ensuring only the most promising formulations proceed to costly physical testing. The optimization results also offer direct chemical guidance for SATF producers. Paraffinic fuels from HEFA and Fischer-Tropsch pathways offer thermal stability and low soot tendency but fail to meet drop-in seal swelling requirements due to their lack of aromaticity [34]. Conventional aromatics address this but drive nvPM formation via the HACA mechanism [35]. The present results indicate that cycloalkanes, particularly n-butyl cyclohexane, and oxygenated species such as ketones represent a more favorable alter-native, achieving simultaneous reductions in NO x, particulate mass, and particulate number without com-promising operability. Synthetic pathways capable of selectively producing these chemical classes should therefore be prioritized. 
+
+## 3.6 Limitations 
+
+The accuracy of the 1D reactor model used to simulate engine emissions depends on specific assumptions about the chemical mechanisms and boundary conditions imposed to mimic the operation of a CFD56-7B27 turbofan (discussed in detail in [13]). However, the model has been extensively validated against experimental data (see supplementary material, [13] and [14]). In addition, simulations were performed for cruise-like operation (30 % thrust), and fuel effects on performance may change at other operating condi-tions. However, cruise represents the majority of engine duty time and fuel trends at cruise can generally be extrapolated to other conditions [36]. Finally, properties of multi-component fuel candidates were esti-mated using blending rules that have an inherent uncertainty. However, fuel property uncertainties only affect the ability of fuel candidates to meet the ASTM D1655 constrains, but they will not directly impact the emission results and, therefore, the merit function results shown in this paper. Future work to address these potential limitations includes: (1) integrating more sophisticated, non-ideal property blending rules [9], (2) expanding the emissions database to different engine operating conditions, and (3) validating selected fuel candidates by comparing their performance against Jet A in laboratory-scale facilities. 13 4 Conclusions 
+
+This paper presents the Fuel Optimizer , a data-driven machine learning-based numerical framework for de-signing, screening and optimization of synthetic aviation turbine fuel (SATF) formulations. The model is built on a palette of chemical components combined to generate a database of SATF-like blends that meet the ASTM D1655 standards for density, viscosity, distillation, freeze point, flash point and neat heat of com-bustion. Fuel blends of the database have been simulated in a 1D reactor network model of the CFM56-7B27 engine at cruise-like conditions (30 % thrust) to generate a dataset of pollutant emissions and performance results that has been used to train a machine-learning surrogate model of the engine. The machine learning model demonstrated to be able to predict the 1D model results within 5 % in most cases but at a fraction of the computational cost, allowing the evaluation of thousands of fuel candidates per minute. A genetic algorithm was coupled with the machine learning model to optimize the composition of fuel candidates as per a user-defined merit function and while imposing a series of user-defined constraints. For the cur-rent version of the model, merit functions may include engine emissions, fuel properties and/or chemical species or hydrocarbon families. However, other parameters such as fuel cost or engine performance can and will be added in future work. The ability of the Fuel Optimizer to explore potential SATF candidates was explored for two different merit functions: MF1, which was designed to break the CO-NO x trade-off typical of jet engines, and MF2, which was designed to minimize LTO-regulated emissions. For each merit function, two different set of con-straints were imposed: an exploratory set of constraints that included ASTM D1655 limits for density, vis-cosity, distillation, freeze point, flash point and neat heat of combustion but allowed any hydrocarbon class, and a practical set of constraints that limited the amount of olefins to 5 %, did not allow oxygenated species, and required a minimum seal swelling rate equal to that of conventional kerosene. The Fuel Optimizer was able to improve the merit function results of the database used for training and highly improve the merit function results of Jet A. A detailed analysis of the fuel candidates proposed by the genetic algorithm revealed that the CO-NO x trade-off can be broken by combining oxygenated species or species with a higher air-fuel stoichiometric ratio (lower flame temperature and lower NO x) and species with high flame speed (less residence time required to complete combustion), with cyclopentanone being a key species for simultaneous reduction of CO and NO x. Analyses also revealed that n-butylcyclohexane may act as a super-component to reduce LTO-regulated emissions (NO x, PM and PN) when included in large amounts (> 70 %). Finally, results of the genetic algorithm indicate that small amounts of mono-aromatics (< 5% ) combined with cyclo-alkanes is the preferred approach to meet seal swell constraints while minimizing soot emissions. Simulations of the optimum blends at LTO conditions in the 1D reactor network model supported the results from the Fuel Optimizer , giving confidence in the ability of the Fuel Optimizer to be used as a SATF formulation, screening and optimization tool. 
+
+# Data availability 
+
+The database used in this work is included in the paper supplementary material. The reactor network model will be available upon request. The machine learning surrogate and fuel optimizer are available at 
+
+https://github.com/alarran/fuel-optimizer .
+
+# Acknowledgements 
+
+Sandia National Laboratories is a multi-mission laboratory managed and operated by National Technology 
+
+& Engineering Solutions of Sandia, LLC (NTESS), a wholly owned subsidiary of Honeywell International Inc., for the U.S. Department of Energy’s National Nuclear Security Administration (DOE/NNSA) under contract DE-NA0003525. This written work is authored by an employee of NTESS. The employee, not NTESS, owns the right, title and interest in and to the written work and is responsible for its contents. Any subjective views or opinions that might be expressed in the written work do not necessarily repre-sent the views of the U.S. Government. The publisher acknowledges that the U.S. Government retains a 14 non-exclusive, paid-up, irrevocable, world-wide license to publish or reproduce the published form of this written work or allow others to do so, for U.S. Government purposes. The DOE will provide public access to results of federally sponsored research in accordance with the DOE Public Access Plan. ALJ and SLB ac-knowledge support from the National Science Foundation AI Institute in Dynamic Systems (grant number 2112085) 
+
+# References 
+
+[1] S., Blakey, L., Rye, and C.W., Wilson, Aviation gas turbine alternative fuels: A review, Proceedings of the Combustion Institute 33 (2011) 2863–2885. doi: 10.1016/j.proci.2010.09.011 .[2] Standard Specification for Aviation Turbine Fuels. URL: https://store.astm.org/d1655-25a. html .[3] Standard Specification for Aviation Turbine Fuels Containing Synthesized Hydrocarbons. URL: 
+
+https://store.astm.org/d7566-22.html .[4] Märkl, R. S., Voigt, C., Sauer, D., Dischl, R. K., Kaufmann, S., Harlaß, T., Hahn, V., Roiger, A., Weiß-Rehm, C., Burkhardt, U., Schumann, U., Marsing, A., Scheibe, M., Dörnbrack, A., Renard, C., Gauthier, M., Swann, P., Madden, P., Luff, D., Sallinen, R., Schripp, T., Le Clercq, P., Powering aircraft with 100% sustainable aviation fuel reduces ice crystals in contrails, Atmospheric Chem-istry and Physics 24 (2024) 3813–3837. URL: https://doi.org/10.5194/acp-24-3813-2024 .doi: 10.5194/acp-24-3813-2024 .[5] Voigt, C., Schäfer, K., Petzold, A., et al., Cleaner burning aviation fuels can reduce contrail cloudi-ness, Atmospheric Chemistry and Physics 21 (2021) 989–1013. URL: https://doi.org/10.5194/ acp-21-989-2021 . doi: 10.5194/acp-21-989-2021 .[6] Standard Practice for Evaluation of New Aviation Turbine Fuels and Fuel Additives. URL: https: //store.astm.org/d4054-22.html .[7] O., Rosales Calderon, L., Tao, Z., Abdullah, K., Moriarty, S., Smolinski, A., Milbrandt, M., Talmadge, et al., Sustainable Aviation Fuel (SAF) State-of-Industry Report: State of SAF Production Process, National Renewable Energy Laboratory NREL/TP-5100-87802 (2024).URL: https://www.nrel. gov/docs/fy24osti/87802.pdf .[8] L., Zhou, Y., Song, W., Ji, H., Wei, Machine learning for combustion, Energy and AI 7 (2022) 100128. doi: 10.1016/j.egyai.2021.100128 .[9] Larrañaga, A., MacDonald, J. R., Brunton, S. L., Porteiro, J., Lopez-Pintor, D., A data-driven ap-proach for predicting the cetane number of renewable and unconventional fuels, Energy Con-version and Management 350 (2026) 120940. URL: https://doi.org/10.1016/j.enconman. 2025.120940 . doi: 10.1016/j.enconman.2025.120940 .[10] Y., Shao, M., Yu, M., Zhao, K., Xue, X., Zhang, J., Zou, L., Pan, Comprehensive accurate prediction of critical jet fuel properties with multiple machine learning models, Chemical Engineering Science 304 (2025) 121018. doi: 10.1016/j.ces.2024.121018 .[11] H., Aygun, O. Dursun, S. Toraman, Machine learning based approach for forecasting emission pa-rameters of mixed flow turbofan engine at high power modes, Energy 271 (2023) 127026. doi: 10. 1016/j.energy.2023.127026 .[12] S., Ma, S., Lin, B., Han, C., Zhang, Z., Wei, L., Xue, J., Zhao, K., Wang, J., Yu, P.K., Hopke, Reveal-ing considerable emissions reduction potential in flight operations: A real-time emission perspec-tive, Transportation Research Part D: Transport and Environment 143 (2025) 104745. doi: 10.1016/ j.trd.2025.104745 .15 [13] Lopez-Pintor, D., MacDonald, J., Ramirez-Correa, E., Garcia-Oliver, J. M., Payri, R., Marti Gomez-Aldaravi, P., Leyland, P., Fuel Effects on Aviation Engine Emissions: A Chemical Reactor Network Modeling Study, Energy & Fuels 40 (2026) 4777–4792. URL: https://doi.org/10.1021/acs. energyfuels.5c05727 . doi: 10.1021/acs.energyfuels.5c05727 .[14] Mohammed, Z. P., López-Pintor, D., MacDonald, J., Vasu, S., Ramirez-Correa, E., Garcia-Oliver, J. M., Leyland, P., Modeling Fuel Effects on Aero Engine Out Gas Phase and Soot Emissions, So-cial Science Research Network, 2026. URL: https://papers.ssrn.com/abstract=6349648 .doi: 10.2139/ssrn.6349648 .[15] Zhang, Q., Hai, H., Li, C., Wang, Y., Zhang, P., Wang, X., Predictions of NOx and CO emissions from a low-emission concentric staged combustor for civil aeroengines, Proceedings of the Institution of Mechanical Engineers, Part G: Journal of Aerospace Engineering 234 (2020) 1075–1091. URL: https: //doi.org/10.1177/0954410019895881 . doi: 10.1177/0954410019895881 .[16] Saboohi, Z., Ommi, F., Fakhrtabatabaei, A., Development of an Augmented Conceptual Design Tool for Aircraft Gas Turbine Combustors, The International Journal of Multiphysics 10 (2016) 53– 74. URL: https://www.themultiphysicsjournal.com/index.php/ijm/article/view/ 10-1-53 . doi: 10.21152/1750-9548.10.1.53 .[17] Wang, M., Kukkadapu, G., Zhang, K., Wagnon, S. W., Mehl, M., Pitz, W. J., Westbrook, C. K., Sung, C.-J., Autoignition of CRC diesel surrogates at low temperature combustion condi-tions: Rapid compression machine experiments and modeling, Combustion and Flame 219 (2020) 178–197. URL: https://doi.org/10.1016/j.combustflame.2020.05.017 . doi: 10.1016/ j.combustflame.2020.05.017 .[18] Kukkadapu, G., Wagnon, S. W., Pitz, W. J., Hansen, N., Identification of the molecular-weight growth reaction network in counterflow flames of the C3H4 isomers allene and propyne, Proceedings of the Combustion Institute 38 (2021) 1477–1485. URL: https://doi.org/10.1016/j.proci.2020. 07.130 . doi: 10.1016/j.proci.2020.07.130 .[19] Glarborg, P., Miller, J. A., Ruscic, B., Klippenstein, S. J., Modeling nitrogen chemistry in combustion, Progress in Energy and Combustion Science 67 (2018) 31–68. URL: https://doi.org/10.1016/ j.pecs.2018.01.002 . doi: 10.1016/j.pecs.2018.01.002 .[20] Fang, R., Kukkadapu, G., Wang, M., Wagnon, S. W., Zhang, K., Mehl, M., Westbrook, C. K., Pitz, W. J., Sung, C.-J., Fuel molecular structure effect on autoignition of highly branched iso-alkanes at low-to-intermediate temperatures: Iso-octane versus iso-dodecane, Combustion and Flame 214 (2020) 152–166. URL: https://doi.org/10.1016/j.combustflame.2019.12.037 . doi: 10. 1016/j.combustflame.2019.12.037 .[21] Guzman, J., Kukkadapu, G., Brezinsky, K., Westbrook, C., Experimental and modeling study of the pyrolysis and oxidation of an iso-paraffinic alcohol-to-jet fuel, Combustion and Flame 201 (2019) 57–64. URL: https://doi.org/10.1016/j.combustflame.2018.12.013 . doi: 10.1016/j. combustflame.2018.12.013 .[22] Richter, S., Kukkadapu, G., Westbrook, C. K., Braun-Unkhoff, M., Naumann, C., Köhler, M., Riedel, U., A combined experimental and modeling study of combustion properties of an isoparaffinic alcohol-to-jet fuel, Combustion and Flame 240 (2022) 111994. URL: https://doi.org/10.1016/ j.combustflame.2022.111994 . doi: 10.1016/j.combustflame.2022.111994 .[23] Chung, S.-H., Computational Modeling of Soot Nucleation, University of Michigan, 2011. [24] Kazakov, A., Wang, H., Frenklach, M., Detailed modeling of soot formation in laminar premixed ethylene flames at a pressure of 10 bar, Combustion and Flame 100 (1995) 111–120. URL: https: //doi.org/10.1016/0010-2180(94)00086-8 . doi: 10.1016/0010-2180(94)00086-8 .16 [25] Veshkini, A., Eaves, N. A., Dworkin, S. B., Thomson, M. J., Application of PAH-condensation re-versibility in modeling soot growth in laminar premixed and nonpremixed flames, Combustion and Flame 167 (2016) 335–352. URL: https://doi.org/10.1016/j.combustflame.2016.02.024 .doi: 10.1016/j.combustflame.2016.02.024 .[26] Leistner, K., Nicolle, A., Berthout, D., Costa, P. d., Kinetic modelling of the oxidation of a wide range of carbon materials, Combustion and Flame 159 (2012) 64–76. URL: https://doi.org/10.1016/ j.combustflame.2011.06.006 . doi: 10.1016/j.combustflame.2011.06.006 .[27] ICAO Aircraft Engine Emissions Databank | EASA. URL: https://www.easa.europa.eu/en/ domains/environment/icao-aircraft-engine-emissions-databank .[28] Garcia-Oliver, J. M., García, J. G., Corzo, B. M., Laboulais, J. N., Leyland, P., Development of a Reactor Network Model to Predict Pollutant Emissions from Aviation Gas Turbines, in: Proceedings of the XV Ibero-American Congress of Mechanical Engineering, Springer International Publishing, 2023, 191– 197. doi: 10.1007/978-3-031-38563-6_28 .[29] Goldberg, D. E., Genetic Algorithms in Search, Optimization and Machine Learning, Addison-Wesley Longman Publishing Co., Inc., USA, 1989, 1st. [30] Mueller, J., Kim, N., Lapointe, S., McNenly, M. J., Sjöberg, M., Whitesides, R., Optimization of fuel formulation using adaptive learning and artificial intelligence, Artificial Intelligence and Data Driven Optimization of Internal Combustion Engines, Elsevier, 27–45, 2022. URL: https:// www.sciencedirect.com/science/article/pii/B9780323884570000096 . doi: 10.1016/ B978-0-323-88457-0.00009-6 .[31] C., Faulhaber, C., Borland, R., Boehm, J., Heyne, Measurements of Nitrile Rubber Absorption of Hydrocarbons: Trends for Sustainable Aviation Fuel Compatibility, Energy and Fuels 37 (2023) 9207– 9219. doi: 10.1021/acs.energyfuels.3c00781 .[32] J., Hamilton, B., Khandelwal, Effects of Aromatic Blends on Seal Swell Rates Using Novel Seals Compatibility Test Rig, AIAA SCITECH 2023 Forum, paper number 0596 (2023). doi: 10.2514/6. 2023-0596 .[33] Rumizen, M. A., Aviation Alternative Fuels Qualification, Frontiers in Energy Research 9 (2021) 760713. URL: https://doi.org/10.3389/fenrg.2021.760713 . doi: 10.3389/fenrg.2021. 760713 .[34] Corporan, E., Edwards, T., Shafer, L., DeWitt, M. J., Klingshirn, C., Zabarnick, S., Fisher, Z., Kramer, D., Zelesnik, P., Balster, L. M., Moses, C. A., Chemical, Thermal Stability, Seal Swell, and Emissions Studies of Alternative Jet Fuels, Energy & Fuels 25 (2011) 955–966. URL: https://doi.org/10. 1021/ef101520v . doi: 10.1021/ef101520v .[35] Frenklach, M., Reaction mechanism of soot formation in flames, Physical Chemistry Chemical Physics 4 (2002) 2028–2037. URL: https://doi.org/10.1039/B110045A . doi: 10.1039/B110045A .[36] D., DuBois and G., Paynter, Fuel Flow Method2 for Estimating Aircraft Emissions, SAE Technical Paper 2006-01-1987,(2006). doi: 10.4271/2006-01-1987 
+
+[37] NIST/TRC Web Thermo Tables (WTT): Critically Evaluated Thermophysical Property Data. URL: 
+
+https://wtt-pro.nist.gov/wtt-pro/#default/B;869,179/A;0,0,705,755;help, about/ .[38] Kendall, J., Monroe, K. P., THE VISCOSITY OF LIQUIDS. II. THE VISCOSITY-COMPOSITION CURVE FOR IDEAL LIQUID MIXTURES.1, Journal of the American Chemical Society 39 (1917) 1787– 1802. URL: https://doi.org/10.1021/ja02254a001 . doi: 10.1021/ja02254a001 .17 [39] Lemmon, E.W., Bell, I.H., Huber, M.L., McLinden, M.O., NIST Standard Reference Database 23: Ref-erence Fluid Thermodynamic and Transport Properties-REFPROP, Version 10.0, National Institute of Standards and Technology, Standard Reference Data Program (2018). URL: https://doi.org/10. 18434/T4/1502528 . doi: 10.18434/T4/1502528 .[40] Coburn, A., Yang, Z., Boehm, R., Heyne, J., Determination of a Freeze Point Blend Prediction Model for Jet Fuel Range Hydrocarbons, in: AIAA SciTech Forum, 2022. URL: https://arc.aiaa.org/ doi/10.2514/6.2022-2221 . doi: 10.2514/6.2022-2221 .[41] Wickey, R. O., Chittenden, D. H., Flash points of blends correlated., Hydrocarb Process Pet Refin 42 (1963) 157–158. 18 Supplementary Information 
+
+# The Fuel Optimizer : A Data-Driven Numerical Framework for Formulation of Aviation Turbine Fuel 
+
+Ana Larrañaga 1,2,∗ Steven L. Brunton 1,2 Jacobo Porteiro 3 Dario Lopez-Pintor 4 
+
+> 1
+
+Department of Mechanical Engineering, University of Washington, Seattle, WA 98195, United States  
+
+> 2
+
+NSF AI Institute in Dynamic Systems, University of Washington, Seattle, WA 98195, United States  
+
+> 3
+
+CINTECX, Universidade de Vigo, Grupo de Tecnoloxía Enerxética (GTE), Vigo, 36310, Spain  
+
+> 4
+
+Sandia National Laboratories, 7011 East Ave, Livermore, 94550, CA, United States 
+
+# Contents 
+
+1 1-D Reaction Network Validation 22 Surrogate Accuracy for Exploratory and Practical Scenarios 33 Optimization Algorithm 44 Full Chemical Family Analysis for Exploratory Approach 55 Complete Single-Component Fuel Database 5
+
+> 1
+
+Corresponding author: alarra@uw.edu 
+
+11 1-D Reaction Network Validation 
+
+The ability of the reactor network model to reproduce the emissions of the CFM56-7B27 engine at landing and take-off (LTO) conditions was validated by comparison against measurements from the ICAO Emis-sions databank [3]. The model was solved for a Jet A surrogate fuel [4] at the four operating modes of the LTO cycle: take-off (100 % thrust), climb (85 % thrust), approach (30 % thurst) and idle (7 % thrust), and the results are shown together with those of the corresponding engine tests in fig. 1. The reactor network was able to simulate combustor outlet temperature and gas-phase emissions (NO x and CO) with high ac-curacy. Particulate mass was also predicted within the uncertainty of the measurements. However, larger discrepancies were observed in particle number, with the overall trend well captured but the absolute val-ues underpredicted by the model. Using jet A as a baseline fuel, the model is deemed to be sufficiently accurate to study fuel effects on emissions and perform fuel-to-fuel comparisons.   
+
+> Figure 1: Comparison between reactor engine model simulations and experimental measurements of a CFM56-7B27 engine at LTO conditions with Jet A. Figure includes combustor outlet temperature (top), NO xand CO emissions (middle), and particulate mass and particle number emissions (bottom)
+
+22 Surrogate Accuracy for Exploratory and Practical Scenarios 
+
+Two surrogate models were trained independently for the two optimization approaches. In both cases, the input normalization procedure and model architecture were optimized to minimize the prediction er-ror. Separate models were required because the fuel databases differ between the two approaches: the exploratory approach includes oxygenated species, whereas the practical approach excludes them and im-poses additional constraints on the allowable olefin content and on an additional fuel property. Figs. 2 and 3 show the performance of the jet engine surrogate model for the exploratory and the practical approaches, respectively. The models achieve prediction errors below 10% for the targets relevant to MF1 and MF2, which include PM, PN, NO and CO. 
+
+Exploratory Fuel Optimizer . The surrogate model is a fully connected feed-forward neural network map-ping fuel blend composition to combustion emissions. The 51 inputs are species mole fractions (species absent from the database were excluded), min–max scaled. The architecture was selected via Bayesian hy-perparameter optimization (Optuna, TPE sampler, 100 trials, 5-fold cross-validation) over number of layers (2–5), neurons per layer (16–128), activation function ( RELU , Leaky RELU , ELU ), dropout rate (0.10–0.30), L1L2 coefficients ( 10 −6–10 −3), optimizer, and learning rate. The cross-validated optimum has three hidden layers of 56, 64, and 104 RELU neurons, each followed by batch normalization (momentum = 0 .99 ) and dropout (0.100, 0.109, 0.183), with L1L2 regularization ( l1 = 1 .15 × 10 −5, l2 = 6 .0 × 10 −4) on all dense layers. The output layer has nine linear neurons predicting mole fractions of H 2O, NO, NO 2, CO, and CO 2; particle mass flow rate; average particle diameter; combustion temperature; and total particle number density (all min–max scaled). Training used RMSprop with MSE loss, batch size 24, up to 10,000 epochs, early stopping (patience = 140 ), and learning rate reduction on plateau (factor = 0 .1, patience = 15 , minimum LR = 10 −7). This configuration achieved the lowest mean cross-validation loss among the 100 trials and was retained as the final surrogate.  
+
+> Figure 2: Surrogate model accuracy for the exploratory approach, where the database was not limited. The results are focused on the target variables relevant to the merit functions that are tested in this work.
+
+3Figure 3: Surrogate model accuracy for the practical approach, where oxygenates were eliminated from the database. The results are focused on the target variables relevant to the merit functions that are tested in this work. 
+
+Practical Fuel Optimizer . This surrogate follows the same training framework as the exploratory model (Optuna TPE, 100 trials, 5-fold cross-validation, identical callbacks), differing in three aspects. First, the input layer receives 40 features, reflecting the reduced species space of the no-oxygenates blend database. Second, inputs are standardized (zero mean, unit variance) rather than min–max scaled. Third, three heav-ily skewed outputs — CO mole fraction, particle mass flow rate, and total particle number density — are log 10 -transformed before standardization; the remaining six targets are left on the original scale. The cross-validated optimum has two hidden layers of 120 and 128 RELU neurons, each followed by batch nor-malization (momentum = 0 .99 ) and dropout (0.289 and 0.136), with L1L2 regularization ( l1 = 1 .07 × 10 −4,
+
+l2 = 1 .92 × 10 −5) on the hidden layers; the linear output layer uses fixed regularization ( l1 = l2 = 10 −5). Training used RMSprop with MSE loss, batch size 24, early stopping (patience = 140 ), and learning rate reduction on plateau (factor = 0 .1, patience = 15 , minimum LR = 10 −7); the initial learning rate was tuned by Optuna over 10 −5–10 −2. This configuration achieved the lowest mean cross-validation loss among the 100 trials and was retained as the final surrogate. Details of the implementation can be found in https://github.com/alarran/fuel-optimizer/ tree/main/training-models and the analysis of the results to generate the complete figure for all the outputs can be found in https://github.com/alarran/fuel-optimizer/blob/main/AnalysisModel. ipynb .
+
+# 3 Optimization Algorithm 
+
+The fuel blend optimizer is a single-objective Genetic Algorithm (GA) implemented in pymoo . Each candi-date is a nine-dimensional continuous vector: four variables in [0, 1] decoded into integer species indices over the full component library, and five variables in [0.02, 1.0] giving the corresponding volumetric blend 4fractions. The first blend component is fixed for an entire run, locking the search to a specific species from the fuel database; one GA run is executed per candidate species, so the procedure maps high-quality blends across all components rather than converging to a single global optimum. After each decode step, propor-tions are normalized to sum to unity, with a minimum fraction of 0.02 enforced per component by iterative redistribution. The population is 100 individuals; crossover and per-gene mutation probabilities are both 0.9, with mutations drawn uniformly within each variable’s bounds by a custom EnhancedMutation 
+
+operator. Duplicate candidates are eliminated at each generation. Feasibility is enforced through seven fuel-specification constraints (distillation temperatures, flash point, density, freezing point, viscosity, and net heat of combustion), extended to nine in the practical scenario by adding seal swell index and olefin content bounds, plus a sum-to-unity constraint; infeasible candidates receive an objective penalty of 10 6.Termination occurs after 200 generations (exploratory) or 300 generations (practical), with a fallback loop that re-runs 50-generation sub-optimizations until at least one feasible candidate is recorded per species. The objective function analyzed in the present work are presented in the Methods section of the paper. Details of the implementation can be found in https://github.com/alarran/fuel-optimizer/ tree/main/fuel_optimizer/optimizer .
+
+# 4 Full Chemical Family Analysis for Exploratory Approach 
+
+Results for the Exploratory Fuel Optimizer analyzed by chemical family. Fig. 4 (a) on the left corresponds to the CO–NO x trade-off optimization, whereas figure (b) on the right corresponds to the LTO regulated-emissions optimization. The merit-function value is plotted on the y-axis, while the proportion of each chemical family in the blend is plotted on the x-axis. The color intensity represents the frequency of oc-currence, with darker regions indicating a higher density of blends within a given composition range. The annotations in each subplot indicate the ratio between the number of occurrences of a given family among all candidate blends ( n) and the number of species of that family available in the database ( k), which serves as an indicator of the preference of the GA for each family. 
+
+# 5 Complete Single-Component Fuel Database 
+
+A palette of 51 single-component fuels, shown in table 1, was used to create a database composed of 2508 multi-component blends that met the density, viscosity, distillation, freeze point, flash point and neat heat of combustion requirements for aviation fuel as defined in the ASTM 1655 standard [5]. Multi-component blend properties were estimated from the single-component fuel properties using blending rules, with the single-component fuel properties obtained from the National Institute of Standards and Technology (NIST) Standard Reference Database [6]. More specifically, ideal liquid, Kendall-Monroe equation [7], NIST REF-PROF [8], freeze point blending index [9], and Wickey-Chettenden equation [10] were used to calculate density and neat heat of combustion, viscosity, distillation, freeze point and flash point, respectively. The complete database used in this work is publicly accessible in: https://github.com/alarran/ fuel-optimizer .5a) CO-NOx trade-off (MF1) w/ oxygenates b) LTO regulated emissions (MF2) w/ oxygenates Figure 4: Full results for the exploratory approach analyzed by chemical family. 
+
+6Table 1: Palette of single-component fuels used to generate the fuel database 
+
+Hydrocarbon class Species name Identifier SMILES notation 
+
+N-alkane N-nonane NC9H20 CCCCCCCCC N-alkane N-decane NC10H22 CCCCCCCCCC N-alkane N-undecane NC11H24 CCCCCCCCCCC N-alkane N-dodecane NC12H26 CCCCCCCCCCCC N-alkane N-tridecane NC13H28 CCCCCCCCCCCCC N-alkane N-tetradecane NC14H30 CCCCCCCCCCCCCC N-alkane N-pentadecane NC15H32 CCCCCCCCCCCCCCC N-alkane N-hexadecane NC16H34 CCCCCCCCCCCCCCCC N-alkane N-octadecane NC18H38 CCCCCCCCCCCCCCCCCC N-alkane N-eicosane NC20H42 CCCCCCCCCCCCCCCCCCCC Iso-alkane 2-methylheptane C8H18-2 CCCCCC(C)C Iso-alkane 2,2,5-trimethylhexane IC8 CC(C)CCC(C)(C)C Iso-alkane 2,2,4,6,6-pentamethylheptane XC12H26 CC(CC(C)(C)C)CC(C)(C)C Iso-alkane 2,2,4,4,6,8,8-heptamethylnonane HMN CC(CC(C)(C)C)CC(C)(C)CC(C)(C)C Iso-alkane 2-methyloctane C9H20-2 CCCCCCC(C)C Iso-alkane 2-methylnonane C10H22-2 CCCCCCCC(C)C Iso-alkane 2-methyldecane C11H24-2 CCCCCCCCC(C)C Cyclo-alkane Butylcyclohexane NBCH CCCCC1CCCCC1 Cyclo-alkane Decalin DECALIN C1CCC2CCCCC2C1 Aromatic Toluene C6H5CH3 CC1=CC=CC=C1 Aromatic Ethylbenzene C6H5C2H5 CCC1=CC=CC=C1 Aromatic P-xylene P-XYL CC1=CC=C(C=C1)C Aromatic O-xylene O-XYL CC1=CC=CC=C1C Aromatic 1-ethyl-3-methylbenzene CH3C6H4C2H5 CCC1=CC=CC(=C1)C Aromatic 1,2,4 trimethylbenzene T124MBZ CC1=CC(=C(C=C1)C)C Aromatic Tetralin TETRA C1CCC2=CC=CC=C2C1 Aromatic Naphthalene NAPH C1=CC=C2C=CC=CC2=C1 Aromatic Alpha-methylnaphthalene A2CH3 CC1=CC=CC2=CC=CC=C12 Aromatic 1,2-diphenylethane C14H14 C1=CC=C(C=C1)CCC2=CC=CC=C2 Olefin 4-hexadecene C16H32-4 CCCCCCCCCCC/C=C\CCC Olefin 4-octadecene C18H36-4 CCCCCCCCCCCCC/C=C/CCC Olefin 4-eicosene C20H40-4 CCCCCCCCCCCCCCC/C=C/CCC Olefin 2,4-dimethyl-1,3-pentadiene I24C7D13 CC(=CC(=C)C)C Olefin 1-nonene C9H18-1 CCCCCCCC=C Olefin 1-butylcyclohexene NBCH-1ENE CCCCC1=CCCCC1 Olefin 1,2,3,4,4a,5,6,8a-octahydro-naphthalene DCLD1 C1CCC2=C(C1)CCCC2 Olefin 2-methyl-1-nonene C10H20-1-2 CCCCCCCC(=C)C Olefin 2,4,4,6,6 pentamethyl-1-heptene AC12H24 CC(=C)CC(C)(C)CC(C)(C)C Olefin 2,4,4,6,8,8 hexamethyl-1-nonene AC15H30 CCC(C)(C)C(C)(C)CC(=CC(C)C)C Olefin 2,2,4,4,8,8 hexamethyl-6-methylenenonane BC16H32 C=C(C)CC(C)CC(C)CC(C)CC(C)C Alcohol Ethanol C2H5OH CCO Alcohol Methanol CH3OH CO Alcohol 1-pentanol NC5H11OH CCCCCO Alcohol 3-methyl-1-butanol IC5H11OH CC(C)CCO Ether Anisole C6H5OCH3 COC1=CC=CC=C1 Ester Methylbutanoate MB CCCC(=O)OC Aldehyde / Ketone Cyclopentanone CPN C1CCC(=O)C1 Aldehyde / Ketone Valeraldehyde PC4H9CHO CCCCC=O Aldehyde / Ketone Hexanal NC5H11CHO CCCCCC=O Aldehyde / Ketone 2,4-dimethyl-3-pentanone NEC7Y4 CC(C)C(=O)C(C)C Furan Furfural F2CHO C1=COC(=C1)C=O 
+
+7References 
+
+[1] C., Faulhaber, C., Borland, R., Boehm, J., Heyne, Measurements of Nitrile Rubber Absorption of Hydrocarbons: Trends for Sustainable Aviation Fuel Compatibility, Energy and Fuels 37 (2023) 9207– 9219. doi: 10.1021/acs.energyfuels.3c00781 .[2] J., Hamilton, B., Khandelwal, Effects of Aromatic Blends on Seal Swell Rates Using Novel Seals Compatibility Test Rig, AIAA SCITECH 2023 Forum, paper number 0596 (2023). doi: 10.2514/6. 2023-0596 .[3] ICAO Aircraft Engine Emissions Databank | EASA. URL: https://www.easa.europa.eu/en/ domains/environment/icao-aircraft-engine-emissions-databank .[4] Lopez-Pintor, D., MacDonald, J., Ramirez-Correa, E., Garcia-Oliver, J. M., Payri, R., Marti Gomez-Aldaravi, P., Leyland, P., Fuel Effects on Aviation Engine Emissions: A Chemical Reactor Network Modeling Study, Energy & Fuels 40 (2026) 4777–4792. URL: https://doi.org/10.1021/acs. energyfuels.5c05727 . doi: 10.1021/acs.energyfuels.5c05727 .[5] Standard Specification for Aviation Turbine Fuels. URL: https://store.astm.org/d1655-25a. html .[6] NIST/TRC Web Thermo Tables (WTT): Critically Evaluated Thermophysical Property Data. URL: 
+
+https://wtt-pro.nist.gov/wtt-pro/#default/B;869,179/A;0,0,705,755;help, about/ .[7] Kendall, J., Monroe, K. P., THE VISCOSITY OF LIQUIDS. II. THE VISCOSITY-COMPOSITION CURVE FOR IDEAL LIQUID MIXTURES.1, Journal of the American Chemical Society 39 (1917) 1787– 1802. URL: https://doi.org/10.1021/ja02254a001 . doi: 10.1021/ja02254a001 .[8] Lemmon, E.W., Bell, I.H., Huber, M.L., McLinden, M.O., NIST Standard Reference Database 23: Ref-erence Fluid Thermodynamic and Transport Properties-REFPROP, Version 10.0, National Institute of Standards and Technology, Standard Reference Data Program (2018). URL: https://doi.org/10. 18434/T4/1502528 . doi: 10.18434/T4/1502528 .[9] Coburn, A., Yang, Z., Boehm, R., Heyne, J., Determination of a Freeze Point Blend Prediction Model for Jet Fuel Range Hydrocarbons, in: AIAA SciTech Forum, 2022. URL: https://arc.aiaa.org/ doi/10.2514/6.2022-2221 . doi: 10.2514/6.2022-2221 .[10] Wickey, R. O., Chittenden, D. H., Flash points of blends correlated., Hydrocarb Process Pet Refin 42 (1963) 157–158. 8

@@ -6,86 +6,71 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-05-17 ~ 2026-06-15
-- 运行时间：2026-06-15 13:14:24 UTC
+- 最新运行日期：2026-06-15
+- 运行时间：2026-06-15 22:23:44 UTC
 - 运行状态：成功
-- 本次总论文数：21
-- 精读区：0
-- 速读区：21
+- 本次总论文数：17
+- 精读区：6
+- 速读区：11
 
 ### 今日简报（AI）
-1) 本期速读21篇论文，聚焦催化材料大模型、炼油图合成、电池参数估计三个前沿方向。
-2) 最值得看的是催化材料多模态大模型（CatalyticMLLM）和炼油专业语言模型（RefiningGPT），分别展示了AI在材料科学和化工流程中的突破。
-3) 建议关注LLM在工业领域的垂直应用，如电池逆向参数估计中的智能体方法。
-- 详情：[/20260517-20260615/README](/20260517-20260615/README)
+今日日报重点精读6篇，聚焦LLM在过程系统工程中的机遇架构与自反思分子设计方法。最值得关注的两篇为满分综述《Large Language Models in Process Systems Engineering》及9分《Closing the Prior-Posterior Loop: Self-Reflective Molecular Design》，前者系统梳理工业部署挑战，后者提出分析驱动的LLM迭代策略。建议优先阅读这两篇精读论文，深入理解LLM在工程优化与分子设计中的前沿应用。
+- 详情：[/202606/15/README](/202606/15/README)
 
 ### 精读区论文标签
-- 本次无精读推荐。
+1. [Large Language Models in Process Systems Engineering: Opportunities, Architectures, and Industrial Deployment Challenges](/202606/15/2606.11589v1-large-language-models-in-process-systems-engineering-opportunities-architectures-and-industrial-deployment-challenges)  
+   标签：评分：10.0/10、query:chemical-llm
+   evidence：综述大语言模型在过程系统工程中的应用，涵盖化学工程领域
+2. [Closing the Prior-Posterior Loop: Self-Reflective Molecular Design with Analysis-Driven LLM Iteration](/202606/15/2606.09520v1-closing-the-prior-posterior-loop-self-reflective-molecular-design-with-analysis-driven-llm-iteration)  
+   标签：评分：9.0/10、query:chemical-llm
+   evidence：利用第一性原理反馈的LLM驱动分子设计
+3. [My Chemical Harness: Evolutionary Molecular Design over Synthetic Pathways with Large Language Model Agents](/202606/15/2606.11256v1-my-chemical-harness-evolutionary-molecular-design-over-synthetic-pathways-with-large-language-model-agents)  
+   标签：评分：9.0/10、query:chemical-llm
+   evidence：利用大语言模型进行化学分子设计
+4. [SupraBench: A Benchmark for Supramolecular Chemistry](/202606/15/2606.13477v1-suprabench-a-benchmark-for-supramolecular-chemistry)  
+   标签：评分：9.0/10、query:chemical-llm
+   evidence：利用大语言模型进行化学推理评估
+5. [The Fuel Optimizer: A Data-Driven Numerical Framework for Formulation of Aviation Turbine Fuel](/202606/15/2606.11099v1-the-fuel-optimizer-a-data-driven-numerical-framework-for-formulation-of-aviation-turbine-fuel)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：化工过程优化中的燃料配方设计
+6. [MDForge: Agentic Molecular Dynamics Pipeline Design under Sparse Simulator Feedback](/202606/15/2606.12916v1-mdforge-agentic-molecular-dynamics-pipeline-design-under-sparse-simulator-feedback)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：利用LLM智能体进行分子动力学管道设计
 
 ### 速读区论文标签
-1. [CatalyticMLLM: A Graph-Text Multimodal Large Language Model for Catalytic Materials](/20260517-20260615/2605.17254v1-catalyticmllm-a-graph-text-multimodal-large-language-model-for-catalytic-materials)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：图-文本多模态大语言模型用于催化材料，直接利用LLM推动化工
-2. [RefiningGPT: Specialized language Models for Automated Refinery Unit-level Process Diagram Synthesis](/20260517-20260615/2605.19704v1-refininggpt-specialized-language-models-for-automated-refinery-unit-level-process-diagram-synthesis)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：专用大语言模型自动化炼油厂工艺图合成，直接应用大语言模型于化学工程
-3. [Battery-Sim-Agent: Leveraging LLM-Agent for Inverse Battery Parameter Estimation](/20260517-20260615/2605.29560v1-battery-sim-agent-leveraging-llm-agent-for-inverse-battery-parameter-estimation)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：LLM代理用于电池参数逆估计
-4. [A literature-grounded scientific reasoning framework for defect-engineered TiO$_{2}$ photocatalysts](/20260517-20260615/2606.01089v1-a-literature-grounded-scientific-reasoning-framework-for-defect-engineered-tio2-photocatalysts)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：LLM辅助缺陷工程TiO2光催化剂推理框架
-5. [Bayesian Optimization of a Multi-Product Chemical Reactor Using Composite Models and Partial Physics Knowledge](/20260517-20260615/2606.08611v1-bayesian-optimization-of-a-multi-product-chemical-reactor-using-composite-models-and-partial-physics-knowledge)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：化学反器贝叶斯优化来实现过程优化
-6. [Large Language Models in Process Systems Engineering: Opportunities, Architectures, and Industrial Deployment Challenges](/20260517-20260615/2606.11589v1-large-language-models-in-process-systems-engineering-opportunities-architectures-and-industrial-deployment-challenges)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：关于LLM在过程系统工程中应用的综述，直接聚焦化工领域利用LLM
-7. [ChemVA: Advancing Large Language Models on Chemical Reaction Diagrams Understanding](/20260517-20260615/2605.17214v1-chemva-advancing-large-language-models-on-chemical-reaction-diagrams-understanding)  
+1. [ChargeBD: Character-Aware Heterogeneous Agent Reasoning for Guided Engineering in Battery Development](/202606/15/2606.12057v2-chargebd-character-aware-heterogeneous-agent-reasoning-for-guided-engineering-in-battery-development)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：利用大语言模型理解化学反应图
-8. [CatalyticMLLM: A Graph-Text Multimodal Large Language Model for Catalytic Materials](/20260517-20260615/2605.17254v2-catalyticmllm-a-graph-text-multimodal-large-language-model-for-catalytic-materials)  
+   evidence：基于大语言模型的代理框架用于电池开发（化工领域）
+2. [LapidaryEngine: Fully Conversational Crystal Generation](/202606/15/2606.14215v1-lapidaryengine-fully-conversational-crystal-generation)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：用于催化材料的统一图-文本多模态大语言模型，直接应用于化工人工智能
-9. [HiRes: Inspectable Precedent Memory for Reaction Condition Recommendation](/20260517-20260615/2605.21420v1-hires-inspectable-precedent-memory-for-reaction-condition-recommendation)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：化学中基于人工智能的反应条件推荐
-10. [SciCore-Mol: Augmenting Large Language Models with Pluggable Molecular Cognition Modules](/20260517-20260615/2605.22287v1-scicore-mol-augmenting-large-language-models-with-pluggable-molecular-cognition-modules)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：可插拔分子认知模块增强大语言模型对分子数据的处理能力
-11. [Learning regime-dependent governing equations: A symbolic decision tree approach](/20260517-20260615/2605.24275v1-learning-regime-dependent-governing-equations-a-symbolic-decision-tree-approach)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：化工系统机制依赖方程的符号决策树发现
-12. [Traceable Knowledge Graph Reasoning Enables LLM-Assisted Decision Support for Industrial VOCs in the Steel Industry](/20260517-20260615/2605.27071v1-traceable-knowledge-graph-reasoning-enables-llm-assisted-decision-support-for-industrial-vocs-in-the-steel-industry)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：大语言模型辅助钢铁行业工业VOCs决策支持
-13. [PetroBench: A Benchmark for Large Language Models in Petroleum Engineering](/20260517-20260615/2605.28032v1-petrobench-a-benchmark-for-large-language-models-in-petroleum-engineering)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：石油工程中的LLM基准测试，与化工领域利用LLM相关
-14. [Sustainable Metal-Organic Framework Water Harvesters in the Artificial Intelligence Era](/20260517-20260615/2605.29179v1-sustainable-metal-organic-framework-water-harvesters-in-the-artificial-intelligence-era)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：人工智能集成用于MOF水收集材料设计，体现AI在化工中的应用
-15. [Rethinking Molecular Text Representations for LLMs: An Empirical Study](/20260517-20260615/2606.03057v1-rethinking-molecular-text-representations-for-llms-an-empirical-study)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：面向LLM的分子文本表示实证研究
-16. [From Answers to States: Verifiable Process-Level Evaluation of Chemical Reasoning in Large Language Models](/20260517-20260615/2606.03660v1-from-answers-to-states-verifiable-process-level-evaluation-of-chemical-reasoning-in-large-language-models)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：用于化学推理的大语言模型评估，直接关联化工中利用大语言模型
-17. [MolE-RAG: Molecular Structure-Enhanced Retrieval-Augmented Generation for Chemistry](/20260517-20260615/2606.05693v1-mole-rag-molecular-structure-enhanced-retrieval-augmented-generation-for-chemistry)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：结合检索增强生成的大语言模型用于化学分子性质预测
-18. [GLACIER: A Multimodal Student-Teacher Foundation Model for Molecular Property Prediction](/20260517-20260615/2606.11382v1-glacier-a-multimodal-student-teacher-foundation-model-for-molecular-property-prediction)  
-   标签：评分：8.0/10、query:coal-liquid
-   evidence：多模态分子属性预测模型可用于煤液化油分子
-19. [Physics-Distilled Neural Network enabled by Large Language Models for Manufacturing Process-Property Predictive Modeling](/20260517-20260615/2606.11605v1-physics-distilled-neural-network-enabled-by-large-language-models-for-manufacturing-process-property-predictive-modeling)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：使用大语言模型提取物理先验用于制造过程-性能预测，直接相关于化工领域中利用大语言模型
-20. [ChargeBD: Character-Aware Heterogeneous Agent Reasoning for Guided Engineering in Battery Development](/20260517-20260615/2606.12057v1-chargebd-character-aware-heterogeneous-agent-reasoning-for-guided-engineering-in-battery-development)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：基于大语言模型的异质智能体推理框架用于电池开发，在化学工程中利用大语言模型
-21. [ChargeBD: Character-Aware Heterogeneous Agent Reasoning for Guided Engineering in Battery Development](/20260517-20260615/2606.12057v2-chargebd-character-aware-heterogeneous-agent-reasoning-for-guided-engineering-in-battery-development)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：利用LLM引导电池工程，符合化工领域利用大语言模型的主题
+   evidence：利用大语言模型进行晶体材料设计
+3. [Inference-Time Conformal Reasoning with Valid Factuality Control for Large Language Models](/202606/15/2606.08831v1-inference-time-conformal-reasoning-with-valid-factuality-control-for-large-language-models)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：大语言模型事实性控制
+4. [A Robust Agentic Framework for Expert-Level Automation of Atomistic Simulations](/202606/15/2606.09422v1-a-robust-agentic-framework-for-expert-level-automation-of-atomistic-simulations)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：AI驱动的原子模拟自动化，适用于材料科学
+5. [A Robust Agentic Framework for Expert-Level Automation of Atomistic Simulations](/202606/15/2606.09422v2-a-robust-agentic-framework-for-expert-level-automation-of-atomistic-simulations)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：利用机器学习势自动原子模拟的智能体框架，关联化工AI应用
+6. [Predicting Physical and Physical-Chemical Properties of Molecular-Based Materials Using Computational Neural Networks](/202606/15/2606.09560v1-predicting-physical-and-physical-chemical-properties-of-molecular-based-materials-using-computational-neural-networks)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：神经网络预测分子性质，应用于化学工程
+7. [Probabilistic Contrastive Pretraining for Multi-task ADME Property Prediction](/202606/15/2606.11508v1-probabilistic-contrastive-pretraining-for-multi-task-adme-property-prediction)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：药物发现中的分子性质预测AI方法，关联化工行业AI应用
+8. [Augmenting Molecular Language Models with Local $n$-gram Memory](/202606/15/2606.12113v1-augmenting-molecular-language-models-with-local-n-gram-memory)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：增强分子语言模型用于化学工程应用
+9. [In-Context Learning for Latent Space Bayesian Optimization](/202606/15/2606.09664v1-in-context-learning-for-latent-space-bayesian-optimization)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：上下文学习用于潜在空间中贝叶斯优化以辅助分子设计
+10. [The Rise of AI-Native Software Engineering: Implications for Practice, Education, and the Future Workforce](/202606/15/2606.12986v1-the-rise-of-ai-native-software-engineering-implications-for-practice-education-and-the-future-workforce)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：大语言模型在软件工程中的系统综述
+11. [FactoryLLM: A Safe and Open-Source AI Playground for Evaluating LLMs in Smart Factories](/202606/15/2606.14119v1-factoryllm-a-safe-and-open-source-ai-playground-for-evaluating-llms-in-smart-factories)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：用于智能工厂应用的大语言模型评估平台
 
 
 <div class="dpr-home-promo-card">
