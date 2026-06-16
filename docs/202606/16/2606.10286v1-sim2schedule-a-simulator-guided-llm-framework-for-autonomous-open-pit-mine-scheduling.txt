@@ -1,0 +1,613 @@
+Title: Sim2Schedule: A Simulator-Guided LLM Framework for Autonomous Open-Pit Mine Scheduling
+
+URL Source: https://arxiv.org/pdf/2606.10286v1
+
+Published Time: Wed, 10 Jun 2026 00:29:12 GMT
+
+Number of Pages: 24
+
+Markdown Content:
+# Sim2Schedule: A Simulator-Guided LLM Framework for Autonomous Open-Pit Mine Scheduling 
+
+MUSTAVI IBNE MASUM ∗ and THIAGO EUSTAQUIO ALVES DE OLIVEIRA, Department of Computer Science, Lakehead University, Canada 
+
+MAHZABEEN EMU, Quantum Communications and Computing Research Center and Department of Electrical and Computer Engineering, Memorial University of Newfoundland, Canada Open-pit mine scheduling is a critical process for maximizing economic return under complex geotechnical and operational constraints. While Mixed-Integer Linear Programming (MILP) provides mathematically optimal baselines, its exponential computational complexity and inability to adapt in real time limit its practical deployment in dynamic industrial environments. This work introduces a simulator-driven Large Language Model (LLM) scheduling framework in which the LLM acts as an autonomous decision-making agent, guided at each step by a custom simulator that encodes geotechnical precedence, extraction-processing coupling, and dynamic capacity constraints directly into the action generation mechanism. Operating entirely zero-shot within a closed, data-secure environment, the framework produces complete, interpretable extraction and processing schedules without cloud-based inference, domain-specific fine-tuning, or retraining. To provide a trustworthy performance benchmark, a novel MILP formulation is developed that incorporates realistic operational and geotechnical constraints. Evaluated across mining instances of varying scale and time pe-riods, the LLM-based framework recovers between 94% and 99% of the MILP optimal NPV while scaling linearly in computation time. These results position simulator-constrained LLM agents as a practical and scalable alternative to classical optimization for long-horizon industrial scheduling under complex operational constraints. CCS Concepts: • Computing methodologies → Natural language generation ; Planning for determin-istic actions ; • Mathematics of computing → Combinatorial optimization .Additional Key Words and Phrases: Large Language Model, Production scheduling, Simulation, Mixed-Integer Linear Programming, Optimization, Open-pit mining 
+
+ACM Reference Format: 
+
+Mustavi Ibne Masum, Thiago Eustaquio Alves de Oliveira, and Mahzabeen Emu. 2026. Sim2Schedule: A Simulator-Guided LLM Framework for Autonomous Open-Pit Mine Scheduling. ACM Trans. Autonom. Adapt. Syst. 1, 1 (June 2026), 24 pages. https://doi.org/XXXXXXX.XXXXXXX 
+
+1 Introduction 
+
+The extraction of near-surface ore deposits through open-pit mining is a complex industrial process. It involves systematically removing horizontal benches to access valuable minerals. This method requires a careful and ongoing balance between selectively extracting ore for processing and 
+
+> ∗
+
+Corresponding Author Authors’ Contact Information: Mustavi Ibne Masum, mmasum@lakeheadu.ca; Thiago Eustaquio Alves de Oliveira, talvesd@ lakeheadu.ca, Department of Computer Science, Lakehead University, Thunder Bay, Ontario, Canada; Mahzabeen Emu, memu@mun.ca, Quantum Communications and Computing Research Center and Department of Electrical and Computer Engineering, Memorial University of Newfoundland, St. John’s, Newfoundland, Canada. Permission to make digital or hard copies of all or part of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for profit or commercial advantage and that copies bear this notice and the full citation on the first page. Copyrights for components of this work owned by others than the author(s) must be honored. Abstracting with credit is permitted. To copy otherwise, or republish, to post on servers or to redistribute to lists, requires prior specific permission and/or a fee. Request permissions from permissions@acm.org. 
+
+© 2026 Copyright held by the owner/author(s). Publication rights licensed to ACM. ACM 1556-4703/2026/6-ART https://doi.org/XXXXXXX.XXXXXXX ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026.  
+
+> arXiv:2606.10286v1 [cs.AI] 9 Jun 2026 2Mustavi et al.
+
+managing large amounts of waste material, or overburden, which must be removed to ensure slope stability and access deeper reserves [ 3 ]. The economics of these operations hinge on a two-part structure: extraction activities, which constitute the primary operational costs, and processing activities, which refine raw ore into marketable products and generate revenue [ 4]. Determining the most profitable sequence for these activities is known as open-pit production scheduling (OPPS). It is a critical factor in ensuring the long-term economic sustainability of capital-intensive mining projects [ 25 ]. The central objective is to maximize the net present value (NPV) of the operation by timing each block’s extraction optimally, navigating a fundamental economic trade-off where excavating overburden incurs immediate costs yet remains a mandatory prerequisite for exposing high-grade ore at depth [ 28 ]. The spatial and temporal optimization of this sequence is thus the primary challenge in OPPS. As Large Language Models (LLMs) have become a revolutionary approach in artificial intelligence, their ability to make interpretable decisions and engage in contextual reasoning has drawn interest in addition to natural language tasks [ 20 ]. In mine planning specifically, recent works have explored data-driven and AI-assisted approaches to operational scheduling, including short-horizon truck dispatching and task sequencing [ 14 ], yet the application of LLMs to the long-horizon strategic problem of block extraction and sequencing remains unexplored. This gap is significant, as LLMs offer real-time adaptability and zero-shot generalization that could substantially reduce the burden of expert re-optimization when operational conditions change [6, 8, 34]. Deploying LLMs for mine scheduling introduces practical challenges. LLMs demand considerable computational and storage resources during training and inference [ 31 ], which is a substantial burden in resource-constrained industrial environments. If the LLM is used purely for inference, without any domain-specific fine-tuning, the computational overhead is dramatically reduced. This observation motivates the central contribution of this work, which introduces a framework in which an LLM acts solely as an inference-time decision-maker, guided at each step by a custom simulator that encodes domain knowledge directly. As illustrated in Fig. 1, the simulator functions as the medium through which mine-state knowl-edge is communicated to the LLM and through which decisions are received and recorded. At each scheduling step, the simulator evaluates the current excavation state and identifies all physically feasible actions. These actions are then presented to the LLM as structured context. Once the LLM selects an action, the simulator processes the decision and advances the mine state accordingly. This results in a complete extraction and processing schedule generated entirely without any LLM training, fine-tuning, or adaptation. The framework operates as a closed, self-contained system with no cloud-based LLM calls, ensuring that sensitive mine data remains within the operational environment. Given the computational complexity of OPPS, Mixed-Integer Linear Programming (MILP) has historically served as the dominant optimization paradigm, offering formal integration of economic, technical, and operational constraints. However, existing MILP formulations frequently ignore the necessity of safely removing overlying rock before deeper extraction, permit the mathematical processing of partially buried material, and impose rigid production capacity targets that become infeasible as the mine depletes. To address these deficiencies, this work introduces a novel MILP formulation that explicitly enforces these physical realities, yielding genuinely executable schedules. While this improves operational realism, the resulting formulations are large-scale and computa-tionally expensive to solve, require expert reformulation whenever new operational variabilities arise, and produce sequences that demand post-processing before they are interpretable by mine planners. These limitations motivate the need for scheduling frameworks that balance mathematical rigor with real-time adaptability and interpretability. While metaheuristics and reinforcement learning  
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. Sim2Schedule For Open-Pit Mine Scheduling 3
+> Fig. 1. Overview of the LLM-Assisted Scheduling Framework
+
+have been explored for this purpose, they frequently struggle with generalizability and transparent reasoning across diverse mining contexts [ 37 ]. The LLM-driven simulator framework proposed here addresses these shortcomings by providing a sequential, interpretable decision process that adapts to operational changes without re-optimization. The MILP formulation serves in this study not as the proposed solution, but as the optimal benchmark against which the LLM agent is evaluated alongside a Greedy heuristic and a Random baseline, enabling a systematic assessment of whether LLM-driven scheduling can effectively navigate the trade-off between computational tractability and solution quality. The main contributions of this study are as follows: 
+
+• LLM-Based Mining Agent for Long-Term OPPS : An autonomous scheduling framework is designed in which an LLM functions as the decision-making agent. Unlike static solvers, this agent generates extraction processing sequences dynamically by evaluating the evolving set of feasible actions at each time step. Unlike prior mining AI, which is restricted to short-horizon operational tasks such as truck dispatching [ 14 ], our agent addresses the multi-period, strategic problem of block extraction and processing sequencing for NPV maximization. The LLM operates zero-shot within a custom simulator, requiring no domain-specific training and producing immediately interpretable, executable schedules. 
+
+• Interpretable, Open-Source Mining Simulator : An interactive open-pit scheduling simu-lator is developed, which, to the best of our knowledge, is the first of its kind to be integrated with LLM agents. The simulator assesses viable actions, processes decisions, and updates the system state in real-time. Crucially, it generates decision sequences that are transparent and immediately interpretable by mine planners, facilitating operational validation. The simulator is made publicly available to support reproducibility and further methodological development. 1
+
+• MILP Formulation for Realistic Constraints : A robust MILP model is developed to resolve critical oversimplifications in traditional scheduling. Previous formulations rely on rigid capacity limits and physically impossible partial processing, producing seemingly optimal but geotechnically invalid schedules. Our approach integrates dynamic capacity bounds, strict spatial precedence for safety, and exact extraction processing coupling. By enforcing these realistic constraints alongside standard production and grade blending requirements, the formulation generates optimal NPV maximizing plans that are mathematically sound and genuinely executable.  
+
+> 1The simulation tool is available at: https://anonymous.4open.science/r/LLM-MILP-Mining-DF4E ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. 4Mustavi et al.
+
+The remainder of this paper is organized as follows: section 2 reviews the relevant literature, section 3 introduces our proposed framework and methodology, and section 4 details the experimental setup, data configuration, and comparative evaluation results. Finally, the section 5 summarizes the key findings and concludes the study. 
+
+2 Literature Review 
+
+OPPS represents one of the most challenging optimization problems in mine planning, defined as the process of determining the optimal time and sequence for extracting blocks from a mine to maximize NPV while satisfying physical, environmental, operational, and economic constraints [ 7]. 
+
+2.1 Mathematical Programming Approaches 
+
+Early foundations were laid by Lerchs et al. [ 19 ], who revolutionized ultimate pit definition using graph-theoretic methods, and by Johnson [ 16 ], who established the analytical basis for OPPS using Linear Programming (LP). However, early LP models frequently yielded fractional block extractions, requiring heuristic post-processing to produce executable schedules. The transition to MILP addressed this by enforcing discrete decision variables, establishing it as the dominant paradigm. Askari-Nasab et al. [5 ] advanced this direction through clustering and mining-cut aggregation, improving both computational tractability and NPV. Despite these improvements, standard MILP formulations often rely on relaxed precedence structures and static extraction limits to remain solvable, reducing their operational realism. Subsequent work attempted to address specific operational constraints. Khazaei et al. [ 17 ]incorporated vertical and horizontal precedence for Sub-Level Caving, though their formulation lacks strict extraction-processing coupling. Rahnema et al. [ 27 ] integrated GHG emissions and carbon-tax penalties into a deterministic MILP, demonstrating that environmental factors can be incorporated without altering the core structure, though simplified sequencing logic and fixed thresholds limit dynamic consistency. Tabesh et al. [29 ] introduced a two-stage clustering framework that improves tractability and stabilizes feed quality yet retains non-adaptive constraints that do not respond to temporal changes in mine state. Stochastic extensions have also been explored to address grade uncertainty, with simultaneous optimization of entire mining complexes demonstrating NPV improvements under geological variability [ 9 ], though these retain the same computational scalability limitations as deterministic models. To overcome the intractability of exact solvers on large-scale instances, metaheuristic alternatives have been explored. Amponsah et al. [4 ] compared a genetic algorithm framework against a stochastic MILP under grade uncertainty, showing significant runtime reductions at the cost of strict optimality. Hussain et al. [13 ] demonstrated, outside the mining domain, that MILP can handle complex multi-period physics and strict constraint coupling, though equivalent dynamic consistency remains elusive in mine planning. Collectively, these methods share a fundamental limitation, functioning as static, batch computational engines that require expert reformulation whenever operational conditions change. 
+
+2.2 LLM-Based and Simulation-Driven Approaches 
+
+LLMs have recently emerged as powerful engines for combinatorial optimization, offering a qualita-tively different approach from both exact solvers and metaheuristics. Recent work has demonstrated that LLMs can serve as end-to-end solvers for NP-hard combinatorial problems, with feasibility-aware models achieving optimality gaps as low as 1.03% on benchmark instances [ 15 ]. The StarJob framework [ 1] validated this potential in Job Shop Scheduling, where fine-tuned LLMs outper-formed traditional dispatching rules. In logistics, Agentic Frameworks with LLMs [ 38 ] have been applied to Vehicle Routing Problems, where LLM agents interact with external solvers to enforce constraints that pure language models often violate. Multi-agent LLM frameworks have further  
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. Sim2Schedule For Open-Pit Mine Scheduling 5
+
+Table 1. Comparison of deterministic and metaheuristic optimization approaches for mine production scheduling                                                                       
+
+> Model Performance Constraints Reference Optimality Scalability Strict Precedence Extraction-Processing Coupling Dynamic Limits Accessibility to Mine Planners
+> Johnson [16] ✗✗✗✗✗✗
+> Askari-Nasab et al. [5] ✓✗✗✗✗✗
+> Khazaei et al. [17] ✓✗✗✗✗✗
+> Rahnema et al. [27] ✓✗✗✗✗✗
+> Tabesh et al. [29] ✓✓✗✗✗✗
+> Hussain et al. [13] ✓✗✓✓✗✗
+> Amponsah et al. [4] ✗✓✓✗✗✗
+> Proposed MILP Method ✓✗✓✓✓✗
+> Proposed LLM Method ✗✓✓✓✓✓
+
+demonstrated that feedback-driven iterative loops between agents can adaptively refine scheduling solutions across diverse problem types without algorithm redesign [32]. A particularly compelling direction is the pairing of LLMs with dedicated simulators or physics-enforcing environments. Ma et al. [24 ] formalized this as a bilevel optimization framework, showing that LLMs optimizing discrete scientific hypotheses, when coupled with a physical simulator handling continuous parameter evaluation, can outperform methods relying on either component alone. Similarly, work on LLM-empowered agent-based modeling and simulation has shown that offloading constraint enforcement and numerical computation to a structured environment, while reserving high-level reasoning for the LLM, significantly reduces hallucination and improves decision quality in complex dynamic settings [ 11 ]. This simulator-in-the-loop paradigm is directly relevant to OPPS, where the mine state evolves continuously and each decision constrains all future options in a cascading, non-reversible manner that demands both physical consistency and forward-looking reasoning. Despite this progress, a critical gap remains. Existing mining-related AI models primarily address short-term truck dispatching and simulation-based operational planning [ 14 , 30 ], and no prior LLM-based scheduling work contends with the 3D geotechnical precedence, extraction-processing coupling, or multi-period NPV objectives that define OPPS. LLM-based scheduling frameworks such as A4PS [ 21 ] have shown promise in smart manufacturing contexts but address job-sequencing in flexible production cells rather than the spatially constrained, long-horizon problem of open-pit mining. Furthermore, LLMs pre-trained on generic data struggle with complex physical constraints without external knowledge structures [ 36 ], and Chain-of-Thought prompting alone [ 33 ] is insuffi-cient to enforce the hard feasibility requirements of mine scheduling. As summarized in Table 1, no prior method simultaneously enforces strict precedence, extraction-processing coupling, and dynamic capacity limits while remaining accessible to mine planners [ 4,5 , 13 , 17 , 27 , 29 ]. The proposed methods address this gap from complementary directions, with the MILP providing an optimal but computationally intensive benchmark and the LLM-based simulator matching its constraint coverage while delivering superior scalability and real-time planner transparency. 
+
+3 Methodology 
+
+This section presents the comprehensive framework developed to address the OPPS problem through multiple solution approaches. It begins by formulating the general OPPS problem and defining the operational constraints that govern feasible mining sequences. The proposed dual-pathway framework is then described, centering on the iterative simulator and LLM-driven decision-making                   
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. 6Mustavi et al.
+> Fig. 2. Precedence relationships in a 3D block-structured grid. A block located at (𝑖, 𝑗, 𝑘 )can be extracted only after the overlying blocks (𝑖 −1, 𝑗 −1, 𝑘 −1), . . . , (𝑖 +1, 𝑗 +1, 𝑘 −1)have been completely removed.
+
+pipeline, with the MILP model serving as the optimal benchmark for comparative evaluation. Finally, the simulator-based heuristic approaches are described in detail, followed by the mathematical formulation of the deterministic MILP model. 
+
+3.1 Problem Formulation 
+
+The OPPS problem seeks to maximize the overall profitability of a mining operation by optimally sequencing block extraction and ore processing across a finite time period. The fundamental task is to determine how much ore and waste material to mine from each block in each period, how much ore to process, and when each block becomes available for extraction based on slope stability requirements. The economic objective is formalized by maximizing the project’s NPV, which evaluates overall profitability by summing the net cash flows, defined as the periodic revenues from processed ore minus material extraction costs, divided by a discount factor raised to the power of the respective time period [ 4 ]. Achieving this objective requires satisfying multiple categories of operational and physical constraints that collectively ensure feasibility and economic viability. Capacity constraints enforce upper and lower bounds on total material extraction per period based on equipment limitations. However, in practical mining operations, production cannot always adhere strictly to fixed minimum or maximum capacity limits, particularly near the end of the mine’s useful life. While existing MILP formulations improve NPV and computational tractability through various approaches [ 4, 29 ], these models rely on statically fixed capacity limits that do not respond to temporal changes or diminishing reserves in the mine state. To address this limitation, the proposed model incorporates flexible capacity constraints through a dynamic lower bound mechanism that adjusts minimum extraction levels based on remaining reserves, preventing mathematical infeasibility while maintaining realistic production behavior. Processing capacity constraints bound the throughput of ore treated in each period within the mill’s operational range, while quality constraints ensure that the weighted average grade of ore processed in each period satisfies upper and lower specifications to maintain optimal metallurgical performance through grade blending requirements. Geotechnical constraints enforce block precedence relationships that dictate the physical se-quence of extraction. As illustrated in Fig. 2, for a block located at coordinates (𝑖, 𝑗, 𝑘 ) to be accessible, the overlying blocks in the range (𝑖 − 1, 𝑗 − 1, 𝑘 − 1), . . . , (𝑖 + 1, 𝑗 + 1, 𝑘 − 1) must first be completely removed. This geometric dependency ensures slope stability and operational feasibility by preventing the extraction of blocks before their supporting overburden has been cleared. The precedence constraint explicitly defines the set of predecessor blocks for each block in the orebody, creating a complex network of dependencies that must be satisfied throughout the extraction sequence. Another critical aspect of the formulation is the strict coupling between extraction  
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. Sim2Schedule For Open-Pit Mine Scheduling 7
+
+and processing. Existing formulations [ 4 , 5 ] do not enforce the requirement that a block must be completely extracted before its ore can be routed to the processing plant, allowing partial extraction and immediate processing in the same period. This contradicts real-world mining physics where a block must be fully blasted and excavated before its constituent ore can be separated and sent to the mill. To address these deficiencies, the proposed model incorporates logical and coupling constraints that ensure each block is mined at most once and processed at most once across all periods, while enforcing the extraction-processing dependency that ore from a block can only be processed after the block has been fully extracted. Temporal consistency requirements further ensure that once a block becomes available for extraction, it remains available in all subsequent periods. 
+
+3.2 Proposed Framework 
+
+Having established the problem formulation and constraint requirements, this section presents the overall computational framework that enables systematic comparison between the LLM-driven simulator and the MILP benchmark. As illustrated in Fig. 3, the workflow originates from a shared mining environment where initial mine properties, including block tonnage, ore grades, and opera-tional capacities, define the system state. This shared input initializes two parallel computational streams, ensuring that all methods operate under identical operational assumptions and enabling fair performance comparisons. The primary stream (labeled 1) directs the initial mine state into the iterative simulator framework, inspired by the ReAct paradigm [ 35 ]. The simulator functions as the operational core of the framework, dynamically managing all physical and operational requirements by generating only feasible actions at each decision step. This implicit constraint enforcement covers capacity, quality, precedence, and extraction-processing coupling, entirely through the action generation mechanism rather than through explicit mathematical programming. At each simulation step, the simulator observes the current mine state and produces a structured list of feasible actions, each specifying an action type, block ID, and admissible quantity. Three independent simulation experiments are conducted concurrently within this environment, each employing a distinct decision-making strategy: Random selection, Greedy heuristic, and LLM-based reasoning with structured prompts. Each agent independently selects an action according to its strategy, which updates the state exclusively within its respective simulation branch. This process repeats iteratively until no further feasible actions remain or the terminal time period is reached. The LLM agent receives the current feasible action list alongside contextual mine state information through a structured prompt, and reasons over the long-term implications of each candidate action before committing to a selection. The resulting heuristic schedules are transferred to the Mining Schedules module for aggregation (labeled 3). The secondary stream (labeled 2) passes the same initial data into the deterministic MILP formulation, which optimizes production scheduling based on explicitly defined economic objectives and operational constraints. These constraints are encoded as mathematical inequalities, with continuous variables modeling fractional block extraction and processing, binary variables enforcing precedence and logical dependencies, and auxiliary variables handling conditional constraints such as dynamic capacity bounds and extraction-processing coupling. The raw solver output is processed by a schedule decoder that translates the optimal mathematical solution into an interpretable deterministic schedule (labeled 4), which is then stored in the Mining Schedules module alongside the simulator outputs. The aggregated results from both streams are finally presented to the mining operator (labeled 5), enabling direct comparison of the optimal MILP schedule against the three simulator-generated heuristic schedules across NPV, constraint satisfaction, and computational efficiency.  
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. 8Mustavi et al.
+> Fig. 3. Overview of the Proposed Framework. Starting from the initial mining state, the workflow splits into two parallel evaluation paths. Path 1 feeds the mine properties into an iterative simulator where Random, Greedy, and LLM agents generate heuristic schedules (3). Path 2 passes the same data through a MILP optimization model to produce an optimal deterministic schedule (4). Both outputs are aggregated in the Mining Schedules module and presented to the mining operator (5) for comparative analysis.
+
+3.3 Simulator-Based Heuristic Approaches 
+
+Having established the problem formulation and framework, this section describes the primary con-tribution of this work, a custom-built iterative simulator that serves as the operational environment for heuristic and LLM-driven scheduling agents. Unlike traditional simulation-based approaches that focus on short-term operational planning [ 30 ], the proposed simulator addresses the long-horizon strategic problem of block extraction and processing sequencing. Rather than solving the entire scheduling horizon as a single global optimization as the MILP does, the simulator operates step-by-step, generating and enforcing feasible actions at each discrete decision point, enabling real-time adaptability and transparent decision-making throughout the scheduling process. 
+
+3.3.1 Simulator Architecture and State Management. Initially, the simulator imports all pertinent mine data, such as block tonnage, mineral grades, revenues, costs, discount rates, processing capacities, and spatial coordinates. The full operational environment is constructed by establishing the precedence graph, coupling constraints, and capacity boundaries that govern which actions are physically and operationally admissible at any moment in the simulation using this data. Once initialized, the simulator evaluates the current mine structure and generates a list of possible actions available at each step. At the start of the simulation, only surface-level blocks with no outstanding predecessors are eligible for extraction. As the simulation progresses and blocks are cleared, the precedence graph is updated and new blocks become accessible, expanding the feasible action set dynamically. This mirrors the real progressive nature of open-pit excavation, where access to deeper material is continuously unlocked as overlying material is removed. The constraint-aware action generation mechanism forms the operational core of the simulator. Rather than requiring agents to independently verify complex operational constraints such as capacity limits, grade blending requirements, precedence dependencies, and extraction-processing coupling, the simulator enforces all of these internally during action generation, presenting only strictly feasible actions to the  
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. Sim2Schedule For Open-Pit Mine Scheduling 9
+
+agent at each step. When an agent selects an action, the simulator validates that selection against the current mine state before committing it to the schedule. If the chosen action is found to be inadmissible under the current operational conditions, the simulator rejects it and requests a new selection from the agent, ensuring that no infeasible decisions are ever recorded regardless of the agent strategy being employed. This separation between constraint enforcement by the simulator and value-based selection by the agent allows each approach to focus entirely on optimization reasoning. The simulator maintains a complete record of all actions taken, organized by time period. Extraction and processing decisions are logged as they occur, meaning the evolving schedule can be inspected and interpreted in real time as it is being generated. At the conclusion of the simulation, the full schedule is available as a structured record showing exactly which blocks were extracted or processed, in which time period, and by which action type. This transparency makes the simulator output immediately interpretable by mine planners without any post-processing, distinguishing it fundamentally from raw MILP solver output. Schedule NPV is computed using Eq. (1) to maintain mathematical consistency with the MILP benchmark. 
+
+3.3.2 Baseline Agents. To establish meaningful performance boundaries, the simulator evaluates agent strategies against two baselines that represent the extremes of decision-making sophistication. A Random agent sets the lower performance threshold by selecting actions uniformly at random from the feasible set at each step, serving as a reference for completely unguided decision-making and providing a floor below which no reasonable strategy should fall. A Greedy agent maximizes instantaneous NPV at each step by always selecting the action with the highest immediate economic return, without any consideration of how that choice affects future accessibility or long-term sequencing. While the Greedy agent performs better than Random in most cases, its short-sighted nature means it can inadvertently delay the removal of waste necessary to unlock high-value ore in later periods, ultimately reducing the discounted NPV of the full schedule. Benchmarking against both baselines provides a calibrated performance range within which the LLM-based reasoning agent is evaluated. 
+
+3.3.3 LLM-Based Simulation Framework. The LLM agent operates within the iterative action-state loop of the simulator, analogous to a discrete-event control architecture where the simulator functions as the plant model and the LLM functions as the autonomous controller. At each decision step, the LLM receives the current mine state and feasible action list from the simulator and returns a selected action, with no operator input required during execution. This zero-shot operational mode means the LLM relies entirely on its pre-trained reasoning capacity and the structured contextual information provided by the simulator prompt, without any domain-specific fine-tuning or retraining. At each step, the simulator provides the LLM with the updated system state and the current feasible action list, with each candidate action characterized by its operational type, block identifier, admissible quantity, and marginal economic value. Scheduling begins with extraction actions, where the LLM is presented with block identifiers and their associated unit costs. Despite an inherent tendency in LLMs to avoid actions with immediate negative cash flow, the simulator enforces minimum capacity requirements that oblige the model to commit to extractions in order to maintain mine progression. As surface and near-surface blocks are cleared, processing actions become eligible, creating opportunities for the LLM to reason strategically about extraction-processing sequencing and its implications for discounted long-term NPV. The simulation loop terminates when no viable actions remain in the feasible set or the life-of-mine horizon is reached. Algorithm 1 formalizes this procedure. The process initiates by configuring the LLM with a system prompt P𝑠𝑦𝑠 that defines its optimization role and establishes the decision-making context, followed by the initialization of state variables, including the time index 𝑡 , cumulative NPV 𝑉 𝑡𝑜𝑡𝑎𝑙 , 
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. 10 Mustavi et al.
+
+Algorithm 1 LLM-Guided Mining Scheduling 
+
+Require: Set of actions A, max time 𝑇 𝑚𝑎𝑥 , processing cap 𝑄𝑢 𝑡 , extraction cap 𝐶𝑢 𝑡 , System Prompt 
+
+P𝑠𝑦𝑠 , Simulator Prompt P𝑠𝑖𝑚 
+
+Ensure: Schedule S, total NPV 𝑉 𝑡𝑜𝑡𝑎𝑙  
+
+> 1:
+
+Initialize LLM with System Prompt P𝑠𝑦𝑠 {Define role and optimization goals}  
+
+> 2:
+
+𝑡 ← 1 
+
+> 3:
+
+𝑉 𝑡𝑜𝑡𝑎𝑙 ← 0 
+
+> 4:
+
+𝑅 𝑝𝑟𝑜𝑐 ← 𝑄𝑢 1, 𝑅 𝑒𝑥𝑡 ← 𝐶𝑢 1 
+
+> 5:
+
+S ← ∅  
+
+> 6:
+
+while A ≠ ∅ AND 𝑡 ≤ 𝑇 𝑚𝑎𝑥 do  
+
+> 7:
+
+Scheduler computes feasible set F ⊆ A  
+
+> 8:
+
+if F = ∅ then  
+
+> 9:
+
+𝑡 ← 𝑡 + 1 
+
+> 10:
+
+𝑅 𝑝𝑟𝑜𝑐 ← 𝑄𝑢 𝑡 , 𝑅 𝑒𝑥𝑡 ← 𝐶𝑢 𝑡  
+
+> 11:
+
+continue  
+
+> 12:
+
+end if  
+
+> 13:
+
+Compute Δ𝑁 𝑃𝑉 𝑖 for 𝑖 ∈ F {Prepare metrics for context}  
+
+> 14:
+
+Construct Simulator Prompt P𝑠𝑖𝑚 with candidate actions F 
+
+> 15:
+
+𝑎 ∗ ← LLM (P 𝑠𝑖𝑚 ) {LLM selects action via simulator prompt}  
+
+> 16:
+
+𝑉 𝑡𝑜𝑡𝑎𝑙 ← 𝑉 𝑡𝑜𝑡𝑎𝑙 + Δ𝑁 𝑃𝑉 𝑎 ∗ 
+
+> 17:
+
+S ← S ∪ {( 𝑎 ∗, 𝑡 )}  
+
+> 18:
+
+A ← A \ { 𝑎 ∗ } 
+
+> 19:
+
+𝑅 𝑝𝑟𝑜𝑐 ← 𝑅 𝑝𝑟𝑜𝑐 − 𝑢𝑠𝑒 𝑝𝑟𝑜𝑐 (𝑎 ∗) 
+
+> 20:
+
+𝑅 𝑒𝑥𝑡 ← 𝑅 𝑒𝑥𝑡 − 𝑢𝑠𝑒 𝑒𝑥𝑡 (𝑎 ∗) 
+
+> 21:
+
+if 𝑅 𝑝𝑟𝑜𝑐 ≤ 0 OR 𝑅 𝑒𝑥𝑡 ≤ 0 then  
+
+> 22:
+
+𝑡 ← 𝑡 + 1 
+
+> 23:
+
+𝑅 𝑝𝑟𝑜𝑐 ← 𝑄𝑢 𝑡 , 𝑅 𝑒𝑥𝑡 ← 𝐶𝑢 𝑡  
+
+> 24:
+
+end if  
+
+> 25:
+
+end while  
+
+> 26:
+
+return S, 𝑉 𝑡𝑜𝑡𝑎𝑙 
+
+and the remaining processing ( 𝑅 𝑝𝑟𝑜𝑐 ) and extraction ( 𝑅 𝑒𝑥𝑡 ) capacities (line numbers 1–5). The core scheduling loop continues as long as schedulable actions remain and the maximum time period 
+
+𝑇 𝑚𝑎𝑥 has not been exceeded (line number 6). In each iteration, the scheduler identifies the set of feasible actions F based on current geotechnical precedence and resource constraints (line number 7). If no actions are feasible in the current state, the scheduler advances to the next time period and resets 𝑅 𝑝𝑟𝑜𝑐 and 𝑅 𝑒𝑥𝑡 to their full capacity limits ( 𝑄𝑢 𝑡 , 𝐶𝑢 𝑡 ) (line numbers 8–12). When valid candidates exist, the simulator computes the marginal NPV impact Δ𝑁 𝑃𝑉 𝑖 for each feasible action and constructs a context-aware prompt P𝑠𝑖𝑚 that presents these candidate actions to the LLM (line numbers 13–14). The LLM then evaluates this context and selects the action 𝑎 ∗
+
+that it determines to be optimal based on the provided information (line number 15). Following this decision, the system updates the global schedule S by recording the selected action and its execution time, accumulates the realized NPV contribution Δ𝑁 𝑃𝑉 𝑎 ∗ to the total value 𝑉 𝑡𝑜𝑡𝑎𝑙 , and removes the executed action from the available set A (line numbers 16–18). The remaining capacities 𝑅 𝑝𝑟𝑜𝑐 
+
+and 𝑅 𝑒𝑥𝑡 are then decremented by the resource usage of the selected action (line numbers 19–20). If either resource is exhausted, the algorithm automatically increments the time period and restores full capacities for the subsequent cycle (line numbers 21–24). This iterative process continues until  
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. Sim2Schedule For Open-Pit Mine Scheduling 11
+
+all actions have been scheduled or the time period is reached, at which point the final schedule S
+
+and total NPV 𝑉 𝑡𝑜𝑡𝑎𝑙 are returned. 
+
+3.4 Deterministic MILP Formulation 
+
+A deterministic MILP model is formulated to establish an optimal baseline for evaluating the proposed heuristic and LLM-driven methods. While Amponsah et al. [4] proposed a foundational MILP formulation for a similar problem, their approach with many traditional models exhibits significant practical drawbacks that prevent it from generating operationally realistic schedules. To produce a benchmark that mine planners can genuinely trust, the proposed model directly resolves these deficiencies across three critical dimensions. First, traditional fixed minimum extraction thresholds cause mathematical infeasibility near end-of-mine-life when insufficient material remains to satisfy the lower bound. The proposed model addresses this through a dynamic lower bound mechanism that scales the minimum extraction threshold to the actual remaining reserves in each period, allowing the operation to wind down naturally without artificial period extensions or unnecessary costs. Second, many existing formula-tions simplify the predecessor set in ways that yield physically impossible or geotechnically unsafe extraction sequences. The proposed model explicitly constructs the full 3D predecessor set from slope geometry, encoding realistic spatial precedence requirements directly into the constraint structure. Third, prior formulations permit a block to be partially extracted and simultaneously routed to the processing plant within the same period, which contradicts the physical reality that material must be fully blasted and excavated before it can be separated and milled. Auxiliary binary variables are introduced to enforce strict extraction-processing coupling, mathematically guaranteeing that no ore is processed before its host block is completely mined. Specifically, the base constraints Eqs. (2) and (6) to (14) are adapted from prior work, while constraints Eqs. (3) to (5), (15) and (16) represent the novel contributions introduced in this study. The mathematical notation is first defined, followed by the objective function and the complete set of constraints. Table 2 summarizes the indices, sets, parameters, and decision variables used in the formulation. The NPV of OPPS is determined by the economic block value of distinct blocks within the orebody block model. The cost of mining a block depends on its depth from the surface and distance to its final destination, and the NPV is computed by discounting these values across all time periods to reflect the time value of money. 
+
+3.4.1 Objective Function. The primary goal of the MILP model is to maximize the NPV of the mining operation over the specified time period. The objective function employs two continuous decision variables for each block 𝑛 . The extraction variable 𝑦 𝑡 𝑛 represents the fraction of both ore and waste material from the block 𝑛 to be mined in period 𝑡 , while the processing variable 𝑥 𝑡 𝑛 
+
+represents the fraction of ore from the block 𝑛 to be processed in period 𝑡 . The use of continuous variables allows blocks to be fractionally extracted and processed across multiple time periods, providing flexibility in meeting capacity and quality constraints. Max 
+
+> 𝑇
+
+∑︁  
+
+> 𝑡 =1
+> 𝑁
+
+∑︁ 
+
+> 𝑛 =1
+
+ 𝑣 𝑡 𝑛 × 𝑥 𝑡 𝑛 − 𝑞 𝑡 𝑛 × 𝑦 𝑡 𝑛 
+
+(1 + 𝑟 )𝑡 
+
+
+
+(1) This objective function is subject to the following constraints: Eqs. (2) to (16) 
+
+3.4.2 Mining Capacity Constraints. Mining capacity constraints ensure that the total volume of material extracted per period remains within operational equipment limits. Eq. (2) enforces the standard upper extraction bound 𝐶𝑢 𝑡 . Constraints Eqs. (3) to (5) introduce the novel dynamic lower  
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. 12 Mustavi et al.
+> Table 2. Model indices, sets, parameters, and decision variables
+
+Notation Description 
+
+Indices and Sets 
+
+𝑛 ∈{1, . . . , 𝑁 }
+
+Index for blocks. 
+
+𝑡 ∈ { 1, . . . ,𝑇 } Index for scheduling periods. 
+
+𝐻 𝑛 (𝐷 ) Set of immediate predecessor blocks that must be extracted before block 𝑛 to satisfy slope constraints; 𝐷 denotes the total number of predecessor blocks. 
+
+Parameters 
+
+𝑟 Discount rate. 
+
+𝑜 𝑛 Ore tonnage in block 𝑛 .
+
+𝑤 𝑛 Waste tonnage in block 𝑛 .
+
+𝑣 𝑡 𝑛 Revenue from selling the final product of block 𝑛 in period 𝑡 , minus the dis-counted mining cost treating all material as ore. 
+
+𝑞 𝑡 𝑛 Cost of mining all material in block 𝑛 in period 𝑡 as waste. 
+
+𝑟𝑒 𝑡 𝑛 Remaining extractable fraction of block 𝑛 in period 𝑡 .
+
+𝐶𝑙 𝑡 Lower bound of mining capacity in period 𝑡 .
+
+𝐶𝑢 𝑡 Upper bound of mining capacity in period 𝑡 .
+
+𝑄𝑙 𝑡 Lower bound of processing capacity in period 𝑡 .
+
+𝑄𝑢 𝑡 Upper bound of processing capacity in period 𝑡 .
+
+𝑔 𝑛 Average grade in the ore portion of block 𝑛 .
+
+𝑔 𝑡 Lower bound of required average head grade in period 𝑡 .
+
+¯𝑔 𝑡 Upper bound of required average head grade in period 𝑡 .
+
+𝑀 Sufficiently large constant (e.g., 10 4). 
+
+Decision Variables 
+
+𝑥 𝑡 𝑛 ∈ [ 0, 1] Portion of block 𝑛 extracted as ore and processed in period 𝑡 .
+
+𝑦 𝑡 𝑛 ∈ [ 0, 1] Portion of block 𝑛 mined in period 𝑡 , encompassing both ore and waste fractions. 
+
+𝑏 𝑡 𝑛 ∈ { 0, 1} Equal to 1 if extraction of block 𝑛 has started by period 𝑡 ; controls extraction precedence. 
+
+𝑙 𝑡 ∈ { 0, 1} Equal to 1 if remaining material exceeds the lower mining capacity bound in period 𝑡 , activating the minimum limit. 
+
+𝑢 𝑡 𝑛 ∈ { 0, 1} Equal to 1 if block 𝑛 has been fully mined by period 𝑡 , enabling its processing. bound mechanism designed specifically for end-of-mine-life scenarios. This mechanism relies on the remaining extractable fraction of each block, computed as: 𝑟𝑒 𝑡 𝑛 = (𝑜 𝑛 +𝑤 𝑛 ) × 
+
+
+
+1 − Í𝑡 −1 
+
+> 𝑗 =1
+
+𝑦 𝑗 𝑛 
+
+
+
+∀𝑛, ∀𝑡 .The auxiliary binary variable 𝑙 𝑡 acts as a feasibility switch based on the total remaining reserves 
+
+Í𝑁 𝑛 =1 𝑟𝑒 𝑡 𝑛 available at the start of period 𝑡 . It remains active ( 𝑙 𝑡 = 1) only when total remaining reserves exceed the minimum threshold 𝐶𝑙 𝑡 . When reserves fall below this limit, the Big-M for-mulation in Eqs. (3) and (4) forces 𝑙 𝑡 to zero, which in turn deactivates the lower bound in Eq. (5), allowing the operation to wind down naturally without triggering infeasibility. This prevents the solver from extending the mine life artificially or incurring unnecessary costs simply to satisfy a  
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. Sim2Schedule For Open-Pit Mine Scheduling 13
+
+fixed minimum extraction floor that the remaining material cannot support. 
+
+> 𝑁
+
+∑︁ 
+
+> 𝑛 =1
+
+(𝑜 𝑛 + 𝑤 𝑛 ) × 𝑦 𝑡 𝑛 ≤ 𝐶𝑢 𝑡 ∀𝑡 ∈ 1, . . . ,𝑇 ; (2) 
+
+𝑙 𝑡 ≤ 1 +
+
+Í𝑁 𝑛 =1 𝑟𝑒 𝑡 𝑛 − 𝐶𝑙 𝑡 
+
+𝑀 
+
+!
+
+∀𝑡 ∈ 1, . . . ,𝑇 ; (3) 
+
+𝑙 𝑡 ≥
+
+Í𝑁 𝑛 =1 𝑟𝑒 𝑡 𝑛 − 𝐶𝑙 𝑡 
+
+𝑀 
+
+!
+
+∀𝑡 ∈ 1, . . . ,𝑇 ; (4) 
+
+> 𝑁
+
+∑︁ 
+
+> 𝑛 =1
+
+(𝑜 𝑛 + 𝑤 𝑛 ) × 𝑦 𝑡 𝑛 ≥ 𝐶𝑙 𝑡 × 𝑙 𝑡 ∀𝑡 ∈ 1, . . . ,𝑇 ; (5) 
+
+3.4.3 Processing capacity constraints. Processing capacity constraints govern ore throughput through the mill, maintaining plant utilization within its designed operational range. Consis-tent mill utilization is critical for stable metallurgical recovery and minimizing disruptions to downstream operations. Because spatial grade variations may make simultaneous satisfaction of throughput and grade targets difficult, pre-stripping of waste is often required to ensure a uniform ore feed once production begins. Eqs. (6) and (7) define the upper and lower throughput bounds using the continuous processing variable 𝑥 𝑡 𝑛 .
+
+> 𝑁
+
+∑︁ 
+
+> 𝑛 =1
+
+(𝑜 𝑛 × 𝑥 𝑡 𝑛 ) ≤ 𝑄𝑢 𝑡 ∀𝑡 ∈ 1, . . . ,𝑇 ; (6) 
+
+> 𝑁
+
+∑︁ 
+
+> 𝑛 =1
+
+(𝑜 𝑛 × 𝑥 𝑡 𝑛 ) ≥ 𝑄𝑙 𝑡 ∀𝑡 ∈ 1, . . . ,𝑇 ; (7) 
+
+3.4.4 Grade Blending Constraints. Grade blending constraints ensure that the ore feed delivered to the processing plant in each period satisfies the quality requirements necessary for efficient metallurgical recovery, consistent with long-term mine planning models that incorporate grade control [ 18 ]. Processing plants are designed to operate optimally within a defined feed grade range, and significant deviations can result in reduced recovery rates or equipment damage. Eqs. (8) and (9) enforce these quality bounds by constraining the weighted average grade of the processed feed to lie within the acceptable interval [ 𝑔 𝑡 , ¯𝑔 𝑡 ] in each period, using the processing variable 𝑥 𝑡 𝑛 as the blending control mechanism. 
+
+> 𝑁
+
+∑︁ 
+
+> 𝑛 =1
+
+(𝑔 𝑛 − ¯𝑔 𝑡 ) × ( 𝑜 𝑛 × 𝑥 𝑡 𝑛 ) ≤ 0 ∀𝑡 ∈ 1, . . . ,𝑇 ; (8) 
+
+> 𝑁
+
+∑︁ 
+
+> 𝑛 =1
+
+(𝑔 𝑛 − 𝑔 𝑡 ) × ( 𝑜 𝑛 × 𝑥 𝑡 𝑛 ) ≥ 0 ∀𝑡 ∈ 1, . . . ,𝑇 ; (9) 
+
+3.4.5 Block Precedence Constraints. Block precedence constraints enforce slope stability by re-quiring that all overlying blocks are completely removed before any deeper block can be accessed. The primary contribution here is the explicit geometric construction of the predecessor set 𝐻 𝑛 (𝐷 )
+
+from real slope angle requirements, rather than treating it as a theoretical given as many prior formulations do. Accessing a block at (𝑖, 𝑗, 𝑘 ) explicitly requires the prior removal of a defined cone of overlying blocks, including the block at (𝑖, 𝑗, 𝑘 − 1) and its necessary adjacent neighbors. The binary variable 𝑏 𝑡 𝑛 operationalizes this dependency, where Eq. (10) prevents extraction of block  
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. 14 Mustavi et al.
+
+𝑛 from beginning in period 𝑡 unless every predecessor block 𝑑 ∈ 𝐻 𝑛 (𝐷 ) has been fully extracted by that period. Eq. (11) links the continuous extraction variable to the binary indicator to ensure consistency, and Eq. (12) enforces temporal monotonicity so that once a block becomes accessible it remains accessible in all subsequent periods. 
+
+𝑏 𝑡 𝑛 −
+
+> 𝑡
+
+∑︁ 
+
+> 𝑖 =1
+
+𝑦 𝑖 𝑑 ≤ 0, 𝑑 ∈ 𝐻 𝑛 (𝐷 ) ∀𝑛 ∈ 1, . . . , 𝑁 , ∀𝑡 ∈ 1, . . . ,𝑇 ; (10) 
+
+> 𝑡
+
+∑︁ 
+
+> 𝑖 =1
+
+𝑦 𝑖 𝑛 − 𝑏 𝑡 𝑛 ≤ 0 ∀𝑛 ∈ 1, . . . , 𝑁 , ∀𝑡 ∈ 1, . . . ,𝑇 ; (11) 
+
+𝑏 𝑡 𝑛 − 𝑏 𝑡 +1 
+
+> 𝑛
+
+≤ 0 ∀𝑛 ∈ 1, . . . , 𝑁 , ∀𝑡 ∈ 1, . . . ,𝑇 − 1; (12) 
+
+3.4.6 Variable control constraints. Variable control ensures material conservation and enforces strict extraction processing coupling that reflects real world operations. Eqs. (13) and (14) are the constraints which guarantee that the total fraction of each block mined or processed across all scheduling periods does not exceed one. A key contribution is the auxiliary binary 𝑢 𝑡 𝑛 in Eqs. (15) and (16), which acts as an intermediate linkage variable to ensure processing only begins once a block has been fully extracted. This resolves limitations in previous formulations where partial extraction permitted immediate processing, a physical impossibility since a block must be fully blasted and excavated before its ore can be separated. 
+
+> 𝑇
+
+∑︁ 
+
+> 𝑡 =1
+
+𝑦 𝑡 𝑛 ≤ 1 ∀𝑛 ∈ 1, . . . , 𝑁 ; (13) 
+
+> 𝑇
+
+∑︁  
+
+> 𝑡 =1
+
+𝑥 𝑡 𝑛 ≤ 1 ∀𝑛 ∈ 1, . . . , 𝑁 ; (14) 
+
+𝑢 𝑡 𝑛 ≤
+
+> 𝑡
+
+∑︁ 
+
+> 𝑗 =1
+
+𝑦 𝑗 𝑛 ∀𝑛 ∈ 1, . . . , 𝑁 ; ∀𝑡 ∈ 1, . . . ,𝑇 ; (15) 
+
+𝑥 𝑡 𝑛 ≤ 𝑢 𝑡 𝑛 ∀𝑛 ∈ 1, . . . , 𝑁 ; ∀𝑡 ∈ 1, . . . ,𝑇 ; (16) 
+
+4 Performance Analysis 
+
+This section presents experimental results obtained from a diverse suite of mining instances that vary in block counts and time periods. A comparative analysis of NPV and optimality gaps is provided, along with Gantt chart visualizations of the extraction sequence and an assessment of model robustness. Numerical performance and computational efficiency are evaluated with particular attention to execution time and the impact of the LLM prompt refresh rate on scalability. All methods are evaluated both without domain inputs and with the provision of context-aware mining data. 
+
+4.1 Experimental Setup 
+
+The experimental framework is established following standard practices in open-pit mining opti-mization. All blocks are configured with a uniform mass of 50 tons to ensure consistency across evaluations. This standardized block size is used for both the MILP model evaluation and the simulator-LLM interaction framework. The economic model uses an ore processing revenue of $100 per ton and a processing cost of $10 per ton, reflecting typical market conditions in mining operations. A discount rate of 𝑟 = 0.10 (10%) [ 10 ] is applied to account for the time value of money across planning periods. The mining and processing capacities are configured to reflect operational  
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. Sim2Schedule For Open-Pit Mine Scheduling 15
+
+LLM System Instruction                
+
+> You are an expert mine scheduler. Your sole objective is to maximize the Net Present Value (NPV) of a mining operation by selecting the optimal action at each step. At every step, I will provide: Mine State: A 3D array representing layers. Each element is a tuple: (block_number, ore_concentration, tons_to_extract, tons_to_process) . Possible Actions: A list of available actions. You must choose exactly one. Action Types: Extraction (Choice 1): (1, block_number, max_extractable, npv_impact) . Incurs cost. Amount must be >0and ≤max. Processing (Choice 2): (2, block_number, min_blend, max_blend, npv_impact) . Generates revenue. Amount must be between min_blend and max_blend .Constraints & Logic: Dependencies: Processing is only available after full extraction. Time: Time periods advance automatically based on capacity limits. Output Format: Respond ONLY with a valid JSON object:
+> { "choice": [1 or 2], "block_number": (int), "amount": (int) }
+> Fig. 4. System instruction defining the LLM scheduling rules, action space, and output format.
+
+constraints. The mining capacity ranges from 20 to 70 tons per period, while the processing capacity ranges from 10 to 40 tons per period. 
+
+4.1.1 MILP Baseline Configuration. The MILP formulation was solved using the Gurobi Optimizer (version 13.0.0) [ 22 ] via the Python interface. The solver was executed on a computing environment equipped with 16 logical CPU cores and 94 GB of RAM. For small instances ( ≤ 20 blocks), default solver tolerances were applied to ensure high-precision optimality. For larger instances ( > 20 
+
+blocks), where combinatorial complexity increases substantially, the relative optimality tolerance was set to 0.05 (5%) [23] to ensure timely convergence. 
+
+4.1.2 LLM Experimental Setup. Two open-source LLMs are evaluated to assess the generalizability of the simulator-based scheduling framework across models of varying architectures and parameter scales. GPT-OSS [ 2] (20B parameters), and DeepSeek-R1 [ 12 ] (14B parameters) are utilized via the Ollama framework [ 26 ], enabling unrestricted local execution without reliance on external API services. This local deployment ensures that all mine data remains within the operational environment throughout experimentation, consistent with the closed-system design of the proposed framework. Rather than relying on unstructured text generation, a structured prompting framework is engineered for all models, consisting of a static system instruction and dynamic iterative updates. As shown in Fig. 4, the system instruction casts the LLM as an expert mine scheduler tasked solely with maximizing NPV. It defines two action types: extraction (Action 1), which incurs cost with an amount bounded above by the block maximum, and processing (Action 2), which generates revenue with an amount bounded by blending limits. The instruction enforces the core dependency rule that processing becomes available only after full extraction, mandates extraction whenever feasible to prevent the model stalling on early negative cash flows, and requires output strictly as a JSON object to ensure seamless simulator parsing. The same system instruction is applied uniformly across all models to ensure that observed differences in scheduling performance are attributable to the reasoning capabilities of each model rather than differences in prompt design.  
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. 16 Mustavi et al.
+
+LLM Prompt for each iteration                   
+
+> Simulator (Initial Iteration 𝑡 =1): Time_period-1: Here is Mine State (Truncated): [[[(1, 0.66, 50, 33), (2, 0.67, 50, 33), ... [(10, 0.63, 50, 31), (11, 0.74, 50, 37), (12, 0.75, 50, 37)], ... (15, 0.66, 50, 33)]],[[(16, 0.58, 50, 28), (17, 0.66, 50, 33), ... (30, 0.67, 50, 33)]]] Here are the possible actions (Truncated): [(1, 1, 50, -9.09), (1, 2, 50, -9.09), ... (1, 12, 50, -9.09), ... (1, 15, 50, -9.09)]
+> Simulator (Iteration 𝑡 =2,3,4... ):
+> choice was: 1, block_number was: 12, amount was: 50. Current NPV is: -454.55 Time_period-1: Here is Mine State (Truncated): [[[(1, 0.66, 50, 33), (2, 0.67, 50, 33), ... [(10, 0.63, 50, 31), (11, 0.74, 50, 37), (12, 0.75, 0, 37)], ... (15, 0.66, 50, 33)]],[[(16, 0.58, 50, 28), (17, 0.66, 50, 33), ... (30, 0.67, 50, 33)]]] Here are the possible actions (Truncated): [(1, 1, 50, -9.09), ... (1, 15, 50, -9.09), (2, 12, 0.0, 37, 90.91)]
+> Fig. 5. Iterative prompts showing the initial mine state at 𝑡 =1and the updated state with prior action feedback at 𝑡 =2,3,4.
+
+During execution, the simulator drives the LLM via dynamic iterative prompts. As illustrated in Fig. 5, at 𝑡 = 1 the model receives the full mine state and a filtered list of feasible actions with their immediate NPV impacts. From 𝑡 = 2 onward, the prompt is prepended with feedback on the prior action and the updated cumulative NPV, creating a closed feedback loop that adapts LLM decisions to the evolving mine state without requiring full re-optimization. 
+
+4.2 Results 
+
+The comparative performance of the deterministic MILP model and the LLM-based simulator is evaluated both with and without contextual information, alongside standard Random and Greedy heuristic baselines. Detailed visualizations are presented to illustrate the impact of parameter variations on the overall performance of the MILP formulation. 
+
+4.2.1 NPV Gain and Optimality Gap. This section provides a visual assessment and comparative analysis of the LLM-simulator approach against the MILP baseline and heuristic benchmarks. Fig. 6 compares all scheduling strategies across a 27-block mine instance over 10 time periods, with MILP serving as the optimal reference. To quantify deviation from this theoretical maximum, the optimality gap is defined as 
+
+OGap (𝑡 ) = 𝑁 𝑃𝑉 𝑀 (𝑡 ) − 𝑁 𝑃𝑉 𝑠 (𝑡 )
+
+𝑁 𝑃𝑉 𝑀 (𝑡 ) , (17) where 𝑁 𝑃𝑉 𝑀 (𝑡 ) denotes the NPV obtained by the MILP solution and 𝑁 𝑃𝑉 𝑠 (𝑡 ) denotes the NPV produced by the evaluated strategy at period 𝑡 . Among the LLM-based approaches, GPT-OSS was selected as the representative model for this comparison, as it consistently retained higher NPV values across planning periods relative to DeepSeek, demonstrating stronger alignment with the MILP benchmark under equivalent contextual inputs. Fig. 7 illustrates the optimality gap of the solution strategies in comparison to the MILP benchmark over time periods. The results for the first four groups correspond to single-layer mine configurations without precedence constraints, while the results for later groups correspond to multi-layer settings where precedence constraints are applied.  
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. Sim2Schedule For Open-Pit Mine Scheduling 17
+
+Fig. 6. Comparative NPV for a 27-block mining instance across MILP, the LLM-based simulator, greedy, and random strategies. 
+
+Fig. 7. Optimality gap (lower is better) for each strategy relative to MILP across varying numbers of blocks. 
+
+The random strategy yields the largest optimality gap, confirming that uncoordinated scheduling produces far-from-optimal results. The greedy and no-context LLM approaches achieve similar intermediate NPV values. The context-aware LLM, provided with live mine-state data, narrows the gap substantially and approaches the MILP optimum. 
+
+4.2.2 Numerical Results and Comparative Analysis. This subsection summarizes the experimental results and provides a comparative numerical analysis of the performance of each approach. Table 3 compares scheduling metrics across three planning periods for five strategies. MILP achieves the highest NPV of $20,578.86 by period 10 and the greatest average extraction tonnage (42.31 tons), reflecting a highly selective strategy that prioritizes the most resource-rich blocks. The context-aware LLM proves to be a robust surrogate for mathematical optimization. By Period 10 it achieves an NPV of $19,455.93, capturing approximately 94.5% of the MILP optimum. Although it executes                                                                                    
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. 18 Mustavi et al.
+> Table 3. Comparison of Operation Metrics over Different Periods
+> Method Period No. of Operations Avg. Tonnage NPV Ext. Proc. Ext. Proc.
+> MILP 11150.00 37.00 2909.00 58837.50 24.25 12340.63 10 13 18 42.31 21.89 20578.86 LLM (Context) 12135.00 37.00 2727.28 514 725.00 27.14 11688.44 10 27 16 25.93 24.38 19455.93 LLM (No Context) 12135.00 33.00 2363.63 511 831.82 23.25 11294.74 10 22 19 31.82 20.32 19062.21 Greedy 12135.00 33.00 2363.63 511 831.82 23.25 11294.73 10 22 19 31.82 20.32 19062.21 Random 1907.78 0.00 -636.36 516 921.88 13.33 5620.03 10 30 34 23.33 9.41 13387.50
+
+more operations than MILP (43 versus 31), access to live mine-state data allows it to meaningfully outperform both the no-context LLM and the Greedy baseline, which plateau at $19,062.21. The Greedy and no-context LLM strategies exhibit identical performance trajectories, suggesting that without environmental context an LLM reverts to simple short-term profit-seeking heuristics indistinguishable from greedy search. The Random strategy highlights the cost of uncoordinated activity, as despite the highest operation count (64 total), it yields the lowest NPV ($13,387.50) due to poor prioritization and low average tonnage per operation. 
+
+4.2.3 Efficiency and Scalability. This subsection characterizes the temporal cost of achieving higher optimality. Due to the vast execution speed differences between heuristic and optimization models, a logarithmic scale is employed to visualize the orders of magnitude in computational effort. As illustrated in Fig. 8, random and greedy heuristics require the least effort due to low algorithmic complexity. MILP is efficient on small instances but exhibits a sharp exponential increase in execution time as the time period expands, reflecting the vast combinatorial search space. The LLM-based approach initially shows higher latency but grows at a more linear and stable rate, indicating superior scalability for large-scale problems. 
+
+4.2.4 Computational Trade-Off. Table 4 examines the trade-off between computational overhead and solution quality across instance sizes 𝑁 over 𝑇 = 15 periods. Both LLM-based approaches scale linearly and remain well within the MILP solution quality at every tested instance size. GPT-OSS achieves 99.75% of the reported MILP NPV at 𝑁 = 36 and stays within 1.2% of the MILP maximum at 𝑁 = 45 while requiring only 15% of the computation time. DeepSeek matches GPT-OSS solution quality at 𝑁 = 18 and 𝑁 = 27 but yields a lower NPV at 𝑁 = 45 , indicating reduced robustness at larger scales. Despite having fewer parameters, DeepSeek incurs consistently higher execution times across all instance sizes, attributable to its chain-of-thought reasoning architecture, which generates lengthy intermediate reasoning tokens before producing a final action selection. While MILP provides the theoretical global optimum, its application is constrained by exponential  
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. Sim2Schedule For Open-Pit Mine Scheduling 19
+
+(a) Block size = 18 (b) Block size = 45 Fig. 8. Execution times to reach convergence (seconds, log scale). Table 4. NPV and execution time across varying instance sizes ( 𝑁 ).                                               
+
+> Method Complexity N=18 N=27 N=36 N=45 NPV Time (s) NPV Time (s) NPV Time (s) NPV Time (s)
+> MILP 𝑂 (2𝑁 )24650.41 3247.72 25694.16 †437.31 25694.16 †3200.26 25664.32 †12603.30 GPT-OSS (Context) 𝑂 (𝑁 )24083.20 1527.55 24278.91 1313.86 25630.80 1619.67 25369.34 1880.35 DeepSeek (Context) 𝑂 (𝑁 )24083.20 2827.75 24278.91 3157.14 25630.80 3249.24 24687.95 3541.30
+> †Solver terminated with a 5-6% optimality gap. Time(s) represents the total computation time.
+
+complexity 𝑂 (2𝑁 ). For 𝑁 = 45 the solver requires over 12,000 seconds despite accepting a 5–6% termination gap. The lower time at 𝑁 = 27 results from the rapid identification of an incumbent solution satisfying the tolerance threshold. These results confirm that LLM-based methods can effectively approximate MILP strategic decision-making at a fraction of the runtime, though model capacity meaningfully influences both solution quality and computational efficiency. 
+
+4.2.5 Extraction Sequence Visualization. To validate the solution quality of the LLM-based ap-proaches, Gantt charts for MILP, GPT-OSS, and DeepSeek are presented in Fig. 9 for the 27-block instance. The MILP schedule is sparser, reflecting the solver’s value-driven sequencing logic. Notably, GPT-OSS and DeepSeek produce identical schedules for this instance, with both models arriving at the same block ordering and phase transitions across all 15 periods despite being prompted independently. This convergence between two architecturally distinct models suggests that the LLM-based framework consistently recovers a coherent mining strategy. The overall structure of both LLM schedules closely mirrors the MILP benchmark in sequencing priorities, providing qualitative evidence that the models replicate the underlying operational logic without exhaustive combinatorial search. 
+
+4.2.6 LLM Agent Transparency and Operational Output. Operational transparency is a key advan-tage of the simulator-LLM framework over conventional exact solvers. Unlike batch optimization 
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026.
+
+20 Mustavi et al. 
+
+(a) MILP Benchmark Schedule (b) GPT-OSS Schedule (c) DeepSeek Schedule Fig. 9. Gantt chart comparison of mining schedules for the 27-block instance across MILP, GPT-OSS, and DeepSeek. Each bar represents a block’s extraction (Ext) and processing (Proc) phases, coloured by completion percentage. 
+
+> ==================================== SIMULATOR DISPATCH LOG ==================================== [RAW LLM OUTPUT] Time-period 1: (1, 12, 50) Time-period 1: (2, 12, 37) Time-period 1: (1, 11, 20) Time-period 2: (1, 11, 30) [PARSED EXECUTION DIRECTIVE] > Initiating Period 1 Operations... -- BLOCK 12 --Action : EXTRACTION Amount : 50.00 units Action : PROCESSING Amount : 37.00 units -- BLOCK 11 --Action : EXTRACTION Amount : 20.00 units Period 1 Dispatch Complete. No further actions viable. Advancing to Period 2.. -- BLOCK 11 --Action : EXTRACTION Amount : 30.00 units ====================================
+
+Fig. 10. Console-style visualization demonstrating how the raw sequence arrays generated by the LLM are parsed into interpretable, real-time operational directives. 
+
+solvers that yield no usable output until solving completes, the simulator emits a structured dis-patch log at each planning step, translating raw LLM decisions directly into interpretable execution directives that mine planners can monitor and validate in real time. Fig. 10 illustrates this process during execution. Each LLM output tuple encodes an action type (1 for extraction, 2 for processing), block ID, and material amount. For Block 12, the agent schedules 50 units for extraction followed immediately by 37 units for processing, demonstrating strict extraction-processing coupling. A fractional extraction of 20 units is then scheduled for Block 11. Because this exhausts viable capacity for Period 1, the simulator automatically advances to Period 2, where the agent schedules the remaining 30 units. This step-by-step visibility allows mine planners to verify physical feasibility, capacity constraints, and economic logic at every decision point. 
+
+4.2.7 Effect of Context Refresh Rate. This subsection investigates the sensitivity of the LLM op-timizer to the context window refresh rate. Because the local LLM implementation lacks native long-term memory, context is managed by feeding sequential simulation results back into the 
+
+ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. Sim2Schedule For Open-Pit Mine Scheduling 21 
+
+> Fig. 11. Impact of Context Window Refresh Rate on LLM Solution Quality
+
+prompt. A refresh size of 1 provides only the most recent state (high-frequency refresh), while “Full” retains the entire interaction history. As illustrated in Fig. 11, a refresh size of 1 yields the highest NPV of $12,455.24. Retaining excessive historical context appears to introduce noise and dilutes focus on the immediate optimization constraints. As the retained history grows toward “Full”, NPV declines, indicating that the most recent mine state is the primary driver of decision-making accuracy in this setting. This behaviour also suggests that the LLM-based approach can scale efficiently to large mines: by focusing on local state variables rather than a growing global history, it avoids the exponential computational decay characteristic of traditional solvers. 
+
+4.2.8 Method Selection Under Operational Requirements. The choice of scheduling method depends on the operational demands of the mining environment, as summarized in Table 5. MILP follows an all-or-nothing approach, evaluating all decision variables and constraints before producing a valid plan. This guarantees a global optimum but produces a planning blackout period during which no interim decisions can be made, and computational time grows exponentially as the search space expands. The LLM-based framework operates within a continuous conversational loop with the simula-tor, issuing actionable extraction decisions at every step. This enables real-time monitoring and mid-process adjustments that are unattainable with MILP’s static batch processing. As mine com-plexity grows, MILP eventually hits a computational wall, whereas the LLM sustains a consistent execution rate. For large-scale, dynamic operations where real-time visibility and scalability take precedence over absolute mathematical optimality, the LLM-based architecture presented here offers a compelling and practical alternative. 
+
+5 Conclusion 
+
+This work presented a simulator-driven LLM framework for autonomous open-pit production scheduling, evaluated against a rigorous MILP baseline and two heuristic benchmarks across a  
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. 22 Mustavi et al.
+> Table 5. Strategic Comparison of Mining Methods
+
+Feature Greedy/Random MILP LLM-based Decision Process Instantaneous Batch-processed Iterative/Adaptive 
+
+Runtime Intervention Yes No Yes (Real-time) 
+
+Optimality Non-optimal Global Optimum Near-Optimal 
+
+Scalability High Low (Exponential) High (Linear) 
+
+Operational Flexibility None Static Constraints Dynamic Reasoning range of instance sizes and time periods. The central contribution is a closed, data-secure sched-uling architecture in which an LLM operating zero-shot within a custom iterative simulator can recover near-optimal schedules without any domain-specific training, fine-tuning, or access to a global mathematical formulation. By delegating all geotechnical precedence checks, extraction-processing coupling, and capacity feasibility to the simulator, the LLM is relieved of constraint verification entirely and can direct its reasoning capacity toward long-term value maximization. This separation is the primary reason the framework achieves 94–99% of MILP-optimal NPV while sustaining linear computational growth across all tested instance sizes. To enable a trustworthy performance benchmark, a novel MILP formulation was developed that resolves three critical oversimplifications present in traditional models. A dynamic lower bound mechanism prevents mathematical infeasibility near end-of-mine-life by scaling minimum extraction thresholds to actual remaining reserves. Geometric construction of the full 3D predecessor set from slope angle requirements encodes realistic geotechnical safety directly into the constraint structure. Auxiliary binary variables enforce strict extraction-processing coupling, ensuring that no ore is routed to the processing plant before its host block has been completely excavated. Together, these contributions produce a benchmark that mine planners can genuinely trust. From an operational perspective, the framework’s most distinctive advantage over both MILP and classical heuristics is its real-time interpretability. At every decision step, the simulator emits a structured dispatch log translating raw LLM outputs into immediately executable mine directives, enabling planners to monitor, audit, and intervene in the scheduling process without waiting for a batch solver to complete. This continuous operational visibility is essential for large-scale mining environments where equipment states, ore grades, and market conditions can shift mid-schedule. The experimental results further demonstrate that context enrichment is decisive. When provided with live mine-state data, the LLM meaningfully outperforms both the no-context LLM and the Greedy baseline, confirming that real-time environmental feedback is the primary driver of LLM decision quality in this setting. The context refresh rate analysis shows that focusing on the most recent mine state rather than accu-mulating full interaction history maximizes solution quality while keeping memory requirements bounded, supporting deployment on resource-constrained industrial hardware and suggesting the framework can scale to very large instances without the computational decay characteristic of memory-intensive optimization approaches. Future work will extend evaluation to larger real-world block models, incorporate geological grade uncertainty and commodity price variability into the simulator state, and investigate structured prompting strategies to further close the remaining 
+
+> ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026.
+
+Sim2Schedule For Open-Pit Mine Scheduling 23 
+
+optimality gap. Beyond open-pit mining, the simulator-in-the-loop architecture generalizes to any domain requiring long-horizon physical sequencing under hard operational constraints, advancing the broader goal of intelligent, interpretable automation in structured industrial systems. 
+
+References 
+
+[1] Henrik Abgaryan, Tristan Cazenave, and Ararat Harutyunyan. 2025. Starjob: Dataset for LLM-driven job shop scheduling. arXiv preprint arXiv:2503.01877 (2025). doi:10.48550/arXiv.2503.01877 [2] Sandhini Agarwal, Lama Ahmad, Jason Ai, Sam Altman, Andy Applebaum, Edwin Arbus, Rahul K Arora, Yu Bai, Bowen Baker, Haiming Bao, et al . 2025. gpt-oss-120b & gpt-oss-20b model card. arXiv preprint arXiv:2508.10925 (2025). doi:10.48550/arXiv.2508.10925 [3] Awwad H Altiti, Rami O Alrawashdeh, and Hani M Alnawafleh. 2021. Open Pit Mining. In Mining Techniques - Past, Present and Future . IntechOpen, London. doi:10.5772/intechopen.92208 [4] Shadrach Yaw Amponsah, Pawoumodom Matthias Takouda, and Eugene Ben-Awuah. 2022. Genetic Algorithm Framework for Stochastic Open Pit Production Scheduling in the Presence of Grade Uncertainty. Mining Optimization Laboratory 1, 780 (2022), 95. [5] Hooman Askari-Nasab, Yashar Pourrahimian, Eugene Ben-Awuah, and Samira Kalantari. 2011. Mixed integer linear programming formulations for open pit production scheduling. Journal of Mining Science 47, 3 (2011), 338–359. doi:10.1134/S1062739147030117 [6] Sébastien Bubeck, Varun Chandrasekaran, Ronen Eldan, Johannes Gehrke, Eric Horvitz, Ece Kamar, Peter Lee, Yin Tat Lee, Yuanzhi Li, Scott Lundberg, et al . 2023. Sparks of Artificial General Intelligence: Early Experiments with GPT-4. 
+
+arXiv preprint arXiv:2303.12712 (2023). doi:10.48550/arXiv.2303.12712 [7] Louis Caccetta and Stephen P Hill. 2003. An Application of Branch and Cut to Open Pit Mine Scheduling. Journal of Global Optimization 27, 2 (2003), 349–365. doi:10.1023/A:1024835022186 [8] Francesca Da Ros, Michael Soprano, Luca Di Gaspero, and Kevin Roitero. 2026. Large Language Models for Combina-torial Optimization: A Systematic Review. Comput. Surveys (2026). doi:10.1145/3801961 [9] Roussos Dimitrakopoulos and Amina Lamghari. 2022. Simultaneous stochastic optimization of mining complexes -mineral value chains: an overview of concepts, examples and comparisons. International Journal of Mining, Reclamation and Environment 36, 6 (2022), 443–460. doi:10.1080/17480930.2022.2065730 [10] M. P. Fontes, Jair Carlos Koppe, and J. A. Silva Neto. 2021. Analysis of the Variables: Commodity Price and Discount Rate on Long-Term Open Pit Mine Planning. Global Journal of Engineering and Technology Advances 6, 2 (2021), 142–150. doi:10.30574/gjeta.2021.6.2.0025 [11] Chen Gao, Xiaochong Lan, Nian Li, Yuan Yuan, Jingtao Ding, Zhilun Zhou, Fengli Xu, and Yong Li. 2024. Large language models empowered agent-based modeling and simulation: A survey and perspectives. Humanities and Social Sciences Communications 11, 1 (2024), 1–24. [12] Daya Guo, Dejian Yang, Haowei Zhang, Junxiao Song, Peiyi Wang, Qihao Zhu, Runxin Xu, Ruoyu Zhang, Shirong Ma, Xiao Bi, et al . 2025. Deepseek-r1: Incentivizing reasoning capability in llms via reinforcement learning. arXiv preprint arXiv:2501.12948 (2025). doi:10.48550/arXiv.2501.12948 [13] Sadam Hussain, Ramanunni Parakkal Menon, Fatima Amara, Chunyan Lai, and Ursula Eicker. 2024. Optimization of Energy Systems using MILP and RC Modeling: A Real Case Study in Canada. In IEEE International Systems Conference (SysCon) . 1–7. doi:10.1109/SysCon61195.2024.10553577 [14] Gabriel Icarte-Ahumada and Otthein Herzog. 2025. Intelligent Scheduling in Open-Pit Mining: A Multi-Agent System with Reinforcement Learning. Machines 13, 5 (2025), 350. doi:10.3390/machines13050350 [15] Xia Jiang, Yaoxin Wu, Minshuo Li, Zhiguang Cao, and Yingqian Zhang. 2025. Large Language Models as End-to-End Combinatorial Optimization Solvers. arXiv preprint arXiv:2509.16865 (2025). doi:10.48550/arXiv.2509.16865 [16] Thys Brentwood Johnson. 1968. Optimum Open Pit Mine Production Scheduling . University of California, Berkeley. [17] Soroush Khazaei and Yashar Pourrahimian. 2024. A Comparative Analysis of Mathematical and Industrial Approaches for Sublevel Caving Long-Term Production Scheduling Optimization . Technical Report Report Twelve, Paper 102. Mining Optimization Laboratory, University of Alberta, Edmonton, Canada. 48–76 pages. [18] Behrang Koushavand, Hooman Askari-Nasab, and Clayton V. Deutsch. 2014. A linear programming model for long-term mine planning in the presence of grade uncertainty and a stockpile. International Journal of Mining Science and Technology 24, 4 (2014), 451–459. doi:10.1016/j.ijmst.2014.05.006 [19] Helmut Lerchs and Ingo F. Grossmann. 1965. Optimum Design of Open-Pit Mines. CIM Bulletin 58, 633 (1965), 47–54. [20] Junyi Li, Tianyi Tang, Wayne Xin Zhao, Jian-Yun Nie, and Ji-Rong Wen. 2024. Pre-trained language models for text generation: A survey. Comput. Surveys 56, 9 (2024), 1–39. [21] Mingxing Li, Qu Zhou, Wanshan Li, Ting Qu, Maolin Yang, and Pingyu Jiang. 2026. A4PS: Agentic AI-assisted advanced planning and scheduling with large language models for smart manufacturing. Journal of Manufacturing Systems 85 ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026. 24 Mustavi et al. 
+
+(2026), 207–226. doi:10.1016/j.jmsy.2026.01.003 [22] Gurobi Optimization LLC. 2024. Gurobi Optimizer Reference Manual . https://www.gurobi.com [Accessed 18 December 2025]. [23] Valeria Loor and Nelson Morales. 2020. Applying Artificial Intelligence for Optimal Production Scheduling and Phase Design in Open Pit Mining. In MassMin 2020 . 1451–1466. doi:10.36487/ACG_repo/2063_111 [24] Pingchuan Ma, Tsun-Hsuan Wang, Minghao Guo, Zhiqing Sun, Joshua B. Tenenbaum, Daniela Rus, Chuang Gan, and Wojciech Matusik. 2024. LLM and Simulation as Bilevel Optimizers: A New Paradigm to Advance Physical Scientific Discovery. In Proceedings of the 41st International Conference on Machine Learning (Proceedings of Machine Learning Research, Vol. 235) , Ruslan Salakhutdinov, Zico Kolter, Katherine Heller, Adrian Weller, Nuria Oliver, Jonathan Scarlett, and Felix Berkenkamp (Eds.). PMLR, 33940–33962. https://proceedings.mlr.press/v235/ma24m.html [25] C Meagher, R Dimitrakopoulos, and D Avis. 2014. Optimized open pit mine design, pushbacks and the gap problem—a review. Journal of Mining Science 50, 3 (2014), 508–526. doi:10.1134/S1062739114030132 [26] Ollama. 2025. gpt-oss on Ollama Library. https://ollama.com/library/gpt-oss [Accessed 25 January 2026]. [27] Milad Rahnema, Martin Grenon, and Ali Moradi Afrapoli. 2025. Sustainable Open Pit Mining Through GHG-Conscious Short-Term Production Scheduling. International Journal of Mining, Reclamation and Environment 39, 5 (2025), 325–346. doi:10.1080/17480930.2024.2394813 [28] José Saavedra-Rosas, Enrique Jeivez, Jorge Amaya, and Nelson Morales. 2016. Optimizing Open-Pit Block Scheduling with Exposed Ore Reserve. Journal of the Southern African Institute of Mining and Metallurgy 116, 7 (2016), 655–662. doi:10.17159/2411-9717/2016/v116n7a7 [29] Mohammad Tabesh, Ali Moradi Afrapoli, and Hooman Askari-Nasab. 2023. A Two-Stage Simultaneous Optimization of NPV and Throughput in Production Planning of Open Pit Mines. Resources Policy 80 (2023), 103167. doi:10.1016/j. resourpol.2022.103167 [30] Shiv Prakash Upadhyay and Hooman Askari-Nasab. 2018. Simulation and optimization approach for uncertainty-based short-term planning in open pit mines. International Journal of Mining Science and Technology 28, 2 (2018), 153–166. doi:10.1016/j.ijmst.2017.12.003 [31] Luping Wang, Sheng Chen, Linnan Jiang, Shu Pan, Runze Cai, Sen Yang, and Fei Yang. 2025. Parameter-efficient fine-tuning in large language models: a survey of methodologies. Artificial Intelligence Review 58, 8 (2025), 227. doi:10.1007/s10462-025-11236-4 [32] Yidan Wang, Jiayin Wang, and Zhiwei Chu. 2025. Multi-agent large language models as evolutionary optimizers for scheduling optimization. Computers & Industrial Engineering 206 (2025), 111197. doi:10.1016/j.cie.2025.111197 [33] Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten Bosma, Fei Xia, Ed Chi, Quoc V Le, Denny Zhou, et al . 2022. Chain-of-Thought Prompting Elicits Reasoning in Large Language Models. In Advances in Neural Information Processing Systems (NeurIPS) , Vol. 35. 24824–24837. [34] Chengrun Yang, Xuezhi Wang, Yifeng Lu, Hanxiao Liu, Quoc V Le, Denny Zhou, and Xinyun Chen. 2024. Large Language Models as Optimizers. In The Twelfth International Conference on Learning Representations .[35] Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak Shafran, Karthik R Narasimhan, and Yuan Cao. 2023. ReAct: Syner-gizing Reasoning and Acting in Language Models. In The Eleventh International Conference on Learning Representations .[36] Tsegai O Yhdego and Hui Wang. 2025. Automated Ontology Generation for Zero-Shot Defect Identification in Manufacturing. IEEE Transactions on Automation Science and Engineering (2025). doi:10.1109/TASE.2025.3537463 [37] Mateusz Zajac. 2025. Heuristic, Hybrid, and LLM-Assisted Heuristics for Container Yard Strategies Under Incomplete Information. Applied Sciences 15, 18 (2025), 10033. doi:10.3390/app151810033 [38] Ni Zhang, Zhiguang Cao, Jianan Zhou, Cong Zhang, and Yew-Soon Ong. 2025. An Agentic Framework with LLMs for Solving Complex Vehicle Routing Problems. arXiv preprint arXiv:2510.16701 (2025). doi:10.48550/arXiv.2510.16701 ACM Trans. Autonom. Adapt. Syst., Vol. 1, No. 1, Article . Publication date: June 2026.
