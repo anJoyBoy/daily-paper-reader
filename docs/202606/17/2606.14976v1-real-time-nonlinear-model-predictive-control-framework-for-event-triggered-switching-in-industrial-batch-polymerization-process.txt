@@ -1,0 +1,1379 @@
+Title: Real-time nonlinear model predictive control framework for event-triggered switching in industrial batch polymerization process
+
+URL Source: https://arxiv.org/pdf/2606.14976v1
+
+Published Time: Tue, 16 Jun 2026 00:16:58 GMT
+
+Number of Pages: 45
+
+Markdown Content:
+# Highlights 
+
+Real-Time Nonlinear Model Predictive Control Framework for Event-Triggered Switching in Industrial Batch Polymerization Process 
+
+Chenchen Zhou , Zuzhen Ji , Jose Matias 
+
+• Smooth mode blending removes ad hoc phase logic in batch NMPC. 
+
+• Tuning links smoothing gains and switch planes to sub-optimal NMPC. 
+
+• Real-time workflow: advanced-step, scaling, capped iterations. 
+
+• Industrial, estimator-in-the-loop study outperforms PID and conventional NMPC. 
+
+> arXiv:2606.14976v1 [math.OC] 12 Jun 2026
+
+# Real-Time Nonlinear Model Predictive Control Framework for Event-Triggered Switching in Industrial Batch Polymerization Process 
+
+Chenchen Zhou a, Zuzhen Ji b, Jose Matias a, ∗
+
+> aChemical and Biochemical Reactor Engineering and Safety (CREaS), KU Leuven, Belgium
+> bDepartment of Mechanical Engineering, Zhejiang University of Technology, Hangzhou, Zhejiang Province, P.R. China
+
+Abstract 
+
+Controlling batch polymerization is challenging because the absence of a steady operating point prevents standard linearization; the dynamics are intrinsically nonlinear; and multi-phase operation induces state-triggered switching. This study systematically combines four established real-time NMPC ingredients, smooth mode blending, advanced-step warm starts, vari-able scaling, and a capped iteration budget, to attain real-time feasibility without ad hoc switching heuristics. We provide practice-oriented guid-ance for selecting smoothing gains and locating switching surfaces, and we make explicit the approximations introduced by smoothing such that, with appropriate tuning, the smoothed and original switching logic are numeri-cally indistinguishable at solver-tolerance levels. All results are obtained in closed-loop simulation using an industrial gas–liquid polymerization bench-mark with estimator-in-the-loop, compared against PID and conventional NMPC baselines. Results show improved constraint satisfaction and shorter batch duration under bounded computation, while an ablation study quan-tifies the specific contributions of each component individually. 
+
+Keywords: nonlinear model predictive control, event-triggered switching, industrial batch polymerization, real-time control         
+
+> ∗Corresponding author.
+> Email addresses: chenchen.zhou@kuleuven.be (Chenchen Zhou ),
+> jizuzhen@zjut.edu.cn (Zuzhen Ji ), jose.matias@kuleuven.be (Jose Matias )
+
+1. Introduction 
+
+Batch polymerization plants have progressed rapidly to meet demand for high-performance polymers with tailored properties [1]. Unlike steady-state continuous trains, batch operations deliver bespoke molecular architectures while remaining accountable for batch-to-batch reproducibility and safety obligations imposed by hazardous monomers and catalysts [2]. This combi-nation of flexibility and regulatory rigor is a challenge for conventional control paradigms. Three coupled features distinguish industrial batch polymerization from continuous processes. (i) Event-driven, multi-stage recipes trigger transitions via conversion thresholds or material additions, injecting disturbances that condition the remainder of the batch [2]. (ii) Reaction kinetics are strongly exothermic and nonlinear, so precise thermal management is needed to pre-serve quality and reactor safety. (iii) Simultaneous gas, liquid, and occasional solid phases introduce state-dependent transport phenomena that complicate modeling and feedback design [3]. These characteristics limit the use of linear controllers, which although simple, demand frequent retuning or manual switching between phases, adding operator burden and decreasing economic performance [1, 4]. Nonlinear Model Predictive Control (NMPC) therefore attracts interest because it coor-dinates nonlinear dynamics, hard constraints, and economic objectives within a single optimization problem [5, 6]. Industrial deployment nevertheless remains sparse because two obstacles dominate: 1. Event-driven multi-mode dynamics: Batch polymerization involves state-triggered mode changes where each phase carries distinct objectives, constraints, and safety priorities, such as time minimization during heat-ing, conversion management during polymerization, and molecular-weight regulation during cooling (see Table 1). Unlike fixed hierarchical schedules [7, 8], the switching logic depends on process states (e.g., conversion, tem-perature) rather than time, requiring NMPC formulations that anticipate multiple switching sequences [9, 10]. 2. Real-time computational tractability: Large, multi-phase reactor models generate high-dimensional nonlinear programs that become mixed-integer when switching logic is explicit [11, 12]. Solving these problems 2Table 1: Mode-dependent objectives and constraints in batch polymerization. 
+
+Mode Phase De-scription Primary Ob-jective Key Con-straints 
+
+1 Heating and monomer ad-dition Minimize heat-ing time Temperature and pressure limits 2 Main polymer-ization Maximize con-version rate Safety and quality con-straints 3 Cooling and product finish-ing Achieve molec-ular weight targets Cooling rate and final spec-ifications within sampling periods of seconds-to-minutes pushes beyond available compute capacity for industrial deployments. In the literature, two main strategies are proposed to deal with those obstacles.Model simplification technologies, ranging from reduction [13–15] and objective approximation [16] to subsystem isolation that neglects coupled heat transfer [17, 18], have been widely used to deal with these obstacles. Despite the reduction in computational burden, these methods decrease the robustness of the control applications in cases where quality requirements tighten. In a different context, advances in solvers for nonlinear programming as well as in hardware (such as IPOPT [19] and CasADi [20]) allow for the application of real-time NMPC in automotive [21, 22] and distributed-parameter applications [23, 24]. Even with the availability of these high performance solvers, applications combining the event-driven switching with large-scale nonlinear dynamics are still limited in the literature, particularly in the field of batch polymerization. The main reason is the combinatorial complexity and non-differentiability of the switching logic that arise where the switching decisions are formulated using binary variables. Broader control research offers additional ingredients to overcome these obstacles, for example: hierarchical architectures decouple switching from continuous control [7, 8], multi-controller designs dedicate regulators to each mode [9, 10], and smoothing or advanced optimization techniques attempt to regularize hybrid dynamics [25–28]. However, scalable performance on industrial batch polymerization problems remains difficult. Particularly for 3the event-driven switching NMPC formulation[29], existing remedies fall into three categories: mixed-integer formulations that add binary variables for each mode [25, 30], multiple-model strategies that solve distinct NMPC prob-lems per mode [31, 32], and heuristic switching logic that substitutes simpli-fied rules for optimization [33]. None, however, have demonstrated scalable performance on industrial batch polymerization problems. To address the challenges of industrial batch polymerization control, our approach focus on the systematic combination of existing methodologies. Variable scaling and iteration capping, which are standard good practices [19], are used to improve solver performance. Advanced-step NMPC is adapted from Zavala and Biegler [34], who developed the sensitivity-based online correction for general NLPs; we apply it unchanged but show its syn-ergy with smoothing. Smooth approximations for discrete switches follow the logistic relaxation employed in [25, 26]; our contribution is to quantify ap-proximation error bounds (Section 4) and provide tuning guidelines specific to batch polymerization. In summary, this paper develops a real-time NMPC framework tailored to event-triggered switching in industrial batch polymerization by (i) capturing all operational phases within a unified control problem, (ii) defining switching through state-driven triggers instead of fixed schedules, and (iii) enforcing smooth control evolution across phase boundaries. The contributions of this work are as follows: (C1) Theoretical Analysis: A smoothed NMPC switching formulation us-ing logistic relaxations with rigorous bounds on approximation error and feasibility inclusions, characterizing the method as an ϵ-suboptimal ap-proximation scheme. (C2) Practical Tuning: A systematic procedure for specifying smoothing pa-rameter values that balances approximation accuracy against numerical stability, avoiding common pitfalls like gradient vanishing or explosion. (C3) Integrated Real-Time Framework: A cohesive NMPC design en-abling real-time operation by integrating the smoothed formulation with advanced-step warm-starting, variable scaling, and fixed iteration budgets. (C4) Industrial Validation: Quantitative validation on a complex, multi-phase polymerization reactor, demonstrating superior disturbance rejec-tion and constraint handling compared to industry-standard PID. 
+
+Paper Organization: Section 2 introduces the event-driven modeling and unified NMPC structure. Section 3 details the real-time implementa-tion with smoothing, scaling, and advanced-step warm starting. Section 4 4summarizes theoretical guarantees and tuning guidance, Section 5 presents industrial case studies, and Section 6 outlines future research directions. 
+
+2. Control Problem Formulation 
+
+2.1. Batch Polymerization as a Switched System 
+
+Industrial batch polymerization processes exhibit multi-mode behavior because operational phases are activated by state conditions rather than fixed schedules. Table 1 summarizes the resulting phases, each with dis-tinct objectives, constraints, and safety priorities determined by conversion thresholds, temperature limits, or quality targets. The hybrid character of these processes breaks the single-mode assump-tion underlying conventional NMPC formulations. To coordinate mode-dependent objectives, we pose an event-driven switching NMPC problem whose optimization structure adapts to the active phase, following the gen-eral multi-mode NMPC structure in [25, 30]: 
+
+min 
+
+> u∈S(∆)
+
+J(x(tk), U ) = 
+
+Z tk +N ∆
+
+> tk
+
+lμ(x(τ )) (x(τ ), u (τ )) dτ + Fμ(x(tk +N ∆)) (x(tk + N ∆)) 
+
+s.t. ˙x(t) = f (x(t), u (t)) , t ∈ [tk, t k + N ∆] 
+
+gμ(x(t)) (x(t), u (t)) ≤ 0, t ∈ [tk, t k + N ∆] 
+
+x(tk) = xk (initial condition) 
+
+u(t) ∈ U, t ∈ [tk, t k + N ∆] .
+
+(1) where the continuous-time dynamics ˙x(t) = f (x(t), u (t)) describe the evolu-tion of the state vector x(t) ∈ Rn collecting concentrations, temperature, and pressure, starting from the initial measurement xk, driven by manipulated inputs u(t) ∈ Rm. The decision variable U = {uj }N −1 
+
+> j=0
+
+∈ S(∆) represents the piecewise-constant control sequence sampled with period ∆, where S(∆) de-notes the set of admissible trajectories subject to input bounds U. The func-tions lμ(·), Fμ(·), and gμ(·) define the specific cost and constraints active for the current mode μ ∈ P = {1, . . . , M }. The mode selector μ : Rn → P maps states to operational modes. Switching times are not optimization variables; instead, the controller shapes the state evolution so that μ(x(t)) triggers the appropriate mode specified in Table 1. This state-driven mechanism tolerates variations in process parameters but introduces abrupt changes in cost and 5constraint landscapes across mode boundaries. This nonsmooth optimiza-tion structure is addressed by the framework developed in the subsequent sections. 
+
+3. Real-time NMPC Framework for Switched Systems 
+
+3.1. Smoothing Approximation for Switching Functions 
+
+Equation (1) changes structure whenever the active mode switches, break-ing the smoothness assumptions required by gradient-based NLP solvers. The changes are discontinuous by binary indicators, which are a function of the switching surface hi(x). Each switching surface hi(x) therefore introduces a binary indicator 
+
+pi(x) = H(hi(x)) = 
+
+(
+
+1 if hi(x) ≥ 00 if hi(x) < 0 , i = 1 , . . . , M, (2) which we replace by a differentiable surrogate of the form 
+
+psmooth  
+
+> i
+
+(x) := σ α(hi(x) − β) (3) where σ(z) :=  1 + exp( −z)−1 denotes the logistic function. α and β are tunable parameters representing the slope and bias of the switching surface, respectively. The logistic surrogate (3) converts the discontinuous step to a continu-ously differentiable transition over a band of width O(α−1) centered on the switching surface. the logistic surrogate replaces the discontinuous jump with a smooth "S-shape" curve. The transition (interval where (3) changes from 0 to 1) is controlled by the slope parameter α and the bias parameter β.We employ separate relaxations for the cost and the constraints: the cost-side indicator pobj  
+
+> i
+
+uses no offset so that the economic stage cost begins to contribute as the trajectory approaches the switching surface, whereas the constraint-side indicator pcons  
+
+> i
+
+is shifted by βi so that constraints are enforced conservatively until the surface is actually crossed: 
+
+pobj  
+
+> i
+
+(x) = σ αihi(x) (4) 
+
+pcons  
+
+> i
+
+(x) = σ αi(hi(x) − βi) (5) 6This leads to our smoothed NMPC formulation: 
+
+min   
+
+> U∈S(∆)
+
+Jsmooth (x(tk), U ) := 
+
+Z tk +N ∆
+
+> tk
+> M
+
+X
+
+> i=1
+
+pobj 
+
+> i
+
+ x(τ ) li
+
+ x(τ ), u (τ ) dτ
+
++
+
+> M
+
+X
+
+> i=1
+
+pobj 
+
+> i
+
+ x(tk + N ∆)  Fi
+
+ x(tk + N ∆) ,
+
+s.t. ˙x(t) = f  x(t), u (t),pcons 
+
+> i
+
+ x(t) gi
+
+ x(t), u (t) ≤ 0, i = 1 , . . . , M x(tk) = xk, u(t) ∈ U,u(t) = uj ∀t ∈ [tk + j∆, t k + ( j + 1)∆) , j = 0 , 1, ..., N − 1.
+
+(6) Parameter selection for αi and βi, together with approximation error bounds, is discussed in Section 4. 
+
+3.2. Real-Time NMPC Framework Integration 
+
+To achieve real-time feasibility for the stiff polymerization process, the proposed framework integrates the smoothing approximation with three es-tablished numerical strategies. For the sake of brevity, we formulate the NMPC problem (6) into a standard NLP: 
+
+min  
+
+> w
+
+F (w, x k) s.t. c(w, x k) = 0 g(w, x k) ≤ 0 (7) where w = [ U T ]T and xk is the initial state. F (.) is the objective function, 
+
+c(.) are the equality constraints , and g(.) are the inequality constraints. Following the recommended numerical strategies in literature, we adopt: 
+
+• Variable Scaling: To address ill-conditioning (e.g., w1 ∼ 10 3 vs. w2 ∼
+
+10 −7), we employ a diagonal scaling matrix D = diag (d1, . . . , d n). The NLP solver operates on scaled variables ˜w = D−1w [19]. This external scaling complements the solver’s internal scaling (e.g., equilibration of Hessian rows in IPOPT) by normalizing the decision space before derivatives are evaluated. 
+
+min  
+
+> ˜w
+
+F (D ˜w, x k) s.t. c(D ˜w, x k) = 0 , g(D ˜w, x k) ≤ 0. (8) 
+
+• Advanced-step NMPC (asNMPC): Optimization is split into a back-ground phase and an online sensitivity update [34]. The background prob-7lem Eq. (6) is solved for the predicted state. Upon measuring xk, the optimal primal-dual vector s∗ (which contains the decision variables w∗
+
+and the Lagrange multipliers) is corrected via: 
+
+˜s(xk) = s∗(xk−1) + M−1N (xk − xk−1), (9) where M is the KKT matrix (Lagrangian Hessian and constraint Jaco-bians) and N represents the sensitivity of the optimality conditions with respect to parameter xk. A line search on τ ∈ [0 , 1] projects this prediction back to the feasible set U:
+
+ˆs(xk) = s∗(xk−1) + τ (˜ s(xk) − s∗(xk−1)) . (10)        
+
+> (a) Standard NMPC
+> (b) Advanced-step NMPC
+> Figure 1: Timing diagrams illustrating the computational delay handling. Standard NMPC (a) applies control ukonly after optimization concludes, introducing a delay δ.Advanced-step NMPC (b) shifts the optimization to the background, allowing instant cor-rection via sensitivity updates when xkbecomes available.
+
+• Fixed Iteration Budget: Following [21], we impose a strict cap Kmax on interior-point iterations. The solver returns the current iterate when the limit is reached. Although strict convergence is not guaranteed, the sensi-tivity update acts as a restorative step since the line search (10) ensures a feasible control is applied. Because the warm-start from the previous step is provided, which is close to the optimal solution, the iterates typically converge quickly. Algorithm 1 summarizes the complete workflow, alternating between back-ground prediction and online correction. The individual contributions of smoothing, advanced-step execution, scaling, and iteration capping are quan-tified in the ablation study of Section 5. 8Algorithm 1 Real-time smoothed NMPC with scaling and advanced-step warm start  
+
+> 1:
+
+Input: smoothing parameters {αi, β i}, scaling matrix D, prediction hori-zon N , sampling time ∆, iteration cap Kmax  
+
+> 2:
+
+Initialisation: solve the scaled smoothed NLP P(D−1x0) until conver-gence; store primal-dual solution s⋆(q0) with q0 = D−1x0 and the KKT factorisation.  
+
+> 3:
+
+for k = 0 , 1, . . . do  
+
+> 4:
+
+Measure/estimate xk; set qk = D−1xk. 
+
+> 5:
+
+Online correction 
+
+(a) Apply sensitivity update ˜s(qk) via (9). (b) Project to feasible set by selecting the largest τ ∈ [0 , 1] that keeps (10) within U.(c) Extract first control move uk from ˆs(qk) and apply to the plant.  
+
+> 6:
+
+Background prediction 
+
+(a) Integrate ˙x = f (x, u k) from xk over one sampling period ∆ to obtain the predicted state ˜xk+1 and set qk+1 = D−1 ˜xk+1 .(b) Warm-start NLP P(qk+1 ) with ˆs(qk) and iterate IPOPT for at most 
+
+Kmax steps; if convergence not reached, keep iterate as new s⋆(qk+1 ).(c) Update sensitivity matrices M−1N using the active constraint set of P(qk+1 ). 
+
+> 7:
+
+end for 4. Theoretical Analysis of the Smoothing Strategy 
+
+We begin by recalling the discontinuous mode indicator pi(x) = H(hi(x)) 
+
+from (2) and the logistic surrogates pobj  
+
+> i
+
+(x), pcons  
+
+> i
+
+(x) from (3), governed by the smoothing gains αi > 0, bias βi ≥ 0, and target accuracy ϵ ∈ (0 , 12 ).The resulting transition region, where the surrogates disagree with the true indicator, is illustrated in Figure 2; additional elements of the figure are discussed in the following subsections. Building on these objects, we establish the following results: (i) a charac-terisation of the transition region (Lemma 1), (ii) a bound on the dwell time inside it (Lemma 2), (iii) constraint inclusion guarantees (Lemma 3), (iv) a cost approximation error bound (Lemma 4), and (v) an overall bound on the maximum approximation error of the smoothed NMPC (Theorem 1). Only the statements are given here; the full proofs are collected in Appendix Ap-pendix A. Practitioners primarily interested in implementation may skip di-9rectly to Subsection 4.2, where the theoretical results justify the practical parameter-selection guidance. 
+
+Figure 2: Geometric interpretation of the smoothing approximation. The logistic function 
+
+σ(α(h(x) − β)) creates a smooth transition band of width δi(αi) = 1 
+
+> αi
+
+ln   1−εε
+
+ around the switching surface h(x) = β, replacing the discontinuous step. The transition region is indicated by the shaded yellow band. 
+
+Lemma 1 (Transition Region Characterization) . Let ϵ ∈ (0 , 12 ). The transi-tion region for pobj  
+
+> i
+
+is the set 
+
+Ri(αi) := { x : |pobj  
+
+> i
+
+(x) − pi(x)| > ϵ } = { x : −δi(αi) < h i(x) < δ i(αi) },
+
+where the half-width is 
+
+δi(αi) = 1
+
+αi
+
+ln 
+
+1 − ϵϵ
+
+
+
+.
+
+Hence the total width satisfies 2δi(αi) = O(α−1 
+
+> i
+
+).
+
+10 Proof. See Appendix Appendix A. 
+
+Assumption 1 (System dynamics) . The vector field f (x, u ) is locally Lips-chitz and has linear growth on compact sets. The admissible input set U is compact and convex. Inputs are implemented as piecewise-constant signals over intervals of length ∆ > 0, matching the NMPC discretisation. Hence trajectories are unique and forward complete under piecewise-constant inputs. 
+
+Assumption 2 (Switching surface regularity and uniform transversality) .
+
+For each switching surface hi(x) = 0 the gradient is bounded, and there exist constants ¯δi > 0, νi > 0, and an integer Ki ≥ 1 such that closed-loop trajectories generated by admissible inputs u(t) ∈ U satisfy 
+
+|hi(x)| ≤ ¯δi ⇒ ∇hi(x)⊤f (x, u ) ≥ νi,
+
+hence trajectories cross each surface transversally within |hi(x)| ≤ ¯δi, and at most Ki crossings occur on any finite horizon. 
+
+Remark 1 (Practical design of switching surfaces) . This theoretical analysis informs practical design: switching surfaces defined by variables that evolve monotonically (e.g., conversion, cumulative feed, time) naturally satisfy the transversality condition (Assumption 2) because ∇h⊤ 
+
+> i
+
+f does not vanish. In contrast, surfaces defined by regulated variables (e.g., temperature around a setpoint) may violate transversality ( ∇h⊤ 
+
+> i
+
+f ≈ 0), causing the denominator in Lemma 2 to approach zero and the dwell time bound to diverge. Therefore, we recommend defining phase transitions using integral or monotonic states to guarantee robust numerical behavior. 
+
+Lemma 2 (Transition Region Dwell Time) . Under Assumptions 1 and 2, for each surface i, and ¯δi ≥ δi(αi) > 0, the time the trajectory spends in 
+
+Ri(αi) = {x : |hi(x)| ≤ δi(αi)} satisfies 
+
+τi(x(t), δ i) ≤ Ki
+
+2 δi(αi)
+
+νi
+
+, (11) 
+
+where τi(x(t), δ i) is the Lebesgue measure of the visit set on [0 , T ].Proof. See Appendix Appendix A. 11 4.1. Smoothing Approximation Analysis 
+
+We now collect the numerical tolerances and local regularity conditions invoked by the smoothing analysis. 
+
+Assumption 3 (Solver resolution) . The NLP solver uses finite tolerances 
+
+τfeas > 0 (feasibility) and τopt > 0 (optimality). Constraints are considered satisfied whenever max {0, g i(x, u )} ≤ τfeas .
+
+Assumption 4 (Smoothing accuracy) . For each surface there exists ϵi ∈
+
+(0 , 12 ) and a neighbourhood Ni of {x : hi(x) = 0 } such that |pobj  
+
+> i
+
+(x) − pi(x)| ≤ 
+
+ϵi and |pcons  
+
+> i
+
+(x) − pi(x)| ≤ ϵi whenever x / ∈ N i, with ϵi ≤ τfeas .
+
+The geometry in Figure 2 corresponds to this assumption, where Ni aligns with the transition bandwidth 2δ and ϵi with the tolerance bands. 
+
+Assumption 5 (Constraint regularity near switching surfaces) . There exist constants Lg,i > 0, κi > 0, and Gg,i > 0 such that for any |hi(x)| ≤ δ (for sufficiently small δ > 0) there exists x0 
+
+> i
+
+on hi(x) = 0 with ∥x−x0 
+
+> i
+
+∥ ≤ κi|hi(x)|
+
+and 
+
+gi(x, u ) ≤ gi(x0 
+
+> i
+
+, u ) + Lg,i |hi(x)|, |gi(x, u )| ≤ Gg,i .
+
+These bounds hold in the neighbourhoods Ni from Assumption 4, and the solver tolerance satisfies ϵiGg,i ≤ τfeas .
+
+Because δi(αi) = O(α−1 
+
+> i
+
+), the design requirement Lg,i 
+
+ βi + δi(αi) ≤ τfeas 
+
+is enforceable by increasing αi, shrinking the neighbourhood where constraint blending occurs. 
+
+Lemma 3 (Feasibility Inclusions for Smoothed Constraints) . Fix ϵ ∈ (0 , 12 )
+
+and define δi(αi) = α−1 
+
+> i
+
+ln  1−ϵϵ
+
+. For any βi ∈ [0 , δ i(αi)] Define the feasible sets 
+
+Sorig := { x | ∀i, p i(x) gi(x, u ) ≤ 0 },
+
+Sτ 
+
+> smooth
+
+:= { x | ∀i, p cons  
+
+> i
+
+(x) gi(x, u ) ≤ τfeas }.
+
+Assume the solver feasibility tolerance τfeas > 0 (Assumption 3) and the local bounds in Assumption 5, together with ϵ G g,i ≤ τfeas and Lg,i 
+
+ βi + δi(αi) ≤
+
+τfeas . Then 
+
+Sorig ⊆ Sτ 
+
+> smooth
+
+⊆ S+
+
+> orig
+
+(τ ),
+
+where 
+
+S+
+
+> orig
+
+(τ ) := 
+
+n
+
+x ∀i, p i(x) gi(x, u ) ≤ τfeas /¯pi(αi, β i)
+
+o
+
+,
+
+12 ¯pi(αi, β i) := inf  
+
+> h≥0
+
+pcons  
+
+> i
+
+(h) = σ −αiβi
+
+.
+
+In particular, up to the solver tolerance the smoothed and original feasibility tests are numerically indistinguishable. Proof. See Appendix Appendix A. 
+
+Remark 2 (Feasibility consistency) . This lemma establishes that if βi and 
+
+αi are tuned according to the guidelines, the smoothed feasible set Sτ
+
+> smooth
+
+is effectively indistinguishable from the original set Sorig . Specifically, any point feasible for the original problem is feasible for the smoothed problem (up to tolerance), and any point feasible for the smoothed problem lies within the τ -tolerance band of the original constraints. Thus, the solver sees no "phantom" infeasibility nor significant constraint violation. 
+
+Remark 3 (Risks of excessive constraint shifting) . Although increasing βi
+
+enlarges the feasible set Sτ 
+
+> smooth
+
+(as implied by Lemma 3), setting βi > δ i(αi)
+
+is hazardous because it breaks the tightness of the inclusion Sτ 
+
+> smooth
+
+⊆ S +
+
+> orig
+
+(τ ).Specifically, it creates a “blind spot” where the objective mode is active ( pobj  
+
+> i
+
+≈
+
+1) but the constraint strength ¯pi is negligible. This manifests as: (i) Toler-ance Inflation : The bound in Lemma 3 becomes loose ( 1/¯pi ≫ 1/ϵ ), al-lowing physically unsafe violations; and (ii) Solver Blindness : Gradients vanish in the gap, preventing the optimizer from detecting and reacting to the approaching constraint. Thus, βi = δi(αi) is the optimal tradeoff: it maximizes the feasible set size without compromising the strict enforcement guaranteed by Lemma 3. 
+
+Lemma 4 (Cost function approximation error bound) . Consider a system satisfying Assumption 1. Given a control trajectory U , if the resulting state trajectory crosses surfaces that satisfy Assumption 2, then the cost difference between the original NMPC problem (1) and its smoothed counterpart (6) 
+
+using pobj  
+
+> i
+
+(x) obeys 
+
+|Jsmooth (x(tk), U ) − J(x(tk), U )| ≤ γ(α−1min ), (12) 
+
+where αmin := min i=1 ,...,M αi, Ci := sup {∥ li(x, u )∥ : |hi(x)| ≤ δi(αi), u ∈
+
+U} < ∞, ci := 2KiCi 
+
+> νi
+
+ln 1−ϵϵ , and the class-K function γ(r) is defined explicitly as γ(r) :=  P Mi=1 ci
+
+r.Proof. See Appendix Appendix A. 13 The feasible-set inclusions and cost bound combine into the following consequence for practical solvers. 
+
+Theorem 1 (Approximation Error of Smoothed NMPC) . Suppose (i) As-sumptions 1 and 2 hold; (ii) the original NMPC (1) satisfies LICQ and SOSC at its optimizer U ∗(x) and thus enjoys local second-order growth: there exist 
+
+μ > 0 and r > 0 such that for all feasible U with ∥U − U ∗∥ ≤ r,
+
+J(x, U ) − J(x, U ∗) ≥ μ 
+
+> 2
+
+∥U − U ∗∥2;
+
+(iii) offsets are chosen as βi = δi(αi) so that Lemma 3 yields Sorig ⊆ S τ
+
+> smooth
+
+(α, β ) ⊆S+
+
+> orig
+
+(τ, α, β ) with ¯pi(αi, β i) = 1 − ϵi. Then, given the same initial state x,
+
+∥U smooth ∗(x) − U ∗(x)∥ ≤
+
+s
+
+4 γ(α−1min )
+
+μ . (13) 
+
+Proof. See Appendix Appendix A. 
+
+Remark 4 (ϵ-Suboptimality) . Theorem 1 and Lemma 4 formally character-ize the proposed method as an ϵ-suboptimal approximation scheme. The bound 
+
+2γ(α−1min ) represents the duality gap introduced by smoothing: as α → ∞ , the gap vanishes. For finite α (e.g., α ≈ 50 ), the solution is “ ϵ-optimal” with respect to the original nonsmooth problem, providing a rigorous justification for using the smoothed control in practice. 
+
+Remark 5 (Numerical stability and practical tuning) . The numerical fail-ure at high α can be explained by analyzing the gradient landscape of the smoothed constraints. The derivative of the switching function is given by 
+
+∇xp(x) ∝ ασ (·)(1 − σ(·)) . As illustrated in Figure 3, increasing α trans-forms the gradient into a narrow, high-amplitude impulse (approximating a Dirac delta). This creates two numerical issues for the NLP solver: (i) Gradient Vanishing (Step-over): When the transition region width ( ∼ 1/α )becomes smaller than the solver’s current line-search step size, the algorithm may “step over” the switching surface entirely, seeing zero gradients on both sides. (ii) Gradient Explosion & Ill-conditioning: If an iterate lands exactly within the narrow transition band, the Hessian terms scale with α2. For very large α (e.g., α > 1000 ), this introduces extreme curvature, causing the Con-dition Number of the KKT matrix to spike. This ill-conditioning triggers the restoration failures observed in Section 4.3. 
+
+14 Figure 3: Gradient landscape of the smoothing function derivative dσ dx = ασ (1 − σ). As α
+
+> increases, the derivative transforms into a numerical Dirac spike, illustrating the trade-off between approximation accuracy and numerical tractability.
+
+4.2. Practical Tuning Guidelines 
+
+The theoretical analysis yields three practical guidelines for selecting smoothing parameters: 1. Selection of Smoothing Gain αi (The Accuracy-Stability Trade-off): Theoretically, selecting αi is a trade-off governed by the error bound 
+
+γ(α−1min ). Lower Bound (Accuracy): αi must be sufficiently large to mini-mize the optimality gap. Our analysis shows that αi < 10 often leads to excessive conservatism (premature constraint activation). Upper Bound (Stability): Critically, αi must be bounded to prevent numerical break-down. As illustrated in Figure 3, excessively large gains ( αi > 100 ) create needle-like gradients that cause gradient-based solvers to fail due to search 15 step-over (vanishing gradients) or Hessian ill-conditioning (exploding gra-dients). Recommendation: We recommend a range of αi ∈ [10 , 100] . In our experiments, αi ≈ 50 consistently provided negligible approximation error ( < 0.1% ) while maintaining robust solver convergence. 2. Alignment of Constraint Shift βi (Feasibility Guarantee): To en-sure the smoothed problem does not violate the original hard constraints, the shift parameter should be set as βi = δi(αi) = 1 
+
+> αi
+
+ln( 1−ϵϵ ). This setting aligns the pcons  
+
+> i
+
+≈ ϵ contour with the original switching surface hi(x) = 0 .Setting βi < δ i(αi) introduces a safety margin ηi > 0 for additional con-servatism under uncertainty. Setting βi > δ i(αi) is not recommended as it may permit slight violations of the original constraints. (See Remark 3) 3. Solver Tolerance Matching: The transition width parameter ϵ should be chosen compatible with the NLP solver’s feasibility tolerance τfeas . Se-lecting ϵ ≈ τfeas (e.g., 10 −4 to 10 −6) ensures that the “blurred” region of the constraint is numerically indistinguishable from the strict boundary by the solver logic. 
+
+4.3. Illustrative Example: Numerical Verification 
+
+To strictly validate the theoretical bounds derived in Section 4.1 and demonstrate the practical impact of the smoothing parameters, we verify the framework on a constrained double integrator system. It is chosen be-cause this linear benchmark allows for the computation of a global optimum, serving as a rigorous ground truth for error analysis. The system models a mass ( m = 1 ) transitioning between a high-speed zone and a restricted-speed zone. The dynamics and optimal control problem are formulated as: 
+
+min 
+
+> u(t)
+
+J =
+
+Z T
+
+> 0
+
+ (v(t) − 10) 2 + 0 .1u(t)2 dt (14a) s.t. ˙p(t) = v(t), ˙v(t) = u(t), (14b) 
+
+p(0) = 0 , v(0) = 0 , (14c) 
+
+u(t) ∈ [−1, 1] , (14d) 
+
+v(t) ≤
+
+(
+
+10 .0 if p(t) < 5 (High-Speed Zone )1.0 if p(t) ≥ 5 (Restricted Zone ) (14e) In the smoothed NMPC formulation, the state-dependent velocity constraint 16 (14e) is replaced by the sigmoid-blended approximation: 
+
+v(t) ≤ 10 .0(1 − σ(α(p(t) − 5 − β))) + 1 .0σ(α(p(t) − 5 − β)) (15) Since the system dynamics are linear and the cost is quadratic, the orig-inal non-smooth problem can be formulated exactly as a Mixed-Integer Quadratic Programming (MIQP) problem using the Big-M method to model the logical switching. We solved this MIQP to global optimality using 
+
+Gurobi with a fine discretization ( N = 80 ) to obtain the exact benchmark trajectories u∗.The verification results are summarized in Figure 4, confirming the four key theoretical properties derived in Section 4.1: 
+
+• Panel A (Transition Dwell Time): The time spent in the transition region ( ϵ-band) is plotted against the smoothing gain α. The data per-fectly follows a τ ∝ 1/α trend (log-log slope ≈ − 1), empirically validating 
+
+Lemma 2 . This confirms that increasing α linearly reduces the “blurring” window of the switch. 
+
+• Panel B (Feasibility & Shift Tuning): Comparing the smoothed solu-tions against the hard limit v ≤ 1.0 (for p ≥ 5) reveals the necessity of the parameter β. The untuned case ( β = 0 , red line) violates the constraint. In contrast, using our derived tuning rule βi = δi(αi) (green line) results in reduced violation which rapidly drops to a negligible level ( ∼ 10 −7) as 
+
+α increases, validating the inclusion logic in Lemma 3 .
+
+• Panel C (Cost Error): The absolute cost difference |Jsmooth −J∗| decays as O(1 /α ), confirming Lemma 4 . Note that the theoretical upper bound (dashed line) correctly captures the convergence rate (-1 slope) but is nu-merically conservative (an order of magnitude larger) due to worst-case Lipschitz constant estimates. 
+
+• Panel D (Input Convergence): The L2-norm difference ∥U smooth − U ∗∥
+
+decreases monotonically, consistent with Theorem 1 . However, for α > 
+
+100 , the solver fails to converge within the iteration limit due to the ill-conditioning described in Remark 4. This confirms that while theoretical error vanishes as α → ∞ , practical limits impose a finite ”sweet spot” for tuning. 17 Figure 4: Numerical verification of theoretical bounds. The four panels are arranged in a 2 × 2 grid: (A, top-left) transition dwell time decays as α increases; (B, top-right) 
+
+feasibility violation is eliminated by the tuning rule β = δ; (C, bottom-left) evaluation cost error converges to the global optimum; (D, bottom-right) control trajectory con-verges in L2-norm. The panel labels (A)–(D) are printed inside each subplot. 
+
+5. Industrial Polymerization Process Control Case Study 
+
+5.1. Process Description and Modeling 
+
+The case study targets an operating gas–liquid polymerization train that cycles through several commercial grades on a 24 h schedule [35]. Pro-nounced nonlinearities, tight thermal coupling, and mode-dependent safety limits make the plant a stringent NMPC benchmark. 18 Figure 5: Industrial batch polymerization reactor with gas-liquid two phase 
+
+Each batch traverses three distinct modes: start-up heating and pressuri-sation, an isothermal polymerisation hold, and a finishing depressurisation that preserves temperature. Online quality indicators trigger feed retuning at every batch. The core equipment is a stirred-tank reactor with recircu-lation and a split-range jacket loop that alternates hot and cold utilities to coordinate monomer and initiator dosing with thermal control. Control design uses the mechanistic model of Li et al. [35], which de-scribes the evolution of polymer chain moments, reactor temperature, and pressure through coupled mass and energy balances. Detailed reaction me-chanics, differential equations, and model parameters are provided in the Supplementary Material. Here, we summarize the control-relevant variables and operational phases. The reactor state vector x ∈ R12 collects polymer moments ( cλ0 , c I∗ , c A, c I2 , c B ), temperatures ( Tr, T J), gas phase variables ( NgA , P ), and cumulative invento-ries ( MAin , M Bin , V l): 
+
+x = [ cλ0 , c I∗ , c A, c I2 , c B, T r, T J, N gA , P, M Ain , M Bin , V l]T (16) Only five variables are measured online: 
+
+y = [ Tr, T J, P, M Ain , M Bin ]T . (17) 19 The remaining states are reconstructed via an Extended Kalman Filter (Sec-tion 5.5). The manipulated inputs u ∈ R3 are the monomer feed FA, initiator feed FI2 , and jacket split-range position ψ:
+
+u = [ FA, F I2 , ψ ]T . (18) These inputs are implemented as piecewise-constant trajectories matching the NMPC discretization. 
+
+5.2. Description of the Control Problem 
+
+The controller seeks the fastest batch that respects safety and product specifications by manipulating FA, FI2 , and α. Operation is divided into three modes: start-up ramps Tr and P to Tr,sp = 351 .15 K and Psp = 1 .5 MPa while polymerization begins; the holding phase maintains Tr within ±1 Kand P within ±0.1 MPa until MA,in = R tf 
+
+> 0
+
+FA dt = 3250 kg is delivered; and finishing stops the monomer feed, keeps temperature on setpoint, and relieves pressure to P end = 1 MPa. The initiator charge MB,in = 0 .002 kg can be distributed across any stage, adding a degree of freedom. Tables 2 and 3 summarize state and input limits together with initial conditions. Absolute pressures in Tables 2 are retained in Pascals to match plant instrumentation, whereas the performance metrics reported in Section 5 use MPa for clarity when discussing deviations. 
+
+> Table 2: Initial conditions and state constraints.
+
+State Init. cond. Min. Max. Unit 
+
+(cλ0 Vl) 0 0 Inf mol 
+
+(cI∗ Vl) 0 0 Inf mol 
+
+(cAVl) 914.2858 0 Inf mol 
+
+(cI2 Vl) 0.0003632 0 Inf mol 
+
+(cBVl) 8.4 0 Inf mol 
+
+Tr 340 320.15 373.15 K
+
+TJ 340 283.15 373.15 K
+
+NgA 113.2038 0 10000 mol 
+
+P 160000 150000 1600000 Pa 
+
+Vl 4000 2000 6000 LMeasurements and associated sensor noise are summarized in Table 4. 20 Table 3: Bounds on the manipulated variables. 
+
+Control Min. Max. Unit 
+
+FA 0 0.694 kg/s 
+
+FI2 0 4×10 −7 kg/s 
+
+ψ -1 1 -
+
+> Table 4: Measurement variables and measurement noise
+
+Variable Maximum error Unit Noise distribution 
+
+Tr 0.1 K Gaussian 
+
+TJ 0.1 K Gaussian 
+
+P 5000 Pa Gaussian 
+
+MA,in 0.1 kg Gaussian 
+
+MB,in 1.e-09 kg Gaussian 
+
+5.3. Cost Functions and Constraints 
+
+As described in the previous subsection and illustrated in Figure 6, the batch advances through heating/pressurizing, holding, and finishing stages that are triggered by state-dependent switching rules. Figure 6 sketches the idealized evolution of the key process variables ( Tr and P ) alongside the associated phases and switching conditions. 21 290                      
+
+> 300
+> 310
+> 320
+> 330
+> 340
+> 350
+> 360
+> 370
+> Temperature  Tr [K]  Tr,sp = 358 K
+> Phase I:
+> Heating &
+> Pressurizing
+> Phase II:
+> Holding
+> Phase III:
+> Finishing
+> Switch: TrTr,sp
+> Tr(t)
+> Tr,sp
+> 0.0 0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0
+> Time [h]
+> 0.00
+> 0.25
+> 0.50
+> 0.75
+> 1.00
+> 1.25
+> 1.50
+> 1.75
+> 2.00
+> Pressure  P [MPa]  Psp = 1.5 MPa
+> Pend = 1.0 MPa
+> Switch: MA,in Mtarget
+> End: PPend
+> P(t)
+> Psp
+> Pend
+
+Figure 6: Schematic of the mode transition logic. The process cycles through three phases: (I) Heating and Pressurizing until setpoints ( Tr,sp , P sp ) are reached; (II) Holding until the monomer dosage target is met; and (III) Finishing, where pressure drops to P end while temperature is maintained. 
+
+Each stage uses a dedicated running cost, integrated over its active hori-zon, together with mode-specific constraints. The heating and pressurizing stage employs the running cost 
+
+ℓ1(x(t), u j , ∆uj ) = − RA + q1(Tr − Tr,sp )2 + q2(P − Psp )2
+
++ r1(∆ FA,j)2 + r2(∆ FI2,j)2 + r3(∆ ψj )2 (19) with stage contribution R tend h
+
+tstart h
+
+ℓ1(x(t), u j , ∆uj ) d t. The first term maximizes monomer utilization, the quadratic tracking terms maintain the temperature and pressure set-points, and the increment penalties temper aggressive ac-tuator movements. Here, index j denotes the control interval within the prediction horizon. ∆FA,j = FA,j − FA,j−1, ∆FI2,j = FI2,j − FI2,j−1, and 
+
+∆ψj = ψj − ψj−1 (with the first increment taken as zero). The monomer 22 consumption rate is computed as 
+
+RA = ( kicI∗ + ( kg + ktr ,m)cλ0 ) cAVl. (20) Here RA is the instantaneous monomer consumption rate (mol/s); maximis-ing RA indirectly minimises batch duration, addressing the “minimize heating time” objective in Table 1. 
+
+Combinatorial mode complexity. Although only three operational modes are defined (Table 1), the control horizon may span multiple mode entries and exits. Consider the polymerization phase: if temperature oscillates near the switching boundary Tr = Tr,sp , the predicted trajectory may repeatedly cross between phases, entering and leaving the same mode multiple times. Over a 60-step horizon, this generates a sequence of mode transitions that grows combinatorially with the number of crossings. Traditional mixed-integer for-mulations would require enumerating all such sequences, whereas the smooth-ing approach avoids this by continuously blending mode-dependent costs and constraints, allowing gradient-based solvers to find locally optimal solutions without explicit mode enumeration. Stage-specific path constraints are col-lected in g1(x(t), u (t)) :
+
+320 .15 ≤ Tr ≤ 373 .15 ,
+
+320 .15 ≤ TJ ≤ 373 .15 ,
+
+1.5 × 10 5 ≤ P ≤ 1.6 × 10 6,
+
+0 ≤ MB,in ≤ 0.002 ,
+
+0 ≤ MA,in ≤ 3250 .
+
+(21) Once Tr and P reach their set-points, the controller transitions to the holding stage. The running cost remains ℓ1, whereas the admissible set narrows to reflect the tighter quality requirements: 
+
+Tr,sp − 0.7 ≤ Tr ≤ Tr,sp + 0 .7,
+
+320 .15 ≤ TJ ≤ 373 .15 ,Psp − 0.1 × 10 6 ≤ P ≤ Psp + 0 .1 × 10 6,
+
+0 ≤ MB,in ≤ 0.002 ,
+
+0 ≤ MA,in ≤ 3250 .
+
+(22) 23 When the cumulative monomer feed reaches its target, the batch enters the finishing stage. The running cost then focuses on temperature regulation and actuator smoothness: 
+
+ℓ3(x(t), u j , ∆uj ) = q1(Tr − Tr,sp )2 + r1(∆ FA,j)2 + r2(∆ FI2,j)2 + r3(∆ ψj )2
+
+(23) with contribution R tend f
+
+> tstart f
+
+ℓ3(x(t), u j , ∆uj ) d t. The corresponding constraints 
+
+g3(x(t), u (t)) keep the process within safe operating limits: 
+
+Tr,sp − 0.7 ≤ Tr ≤ Tr,sp + 0 .7,
+
+320 .15 ≤ TJ ≤ 373 .15 ,
+
+1.5 × 10 5 ≤ P ≤ 1.6 × 10 6,
+
+0 ≤ MB,in ≤ 0.002 ,
+
+0 ≤ MA,in ≤ 3250 .
+
+(24) 
+
+5.4. Implementation and Results 
+
+This section presents an analysis of the performance of the proposed real-time NMPC framework in a specific scenario that arises in the operation of an industrial batch gas-liquid two-phase polymerization reactor. 
+
+5.4.1. Implementation Details 
+
+All results presented in this section are obtained in closed-loop simulation using the mechanistic benchmark model described in Supplementary Mate-rial as the plant surrogate. The NMPC problem is solved every 30 s with a prediction horizon of 60 steps, providing a 30 min look-ahead window. The finite-dimensional program is generated in CasADi [20] using third-order di-rect collocation with four Radau points per interval [36] and is handled by IPOPT [19]. With 12 differential states and three inputs, the transcription contains 3 072 decision variables ( 3 × 60 input moves, 12 × 60 × 4 colloca-tion states, and 12 initial values), 2 892 defect constraints, and 6 144 bound constraints. The advanced-step warm start, variable scaling, and fixed iter-ation cap described in Section 3 are all active; together they keep the mean online computation at ∼6 ms while the background iteration requires 3.58 s (Table 6). To account for computational delay, the previously implemented control move is held constant until a fresh iterate is accepted. This delay mechanism is critical for the comparisons: scenarios with high computa-tional cost (e.g., No-FIL) suffer from significant feedback delays, degrading 24 performance despite having ’exact’ solutions. All simulations were executed on an Intel Core i7-10700F (2.90 GHz) with 8 GB of RAM, representative of the computing platforms available for industrial control [37]. The resulting workload remains comfortably below the 30 s sampling budget, demonstrating that the proposed architecture can be realised with commodity hardware. 
+
+5.4.2. PID Benchmark Configuration 
+
+The single-loop PID benchmark replicates the specific supervisory logic currently deployed at the industrial plant modeled in this study. Since the process model is derived from an operating reactor, this baseline allows us to quantify performance improvements relative to the actual legacy system rather than a generic or idealized standard. Although cascade or multi-loop configurations can improve regulatory performance, our intent is to compare against real plant practice rather than an idealised baseline. This choice ensures that the reported improvements are directly relevant to practitioners considering NMPC upgrades. The controller operates at a 1 s sampling interval and shares the same measurements and actuator limits as the NMPC benchmark. 
+
+• Pressure-to-feed loop: The primary loop regulates the reactor pressure to Psp = 1 .5 MPa by manipulating the monomer feed rate FA. A PI law with Kp = 10 and integral time Ti = 500 s (zero derivative action) is used, with the integral contribution clipped to respect 0 ≤ FA ≤ 0.694 kg s −1.The feed is kept at zero during the 900 s preparation stage and once the cumulative monomer charge exceeds 3 250 kg. 
+
+• Initiator dosing logic: Initiator addition follows on/off rules. When 
+
+P < 1.4 MPa or the cumulative monomer inventory exceeds 2 950 kg, the initiator feed FI2 is held at zero. Otherwise, the controller switches between 
+
+8×10 −7 and 1×10 −7 kg s −1 depending on whether the accumulated initiator mass has reached 1.2 g. 
+
+• Thermal management: Jacket temperature control uses a split-range structure. Below Tr = 345 K, the hot utility is selected ( Tjin = 363 K) and a proportional loop with Kp = 5 adjusts the hot-water flow with saturation 
+
+0–1 kg s −1. Above 345 K, the coolant is selected ( Tjin = 280 K) and a PI loop with Kp = 20 , Ki = 1 × 10 −3 s−1 governs the cold-water flow in the range 0–30 kg s −1. The resulting flow commands are mapped to the normalized jacket-valve signal used in the process model. These rules are executed together with the constraint handling and perfor-25 mance monitoring routines in the simulation scripts, yielding the PID tra-jectories reported in Table 7. 
+
+5.5. Extended Kalman Filter for State Estimation 
+
+For the unmeasured states in our system, we employ an Extended Kalman Filter (EKF) [38] to estimate their values. The EKF is implemented with the following key parameters: The measurement vector y consists of five process variables: 
+
+yk = [ Tr, T J, P, M A,in , M B,in ]⊤
+
+The measurement noise covariance matrix R is defined by the standard deviations: 
+
+R = diag 
+
+0.13 , 5000 3 , 0.13 , 0.13 , 1 × 10 −6
+
+3
+
+2!
+
+The process noise covariance matrix Q is set to: Q = diag ([1 × 10 −6, 1 ×
+
+10 −6, 1, (3 × 10 −5)2, 0.01 , 0.1, 0.04 , 5000 /3, 0.01 , 1 × 10 −6, 1 × 10 −6, 1]) 
+
+The initial state covariance matrix P0|0 is initialized as: P0|0 = diag ([1 ×
+
+10 −6, 1×10 −6, 1, (3 ×10 −5)2, 0.01 , 0.1, 0.04 , 5000 /3, 0.01 , 1×10 −6, 1×10 −6, 1]) 
+
+The initial states x0 are taken from Table 2, which provides the nominal values for the system initialization. 
+
+5.6. Ablation Studies 
+
+To evaluate the efficacy of key components in our real-time NMPC frame-work for batch polymerization processes, we conducted a series of ablation experiments. These studies systematically removed or modified individual components of the framework while maintaining others constant, allowing us to quantify their specific contributions to overall controller performance. We focused on four critical components of our framework: 1. Smoothing strategy 2. Variable scaling strategy 3. Fixed Iteration Limit strategy We evaluated the performance of each scenario using the following met-rics: 1. Computational Feasibility (CF): Percentage of control intervals where the solution is obtained within the sampling time. 26 Table 5: Ablation Scenarios.      
+
+> Scenario Description
+> Real-time NMPC Baseline No-asStep Standard NMPC No-SMS Without smoothing strategy No-VSS Without variable scaling strategy No-FIL Without fixed iteration limit strategy Table 6: Ablation Study Results.
+
+Scenario CF EP CS CP IAE ME 
+
+Real-time NMPC 100.0% 100.0% 100.0% 100.0% 100.0% 
+
+No-asStep 100.0% 99.3% 98.0% 105.8% 191.9% No-SMS 100.0% 95.0% 73.3% 325.6% 403.7% No-FIL 31.3% 75.9% 0.0% 10286.2% 5075.9% No-VSS 87.8% 76.0% 10.8% 11828.2% 6756.1% 
+
+2. Economic Performance (EP): Calculated as 1 divided by the time required to complete the entire batch, it represents the production rate, normalized to the baseline scenario. 3. Constraint Satisfaction (CS): Frequency and magnitude of constraint vio-lations, expressed as: CS = (1 −P |constraint violations |/ P |constraint limits |)×
+
+100% 
+
+4. Control Performance (CP): Integrated Absolute Error (IAE) and Max Error (ME) for key controlled variables (temperature), normalized to the baseline scenario. Table 6 summarises how each architectural ingredient supports real-time operation. The baseline implementation keeps online iterations to 0.006 s on average (3.580 s in the background) while delivering best-in-class per-formance. Removing the advanced-step execution (No-asStep) leaves the closed-loop metrics essentially unchanged yet inflates the online computa-tion time to 3.721 s, roughly 60 × slower and therefore incompatible with the sampling rate. Excluding the smoothing strategy (No-SMS) preserves feasibility but erodes economics, constraint satisfaction, and control quality by 5–325% and dou-bles the background effort. Eliminating the fixed iteration limit (No-FIL) or variable scaling (No-VSS) is catastrophic: feasibility collapses to 31 .3% and 27 87 .8% , respectively, and control performance deteriorates by several orders of magnitude. These trends confirm that smoothing, scaling, and capped iterations are jointly responsible for safe, timely optimisation.  
+
+> (a)
+
+Tr (b) Tr
+
+> Figure 7: Dynamic simulation
+
+Fig. 7 reports the temperature trajectories for the ablation scenarios. Panel (a) shows that the baseline and No-SMS cases track the 351 K setpoint closely, whereas removing scaling (No-VSS) or iteration limits (No-FIL) gen-erates severe constraint violations: the former overshoots the safety bound, the latter quenches the reactor. These behaviours align with the feasibility figures in Table 6 (87.8% and 31.3%, respectively). Panel (b) zooms in on the well-behaved cases, highlighting how smoothing suppresses oscillations after the three-hour mark and how the advanced-step update dampens residual fluctuations. Variable scaling improves both conditioning and convergence speed. At 
+
+t = 0 a single primal-dual iteration takes 0.062 s with scaling and 0.073 s without. Figure 8 compares the feasibility decay and confirms the faster contraction of both primal and dual residuals under the scaled formulation. 28 (a) VSS (b) No-VSS 
+
+> Figure 8: Convergence under VSS and No-VSS
+
+These results collectively emphasize the synergistic nature of the proposed strategies in our real-time NMPC architecture. Each component plays a vital role in achieving robust, efficient, and safe control in demanding industrial polymerization processes. The smoothing strategy is crucial for maintaining performance, stability, and computational efficiency, while the fixed iteration limit and variable scaling strategies are essential for ensuring both the safety of the process and the real-time viability of the control algorithm. 
+
+5.7. Robustness Tests and Comparison with PID Control 
+
+The NMPC and PID configurations described above, including the EKF estimator in Section 5.5, were evaluated under three operating scenarios to quantify robustness and benchmark performance against conventional prac-tice: 1. Nominal case without disturbances 2. Worst-case disturbance scenario 3. Random disturbances with 50 batch runs Table 7 presents a comprehensive comparison between our NMPC frame-work and conventional PID control. Several key observations can be made: 1. Batch Time : The NMPC controller consistently achieves shorter batch times (3.81-3.89 hours) compared to PID control (4.07-5.56 hours), repre-senting a 6-31% improvement in production efficiency. 2. Temperature Control : NMPC demonstrates superior temperature con-trol with mean deviations ( Tmean ) of 0.30-0.39K, significantly lower than PID’s 0.60-5.23K. This is particularly evident in the worst-case scenario, 29 Table 7: Performance comparison between NMPC and PID under different scenarios. IAE T and IAE P are computed as sample-wise sums of absolute errors; pressure deviations are normalised by 1.01 × 10 5 Pa ( ≈ 0.1 MPa) before accumulation.                                                             
+
+> Controller Scenario Time (h) Tmean Tmax Pmean Pmax IAE TCS (%)
+> (K) (K) (MPa) (MPa) (K ·sample) NMPC No Disturbance 3.81 0.30 0.73 0.147 1.21 111.68 99.56 NMPC Random Dist. 3.81 0.30 0.67 0.152 1.25 110.48 99.19 NMPC Worst-case 3.89 0.39 0.85 0.212 1.24 148.06 89.72 PID No Disturbance 4.07 0.60 1.63 0.004 0.06 6811.39 71.68 PID Random Dist. 4.07 0.62 1.66 0.004 0.06 6970.20 71.19 PID Worst-case 5.56 5.23 51.13 0.095 3.44 87808.02 16.50
+
+where PID’s maximum temperature deviation reaches 51.13K compared to NMPC’s 0.85K. 3. Pressure Control : While PID shows smaller pressure deviations in nominal conditions, NMPC maintains better pressure control under dis-turbances, particularly in the worst-case scenario where PID’s maximum pressure deviation (3.44 MPa) is nearly triple that of NMPC (1.24 MPa). 4. Product Quality : The NMPC controller maintains more consistent product quality metrics ( Mn and PDI) across all scenarios, while PID shows significant variations, particularly under worst-case disturbances. 5. Constraint Satisfaction : NMPC maintains high constraint satisfaction rates (89.72-99.56%) across all scenarios, while PID’s performance de-grades significantly under disturbances (71.68% in nominal case to 16.50% in worst-case). Fig. 9 depicts the nominal closed-loop trajectories. Both controllers sta-bilise the reactor, yet NMPC achieves tighter temperature and pressure reg-ulation and a shorter batch by coordinating the monomer feed more aggres-sively while respecting constraints. 30 Figure 9: Dynamic response comparison between NMPC and PID under nominal scenario 
+
+Figure 10 shows that worst-case disturbances amplify these contrasts: PID oscillations lead to large temperature excursions (up to 51 K deviation) and delayed completion, consistent with Table 7. It is worth noting that the manipulated inputs in Fig. 10 exhibit high-frequency oscillations during the temperature-holding phase. This phenomenon, known as active set chattering , arises from the significant plant-model mis-match in this worst-case scenario. The controller attempts to operate the re-actor precisely at the active thermal constraint boundary ( Tr ≤ Tr,sp + 0 .7); however, prediction errors cause the system to repeatedly engage and dis-engage this constraint between sampling instances. Although this leads to aggressive control actions, the NMPC successfully maintains closed-loop sta-bility and prevents thermal runaway, demonstrating robustness even under extreme parameter uncertainty. Random-disturbance tests over 50 batches further confirm NMPC robust-ness. Temperature metrics remain within 1.1% of nominal values, whereas PID performance degrades markedly as perturbations accumulate. 31 Figure 10: Dynamic response comparison between NMPC and PID under worst-case sce-nario 
+
+6. Conclusions and Discussion 
+
+This paper presents an integrated real-time NMPC framework designed to address the computational challenges in industrial batch polymerization. By systematically combining smoothed switching, advanced-step warm-starting, variable scaling, and rigorous tuning, our approach bridges the gap between theoretical NMPC and industrial practice. This work delivers four key con-tributions: 
+
+Theoretical Analysis: We prove the smoothed switching formulation acts as an ϵ-suboptimal approximation scheme. Explicit bounds (Theorem 1) and “Feasibility Consistency” ensure the numerical problem faithfully repre-sents the original constraints without phantom infeasibility. 
+
+Practical Tuning: A systematic procedure balances approximation ac-curacy against numerical stability, resolving the trade-off between gradient explosion and model degradation. 
+
+Integrated Real-Time Framework: Fixed iteration limits and IPOPT scaling mechanisms enable these components to function cohesively under 32 strict timing constraints, ensuring robust real-time performance. 
+
+Validation: Comparative analysis confirms superior disturbance rejec-tion over industry-standard PID. Ablation studies quantify that neglecting delay compensation or smoothing significantly compromises stability and eco-nomic optimality. The architecture developed in this research has broad applicability be-yond polymerization processes. Its framework for managing computational constraints while maintaining control performance can be adapted to a wide range of nonlinear control problems across various industries, including chem-ical processing, energy systems, and advanced manufacturing. For industrial applications, it is crucial to consider the time delays asso-ciated with data transmission. In this context, deploying NMPC on edge computing devices, particularly using dedicated hardware such as Field-Programmable Gate Arrays (FPGAs), presents an interesting opportunity. This approach can not only accelerate computations but also significantly reduce transmission latencies, further enhancing the real-time capabilities of our NMPC architecture. It is worth noting that our simulations were conducted in an environment with relatively abundant computing resources. In actual industrial settings, multiple complex computations may need to be executed in parallel on the same computing platform. This reality opens an avenue: investigating meth-ods for allocating and scheduling control-oriented computational resources in environments with limited or competitive computing capacity. While our current work focuses primarily on addressing computational delays in NMPC deployment, we acknowledge that other challenges, such as model parameter uncertainty, remain to be fully explored. These factors can lead to more complex control problems with increased computational demands. However, the framework proposed in this paper provides a solid foundation for addressing these additional complexities. In conclusion, this work represents a significant step forward in making NMPC more practical and efficient for industrial applications. By addressing the critical issue of computational delay, our approach brings the theoretical benefits of NMPC closer to widespread industrial adoption. These advance-ments contribute to the development of process control methods and support their implementation in industrial applications, leading to improved product quality, increased energy efficiency, and enhanced operational safety in com-plex industrial processes. 33 Acknowledgments 
+
+The authors declare that they have no known competing financial inter-ests or personal relationships that could have appeared to influence the work reported in this paper. The postdoctoral fellowship of C.Z. was funded by KU Leuven through project ZKE5508. 
+
+Declaration of generative AI and AI-assisted technologies in the manuscript preparation process 
+
+During the preparation of this work, the authors used ChatGPT (OpenAI, GPT-5) to assist with language editing and improve readability. After using this tool, the authors reviewed and edited the content as needed and take full responsibility for the content of the published article. 
+
+CRediT author statement Chenchen Zhou : Conceptualization, Methodology, Formal analysis, Software, Validation, Visualization, Writing â €“ original draft, Writing â €“review and editing, Supervision, Project administration. Zuzhen Ji : Writ-ing â €“ review and editing, Validation, Visualization, and Funding acquisi-tion. Jose Matias : Supervision, Formal analysis, Writing â €“ review and editing, Resources, and Funding acquisition. 
+
+References 
+
+[1] M. Soroush, C. Kravaris, Nonlinear control of a batch polymerization reactor: An experimental study, AIChE Journal 38 (9) (1992) 1429– 1448. doi:10.1002/aic.690380914 .[2] J. Lu, Z. Cao, F. Gao, Batch process control-overview and outlook, Acta Automatica Sinica 43 (6) (2017) 933–943. [3] W. Harmon Ray, C. M. Villa, Nonlinear dynamics found in polymeriza-tion processes — a review, Chemical Engineering Science 55 (2) (2000) 275–290. doi:10.1016/S0009-2509(99)00323-1 .[4] J. R. Richards, J. P. Congalidis, Measurement and control of polymeriza-tion reactors, Computers & Chemical Engineering 30 (10) (2006) 1447– 1463. doi:10.1016/j.compchemeng.2006.05.021 .34 [5] R. Bindlish, Nonlinear model predictive control of an industrial polymer-ization process, Computers & Chemical Engineering 73 (2015) 43–48. 
+
+doi:10.1016/j.compchemeng.2014.11.001 .[6] L. Grüne, J. Pannek, Nonlinear Model Predictive Control, Commu-nications and Control Engineering, Springer International Publishing, Cham, 2017. doi:10.1007/978-3-319-46024-6 .[7] P. Mhaskar, N. El-Farra, P. Christofides, Predictive control of switched nonlinear systems with scheduled mode transitions, IEEE Transactions on Automatic Control 50 (11) (2005) 1670–1680. doi:10.1109/TAC. 2005.858692 .[8] S. Lucia, T. Finkler, S. Engell, Multi-stage nonlinear model predic-tive control applied to a semi-batch polymerization reactor under un-certainty, Journal of Process Control 23 (9) (2013) 1306–1319. doi: 10.1016/j.jprocont.2013.08.008 .[9] L. Zhang, S. Zhuang, R. D. Braatz, Switched model predictive control of switched linear systems: Feasibility, stability and robustness, Auto-matica 67 (2016) 8–21. doi:10.1016/j.automatica.2016.01.010 .[10] R. Ma, J. Zhao, Backstepping design for global stabilization of switched nonlinear systems in lower triangular form under arbitrary switchings, Automatica 46 (11) (2010) 1819–1823. doi:10.1016/j.automatica. 2010.06.050 .[11] N. V. Sahinidis, Mixed-integer nonlinear programming 2018, Opti-mization and Engineering 20 (2) (2019) 301–306. doi:10.1007/ s11081-019-09438-1 .[12] C. Zhou, Y. Cao, S.-H. Yang, Performance guaranteed mpc policy ap-proximation via cost guided learning, IEEE Control Systems Letters 8 (2024) 346–351. doi:10.1109/LCSYS.2024.3379115 .[13] I. B. R. Nogueira, R. M. Fontes, A. M. Ribeiro, K. V. Pontes, M. Em-biruçu, M. A. F. Martins, A robustly model predictive control strategy applied in the control of a simulated industrial polyethylene polymer-ization process, Computers & Chemical Engineering 133 (2020) 106664. 
+
+doi:10.1016/j.compchemeng.2019.106664 .35 [14] V. Prasad, M. Schley, L. P. Russo, B. Wayne Bequette, Product prop-erty and production rate control of styrene polymerization, Journal of Process Control 12 (3) (2002) 353–372. doi:10.1016/S0959-1524(01) 00044-0 .[15] S. Z. Gao, J. S. Wang, X. W. Gao, Modeling and advanced control method of pvc polymerization process, Journal of Process Control 23 (5) (2013) 664–681. doi:10.1016/j.jprocont.2013.02.008 .[16] R. Bindlish, J. B. Rawlings, Target linearization and model predictive control of polymerization processes, AIChE Journal 49 (11) (2003) 2885– 2899. doi:10.1002/aic.690491119 .[17] M.-J. Park, H.-K. Rhee, Property evaluation and control in a semibatch mma/ma solution copolymerization reactor, Chemical Engineering Sci-ence 58 (3) (2003) 603–611. doi:10.1016/S0009-2509(02)00585-7 .[18] P. Joy, K. Rossow, F. Jung, H.-U. Moritz, W. Pauer, A. Mit-sos, A. Mhamdi, Model-based control of continuous emulsion co-polymerization in a lab-scale tubular reactor, Journal of Process Control 75 (2019) 59–76. doi:10.1016/j.jprocont.2018.12.014 .[19] L. T. Biegler, V. M. Zavala, Large-scale nonlinear programming us-ing ipopt: An integrating framework for enterprise-wide dynamic opti-mization, Computers & Chemical Engineering 33 (3) (2009) 575–582. 
+
+doi:10.1016/J.COMPCHEMENG.2008.08.006 .[20] J. A. E. Andersson, J. Gillis, G. Horn, J. B. Rawlings, M. Diehl, Casadi: A software framework for nonlinear optimization and optimal control, Mathematical Programming Computation 11 (1) (2019) 1–36. doi:10. 1007/s12532-018-0139-4 .[21] Y. Wang, S. Boyd, Fast model predictive control using online optimiza-tion, IEEE Transactions on Control Systems Technology 18 (2) (2010) 267–278. doi:10.1109/TCST.2009.2017934 .[22] J. Chen, A. Behal, Z. Li, C. Li, Active battery cell balancing by real-time model predictive control for extending electric vehicle driv-ing range, IEEE Transactions on Automation Science and Engineering 21 (3) (2024) 4003–4015. doi:10.1109/TASE.2023.3291679 .36 [23] L. Zhang, J. Xie, S. Dubljevic, Tracking model predictive control and moving horizon estimation design of distributed parameter pipeline sys-tems, Computers & Chemical Engineering 178 (2023) 108381. doi: 10.1016/j.compchemeng.2023.108381 .[24] Y. Yang, S. Dubljevic, S. Li, Economic model predictive control for transport-reaction systems with target profiles, Control Engineer-ing Practice 107 (2021) 104684. doi:10.1016/j.conengprac.2020. 104684 .[25] R. D. McAllister, J. B. Rawlings, Advances in mixed-integer model pre-dictive control, in: 2022 American Control Conference (ACC), 2022, pp. 364–369. doi:10.23919/ACC53348.2022.9867869 .[26] F. Trespalacios, I. E. Grossmann, Review of mixed-integer nonlinear and generalized disjunctive programming methods, Chemie Ingenieur Technik 86 (7) (2014) 991–1012. doi:10.1002/cite.201400037 .[27] G. Andrikopoulos, G. Nikolakopoulos, S. Manesis, Pneumatic artifi-cial muscles: A switching model predictive control approach, Con-trol Engineering Practice 21 (12) (2013) 1653–1664. doi:10.1016/j. conengprac.2013.09.003 .[28] L. Zhang, S. Zhuang, R. D. Braatz, Switched model predictive control of switched linear systems: Feasibility, stability and robustness, Auto-matica 67 (2016) 8–21. doi:10.1016/j.automatica.2016.01.010 .[29] A. W. K. Quarshie, J. Matias, C. L. E. Swartz, Y. Cao, Y. Wang, J. Flores-Cerrillo, Closed-loop control framework for optimal startup of cryogenic air separation units 154 103525. 
+
+doi:10.1016/j.jprocont.2025.103525 .URL https://www.sciencedirect.com/science/article/pii/ S0959152425001532 
+
+[30] J. B. Rawlings, D. Q. Mayne, M. M. Diehl, Model Predictive Control: Theory, Computation, and Design, 2nd Edition, Nob Hill Publishing, Madison, Wisconsin, 2020. [31] A. Bemporad, D. Muñoz de la Peña, Multiobjective model predic-tive control, Automatica 45 (2) (2009) 2823–2830. doi:10.1016/j. automatica.2009.09.032 .37 [32] L. Magni, R. Scattolini, M. Tanelli, Switched model predictive control for performance enhancement, International Journal of Control 81 (12) (2008) 1859–1869. doi:10.1080/00207170801993512 .[33] D. Corona, A. Cristofaro, G. Giordano, Design, implementation and simulation of an mpc algorithm for switched nonlinear systems under combinatorial constraints, Journal of Process Control 83 (2019) 176– 184. doi:10.1016/j.jprocont.2019.01.005 .[34] V. M. Zavala, L. T. Biegler, The advanced-step nmpc controller: Op-timality, stability and robustness, Automatica 45 (1) (2009) 86–93. 
+
+doi:10.1016/j.automatica.2008.06.011 .[35] S. Li, S.-h. Yang, Y. Cao, X. Jiang, C. Zhou, A benchmark of industrial polymerization process for thermal runaway process monitoring, Process Safety and Environmental Protection (2024). [36] O. von Stryk, Numerical solution of optimal control problems by di-rect collocation, in: R. Bulirsch, A. Miele, J. Stoer, K. Well (Eds.), Optimal Control: Calculus of Variations, Optimal Control Theory and Numerical Methods, Birkhäuser, Basel, 1993, pp. 129–143. doi: 10.1007/978-3-0348-7539-4_10 .[37] M. Vukov, S. Gros, G. Horn, G. Frison, K. Geebelen, J. B. Jørgensen, J. Swevers, M. Diehl, Real-time nonlinear mpc and mhe for a large-scale mechatronic application, Control Engineering Practice 45 (2015) 64–78. 
+
+doi:10.1016/j.conengprac.2015.08.012 .[38] M. I. Ribeiro, Kalman and extended kalman filters: Concept, derivation and properties, Institute for Systems and Robotics 43 (46) (2004) 3736– 3741. 
+
+Appendix A. Proofs of the Results in Section 4 
+
+This appendix collects the proofs of Lemmas 1–4 and Theorem 1. 
+
+Proof of Lemma 1 
+
+When hi(x) ≥ 0 we have pi(x) = 1 and |pobj  
+
+> i
+
+(x) − pi(x)| > ϵ is equivalent to 1 − σ(αihi(x)) > ϵ . Using the identity 1 − σ(z) = e−z 
+
+> 1+ e−z
+
+for σ(z) = 
+
+38 (1 + exp( −z)) −1 with z = αihi(x), this inequality implies: 
+
+e−z
+
+1 + e−z > ϵ =⇒ e−z > ϵ (1 + e−z ) = ⇒ e−z (1 − ϵ) > ϵ =⇒ e−z > ϵ
+
+1 − ϵ.
+
+Taking natural logarithms yields −αihi(x) > ln( ϵ 
+
+> 1−ϵ
+
+), or hi(x) < 1 
+
+> αi
+
+ln( 1−ϵϵ ) = 
+
+δi(αi). When hi(x) < 0 we have pi(x) = 0 and the condition |pobj  
+
+> i
+
+(x)−pi(x)| >ϵ reduces to σ(αihi(x)) > ϵ , namely exp  −αihi(x) < (1 − ϵ)/ϵ , which yields 
+
+hi(x) > −δi(αi). Combining the two bounds shows that |hi(x)| < δ i(αi)
+
+is necessary and sufficient for the approximation error to exceed ϵ, and the stated result follows. □
+
+Proof of Lemma 2 
+
+Refer to the transition region Ri(αi) characterized in Lemma 1 with half-width δi(αi). Consider a single crossing event k ∈ { 1, . . . , K i} where the trajectory traverses this region. Let tk 
+
+> in
+
+and tk 
+
+> out
+
+denote the time instants when the trajectory enters and leaves Ri, respectively. The total variation of the switching function across this traversal corresponds to the full width of the region: 
+
+hi(x(tk
+
+> out
+
+)) − hi(x(tk
+
+> in
+
+)) = |(±δi) − (∓δi)| = 2 δi(αi).
+
+By the fundamental theorem of calculus, 
+
+hi(x(tk
+
+> out
+
+)) − hi(x(tk
+
+> in
+
+)) = 
+
+Z tk
+
+> out
+> tk
+> in
+
+ddt hi(x(τ )) dτ. 
+
+Using the transversality condition from Assumption 2, we have ddt hi(x(t)) =
+
+|∇ h⊤ 
+
+> i
+
+f (x, u )| ≥ νi > 0 inside the region (where δi ≤ ¯δi). Therefore 
+
+2δi(αi) = 
+
+Z tk
+
+> out
+> tk
+> in
+
+ddt hi(x(τ )) dτ ≥ νi(tk 
+
+> out
+
+− tk
+
+> in
+
+),
+
+so ∆tk ≤ 2δi(αi)/ν i. Summing over at most Ki crossings gives the stated bound. □
+
+Proof of Lemma 3 
+
+(Left inclusion. ) Fix x ∈ S orig and an index i. If hi(x) ≥ 0, then pi(x) = 1 
+
+and pi(x) gi(x, u ) ≤ 0 implies gi(x, u ) ≤ 0. Since pcons  
+
+> i
+
+(x) ∈ (0 , 1] , we have 39 pcons  
+
+> i
+
+(x) gi(x, u ) ≤ 0 ≤ τfeas . If hi(x) < 0, then pi(x) = 0 and the inequality is trivial. Therefore x ∈ S τ
+
+> smooth
+
+.(Right inclusion. ) Let x ∈ S τ 
+
+> smooth
+
+and fix i. If hi(x) ≥ 0, then by mono-tonicity of σ we have pcons  
+
+> i
+
+(x) ≥ ¯pi(αi, β i) = σ(−αiβi). From pcons  
+
+> i
+
+(x) gi(x, u ) ≤
+
+τfeas it follows that gi(x, u ) ≤ τfeas /¯pi(αi, β i). Multiplying by pi(x) = 1 gives the desired inequality in S+
+
+> orig
+
+(τ ). If hi(x) < 0, then pi(x) = 0 and the inequality is trivial. Therefore x ∈ S +
+
+> orig
+
+(τ ). □
+
+Proof of Lemma 4 
+
+Let x(t) denote the trajectory generated by U . Lemma 1 bounds the band where pobj 
+
+> i
+
+̸ = pi, while Lemma 2 shows that the residence time in-side that band is O(α−1 
+
+> i
+
+). Bounding the difference in stage costs by Ci =sup {∥ li(x, u )∥ : |hi(x)| ≤ δi(αi), u ∈ U} therefore yields 
+
+|Jsmooth (x(tk), U ) − J(x(tk), U )| ≤ 
+
+> M
+
+X
+
+> i=1
+
+Ci Ki
+
+2
+
+αiνi
+
+ln 1 − ϵϵ =
+
+> M
+
+X
+
+> i=1
+
+ci
+
+αi
+
+≤
+
+ MX
+
+> i=1
+
+ci
+
+
+
+α−1min = γ(α−1min ),
+
+which decreases monotonically with the smoothing gains. □
+
+Proof of Theorem 1 
+
+Since Sorig ⊆ S τ
+
+> smooth
+
+, U ∗(x) is feasible for the smoothed problem. Opti-mality of U smooth ∗ gives 
+
+Jsmooth (x, U smooth ∗) ≤ Jsmooth (x, U ∗).
+
+By Lemma 4, 
+
+J(x, U smooth ∗) ≤ Jsmooth (x, U smooth ∗) + γ(α−1min )
+
+≤ Jsmooth (x, U ∗) + γ(α−1min )
+
+≤ J(x, U ∗) + 2 γ(α−1min ).
+
+The local second-order growth around U ∗ implies J(x, U )−J(x, U ∗) ≥ μ 
+
+> 2
+
+∥U −
+
+U ∗∥2 for ∥U − U ∗∥ ≤ r, so for U = U smooth ∗ we obtain  
+
+> μ
+> 2
+
+∥U smooth ∗ − U ∗∥2 ≤ 2 γ(α−1min ),
+
+40 which yields the bound. If needed, one restricts αi so that the bound holds within the radius r where the growth condition is valid. □
+
+41 Supplementary Material S1. Detailed Process Model 
+
+This supplementary material details the reaction mechanism and math-ematical model of the industrial batch polymerization process described in Section 5 of the main manuscript. 
+
+S1.1 Polymerization Mechanism 
+
+The free radical polymerization mechanism involves initiator decomposi-tion, chain initiation, growth, transfer, and termination, as summarized in Table S1. 
+
+Table S1: Mechanism of free radical polymerization 
+
+Reaction types Reaction equation 
+
+Initiator decomposition I2
+
+> kd
+
+−→ 2I ∗ kd = kd0 exp ( −Ed/(R Tr)) 
+
+Chain initiation A + I ∗ ki
+
+−→ P1 ki = ki0 exp ( −Ei/(R Tr)) 
+
+Chain growth Pn + A kg
+
+−→ Pn+1 kg = kg0 exp ( −Eg/(R Tr)) 
+
+Chain transfer to monomer Pn + A ktr ,m
+
+−−−→ Dn + P 1 ktr ,m = ktr ,m0 exp ( −Etr ,m/(R Tr)) 
+
+Chain transfer to chain transfer agent Pn + B ktr ,a
+
+−−→ Dn + I ∗ ktr ,a = ktr ,a0 exp ( −Etr ,a/(R Tr)) 
+
+Chain termination Pn + P m
+
+> kt
+
+−→ Dn+m kt = kt0 exp ( −Et/(R Tr)) 
+
+S1.2 Mathematical Model Equations 
+
+The macroscopic model is derived using the method of moments. The moment balances for the polymer chains are: 
+
+d( cλ0 Vl)dt =  kicAcI∗ − ktr ,acBcλ0 − ktc2
+
+> λ0
+
+Vl (S1) 
+
+d( cI∗ Vl)dt =  2f k dcI2 − kicAcI∗ + ktr ,acBcλ0
+
+Vl (S2) 
+
+d( cAVl)dt =
+
+1000 
+
+MgA
+
+Fg2l 
+
+Vl
+
+− kicAcI∗ − (kg + ktr ,m)cλ0 cA
+
+
+
+Vl (S3) 
+
+d( cI2 Vl)dt = 1000 
+
+MgI2
+
+FI2,in 
+
+Vl
+
+− 2f k dcI2
+
+!
+
+Vl (S4) 
+
+d( cBVl)dt = −ktr ,acλ0 cBVl. (S5) 42 The reactor thermal and inventory balances are: 
+
+dTr
+
+dt = Qfeed + Qw + Qr − Qloss 
+
+MsCp,s + MACp,A
+
+(S6) 
+
+dTJ
+
+dt = 1
+
+Mj cp
+
+
+
+Kp(ψ) − U A (TJ − Tr)
+
+
+
+(S7) 
+
+dNgA 
+
+dt = 1000 
+
+MgA
+
+(FA,in − Fg2l ) (S8) 
+
+dP
+
+dt = RVg/1000 
+
+
+
+Tr
+
+dNgA 
+
+dt + NgA 
+
+dTr
+
+dt
+
+
+
+(S9) 
+
+dMAin 
+
+dt = FA,in (S10) 
+
+dMBin 
+
+dt = FI2,in (S11) 
+
+dVl
+
+dt = 0 .06667 Fg2l . (S12) The auxiliary relations are: 
+
+Fg2l = k(P H − 1000 cA)
+
+Qfeed = Fin ,ACp,A(TA − Tr)
+
+Qw = U S (TJ − Tr)
+
+Qr = ∆ Hk gcAcλ0 Vl
+
+Qloss = b1(Tr − Tamb )b2
+
+Kp(ψ) = 
+
+( − ψF clod ,max Cp(Tcold − TJ) − 1 ≤ ψ ≤ 0
+
+ψF hot ,max Cp(Thot − TJ) 0 < ψ ≤ 1
+
+(S13) 
+
+S1.3 Model Parameters 
+
+43 Table S2: Parameters of the gas-liquid two-phase reactor model. 
+
+Parameter Description Value Units 
+
+R Ideal gas constant 8.314 J/(mol · K) 
+
+V Reactor volume 6000 L
+
+k10 Pre-exponential factor for reaction 1 1.13E+17 1/s 
+
+k20 Pre-exponential factor for reaction 2 3.62E+15 -
+
+k30 Pre-exponential factor for reaction 3 5.49E+07 -
+
+k40 Pre-exponential factor for reaction 4 9.96E+07 -
+
+k50 Pre-exponential factor for reaction 5 3.15E+06 -
+
+k70 Pre-exponential factor for reaction 7 3.38E+09 -
+
+E1 Activation energy for reaction 1 1.35E+05 J/mol 
+
+E2 Activation energy for reaction 2 119715 J/mol 
+
+E3 Activation energy for reaction 3 17413.76 J/mol 
+
+E4 Activation energy for reaction 4 53020 J/mol 
+
+E5 Activation energy for reaction 5 20000 J/mol 
+
+E7 Activation energy for reaction 7 13604.5 J/mol 
+
+k Gas-liquid mass transfer rate constant of A 0.0562 kg · m/(s · mol) 
+
+H Henry’s constant 1/700 mol /(Pa · m3)
+
+MgA Relative molecular mass of A 100 g/mol 
+
+MgB Relative molecular mass of B 228 g/mol 
+
+CpA Specific heat capacity of A 804 J/(kg · K) 
+
+TA Temperature of A feed 333 K
+
+a Coefficient of heat loss to the ambient 1 -
+
+b Coefficient of heat loss to the ambient 2 -
+
+Tamb Ambient temperature 293 K
+
+Qstir Stirring heat 0.5 W
+
+M Mass of reactor liquid phase 4000 kg 
+
+Mj Mass of jacket water 2000 kg 
+
+Cp Specific heat capacity of reactor liquid phase 4200 J/(kg · K) 
+
+Trsp Reactor temperature set point 351 K
+
+Psp Reactor gas pressure set point 1500000 Pa 44

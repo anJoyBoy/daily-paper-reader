@@ -1,0 +1,596 @@
+Title: Transferable machine learning of excited-state dynamics with extremal pooling
+
+URL Source: https://arxiv.org/pdf/2606.16859v1
+
+Published Time: Tue, 16 Jun 2026 02:24:07 GMT
+
+Number of Pages: 15
+
+Markdown Content:
+# Transferable machine learning of excited-state dynamics with extremal pooling 
+
+Cesare Malosso, 1, ∗ Wei Bin How, 1 Gonzalo D´ ıaz Mir´ on, 2 Ali Hassanali, 2 and Michele Ceriotti 1
+
+> 1
+
+Laboratory of Computational Science and Modeling, Institut des Mat´ eriaux, ´Ecole Polytechnique F´ ed´ erale de Lausanne, 1015 Lausanne, Switzerland 
+
+> 2
+
+Condensed Matter and Statistical Physics, The Abdus Salam International Centre for Theoretical Physics (ICTP), Trieste, Italy 
+
+(Dated: June 16, 2026) Photochemical processes govern phenomena ranging from solar energy conversion and atmospheric chemistry to vision and photosynthesis. Accurate simulation of these processes requires modeling excited-state potential energy surfaces, often involving chemical reactions, tasks that remain compu-tationally prohibitive for extended systems and long timescales using traditional ab initio methods. Machine learning interatomic potentials have revolutionized ground-state simulations, but their ex-tension to excited states faces fundamental challenges: standard architectures assume energy exten-sivity, an assumption that fails for excited states. Here, we present a size-intensive machine-learning framework for excited-state dynamics based on extremal pooling of predicted atomic HOMO and LUMO contributions. Trained exclusively on excitations energies and forces, the architecture learns interpretable atomic-level contributions that encode physical information on the extent of electron localization. We demonstrate this framework on the photoexcited solvated electron in liquid wa-ter, a paradigmatic problem in radiation chemistry leading to competing pathways involving both hydrogen-atom dissociation and proton-coupled electron transfer. The model not only reproduces the relevant chain of reactions and product species that form during excitation, but also allows one to explicitly study the dynamics of the solvated electron in quantitative agreement with previously reported Restricted Open-Shell Kohn-Sham calculations, while enabling excited-state simulations of periodic systems at length and time scales inaccessible to the reference electronic-structure method. This work establishes a general strategy for machine learning-driven excited-state dynamics ap-plicable to diverse photochemical systems, from molecular chromophores in solution to extended condensed-phase systems. 
+
+I. INTRODUCTION 
+
+Excited-state processes lie at the heart of photochem-istry, governing phenomena as diverse as vision [1], pho-tosynthesis [2], atmospheric ozone formation [3], DNA photodamage [4], and solar energy conversion [5]. Fol-lowing photon absorption, molecules evolve on excited-state potential energy surfaces (PES) through complex pathways involving bond breaking, charge transfer, and internal energy conversion. Understanding and predict-ing these ultrafast dynamics is essential for the ratio-nal design of photoactive materials, the interpretation of time-resolved spectroscopy, and the mechanistic under-standing of light-induced chemistry in complex environ-ments [6–8]. Computational modeling of excited-state dynamics faces formidable challenges. Multiconfigurational meth-ods such as CASSCF [9] and CASPT2 [10] provide benchmark accuracy but scale prohibitively with sys-tem size, restricting applications to small molecules and isolated systems. Time-dependent density-functional theory (TDDFT) offers improved computational effi-ciency; yet, simulating photochemical processes in con-densed phases requires extensive configurational sam-pling over picosecond-to-nanosecond timescales, placing even TDDFT-based ab initio molecular dynamics beyond  
+
+> ∗cesare.malosso@epfl.com
+
+reach for most systems of chemical interest. In the last decade, machine-learning interatomic po-tentials (MLIPs) have transformed ground-state molec-ular dynamics (MD) simulations, achieving quantum-mechanical accuracy at a fraction of the computational cost of ab initio methods [11–14]. Most of these models learn the PES by representing total energies as sums of local atomic contributions, enabling linear-scaling pre-dictions and simulations of systems containing millions of atoms [15]. Extending this paradigm to excited states introduces fundamental challenges. Recent efforts have applied machine-learning (ML) methods to predict ver-tical excitation energies [16, 17], train models for spe-cific excited-state surfaces [18–20] and develop machine-learning architectures for photochemical dynamics [21– 24]. However, these attempts are generally limited to isolated molecules in non-periodic systems and are not transferable across different system sizes. Existing meth-ods that utilize global descriptors, such as the Coulomb matrix, are unable to scale to different system sizes by construction [25–28]. In the case of the Coulomb matrix, the size of the matrix depends on the size of the system and the resulting fixed-dimensional representation must be padded to the largest system in the training set, pre-venting transfer to larger structures. The fact that the Coulomb matrix is not permutationally invariant further restricts its generalizability [25, 27]. On the other hand, methods that use local descriptors as in standard ground-state MLIP architectures use the locality ansatz and as-sume that the energy of the system can be expressed as a 
+
+> arXiv:2606.16859v1 [physics.chem-ph] 15 Jun 2026
+
+2sum of local contributions [29, 30]. However, this implic-itly assumes energy extensivity , that total energy scales linearly with system size through summation of atomic contributions. This assumption breaks down for excited states in a fundamental way: the electronic excitation energy is an 
+
+intensive property that should not depend on the size of the system. A similar difficulty arises whenever the rele-vant physics involves an electronic degree of freedom that is not tied to any nucleus. The solvated electron in liquid water is a paradigmatic case. In contrast to ionic species such as the hydrated proton or hydroxide whose excess charge is associated with specific nuclei and is therefore captured naturally by a local decomposition, the excess electron has no nuclear host: its energetics cannot be attributed to any single atomic environment. A repre-sentation built from purely local atomic contributions is therefore ill-defined for such a state. Early attempts to model solvated electrons with standard MLIPs [30] ex-plicitly acknowledged this limitation: the resulting po-tentials were effectively trained at a fixed electron con-centration and could not be applied to different sys-tem sizes without risking nonphysical results. More re-cently, Gao et al. [31] have taken an important step toward addressing this challenge for ground-state sys-tems by combining an explicit one-electron Schr¨ odinger equation—solved within an embedding potential con-structed from machine-learned Wannier centroids [32, 33] with ML-learned short-range interactions. This hybrid approach achieves size transferability and quantitative agreement with experimental reaction rates. Neverthe-less, all of these approaches have been restricted to the electronic ground state, and are therefore limited to equi-librium properties of the solvated electron. In this work, we introduce a machine-learning frame-work for excited-state dynamics that addresses the ex-tensivity limitation without the use of Wannier func-tions, a feature that may not be easily accessible in excited states. Inspired by frontier molecular orbital theory [34], the approach achieves size-intensivity by predicting the HOMO and LUMO, quantities that en-code the fundamental physics of electronic excitations through their energies and spatial localizations. We im-plement this framework using the Point Edge Trans-former (PET) architecture [35], predicting the energy gap and forces of the system through atomic-level HOMO and LUMO contributions. This core idea could be ap-plied to any atom-centered ML architecture. The atomic contributions are then aggregated using extremal pooling 
+
+functions, SmoothMax and SmoothMin for the atomic HOMO and LUMO, respectively. The gap is then com-puted as Egap = ELUMO − EHOMO . Using extremal pool-ing instead of summation allows the predictions to be naturally size intensive and is also much more represen-tative of quantities that are non-additive and determined by extremal states, such as the energy gap. Remarkably, despite training the model only on the total gap energies and the corresponding gradients, the model learns physi-cally meaningful atomic decompositions that can be used to track charge-transfer pathways, and characterize pho-tochemical mechanisms—providing interpretability with-out requiring an explicit analysis of the spin density. We demonstrate this framework on a fundamental textbook problem in photochemistry: the dynamics of photoexcited liquid water and the formation of the hy-drated electron [36]. Upon UV excitation to the first ab-sorption band, water undergoes competing dissociation pathways: Hydrogen Atom Transfer (HAT) and Proton-Coupled Electron Transfer (PCET), leading to forma-tion of highly reactive species including hydrated elec-trons, hydroxyl radicals, and hydronium ions [37, 38]. In a recent study by some of us [39], we demonstrated the correct prediction of both mechanisms and the for-mation of the solvated electron upon photoexcitation of liquid water, leveraging a Restricted Open-Shell Kohn-Sham (ROKS) approach [40, 41]. Nevertheless, the pro-hibitive computational cost of this ab initio framework confined the simulations to systems of 64 water molecules and trajectories limited to the sub-picosecond regime. Applying our ML framework to this system, we quan-titatively reproduce the photochemical branching ratios, excited-state lifetimes, and electron localization dynam-ics, while enabling simulations on 512-molecule systems over picosecond timescales. Critically, the model trans-fers seamlessly across system sizes (32, 64, 128, 512 molecules), revealing size-dependent effects in photo-chemical branching and solvation dynamics inaccessible to both quantum-chemistry based approaches on isolated hydrated clusters as well as ROKS simulations using ab initio molecular dynamics simulations. Beyond water, the framework is general: it can be applied to any system where frontier orbital physics dominates excited-state be-havior, including organic chromophores, photocatalytic materials, and charge-transfer complexes [42–44] where the photochemical processes are dominated by relaxation events on the lowest excited-state. More broadly, the extremal pooling strategy can be extended to scenar-ios where intensive localized quantities (such as polarons binding energies) must be predicted within extensive bulk environments [45, 46]. The paper is organized as follows. Section II presents the theoretical framework: the extremal-pooling con-struction of the frontier-orbital energies and the compos-ite excited-state energy model that drives the dynam-ics. Section III details the model architecture, train-ing protocol, and data-generation strategy. Section IV presents validation against ROKS for 64-molecule wa-ter systems, demonstrates size transferability, and reveals new insights into finite size effects on water photochem-istry. Section V discusses implications and future direc-tions for ML-driven excited-state dynamics. 3 
+
+> II. THEORY
+
+Driving dynamics on an excited-state potential energy surface requires the electronic excitation energy which, unlike the total energy, is an intensive property and must therefore remain independent of the size of the simulated system. This requirement is at odds with the locality de-composition ansatz of standard MLIPs, where the energy is written as a sum of atomic contributions and conse-quently scales extensively with the number of atoms. A construction is thus needed that yields a size-intensive ex-citation energy while preserving the transferability and linear scaling of local, atom-centered models. The strategy adopted here draws on frontier molecu-lar orbital theory [34]: the lowest electronic excitation is governed by the highest occupied and lowest unoccu-pied molecular orbitals (HOMO and LUMO), and the excitation energy, the energy gap, is encoded in their energy difference. Rather than predicting the excita-tion energy directly, the two frontier-orbital energies are predicted separately and subtracted. A graph-neural-network (GNN) maps the atomic configuration onto per-atom contributions to each frontier orbital, denoted as 
+
+hHOMO  
+
+> i
+
+and hLUMO  
+
+> i
+
+. These are not literal atomic orbital energies; they are learned local quantities that encode how strongly the environment of atom i contributes to the system’s frontier orbitals. The per-atom contributions are then aggregated into system-level orbital energies through extremal pooling .The system HOMO is obtained as a smooth maximum (SmoothMax) over the atomic HOMO contributions, and the system LUMO as a smooth minimum (SmoothMin) over the atomic LUMO contributions, 
+
+EHOMO = SmoothMax( {hHOMO  
+
+> i
+
+}), (1) 
+
+ELUMO = SmoothMin( {hLUMO  
+
+> i
+
+}), (2) where the smooth extremal operators are defined through the log-sum-exp function SmoothMax( x) = 1
+
+α log X
+
+> i
+
+exp( αx i)
+
+!
+
+, (3) a positive value of α recovering a maximum and a nega-tive value a minimum. The excitation energy then follows from the orbital-energy difference, 
+
+Egap = ELUMO − EHOMO . (4) Replacing the customary summation by an extremal op-eration makes Egap size-intensive by construction: en-larging the system leaves the extremal contributions, and hence the energy gap, unchanged. The same operation is physically faithful to the frontier orbitals themselves, which are non-additive quantities set by the most favor-able local environments rather than by a sum over all atoms. The SmoothMax selects the regions of strongest HOMO character, and the SmoothMin the most electron-attracting regions that define the LUMO. Together, this GNN and the extremal pooling constitute the HOMO-LUMO model , the size-intensive predictor of the excita-tion energy Egap summarized schematically in Figure 1. Propagating the dynamics also requires the total en-ergy of the excited state, and not merely the energy gap. The framework is therefore completed with an ground-state energy model: a conventional size-extensive MLIP that maps the same atomic configuration onto per-atom energy contributions vi, combined by ordinary summa-tion into the ground-state energy ES0 = P 
+
+> i
+
+vi. The excited-state energy is then constructed as 
+
+ES1 = ES0 + Egap , (5) and the corresponding forces follow by automatic differ-entiation, 
+
+FS1 = FS0 + Fgap . (6) As illustrated in Figure 1, two branches thus predict the frontier-orbital energies and their intensive differ-ence Egap , while a parallel branch predicts the exten-sive ground-state energy ES0 ; the two combine into the excited-state energy that drives the dynamics. The HOMO-LUMO model is trained solely on the excitation energy Egap and its gradients, whereas ES0 is supplied by the separate ground-state model. The framework is deliberately architecture-independent: any atom-centered model able to produce per-atom scalar outputs can serve as the backbone of each branch, and the same construction extends natu-rally to other intensive, locally determined quantities. The specific architecture adopted in this work, the decomposition into separate models, the value of the pooling parameter α, and all training and reference-data choices are described in Sec. III.   
+
+> III. METHODS A. Model Architecture and Training
+
+We realize the framework of Sec. II using the Point Edge Transformer (PET) [35] as the atom-centered back-bone. In PET, the atomic configuration is represented as a directed graph whose nodes are the atoms and whose edges connect atoms lying within a fixed cutoff radius. A feature vector f lij is built on each directed edge be-tween atoms i and j, and a node feature vector gli on each atom i; these act as the messages passed in the GNN message-passing layer l, with fixed dimensionali-ties dnode and dPET set by architectural hyperparame-ters. Within each message-passing layer a transformer performs a permutation-covariant sequence-to-sequence transformation, taking the feature vectors {f lij }j and gli
+
+of a central atom i and returning the updated vectors 
+
+{f l+1  
+
+> ij
+
+}j and gl+1  
+
+> i
+
+for the next layer. We attach two readout heads to this backbone, one for the HOMO and one for the LUMO frontier-energy 4
+
+Atomic configuration {(ri, s i)}
+
+GNN GNN GNN 
+
+atomic HOMO contributions {hHOMO  
+
+> i
+
+}
+
+atomic LUMO contributions {hLUMO  
+
+> i
+
+}
+
+atomic energy contributions {vi}
+
+SmoothMax (α > 0)  
+
+> 1
+> α
+
+log P 
+
+> i
+
+exp  α h HOMO 
+
+> i
+
+ SmoothMin (α < 0)  
+
+> 1
+> α
+
+log P 
+
+> i
+
+exp  α h LUMO 
+
+> i
+
+ P 
+
+> i
+
+vi
+
+EHOMO ELUMO ES0
+
+Egap = ELUMO − EHOMO 
+
+ES1 = ES0 + Egap   
+
+> Forces: −∇ rES1drive the excited-state dynamics
+
+FIG. 1. Conceptual architecture of the size-intensive excited-state framework. A GNN maps the atomic configuration {(ri, s i)}
+
+onto per-atom contributions, {hHOMO  
+
+> i
+
+} and {hLUMO  
+
+> i
+
+}, which are aggregated by extremal pooling : a smooth maximum yields the system EHOMO and a smooth minimum the system ELUMO . Their difference defines the intensive excitation energy 
+
+Egap = ELUMO − EHOMO . In parallel, a ground-state energy model maps the same configuration onto per-atom energy contributions {vi} that are combined by ordinary summation into the extensive ground-state energy ES0 . The excited-state energy follows as ES1 = ES0 + Egap , and its gradients provide the forces that drive the dynamics. 
+
+orbitals. Each head comprises two feedforward networks with a single hidden layer of width dhead , one acting on the node features gli and the other on the edge features 
+
+f lij . For every atom i, we form the head output by sum-ming the two feedforward contributions over neighbors and across all message-passing layers, producing the per-atom quantities hHOMO  
+
+> i
+
+and hLUMO  
+
+> i
+
+that enter the ex-tremal pooling of Eqs. (3)–(4). We fix the pooling pa-rameter to α = 20 eV −1 for the SmoothMax (HOMO) and α = −20 eV −1 for the SmoothMin (LUMO). In this work we obtain the ground-state energy 
+
+ES0 entering Eq. (5) from a separate model: a size-extensive PET potential obtained by fine-tuning the PET-MAD foundation model [47] for 100 epochs on ground-state energies and forces. We train the two mod-els independently—the ground-state potential on S0 en-ergies and forces, and the HOMO-LUMO model from scratch on the excitation energy Egap = ES1 − ES0 and the corresponding gap forces Fgap = FS1 −FS0 —and cou-ple them only at evaluation time, through Eqs. (5)–(6), to propagate the excited-state dynamics. For the HOMO-LUMO model we use a cutoff radius of 6 ˚ A, two GNN message-passing layers, and two attention layers. The hyperparameters dnode , dPET , and dhead are set to 256, 128, and 128, respectively. We performed the optimization with the AdamW optimizer [48] for 1200 epochs, and trained the model with the metatrain pack-age [49]. The training set comprises ≈ 3627 configura-tions drawn from 32-, 64-, and 128-molecule systems and partitioned into training, validation, and test sets in an 80/10/10 ratio; we obtain the reference excitation en-ergies and forces from the ROKS calculations described below, and detail the construction of the dataset in the following subsection. 
+
+B. Dataset Generation 
+
+We construct the training dataset through an itera-tive active learning strategy [50] designed to achieve size transferability while minimizing computational cost. We begin with excited-state molecular dynamics trajectories 5generated from a previous study in Ref. [39], which pro-vided total energies, electronic gaps, and atomic forces on the S1 surface for 64-water-molecule systems (192 atoms). This original dataset does not have any informa-tion on the ground-state forces and therefore cannot be directly used to compute gap forces ( Fgap = FS1 − FS0 )required for training. To bootstrap our approach, we ini-tially trained a standard size-extensive MLIP exclusively on the S1 surface of the 64-water-molecule system us-ing the PET architecture [35]. An analogous protocol was previously applied to the study of the ground-state solvated electron [30], where it enabled a fully quan-tum statistical and dynamical characterization. This preliminary model represented the excited-state PES as a sum of local atomic contributions. Although not size-transferable, excited-state MD with this preliminary model correctly reproduces the decay pathways involved (HAT and PCET) in agreement with the previous ROKS simulations [39] confirming that it captures the essen-tial photochemistry required for active learning. Using this model, we performed extensive sampling via active learning [51, 52] and farthest-point sampling (FPS) [53], selecting approximately 2800 representative structures from 64-molecule trajectories. To ensure coverage of the high-gap regime, we supplemented this set with initial frames chosen from the ROKS trajectories immediately after photoexcitation in Ref. [39]. For each configuration, we computed the S0 energies and forces using DFT, and the corresponding S1 quantities via ROKS. With this enriched dataset, we trained two separate models: a ground-state potential obtained by fine-tuning the PET-MAD foundation model [47], and a HOMO-LUMO model trained from scratch, using the extremal pooling architecture. Notably, we trained the HOMO-LUMO model on both the energy gap ( Egap = ES1 −ES0 )and the corresponding forces ( Fgap = FS1 − FS0 ). To validate and extend size transferability, we combined these models to perform excited-state dynamics on one smaller system (32 water molecules) and one larger sys-tem (128 water molecules) relative to the 64-molecule system. From these simulations, we randomly extracted 500 configurations (32 molecules) and 244 configurations (128 molecules), which we recomputed with ROKS and added to the final training set. The final dataset built in this way consists of a total number of ≈ 3600 configura-tions. 
+
+C. Ab Initio Calculations 
+
+We computed the properties of the first excited state (S1) and the ground state (S0) using the Restricted Open-Shell Kohn–Sham [40, 41] (ROKS) density-functional theory (DFT) method, respectively, as implemented in the CP2K [54] software package. We performed all calculations with the hybrid PBEh(40)-rVV10 [55–57] functional in combination with the DZVP-MOLOPT-SR [58] basis set. This composite functional 10.0 7.5 5.0 2.5 0.0 2.5 5.0 7.5 10.0 
+
+> ROKS Forces [eV/Å]
+> 10.0
+> 7.5
+> 5.0
+> 2.5
+> 0.0
+> 2.5
+> 5.0
+> 7.5
+> 10.0
+> Predicted Forces [eV/Å]
+> MAE = 0.053 eV/Å System size
+
+32 
+
+64 
+
+128   
+
+> 0510
+> Energy gap [eV]
+> 0
+> 5
+> 10
+> Pred. Gap [eV]  MAE = 0.137 eV
+
+FIG. 2. Parity plot comparing predicted and reference quan-tities. Main panel: comparison between predicted and DFT forces for water configurations of different system sizes (32, 64, and 128 molecules), shown with different colors. The mean absolute error (MAE) for the forces is 53 meV ˚ A−1. Inset: parity plot for the predicted energy gap against the DFT ref-erence values for the same configurations, with an MAE of 0.137 eV. The good agreement across all system sizes demon-strates the accuracy and transferability of the model. 
+
+predicts an accurate energy gap, band-edge positions, and redox levels for neat liquid water [59, 60]. We carried out the self-consistent field procedure using the orbital transformation method with DIIS minimization [61, 62]. Further details of the computational protocol and its val-idation against experimental quantities are provided in Ref. [39]. 
+
+IV. RESULTS 
+
+Having assembled the composite excited-state model as described in Sec. III, its ability to reproduce the refer-ence excited-state energies and forces is examined first. In Figure 2 we report the accuracy and transferabil-ity of our model across multiple system sizes. The main panel shows the parity plot for excited-state forces, com-paring predictions from the composite model ( ES1 =
+
+ES0 + Egap ) against ROKS reference values. Configura-tions containing different number of molecules are shown in different colors. The model achieves a mean absolute error (MAE) of 53 meV ˚ A−1 for forces, with no systematic degradation in performance across system sizes. The in-set presents the corresponding parity plot for electronic gap predictions, showing an MAE of 0 .137 eV. Impor-6HAT  PCET 
+
+# A B
+
+# C D E F               
+
+> FIG. 3. Atomic HOMO and LUMO contributions along representative HAT and PCET trajectories from the ROKS reference simulations of Ref. [39]. (A, B) Scatter plots of hLUMO
+> iversus hHOMO
+> ifor all atoms across all frames of a single HAT (A) and PCET (B) trajectory; color encodes frame density. Highlighted regions identify distinct chemical species: oxygens (red), bulk water protons (gray), OH •radical (blue), and the electron-carrying or cavity-forming hydrogen(s) (green). (C, D) Chemiscope snapshots of the final frame of the HAT trajectory, with atomic coloring corresponding to hLUMO
+> i(C) and hHOMO
+> i(D); the electron is shown as a green sphere. (E, F) Same as (C, D) for the PCET trajectory.
+
+tantly, the model maintains consistent accuracy across the full range of gap values (0 eV to 8 eV), from config-urations near the S1 → S0 crossing (energy gap < 1 eV) to freshly photoexcited structures (energy gap ∼ 8 eV). This uniform performance confirms that the extremal pooling architecture accurately describes the full range of the excited-state emission spectrum, from the initial UV photoexcitation through the visible regime all the way to the near-infrared S1 → S0 crossing. Overall, all three system sizes exhibit comparable er-ror distributions, with no discernible size-dependent bias. This reflects the size-intensive nature of our approach: the SmoothMax and SmoothMin aggregation of atomic HOMO and LUMO predictions ensures that the pre-dicted energy gap remains invariant under system size, while the extensive ground-state MLIP captures the cor-rect size-extensive contribution to the total energy on the excited state, ES1 , enabling seamless application to larger systems.  
+
+> A. MD simulations
+
+To validate the machine-learning framework’s ability to reproduce excited-state dynamics of liquid water, the same protocol as in Ref. [39] was followed. Ground-state configurations were first equilibrated using a MLIP trained at the SCAN0 [63] level of theory, running NVT molecular dynamics at 330 K. From the resulting en-semble, 200 uncorrelated initial configurations of a 64-molecule water system were selected and used as starting points for excited-state trajectories. Each trajectory was then propagated on the S1 surface, with forces obtained from the combination of the ground-state MLIP and the HOMO-LUMO model as given by Eqs. (5) and (6), until the energy gap fell below 0 .2 eV. Notably, all simula-tions reached this threshold within 1 .5 ps and visual in-spection of the trajectories indeed shows situations where there appears to be chemical reactions similar to those observed in explicit ROKS simulations [39]. A key question is whether our model correctly predicts the two expected decay pathways: HAT, in which a hy-7drogen atom is ejected from a single water molecule, and PCET, in which a water molecule dissociates, releasing a proton and leading to the formation of the hydrated electron together with an HO • radical and an H 3O+ ion. The ROKS simulations showed that the HAT mechanism occurs on a very short timescale (10 fs to 50 fs) while the PCET involving more complex solvent fluctuations was delayed yielding times ranging from 100 fs to 1000 fs. Assigning trajectories to these decay channels requires knowledge of the spin density during the excited state dy-namics, a quantity that can be extracted from the ROKS calculations [39]. Since our ML model does not directly output the spin density, we need to infer the information regarding the position of the electron through alternative techniques. Before describing the strategy we adopted for the trajectory classification, it is first instructive to exam-ine what the per-atom contributions hHOMO  
+
+> i
+
+and hLUMO 
+
+> i
+
+encode about the relevant chemistry of each species. Figure 3 provides some intuitions through two comple-mentary representations: scatter plots of hLUMO  
+
+> i
+
+versus 
+
+hHOMO  
+
+> i
+
+for all atoms along two representative HAT and PCET trajectories (panels A–B), and Chemiscope [64] snapshots of the final frame (at the conical intersec-tion) colored by the same atomic quantities (panels C– F), with the electron position given by the underlying ROKS calculation shown as a green sphere. A first ob-servation from panels A and B is that distinct chem-ical species occupy different and characteristic regions of the ( hHOMO  
+
+> i
+
+, hLUMO  
+
+> i
+
+) plane throughout the trajec-tory. Oxygen atoms (red) cluster at hHOMO  
+
+> i
+
+≈ − 7 eV and hLUMO  
+
+> i
+
+≈ 6 eV, reflecting their electron-rich envi-ronment: strongly bound lone pairs and a local envi-ronment unfavorable for additional electron localization. Bulk water protons (gray) concentrate in an intermediate LUMO region ( hLUMO  
+
+> i
+
+≈ 2 eV), consistent with their role as moderate electron acceptors in the hydrogen-bond net-work. The OH • radical (blue) is also noticeable: hHOMO 
+
+> i
+
+approaches the largest observed value among all the other species, a signature of its singly occupied π-orbital that places it at higher orbital energy than the doubly oc-cupied lone pairs of neutral waters. Crucially, none of these fingerprints are imposed by the training, yet the learned decomposition correctly recovers species-specific electronic structure information without including it ex-plicitly as an explicit training target. A revealing contrast between HAT and PCET lies in the behavior of the electron-carrying species (green clus-ter). In the HAT trajectory (A), as the photoexcited hy-drogen atom dissociates from its parent water molecule, its atomic LUMO contribution hLUMO  
+
+> i
+
+progressively de-creases to negative values, far below all other atoms in the system. A single H atom emerges as the unambigu-ous minimum-LUMO contributor and panel C confirms spatially that the localized electron (green sphere) re-sides on this atom. In the PCET trajectory (B), by contrast, four to six cavity protons shift collectively to 
+
+hLUMO  
+
+> i
+
+≈ − 0.5 eV, forming a diffuse cluster rather than a single outlier. The electron is no longer bound to a 80         
+
+> 90
+> 100
+> HAT
+> PCET
+> 0200 400 600 800 1000 1200 1400
+> Time decay [fs]
+> 0
+> 10
+> 20
+> Count
+> FIG. 4. Histogram of the time decay of the 200 trajecto-ries generated by the combination of the ground-state and HOMO-LUMO models. The two mechanism are represented with different colors.
+
+single atom but stabilized by the collective electrostatic environment of the cavity, as seen in panel E where the green sphere is surrounded by multiple low-LUMO pro-tons pointing toward it. The atomic HOMO landscape (panels D, F) is governed primarily by the oxygen atoms and the OH • radical, which carries the highest HOMO contribution in both mechanisms, consistent with its rad-ical character. Building on these observations, we can now discuss the classification scheme adopted in this work to distinguish HAT and PCET trajectories. We determined the hLUMO 
+
+> i
+
+at the S1 → S0 crossing and we compare the system-level LUMO, that is given by the SmoothMax of the atomic contributions, as given in Eq. (3), to the lowest atomic LUMO contributions. For the HAT mechanism, one would expect a single hydrogen atom (the one carry-ing the electron) to contribute almost entirely to the total LUMO. On the other hand, for the PCET mechanism, in particular at the conical intersection, the electron is found to be localized in a cavity surrounded by 4–6 wa-ter molecules pointing their proton toward it. In this case, we then expect to find 4–6 hydrogen atoms with similar values to the LUMO of the system. Given these observations, by analyzing the difference ∆ in the value of the LUMO, ELUMO , and the 4th lowest contribution present in the simulation box, one can classify which de-cay path corresponds to a given trajectory. To validate this approach, we first analyze the trajectories previously generated using ROKS that were classified into HAT and PCET based on an explicit analysis of the spin density (see Ref. [39]). In our analysis, we introduce a threshold on the difference ∆ between the LUMO and the fourth-lowest contributor of 1 eV: trajectories with ∆ < 1 eV are assigned to PCET, while those with larger values are assigned to HAT. Using this criterion, we find excellent agreement with the original classification, with only 2 80 2 4 6 8 10 12             
+
+> rROKS e[Å]
+> 0
+> 2
+> 4
+> 6
+> 8
+> 10
+> 12
+> rML e [Å]
+> Energy gap <2.0 eV
+> 0.0 2.5 5.0 7.5 10.0
+> rROKS e[Å]
+> 0
+> 2
+> 4
+> 6
+> 8
+> 10
+> 12
+> rML e [Å]
+> HAT 0.054 Å
+> PCET 0.182 Å
+> Energy gap <0.2 eV
+> HAT (MAE = 0.317 Å)
+> PCET (MAE = 0.642 Å)
+
+FIG. 5. Parity plot of the x, y, z components of the ML-predicted solvated electron position against the ROKS refer-ence, restricted to frames with energy gap < 2 eV and sampled every 5 fs. HAT and PCET trajectories are shown in blue and red, respectively. The inset shows the same parity for the last frame of each trajectory (energy gap < 0.2 eV), where the electron has fully localized into its final state. MAE values are reported per mechanism in both panels. 
+
+outliers out of 101 trajectories. The distribution of ∆ over all 101 ROKS trajectories, together with represen-tative sorted atomic LUMO profiles at the crossing, are shown in Figures S1 and S2 of the Supplementary Infor-mation. Turning now to the analysis of the ML-driven simu-lations, the same protocol has been applied to classify the 200 trajectories generated by the ML model. Fig-ure 4 shows the resulting distribution of decay mecha-nisms as a function of the time. Out of 200 trajectories, 117 were classified as HAT and 83 as PCET, correspond-ing to quantum yields of 58% and 42%, respectively, in excellent agreement with the 54% and 46% reported in Ref. [39]. The preceding analysis provides heuristic insight into how the atomic LUMO predicted by the HOMO-LUMO model can be used to classify different mechanisms in-duced by photoexcitation. A remaining question is whether it is possible to predict the position of the elec-tron itself. To address this issue, we compute the electron center from the predicted atomic LUMO contributions 
+
+hLUMO  
+
+> i
+
+using a weighted centroid: 
+
+rpredicted electron =
+
+P 
+
+> i
+
+wiri
+
+P 
+
+> i
+
+wi
+
+(7) 0 2 4 6 8         
+
+> Energy Gap [eV]
+> 1
+> 2
+> 3
+> 4
+> 5
+> 6
+> Gyration Radius [ Å]
+> 32101
+> RROKS
+> g−RML
+> g[Å]
+> MAE = 0.446 Å
+
+FIG. 6. Two-dimensional kernel density estimate of the gap energy and the solvated electron gyration radius, compiled from 101 independent ROKS MD trajectories of a 64-molecule liquid water box. The inset shows the histogram of the error of the predicted values from the ROKS ground truth. 
+
+where the weighting function 
+
+wi = e−βh LUMO  
+
+> i
+
+(8) with β = 5 eV −1 assigns higher weights to atoms with lower (more favorable for the electron) LUMO energies. It should be noted that in periodic boundary conditions, the absolute position of the atoms that enters the equa-tion (7) is ill-defined. To overcome this issue the circular mean method was used to compute the position of the electron, by projecting the atomic positions onto a unit circle, computing the weighted average, then mapping back to real space [65]. To validate this approach, the electron positions pre-dicted by Eq. (7) were compared against reference posi-tions computed from ROKS spin densities, where atomic LUMO values hLUMO  
+
+> i
+
+were computed by evaluating the HOMO-LUMO model on the atomic configurations. Fig-ure 5 shows a parity plot of the x, y, z components of the ML-predicted solvated electron position against the ROKS reference. To account for periodic boundary con-ditions, all electron positions were re-centered in each frame prior to the comparison. The analysis is restricted to frames with energy gap < 2 eV since at higher gaps the electron is delocalized and its position is not a well-defined quantity. In this regime, the model shows semi-quantitative agreement with the ROKS reference for both mechanisms, yielding an MAE of 0 .317 ˚ A for HAT and 0.642 ˚ A for PCET. When further restricting the analy-sis (shown in the inset) to configurations with energy 9
+
+TABLE I. Photochemical branching ratios and excited-state lifetimes as a function of system size. Quantum yields repre-sent the fraction of trajectories following each decay pathway. Lifetimes are averaged over the respective trajectory ensem-bles and standard deviations are reported. System NHAT NPCET ΦHAT (%) ⟨τHAT ⟩ (fs) ⟨τPCET ⟩ (fs) 64 mol 117 83 58.5 32 .6 ± 3.3 414 .7 ± 28 .1128 mol 114 86 57.0 44 .5 ± 6.8 448 .6 ± 37 .1512 mol 104 96 52.0 52 .1 ± 8.4 486 .3 ± 45 .0
+
+gap < 0.2 eV, where the electron is fully localized in its final state, the agreement becomes quantitative, with the MAE decreasing to 0 .054 ˚ A for HAT and 0 .182 ˚ A for PCET. Following the same strategy, the spatial extent of the electron was further characterized by computing the gy-ration radius Rg :
+
+Rg =
+
+s P 
+
+> i
+
+wi|ri − rpredicted electron |2
+
+P 
+
+> i
+
+wi
+
+(9) where distances are computed using the minimum im-age convention. The results of this analysis are shown in Figure 6 as a two-dimensional probability density of the gyration radius and the energy gap. Consistent with ROKS [39], at low gaps, where the electron is localized in a cavity, Rg typically ranges from 2 ˚ A to 3 ˚ A, in agree-ment as well with the cavity radius observed in equilib-rium ground-state simulations [30]. As the energy gap increases, Rg grows, reflecting progressive delocalization. This gap-dependent evolution of Rg provides an addi-tional validation that the model correctly captures the electronic structure changes during the excited state re-laxation. 
+
+B. Finite-Size Effects in Excited-State Photochemistry 
+
+Finite-size effects represent a fundamental challenge in atomistic simulations of condensed-phase processes especially within the context of first-principles simula-tions. Periodic boundary conditions impose artificial con-straints on long-range fluctuations, correlation lengths, and collective reorganization dynamics that may bias predicted mechanisms and kinetics [66]. For photo-chemical processes in solution, these effects are partic-ularly pronounced: excited-state charge separation, ion-radical pair formation, and solvent reorganization can span length scales exceeding typical simulation cell di-mensions [67, 68]. Having validated the model’s accuracy in reproducing ROKS excited-state dynamics for 64-molecule systems, the size-transferable nature of the extremal pooling archi-tecture enables investigation of photochemistry at scales inaccessible to the DFT-based ROKS simulations. To probe finite-size effects on the competing HAT and PCET 80                 
+
+> 90
+> 100 128 molecules
+> HAT
+> PCET
+> 0500 1000 1500 2000 2500 3000 3500
+> 0
+> 10
+> 20
+> 80
+> 90
+> 100 512 molecules
+> HAT
+> PCET
+> 0500 1000 1500 2000 2500 3000 3500
+> Time decay [fs]
+> 0
+> 10
+> 20
+> Count Count
+
+FIG. 7. Size-dependent excited-state dynamics. Top panels: cumulative survival probability showing the fraction of trajec-tories remaining on S1 versus time for 128-molecule (upper) and 512-molecule (lower) systems. Bottom panels: distribu-tions of crossing times for HAT (blue) and PCET (red). 
+
+pathways, 200 excited-state trajectories were generated for systems containing 128 water molecules (384 atoms) and 512 water molecules (1536 atoms), following the same photoexcitation protocol as the 64-molecule system. These system sizes correspond to cubic simulation cells with edge lengths of approximately 15.6 ˚ A and 24.8 ˚ A, respectively, compared to 12.4 ˚ A for the 64-molecule ref-erence system. Table I presents the resulting HAT quantum yields as a function of system size. As previously discussed, the 64-molecule system exhibits a HAT:PCET branching ra-tio of 58:42, in quantitative agreement with the ROKS reference calculations. Upon increasing system size to 128 molecules, the branching ratio remains essentially unchanged at 57:43, and at 512 molecules a modest shift is observed, with HAT representing 52% and PCET 48% of decay events, suggesting a weak increasing preference for PCET at larger system sizes. Nevertheless, the over-all stability of the ratio is physically reasonable, as the bifurcation between HAT and PCET is largely governed by the local hydrogen-bond arrangement around the pho-toexcited molecule during the first few femtoseconds, a first-solvation-shell property already well converged at the 64-molecule level. The small residual trend toward PCET, on the other hand, is consistent with the charge-separated character of the PCET product: stabilizing the newborn hydrated electron and H 3O+ pair requires solvent reorganization extending beyond the first shell, which will be more affected by finite size effects [39]. On the other hand, the analysis of excited-state life-times (Figure 7) reveals systematic size dependence for both decay mechanisms. For HAT trajectories, the 10 mean lifetime increases from 32 .6 fs in 64-molecule sys-tems to 44 .5 fs at 128 molecules and 52 .1 fs at 512 molecules. PCET lifetimes similarly lengthen from 414 .7 fs to 448 .6 fs and 486 .3 fs. Table I summarizes these results along with the trajectory counts for each mecha-nism. The systematic increase in HAT lifetimes is par-ticularly interesting given that this mechanism involves hydrogen atom ejection from a single water molecule, a process one might expect to be governed primarily by local dynamics within the first solvation shell. However, even for this localized process, finite-size effects appear to influence the timescale to crossing. A possible source of this difference is that finite size subtly change the con-centration of different types of defects where the pho-toexcitation tends to localize and subsequently affect the dynamics albeit on the timescale of tens of femotosec-onds. The lifetime of the PCET mechanism also presents an increase as a function of finite size. This mechanism specifically involves spatial separation of the proton and electron. In 64-molecule systems, the finite box size lim-its the maximum achievable ion-radical separation. The mean ion–radical separation at crossing in small systems is constrained to ∼ 5 ˚ A to 6 ˚ A (approximately half the box length), whereas 512-molecule systems permit sep-arations exceeding 10 ˚ A. The extended charge separa-tion process in larger cells contributes to the length-ened PCET lifetimes. Beyond the shift in mean life-times, the tail of the PCET lifetime distribution exhibits even more pronounced size dependence (Figure 7). The longest-lived PCET trajectory persists for approximately 1.2 ps in 64-molecule systems, 1 .8 ps at 128 molecules, and 3 .4 ps at 512 molecules. The existence of these long-lived excited states may have implications for rationaliz-ing the time-dependent optical properties of photoexcited water before it eventually relaxes via non-radiative decay mechanisms to the ground-state. The solvated electron exhibits strong absorption in the visible and near-infrared spectral regions, with a characteristic broad band cen-tered around 720 nm arising from transitions within the cavity-bound electronic states [36]. During PCET tra-jectories, as the electron localizes in its solvation cavity while remaining on the S1 surface, the system possesses the electronic structure of a hydrated electron and can, in principle, emit photons through radiative relaxation or stimulated emission processes [69]. The ML mod-els developed here offer the possibility of investigating the mechanisms associated with diffusion of the electron away from the excess proton and hydroxyl radical to bet-ter connect with time-dependent spectroscopies probing structure and dynamics in photoexcited water[69–71]. The size-dependent electron localization was further characterized by computing the electron gyration radius 
+
+Rg as a function of the electronic gap (Figure S3 in the Supplementary Information). Near the S1 → S0 cross-ing, where the electron is localized in a solvation cavity, both system sizes converge to similar Rg distributions centered around 2 ˚ A, confirming that the localized cavi-ties formed at crossing are essentially insensitive to sys-tem size and supporting the robustness of the mechanism assignment. Interestingly, this localized-state distribu-tion is visibly broader for the 512-molecule system, in-dicating that larger cells accommodate wider cavity-size fluctuations that are suppressed in smaller, more con-strained boxes. At higher gaps the electron delocalizes and Rg grows, with a spread that increases with sys-tem size and reaches values comparable to half the box edge; the high-gap regime is therefore limited by the finite simulation cell and is not converged even for the largest box considered here. This is consistent with previous experimental and theoretical studies, which estimate ini-tial delocalization lengths of the freshly photo-generated electron of up to ∼ 40 ˚ A before the wavefunction col-lapses onto the equilibrated cavity over the picosecond solvation timescale [67, 72], implying that converging this regime would require even larger simulation cells beyond the scope of the current study.  
+
+> V. CONCLUSIONS
+
+In this work, we have introduced a machine-learning framework for excited-state dynamics based on extremal pooling of atomic HOMO and LUMO contributions. By aggregating local predictions through SmoothMax and SmoothMin functions rather than summation, the archi-tecture naturally enforces the intensive nature of elec-tronic gaps and achieves seamless transferability across system sizes. Coupled with a ground-state MLIP, the framework enables excited-state molecular dynamics. Application to photoexcited liquid water demonstrates excited-state lifetimes consistent with the DFT-based ROKS timescales, and electron localization and extent in 64-molecule systems, while enabling simulations to 512-molecule cells over picosecond timescales, regimes inac-cessible from first principles. Remarkably, although the model is trained only on gap energies and their gradi-ents, the learned atomic LUMO contributions provide a physically meaningful descriptor of electron localization that closely tracks the spin density obtained from ROKS, offering interpretability without explicit wavefunction or spin-density analysis. As a further step, a natural methodological exten-sion concerns the pooling operation itself. In the cur-rent implementation, the degree of frontier-orbital de-localization is controlled by the parameter α entering the SmoothMax and SmoothMin functions, which acts as a fixed inverse-temperature in the log-sum-exp aggre-gation. While effective, this choice imposes a global, configuration-independent localization scale; replacing the extremal pooling with a learnable attention mecha-nism [73] would allow the model to determine, in a data-driven fashion, which atomic contributions dominate the frontier orbitals in each environment. A current limitation of the framework is the absence of explicit long-range interactions. The PET backbone, 11 like most local graph-neural-network architectures, cap-tures interactions only within a finite cutoff and as a consequence, the model does not describe the electro-static interaction between the cavity-bound electron and the H 3O+ formed in the PCET channel, which in reality decays as ∼ 1/r . Incorporating long-range electrostat-ics represents an important next step, particularly for the quantitative description of charge-separated excited states and their associated emission dynamics. Address-ing this limitation would close one of the few remaining gaps between machine-learned and ab initio descriptions of condensed-phase photochemistry, bringing picosecond-scale, fully consistent excited-state simulations of com-plex aqueous and molecular systems within reach. We conclude noting that the framework presented here is rather general and can be readily extended to a broad class of problems in which intensive, locally-determined quantities must be predicted within extensive bulk en-vironments. Photochemistry of organic chromophores in solution, charge-transfer dynamics in donor–acceptor complexes, and photocatalysis at interfaces all naturally fit within the frontier-orbital picture underlying our ap-proach. More broadly, the extremal pooling strategy is not restricted to electronic excitations: for example po-laron binding energies shares the same intensive, non-additive character and could be predicted within analo-gous architectures embedded in extensive bulk models. 
+
+> AUTHOR CONTRIBUTIONS
+
+CM, AH and MC conceived the project. CM and WBH developed the size-intensive model architecture, WBH implemented the software in metatrain and carried out the training. CM performed the excited-state molecular dynamics and the overall analyses. GDM provided the ROKS reference data and contributed to the analysis. CM, AH, and MC wrote the original draft, and WBH and GDM reviewed and edited the manuscript. AH and MC supervised the work and acquired funding. 
+
+> CONFLICTS OF INTEREST
+
+There are no conflicts to declare 
+
+> DATA AVAILABILITY
+
+Part of the data supporting this article have been in-cluded as part of the Supplementary Information. The Python scripts, final trained models, raw and processed datasets, and analysis workflows will be made freely avail-able upon acceptance. 
+
+> ACKNOWLEDGMENTS
+
+CM, WBH and MC acknowledges support from the Eu-ropean Research Council (ERC) under the research and innovation program (Grant Agreement No. 101001890-FIAMMA). MC and WBH acknowledge support from the NCCR-MARVEL, funded by the Swiss National Science Foundation (SNSF) (grant number 205602). G.D and A.H. acknowledge funding from the European Research Council (ERC) under the European Union’s Horizon 2020 research and innovation programme (grant agree-ment No. 101043272 – HyBOP). The views and opinions expressed are those of the authors only and do not nec-essarily reflect those of the European Union or the Eu-ropean Research Council Executive Agency. Neither the European Union nor the granting authority can be held responsible for them.                                
+
+> [1] K. Palczewski, G protein–coupled receptor rhodopsin, Annual Review of Biochemistry 75 , 743–767 (2006). [2] R. E. Blankenship, Molecular Mechanisms of Photosyn-thesis (Wiley, 2002). [3] P. J. Crutzen, The influence of nitrogen oxides on the at-mospheric ozone content, Quarterly Journal of the Royal Meteorological Society 96 , 320–325 (1970). [4] B. Bouda¨ ıffa, P. Cloutier, D. Hunting, M. A. Huels, and L. Sanche, Resonant formation of dna strand breaks by low-energy (3 to 20 ev) electrons, Science 287 , 1658–1660 (2000). [5] M. Gr¨ atzel, Photoelectrochemical cells, Nature 414 ,338–344 (2001). [6] T. Nelson, S. Fernandez-Alberti, A. E. Roitberg, and S. Tretiak, Nonadiabatic excited-state molecular dynam-ics: Modeling photophysics in organic conjugated ma-terials, Accounts of Chemical Research 47 , 1155–1164 (2014). [7] A. Stolow, A. E. Bragg, and D. M. Neumark, Femtosec-ond time-resolved photoelectron spectroscopy, Chemical Reviews 104 , 1719–1758 (2004). [8] R. Crespo-Otero and M. Barbatti, Recent advances and perspectives on nonadiabatic mixed quantum–classical dynamics, Chemical Reviews 118 , 7026–7068 (2018). [9] B. O. Roos, P. R. Taylor, and P. E. Sigbahn, A com-plete active space scf method (casscf) using a density matrix formulated super-ci approach, Chemical Physics
+> 48 , 157–173 (1980). [10] K. Andersson, P. A. Malmqvist, B. O. Roos, A. J. Sadlej, and K. Wolinski, Second-order perturbation the-ory with a casscf reference function, The Journal of Phys-ical Chemistry 94 , 5483–5488 (1990). [11] J. Behler and M. Parrinello, Generalized Neural-Network Representation of High-Dimensional Potential-Energy Surfaces, Physical Review Letters 98 , 146401 (2007). [12] A. P. Bart´ ok and G. Cs´ anyi, Gaussian approximation potentials: A brief tutorial introduction, International Journal of Quantum Chemistry 115 , 1051 (2015). [13] L. Zhang, J. Han, H. Wang, R. Car, and W. E, Deep Potential Molecular Dynamics: A Scalable Model with
+
+12 
+
+the Accuracy of Quantum Mechanics, Physical Review Letters 120 , 143001 (2018). [14] S. Batzner, A. Musaelian, L. Sun, M. Geiger, J. P. Mailoa, M. Kornbluth, N. Molinari, T. E. Smidt, and B. Kozinsky, E(3)-equivariant graph neural networks for data-efficient and accurate interatomic potentials, Nat Commun 13 , 2453 (2022). [15] W. Jia, H. Wang, M. Chen, D. Lu, L. Lin, R. Car, W. E, and L. Zhang, Pushing the limit of molecular dynamics with ab initio accuracy to 100 million atoms with ma-chine learning, in Proceedings of the International Con-ference for High Performance Computing, Networking, Storage and Analysis , SC ’20 (IEEE Press, 2020). [16] J. Westermayr and P. Marquetand, Machine learning and excited-state molecular dynamics, Machine Learn-ing: Science and Technology 1, 043001 (2020). [17] F. Pereira, K. Xiao, D. A. R. S. Latino, C. Wu, Q. Zhang, and J. Aires-de Sousa, Machine learning meth-ods to predict density functional theory b3lyp energies of homo and lumo orbitals, Journal of Chemical Infor-mation and Modeling 57 , 11 (2017), pMID: 28033004, https://doi.org/10.1021/acs.jcim.6b00340. [18] K. Sch¨ utt, O. Unke, and M. Gastegger, Equivariant mes-sage passing for the prediction of tensorial properties and molecular spectra, in International conference on ma-chine learning (PMLR, 2021) pp. 9377–9388. [19] P. O. Dral and M. Barbatti, Molecular excited states through a machine learning lens, Nature Reviews Chem-istry 5, 388–405 (2021). [20] L. A. Gomes, S. Larmore, M. Wang, C. W. Tan, B. Kozinsky, and S. A. Lopez, Machine-learned nonadi-abatic couplings enable reactive photochemical reaction dynamics simulations (2026). [21] K. T. Sch¨ utt, M. Gastegger, A. Tkatchenko, K.-R. M¨ uller, and R. J. Maurer, Unifying machine learning and quantum chemistry with a deep neural network for molecular wavefunctions, Nature Communications 10 ,10.1038/s41467-019-12875-2 (2019). [22] S. Mausenberger, C. M¨ uller, A. Tkatchenko, P. Marque-tand, L. Gonz´ alez, and J. Westermayr, SpaiNN: equiv-ariant message passing for excited-state nonadiabatic molecular dynamics, Chemical Science 15 , 15880–15890 (2024). [23] R. Barrett, C. Ortner, and J. Westermayr, Transferable machine learning potential x-mace for excited states us-ing integrated deepsets (2025). [24] U. Raucci, Capturing excited state proton transfer dy-namics with reactive machine learning potentials, The Journal of Physical Chemistry Letters 16 , 4900–4906 (2025). [25] M. Rupp, A. Tkatchenko, K.-R. M¨ uller, and O. A. von Lilienfeld, Fast and Accurate Modeling of Molecular At-omization Energies with Machine Learning, Physical Re-view Letters 108 , 058301 (2012). [26] D. Hu, Y. Xie, X. Li, L. Li, and Z. Lan, Inclu-sion of machine learning kernel ridge regression poten-tial energy surfaces in on-the-fly nonadiabatic molec-ular dynamics simulation, The Journal of Physical Chemistry Letters 9, 2725 (2018), pMID: 29732893, https://doi.org/10.1021/acs.jpclett.8b00684. [27] R. Ramakrishnan, M. Hartmann, E. Tapavicza, and O. A. von Lilienfeld, Electronic spectra from tddft and machine learning in chemical space, The Journal of Chemical Physics 143 , 084111 (2015). [28] G. Montavon, M. Rupp, V. Gobre, A. Vazquez-Mayagoitia, K. Hansen, A. Tkatchenko, K.-R. M¨ uller, and O. Anatole von Lilienfeld, Machine learning of molec-ular electronic properties in chemical compound space, New Journal of Physics 15 , 095003 (2013). [29] W.-K. Chen, X.-Y. Liu, W.-H. Fang, P. O. Dral, and G. Cui, Deep learning for nona-diabatic excited-state dynamics, The Journal of Physical Chemistry Letters 9, 6702 (2018), https://doi.org/10.1021/acs.jpclett.8b03026. [30] J. Lan, V. Kapil, P. Gasparotto, M. Ceriotti, M. Iannuzzi, and V. V. Rybkin, Simulating the ghost: Quantum dy-namics of the solvated electron, Nat Commun 12 , 766 (2021). [31] R. Gao, P. Xie, and R. Car, A machine learning model for the chemistry of a solvated electron (2025). [32] N. Marzari and D. Vanderbilt, Maximally localized gen-eralized Wannier functions for composite energy bands, Physical Review B 56 , 12847 (1997). [33] L. Zhang, M. Chen, X. Wu, H. Wang, W. E, and R. Car, Deep neural network for the dielectric response of insulators, Physical Review B 102 , 10.1103/phys-revb.102.041121 (2020). [34] K. Fukui, Role of frontier orbitals in chemical reactions, Science 218 , 747–754 (1982). [35] S. Pozdnyakov and M. Ceriotti, Smooth, exact rotational symmetrization for deep learning on point clouds, in Ad-vances in Neural Information Processing Systems , Vol. 36 (Curran Associates, Inc., 2023) pp. 79469–79501. [36] J. M. Herbert and M. P. Coons, The hydrated elec-tron, Annual Review of Physical Chemistry 68 , 447–472 (2017). [37] C. G. Elles, I. A. Shkrob, R. A. Crowell, and S. E. Bradforth, Excited state dynamics of liquid water: Insight from the dissociation reaction following two-photon excitation, The Journal of Chemical Physics 126 ,10.1063/1.2727468 (2007). [38] Y.-i. Yamamoto and T. Suzuki, Ultrafast dynamics of water radiolysis: Hydrated electron formation, solvation, recombination, and scavenging, The Journal of Physical Chemistry Letters 11 , 5510 (2020). [39] G. D´ ıaz Mir´ on, C. Malosso, S. Di Pino, C. K. Egan, D. Dasgupta, C. J. Mundy, and A. Hassanali, Simulating the photochemical birth of the hydrated electron in liq-uid water, Nature Communications 10.1038/s41467-026-70045-7 (2026). [40] I. Frank, J. Hutter, D. Marx, and M. Parrinello, Molec-ular dynamics in low-spin excited states, The Journal of Chemical Physics 108 , 4060–4069 (1998). [41] M. Odelius, D. Laikov, and J. Hutter, Excited state ge-ometries within time-dependent and restricted open-shell density functional theories, Journal of Molecular Struc-ture: THEOCHEM 630 , 163–175 (2003). [42] P. Chakraborty, Y. Liu, S. McClung, T. Weinacht, and S. Matsika, Nonadiabatic excited state dynamics of or-ganic chromophores: Take-home messages, The Journal of Physical Chemistry A 126 , 6021–6031 (2022). [43] A. K. Singh, K. Mathew, H. L. Zhuang, and R. G. Hen-nig, Computational screening of 2d materials for photo-catalysis, The Journal of Physical Chemistry Letters 6,1087–1098 (2015). [44] R. Improta, F. Santoro, and L. Blancafort, Quantum me-chanical studies on the photophysics and the photochem-istry of nucleic acids and nucleobases, Chemical Reviews 13 
+
+116 , 3540–3593 (2016). [45] C. Freysoldt, B. Grabowski, T. Hickel, J. Neugebauer, G. Kresse, A. Janotti, and C. G. Van de Walle, First-principles calculations for point defects in solids, Reviews of Modern Physics 86 , 253–305 (2014). [46] C. Franchini, M. Reticcioli, M. Setvin, and U. Diebold, Polarons in materials, Nature Reviews Materials 6,560–586 (2021). [47] A. Mazitov, F. Bigi, M. Kellner, P. Pegolo, D. Tisi, G. Fraux, S. Pozdnyakov, P. Loche, and M. Ceriotti, PET-MAD as a lightweight universal interatomic poten-tial for advanced materials modeling, Nat Commun 16 ,10653 (2025). [48] I. Loshchilov and F. Hutter, Decoupled weight decay reg-ularization, arXiv preprint arXiv:1711.05101 (2017). [49] F. Bigi, J. W. Abbott, P. Loche, A. Mazitov, D. Tisi, M. F. Langer, A. Goscinski, P. Pegolo, S. Chong, R. Goswami, P. Febrer, S. Chorna, M. Kellner, M. Ceri-otti, and G. Fraux, metatensor and metatomic: Founda-tional libraries for interoperable atomistic machine learn-ing, The Journal of Chemical Physics 164 , 064113 (2026). [50] H. S. Seung, M. Opper, and H. Sompolinsky, Query by committee, in Proceedings of the fifth annual workshop on Computational learning theory , COLT92 (ACM, 1992) p. 287–294. [51] Y. Zhang, H. Wang, W. Chen, J. Zeng, L. Zhang, H. Wang, and W. E, Dp-gen: A concurrent learning plat-form for the generation of reliable deep learning based potential energy models, Computer Physics Communi-cations 253 , 107206 (2020). [52] C. Schran, K. Brezina, and O. Marsalek, Committee neu-ral network potentials control generalization errors and enable active learning, The Journal of Chemical Physics 
+
+153 , 10.1063/5.0016004 (2020). [53] Y. Eldar, M. Lindenbaum, M. Porat, and Y. Y. Zeevi, The farthest point strategy for progressive image sam-pling., IEEE transactions on image processing : a pub-lication of the IEEE Signal Processing Society 6, 1305 (1997), 18283019. [54] T. D. K¨ uhne, M. Iannuzzi, M. Del Ben, V. V. Ry-bkin, P. Seewald, F. Stein, T. Laino, R. Z. Khaliullin, O. Sch¨ utt, F. Schiffmann, et al. , Cp2k: An electronic structure and molecular dynamics software package-quickstep: Efficient and accurate electronic structure cal-culations, The Journal of Chemical Physics 152 (2020). [55] J. P. Perdew, K. Burke, and M. Ernzerhof, Generalized gradient approximation made simple, Physical Review Letters 77 , 3865–3868 (1996). [56] R. Sabatini, T. Gorni, and S. de Gironcoli, Non-local van der waals density functional made simple and efficient, Physical Review B 87 , 10.1103/phys-revb.87.041108 (2013). [57] O. A. Vydrov and T. Van Voorhis, Nonlocal van der waals density functional: The simpler the better, The Journal of chemical physics 133 (2010). [58] J. VandeVondele and J. Hutter, Gaussian basis sets for accurate calculations on molecular systems in gas and condensed phases, The Journal of Chemical Physics 127 ,10.1063/1.2770708 (2007). [59] F. Ambrosio, G. Miceli, and A. Pasquarello, Redox levels in aqueous solution: Effect of van der waals interactions and hybrid functionals, The Journal of Chemical Physics 
+
+143 , 10.1063/1.4938189 (2015). [60] F. Ambrosio, Z. Guo, and A. Pasquarello, Absolute en-ergy levels of liquid water, The Journal of Physical Chem-istry Letters 9, 3212–3216 (2018). [61] J. VandeVondele and J. Hutter, An efficient orbital trans-formation method for electronic structure calculations, The Journal of Chemical Physics 118 , 4365–4369 (2003). [62] P. Pulay, Convergence acceleration of iterative sequences. the case of scf iteration, Chemical Physics Letters 73 ,393–398 (1980). [63] C. Zhang, F. Tang, M. Chen, J. Xu, L. Zhang, D. Y. Qiu, J. P. Perdew, M. L. Klein, and X. Wu, Modeling liquid water by climbing up jacob’s ladder in density functional theory facilitated by using deep neural net-work potentials, The Journal of Physical Chemistry B 
+
+125 , 11444–11456 (2021). [64] S. Chorna, J. L´ ala, Q. Xu, R. K. Cersonsky, G. Fraux, and M. Ceriotti, Chemiscope 1.0: interactive exploration of atomistic data from analysis to dissemination, Journal of Open Source Software 11 , 10380 (2026). [65] L. Bai and D. Breen, Calculating center of mass in an unbounded 2d environment, Journal of Graphics Tools 
+
+13 , 53–60 (2008). [66] I.-C. Yeh and G. Hummer, System-size dependence of diffusion coefficients and viscosities from molecular dy-namics simulations with periodic boundary conditions, The Journal of Physical Chemistry B 108 , 15873–15879 (2004). [67] J. Savolainen, F. Uhlig, S. Ahmed, P. Hamm, and P. Jungwirth, Direct observation of the collapse of the delocalized excess electron in water, Nature Chemistry 
+
+6, 697–701 (2014). [68] F. Plasser, R. Crespo-Otero, M. Pederzoli, J. Pittner, H. Lischka, and M. Barbatti, Surface hopping dynamics with correlated single-reference methods: 9h-adenine as a case study, Journal of Chemical Theory and Computa-tion 10 , 1395–1405 (2014). [69] M. J. Tauber and R. A. Mathies, Fluorescence and res-onance raman spectra of the aqueous solvated electron, The Journal of Physical Chemistry A 105 , 10952–10960 (2001). [70] F. Novelli, K. Chen, A. Buchmann, T. Ockelmann, C. Hoberg, T. Head-Gordon, and M. Havenith, The birth and evolution of solvated electrons in the water, Proceedings of the National Academy of Sciences 120 ,e2216480120 (2023). [71] M.-F. Lin, N. Singh, S. Liang, M. Mo, J. P. F. Nunes, K. Ledbetter, J. Yang, M. Kozina, S. Weath-ersby, X. Shen, A. A. Cordones, T. J. A. Wolf, C. D. Pemmaraju, M. Ihme, and X. J. Wang, Imaging the short-lived hydroxyl-hydronium pair in ionized liquid water, Science 374 , 92 (2021), https://www.science.org/doi/pdf/10.1126/science.abg3091. [72] P. Palianov, P. Martin, F. Qu´ er´ e, and S. Pommeret, Ul-trafast formation of hydrated electrons in water at high concentration: Experimental evidence of the free elec-tron, Journal of Experimental and Theoretical Physics 
+
+118 , 489–493 (2014). [73] A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, L. Kaiser, and I. Polosukhin, Attention is all you need, in Proceedings of the 31st In-ternational Conference on Neural Information Processing Systems , NIPS’17 (Curran Associates Inc., Red Hook, NY, USA, 2017) p. 6000–6010. 14 
+
+# Transferable machine learning of excited-state dynamics with extremal pooling: Supplementary Information 
+
+# Cesare Malosso 1, Wei Bin How 1, Gonzalo D´ ıaz Mir´ on 2, Ali Hassanali 2, Michele Ceriotti 1 
+
+> 1Laboratory of Computational Science and Modeling, Institut des Mat´ eriaux, ´Ecole Polytechnique F´ ed´ erale de Lausanne, 1015 Lausanne, Switzerland
+> 2Condensed Matter and Statistical Physics, The Abdus Salam International Centre for Theoretical Physics (ICTP), Trieste, Italy
+> A. Classification of HAT and PCET Trajectories
+
+The quantity used for classification is defined as ∆ = ELUMO − hLUMO (4) . (10) where ELUMO is the SmoothMin of the atomic LUMO contributions evaluated at the S1 → S0 crossing, 
+
+ELUMO = 1
+
+α log X
+
+> i
+
+exp  αh LUMO 
+
+> i
+
+!
+
+, α = −20 eV −1. (11) and hLUMO (4) is the 4th-lowest atomic LUMO value. A large ∆ indicates that very few atoms dominates the LUMO; a small ∆ indicates that several atoms share similar low LUMO values. Figure S1 shows the distribution of ∆ at the crossing for all 101 ROKS trajectories grouped by mechanism as assigned from spin-density analysis [39]. HAT trajectories cluster at large ∆ while PCET trajectories cluster near zero. The threshold ∆ = 1 eV (dashed line) correctly classifies 99 out of 101 trajectories. Figure S2 shows some insights into the energy separation through the sorted atomic LUMO profiles at the crossing for the three representative PCET trajectories (left) and the three representative HAT trajectories (right). In HAT trajectories a single H atom has an low LUMO, creating a sharp drop before the 4th-lowest contribution and a large ∆. In PCET trajectories the lowest four contributions cluster near the same value, reflecting the collective cavity environment.  
+
+> B. Finite-Size Effects on Electron Delocalization
+
+Figure S3 reports the two-dimensional distribution of the ML-predicted electron gyration radius Rg as a function of the electronic gap for the 128- and 512-molecule systems. Near the S1 → S0 crossing (low gap) both sizes collapse onto the same localized distribution centered around 2 ˚ A; the larger box, however, displays a broader localized-state distribution and a more extended high-gap tail. 15 PCET HAT 
+
+> 0.0
+> 0.5
+> 1.0
+> 1.5
+> 2.0
+> 2.5
+> 3.0
+> ∆ [eV]
+
+Threshold 
+
+FIG. S1. Distribution of the classi-fication quantity ∆ at the S1 → S0
+
+crossing for all 101 ROKS trajectories, grouped by mechanism assigned from spin-density analysis. Individual tra-jectories are shown as scatter points. The dashed line marks the classifica-tion threshold ∆ = 1 eV, which cor-rectly distinguishes HAT from PCET in 99 out of 101 cases. 0 25 50 75 100 125 150 175 200         
+
+> Atom rank (sorted by LUMO)
+> 1
+> 0
+> 1
+> 2
+> 3
+> 4
+> 5
+> 6
+> 7
+> 8
+> h LUMO
+> i [eV]
+> 025 50 75 100 125 150 175 200
+> Atom rank (sorted by LUMO)
+> 1
+> 0
+> 1
+> 2
+> 3
+> 4
+> 5
+> 6
+> 7
+> 8
+> h LUMO
+> i [eV]
+
+FIG. S2. Sorted atomic LUMO contributions hLUMO  
+
+> i
+
+at the S1 → S0 crossing for representative trajectories. Left: the three representative PCET trajectories; right: the three representative HAT trajectories. The vertical dotted line marks the 4th-lowest contribution. In HAT trajectories the electron localises on a single hydrogen atom, producing a sharp drop between the lowest and 4th-lowest LUMO and thus a large ∆. In PCET trajectories the electron occupies a cavity surrounded by several water molecules, so multiple atomic contributions cluster near the minimum and ∆ is small. 0 2 4 6 8
+
+Energy Gap [eV] 
+
+> 0
+> 2
+> 4
+> 6
+> 8
+> 10
+> 12
+> 14
+> Gyration Radius [ Å]
+
+128 molecules     
+
+> 02468
+
+Energy Gap [eV] 
+
+> 0
+> 2
+> 4
+> 6
+> 8
+> 10
+> 12
+> 14
+> Gyration Radius [ Å]
+
+512 molecules 
+
+FIG. S3. Two-dimensional kernel density estimate of the ML-predicted gyration radius Rg as a function of the HOMO–LUMO energy gap for PCET trajectories of the 128-molecule (left) and 512-molecule (right) water boxes. Each panel pools all PCET trajectories (200 per system). Near the crossing the localized-state distribution is broader for the larger box, reflecting enhanced cavity-size fluctuations in bigger cells.
