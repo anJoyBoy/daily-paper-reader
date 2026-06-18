@@ -1,0 +1,766 @@
+Title: A Human-in-the-Loop Bayesian Optimization Framework for Constraint-Aware Bioprocess Development
+
+URL Source: https://arxiv.org/pdf/2606.19230v1
+
+Published Time: Thu, 18 Jun 2026 01:20:22 GMT
+
+Number of Pages: 28
+
+Markdown Content:
+# A H UMAN -IN -THE -L OOP BAYESIAN OPTIMIZATION 
+
+# FRAMEWORK FOR CONSTRAINT -A WARE BIOPROCESS 
+
+# DEVELOPMENT 
+
+Samuel Stricker 
+
+Department of Chemical Engineering Imperial College London London SW7 2AZ 
+
+sam.stricker25@imperial.ac.uk 
+
+Claus Wirnsperger 
+
+DataHow AG 8050 Zurich 
+
+c.wirnsperger@datahow.ch 
+
+Alessandro Butté 
+
+DataHow AG 8050 Zurich 
+
+a.butte@datahow.ch 
+
+Laura Helleckes 
+
+Department of Chemical Engineering Imperial College London London SW7 2AZ 
+
+l.helleckes@imperial.ac.uk 
+
+Gonzalo Guillén Gosálbez 
+
+Department of Chemistry and Applied Biosciences ETH Zurich Zurich 8093 
+
+gonzalo.guillen.gosalbez@chem.ethz.ch 
+
+Antonio del Rio Chanona 
+
+Department of Chemical Engineering Imperial College London London SW7 2AZ 
+
+a.del-rio-chanona@imperial.ac.uk 
+
+Mehmet Mercangöz 
+
+Department of Chemical Engineering Imperial College London London SW7 2AZ 
+
+m.mercangoz@imperial.ac.uk 
+
+June 18, 2026 
+
+# ABSTRACT 
+
+This work presents an extension to Pareto Front Guided Sampling (PFGS), a Human-in-the-Loop (HitL) Bayesian Optimization (BO) framework in which Gaussian process (GP) surrogate-derived quantities are reformulated as objectives of a multi-objective optimization problem, and the re-sulting Pareto front is exposed to a domain expert for interactive candidate selection rather than returning a single automated recommendation. The framework is extended in two directions: con-strained optimization is addressed by incorporating the posterior probability of satisfying output specification limits as an explicit Pareto objective, computed analytically from the GP posterior distri-bution; robust optimization is addressed by a Monte Carlo sampling strategy that estimates expected lower-confidence performance over a user-defined variability of input perturbations, capturing perfor-mance degradation under likely implementation deviations. The resulting multi-dimensional Pareto representation renders trade-offs between predicted performance, model uncertainty, probabilistic constraint satisfaction, and input robustness simultaneously visible through pairwise two-dimensional projections on an interactive dashboard, enabling selection criteria to be iteratively refined as the surrogate model improves and development objectives evolve. The framework is showcased on an eight-dimensional fed-batch Chinese Hamster Ovary (CHO) cell culture simulator demonstrating sys-tematic identification of high-performing, feasibility-compliant, and perturbation-resilient operating conditions, and illustrating how expert-defined requirements provide a principled stopping criterion and support informed allocation of experimental resources. 
+
+Keywords · Bayesian Optimization (BO) · Human-in-the-Loop (HitL) · Pareto front · Gaussian process (GP) ·
+
+Constrained Optimization · Robust Optimization · Bioprocess Development · Quality by Design (QbD) 
+
+> arXiv:2606.19230v1 [cs.LG] 17 Jun 2026
+
+A PREPRINT - J UNE 18, 2026 
+
+# 1 Introduction 
+
+Chemical and process engineering problems are commonly characterized by high-dimensional operating spaces, ex-pensive experimentation, nonlinear process interactions, and stringent operational constraints. Process development therefore requires methodologies that can efficiently extract maximal information from limited experimental cam-paigns while simultaneously accounting for uncertainty, feasibility, and robustness [1]. These requirements arise across a broad range of engineering applications, including catalysis [2], materials synthesis [3], separations [4], and biomanufacturing [1]. Historically, Design of Experiments (DoE) has provided the statistical foundation for systematic process characterization and optimization. Classical experimental designs, like factorial and fractional factorial schemes, as well as response-surface methodologies such as central composite designs, enable efficient estimation of main effects, interactions, and higher-order curvature terms from relatively small experimental campaigns [5]. Consequently, DoE methodologies remain central tools for factor screening, sensitivity analysis, and process understanding throughout chemical and pharmaceutical development. However, conventional DoE strategies are fundamentally static: the experimental matrix is defined a priori , preventing adaptation as information accumulates during experimentation. This limitation becomes increasingly restrictive in complex systems where experiments are costly, noisy, or poorly understood initially [6]. Additionally, classical methods often use assumptions that do not hold in process system engineering (PSE). To address these challenges, sequential and data-efficient optimization frameworks have gained increasing attention. Among these, BO has emerged as a particularly powerful methodology for experimental design and process optimization in expensive black-box systems [7]. BO constructs a probabilistic surrogate model of the response surface and sequentially proposes new experiments by optimizing an acquisition function that balances exploration of uncertain regions with exploitation of promising operating conditions. This uncertainty-aware paradigm is especially attractive in engineering settings where each experiment or simulation carries substantial economic cost and is often extremely time-consuming [3]. This work tries investigates the concepts of BO in the context of bioprocess engineering, a domain that strongly amplifies the general challenges of process optimization due to high experimental cost, intrinsic biological variability, and stringent regulatory requirements. Within biopharmaceutical manufacturing, Quality by Design (QbD) has become the prevailing scientific and regulatory framework for process development, wherein product quality is prospectively engineered rather than retrospectively tested [8], which closely aligns with the core advantages of BO. QbD development is anchored by the definition of a Quality Target Product Profile (QTPP), from which Critical Quality Attributes (CQAs) and Critical Process Parameters (CPPs) are systematically identified according to the ICH Q8–Q11 guidelines [8]. These relationships define the process design space and associated control strategy that underpin robust and flexible manufacturing operations. Given the high process complexity and stringent regulatory requirements, the HitL paradigm is essential, as domain experts can directly encode process knowledge into the optimization loop. This work therefore extends the PFGS algorithm to incorporate CQA constraints and CPP variability, enabling robust and constrained optimization. 
+
+1.1 Related Works BO in Biotechnology. Early demonstrations in bioprocess engineering focused on reducing experimental burden in cell culture: Mehrian et al. [9] optimized cell-growth conditions in bioreactor culture, while Narayanan et al. [10] applied batch and multi-objective BO to biopharmaceutical formulation development, identifying optimal antibody formulations with as few as 25 experiments. Subsequent work expanded the scope to upstream media design [11] and high-throughput protein engineering, where Helleckes et al. [12] coupled laboratory automation with BO to navigate large combinatorial sequence spaces. Most recently, Martens et al. [13] extended the paradigm to multi-scale process development via a multi-fidelity batch BO framework that jointly optimises reaction conditions and biocatalyst selection across scales from microtiter plates to pilot reactors. 
+
+Constrained BO. Bayesian optimization has evolved well beyond the unconstrained single-objective setting. Gardner et al. [14] formalized constrained BO by placing independent Gaussian-process priors on both the objective and the constraint functions. In chemical and process engineering, Hickman et al. [15] demonstrated constrained BO for the optimization of the synthesis of o-xylenyl adducts of Buckminsterfullerene, handling known experimental and design constraints within the Gryffin framework. Paulson and Lu [16] extended the setting to grey-box process models with expensive evaluations in their COBALT algorithm, which exploits derivative information to satisfy explicit inequality constraints efficiently. Kudva et al. [17] further developed a constrained robust BO framework with guaranteed sublinear regret bounds applicable to noisy black-box process design problems. 2A PREPRINT - J UNE 18, 2026 
+
+Safe BO. Safe BO tightens the constraint-handling requirement by demanding that every queried point satisfy safety conditions with high probability, even during exploration [18]. Krishnamoorthy and Doyle [19] proposed model-free real-time optimization of process systems in which both the objective and constraints are unknown and must be learned from plant measurements, guaranteeing constraint satisfaction throughout the optimization trajectory. Petsagkourakis et al. [20] addressed safe real-time optimization under plant–model mismatch by combining multi-fidelity GPs with chance-constraint satisfaction, ensuring feasibility despite structural model uncertainty. Garces et al. [21] reported an approximately 80% reduction in constraint violations when applying safe BO to isotope-separation tuning. 
+
+Robust BO. Robust BO addresses performance degradation under uncertainty that cannot be eliminated by constraint satisfaction alone. Le and Branke [22] define a taxonomy of robustness in terms of expected performance under disturbances and output noise, while Bogunovic et al. [23] and Weichert et al. [24] consider adversarial and entropy-search variants for perturbed inputs. Paulson et al. [25] introduced adversarially robust BO (ARBO) for auto-tuning of control structures in chemical processes under time-invariant parametric uncertainty, demonstrating that a minimax formulation provides substantially stronger robustness guarantees than standard expected-improvement approaches. Kudva et al. [26] developed BoFlex, a robust BO framework for worst-case flexibility analysis of simulation-based process models, providing rigorous uncertainty bounds and finite-iteration convergence guarantees. Kudva and Paulson [27] further proposed BONSAI, which exploits the network structure of modular process flowsheets to scale robust BO to high-dimensional interconnected systems. Zhang et al. [28] addressed multi-objective reaction optimization under heteroscedastic experimental noise via a multi-objective Euclidean expected quantile improvement (MO-E-EQI) acquisition function, applied to an esterification case with competing yield and E-factor objectives. 
+
+Human-in-the-Loop BO. Despite the increasing autonomy of model-based optimization frameworks, engineering process development remains fundamentally knowledge-driven. Expert intuition is often essential for incorporating considerations that are difficult to encode explicitly, including manufacturability, scale-up feasibility, safety, or regulatory concerns [29]. HitL BO has therefore emerged as an active research direction, particularly in low-data regimes where domain knowledge can substantially boost performance. Savage and del Rio Chanona et al. [30] proposed expert-guided batch BO using Pareto-based candidate selection, enabling domain experts to influence critical early decisions. Adachi et al. [31] introduced CoExBO, a collaborative and explainable BO framework with a no-harm guarantee, validated on lithium-ion battery design. Kanarik et al. [32] empirically demonstrated that expert knowledge enhances BO convergence during the initial exploration phase, though purely algorithmic BO proved more efficient in later stages. 
+
+1.2 Research Gap & Contributions 
+
+BO has been applied to a wide range of problems in chemical and bioprocess engineering, yet its practical adoption remains limited by insufficient integration of human expertise and the consequent lack of trust in automated recom-mendations. HitL frameworks are therefore particularly important in high-risk or highly regulated sectors such as biopharmaceutical manufacturing, where expert judgment is essential for assessing feasibility, safety, and regulatory relevance. The objective of this work is not to develop a novel acquisition function, but rather to reorganize existing acquisition strategies within a HitL multi-objective optimization framework, making model-generated recommendations more interpretable and actionable for domain experts. This is especially relevant for navigating high-dimensional, noisy, and constrained bioprocess design spaces where purely automated optimization may overlook practical considerations that are difficult to encode explicitly. This work extends the HitL BO workflow of Pareto Front Guided Sampling previously developed by [33, 34]. A short introduction into PFGS can be found in Section 3.1. This framework is now extended with the main contributions being: • Extension of PFGS to constrained optimization by incorporating probabilistic CQA satisfaction as an additional Pareto objective. • Integration of robustness criteria that allow candidate recipes to be evaluated with respect to resilience under expected CPP variability. • Development of an interactive dashboard and visualization workflow that renders model recommendations interpretable and actionable for domain experts. • Demonstration that existing BO objectives can be reorganized into a HitL multi-objective framework without requiring new acquisition function design. Although the focus is on bioprocess engineering, the underlying methodologies are broadly transferable across engineering disciplines involving expensive experimentation, constrained optimization, and uncertainty-aware decision making. 3A PREPRINT - J UNE 18, 2026 
+
+# 2 Background 
+
+This section provides the methodological background for the work, starting with classical Design of Experiments before introducing BO as an adaptive alternative. It then summarizes GP surrogate modeling, acquisition functions, batch BO, and the constrained and robust BO extensions. 
+
+2.1 Classical Design of Experiments 
+
+Classical DoE provides a structured framework for selecting experimental conditions so that an empirical model of a process can be built from a limited number of observations. As summarized by Greenhill et al., traditional DoE methods seek to measure the design space efficiently, thereby supporting prediction, process understanding, and subsequent optimization when experiments are expensive [6]. In this setting, the experimental plan is usually specified before the campaign begins, and the choice of sampling strategy is closely linked to the type of model that is expected to describe the response. Factorial designs shown in Figure 1a are among the most established classical DoE approaches. They place samples on a structured grid, often at orthogonal corners of the design space, and are well suited to estimating main effects and interactions when a low-order model is appropriate. Full factorial designs evaluate all combinations of selected factor levels, which gives rich information about interactions but becomes costly as the number of variables increases. Fractional factorial and screening designs reduce this burden by sampling only part of the full grid, making them useful for identifying influential variables before more detailed optimization is attempted [6, 5].   
+
+> (a) Factorial design (b) Central composite design (c) Latin hypercube design
+
+Figure 1: Representative classical experimental design strategies. (a) Factorial designs sample combinations of factor levels on a structured grid, enabling estimation of main effects and interactions. (b) Central composite designs augment factorial points with axial and center points to estimate response-surface curvature. (c) Latin hypercube designs distribute samples across the design space to improve space filling when less is known about the response surface. For nonlinear systems, classical DoE is often extended using response-surface and space-filling designs. Response-surface methodologies, such as central composite (Figure 1b) or Box–Behnken designs, fit polynomial approximations that can describe curvature and support local optimization of selected responses. Space-filling designs, including Latin hypercube sampling (Figure 1c), aim to cover the design space more uniformly and are useful when less is known about the response surface in advance. These approaches are more flexible than simple grids, but the required number of samples still increases rapidly with dimensionality, making high-dimensional experimental design challenging [6]. In bioprocess and pharmaceutical development, DoE remains central to QbD workflows because it supports the systematic linking of CPPs to CQAs. The resulting empirical models can be used for factor screening, sensitivity analysis, robustness assessment, and design-space definition, thereby providing a statistical basis for process understanding and regulatory justification [5, 35]. This is particularly valuable when prior knowledge is sufficient to define relevant factors, ranges, and responses before experimentation begins. A key limitation of classical DoE, however, is that the experimental matrix is generally fixed a priori , as modeling and optimization are usually treated as separate stages: first a model is built from a predefined set of experiments, and only then is the model used for optimization [6]. This can be inefficient when experiments are costly, noisy, constrained, or high-dimensional, because intermediate results cannot easily redirect the campaign toward promising or uncertain regions. Additionally, Classical DoE methods make assumptions about the interactions if factors that are often not 4A PREPRINT - J UNE 18, 2026 justified or unknown in a PSE setting. These limitations motivate adaptive model-based approaches such as BO, which update the surrogate model after each observation and use the current model to decide where to sample next. 
+
+2.2 Bayesian Optimization 
+
+BO is a sequential, model-based strategy for the global optimization of expensive black-box functions lacking analytical gradients. BO uses probabilistic surrogate models like GPs trained on the accumulated data and employs an acquisition function to select the next experimental condition [7]. This paradigm is well-suited to experimental sciences where evaluations are costly. The BO loop comprises three steps: (i) fit a surrogate to observations Dt = {(xi, y i)}nd
+
+> i=1
+
+(Section 2.3); (ii) optimize an acquisition function α(x | D t) to propose the next point (Section 2.4); (iii) perform the proposed experiment and augment the dataset. This procedure is iterated until convergence or a given experimental budget is exhausted. 
+
+2.3 Gaussian Processes 
+
+GPs provide the probabilistic foundation for many BO workflows because they combine flexible non-parametric regression with explicit uncertainty estimates. A GP defines a distribution over possible latent functions rather than a single fitted response surface. It is fully specified by a mean function μ(x) and a covariance, or kernel, function 
+
+k(x, x′). We denote this as: 
+
+f (x) ∼ GP (μ(x), k (x, x′)) . (1) The mean function represents the expected function value, while the kernel encodes assumptions about similarity between input conditions, such as smoothness, stationarity, periodicity, or characteristic length scales [7]. Given observations Dt, where measurements are modeled as yi = f (xi) + ϵi with Gaussian noise ϵi ∼ N (0 , σ 2 
+
+> ϵ
+
+),Bayesian conditioning gives a posterior predictive distribution at a new candidate point x∗:
+
+p(f∗ | x∗, Dt) = N  μnd (x∗), σ 2 
+
+> nd
+
+(x∗) . (2) For a zero-mean prior, the posterior mean and variance are 
+
+μn(x∗) = k⊤∗ (K + σ2 
+
+> ϵ
+
+I)−1y, (3) 
+
+σ2
+
+> n
+
+(x∗) = k(x∗, x∗) − k⊤∗ (K + σ2 
+
+> ϵ
+
+I)−1k∗, (4) where K = k(X, X) is the covariance matrix of the observed inputs, k∗ = k(X, x∗), and y contains the measured responses. The posterior mean acts as the current best estimate of process performance, while the posterior variance quantifies remaining uncertainty [36]. This dual output makes GPs particularly suitable as BO surrogates, since acquisition functions can use μn(x) to exploit promising regions and σn(x) to explore uncertain regions. In bioprocess development, GPs are attractive because they are data-efficient, provide calibrated uncertainty, and can be combined with mechanistic knowledge. They have been used, for example, in hybrid dynamic time-series models for fed-batch cultures [37] and are commonly discussed as surrogate models for data-efficient optimization of media, feeding strategies, and other expensive bioprocess design tasks [38]. 
+
+2.4 Acquisition Functions 
+
+Acquisition functions translate the GP posterior into a decision rule for selecting the next experiment. They assign each candidate condition a scalar utility that reflects the expected value of sampling there, thereby balancing exploitation of regions with high predicted performance against exploration of regions with high uncertainty. Improvement-based criteria such as Expected Improvement (EI) and Probability of Improvement (PI) quantify the gain relative to the best response observed so far. For a maximization problem, they are commonly written as 
+
+αEI (x | D t) = E[max( f (x) − f ∗, 0)] = ( μ(x) − f ∗) Φ( Z) + σ(x) ϕ(Z), (5) 
+
+αPI (x | D t) = P (f (x) > f ∗) = Φ( Z), (6) where f ∗ is the current best observation, Z = μ(x)−f ∗ 
+
+> σ(x)
+
+, and Φ( ·) and ϕ(·) denote the standard normal Cumulative Distribution Function (CDF) and Probability Density Function (PDF), respectively [7]. EI tends to favor points that either have a high posterior mean or a substantial chance of exceeding the incumbent, whereas PI focuses only on the probability of improvement and can therefore be more exploitative. Confidence-bound acquisitions provide an alternative view by explicitly adding or subtracting an uncertainty bonus. For maximization, Upper Confidence Bound (UCB) uses optimism under uncertainty: 
+
+αUCB (x | D t) = μn(x) + β σ n(x), (7) 5A PREPRINT - J UNE 18, 2026 The parameter β > 0 controls the exploration–exploitation trade-off: larger values place more emphasis on uncertain regions, while smaller values focus the search near the current posterior optimum [39]. In practice, the acquisition function is especially important because it determines how limited experimental capacity is allocated across uncertain and potentially noisy design spaces. In these settings, acquisition functions provide a principled alternative to fixed experimental plans by using each new observation to update the surrogate model and adaptively prioritize the next most informative experiments [1]. However, most acquisition functions like UCB (Equation 7) have hyperparameter that are often difficult to define in practice and have a significant impact to the performance of BO. We can later see in Section 3.1 that PFGS removes this parameters and replaces them with easier to estimate, domain specific criteria. 
+
+2.5 Batch Bayesian Optimization 
+
+Parallel evaluation of multiple experimental conditions is common in modern bioprocess development, for example when microtiter plates, parallel bioreactors, or automated liquid-handling platforms are available. Batch BO extends the sequential BO loop by proposing a set of q candidate points at each iteration rather than a single next experiment. The objective is not only to select individually promising conditions, but also to choose a batch that is informative as a whole. This requires balancing exploitation, exploration, and diversity within the batch, since selecting several nearby points can waste experimental capacity by providing redundant information. Batch acquisition functions therefore evaluate the joint utility of a candidate set Xq = {x1, . . . , xq }. Common examples include Monte Carlo variants of expected improvement and confidence-bound criteria, such as q-EI and q-UCB [40]. 
+
+q-EI generalizes EI by considering the best improvement achieved by any point in the proposed batch. Unlike standard EI, q-EI has no simple closed form for q > 1 because it depends on the maximum of correlated posterior predictions. It is therefore typically approximated by drawing S joint posterior samples and averaging the improvement across samples: 
+
+αq-EI (Xq | D t) = E
+
+
+
+max 
+
+> j=1 ,...,n q
+
+max( f (xj ) − f ∗, 0) 
+
+
+
+(8) 
+
+≈ 1
+
+nsnsX
+
+> s=1
+
+max  
+
+> j
+
+max 
+
+
+
+f (s)(xj ) − f ∗, 0
+
+
+
+. (9) Alternative batch strategies include local penalization, which sequentially constructs a batch by down-weighting acquisition values near already selected points, and Thompson sampling, where multiple draws from the posterior naturally induce diversity among proposed experiments [41]. These approaches can be computationally lighter than fully joint Monte Carlo acquisition optimization since they construct the batch sequentially instead of maximizing its joint value, at the cost of no guarantee that the chosen set is jointly optimal. 
+
+2.6 Constrained and Safe Bayesian Optimization 
+
+Many optimization problems are defined not only by a performance objective, but also by feasibility requirements. Two related paradigms address this setting, differing mainly in when feasibility or safety must hold. Constrained BO aims to identify a final solution that satisfies the constraints, whereas safe BO requires every evaluated query during the optimization campaign to satisfy the safety constraints with high probability. Constrained BO considers an expensive black-box objective subject to one or more unknown inequality constraints, 
+
+ck(x) ≤ 0, k = 1 , . . . , n k, (10) where the feasible region is learned from data and may be nonlinear or disconnected. A common approach is to fit a separate GP surrogate to each constraint in addition to the objective surrogate. The acquisition function then combines objective improvement with the posterior probability that all constraints are satisfied. Modeling the objective and each constraint with independent GP surrogates, the feasibility probability factorizes across constraints, and constrained expected improvement becomes 
+
+αcEI (x | D t) = αEI (x | D t)
+
+> nk
+
+Y
+
+> k=1
+
+P (ck(x) ≤ 0) , (11) where, under a Gaussian posterior for constraint k, the feasibility probability is 
+
+P (ck(x) ≤ 0) = Φ 
+
+ −μck (x)
+
+σck (x)
+
+
+
+. (12) 6A PREPRINT - J UNE 18, 2026 This formulation favors candidates that are both likely to improve the objective and likely to satisfy the constraints [42]. If no feasible point has yet been observed, the improvement term may collapse. In this early phase, constrained BO is often driven by feasibility search, selecting points that maximize Qnk 
+
+> k=1
+
+P (ck(x) ≤ 0) until at least one feasible observation is identified. In safety-critical systems, however, allowing infeasible evaluations during the search may be unacceptable or irreversible. Safe BO addresses this stricter setting by requiring all queried points to satisfy a safety constraint with high probability throughout the optimization process, rather than only at convergence [43]. In bioprocess engineering, constrained BO is particularly relevant because CQA violations during early development are typically feasibility concerns rather than immediate safety risks. This makes constrained BO closely aligned with Quality by Design and systematic process development. It allows the optimizer to search for high titre, purity, or yield while explicitly accounting for CQA limits, viable operating windows, and regulatory or manufacturing constraints. 
+
+2.7 Robust Bayesian Optimization 
+
+Classical BO seeks an input with high predicted objective value, but the resulting optimum may be sensitive to small deviations between the proposed and realized operating conditions. This is problematic in experimental process development, where implementation errors, raw-material variability, or scale-dependent effects can perturb the selected recipe. Robust BO therefore modifies the optimization goal from finding a single high-performing point to finding a point whose performance remains high under a specified perturbation set. Bogunovi´ c et al. [23] formulate this idea as adversarially robust BO. Let d(x, x′) denote a distance measure on the domain X , and let ϵ define the size of the admissible perturbation. For a nominal point x, the local perturbation set is 
+
+∆ϵ(x) = {δ : x + δ ∈ X , d (x, x + δ) ≤ ϵ}. (13) The robust optimum is then defined by a max–min objective, 
+
+x∗ 
+
+> ϵ
+
+∈ arg max  
+
+> x∈X
+
+min  
+
+> δ∈∆ϵ(x)
+
+f (x + δ), (14) which favors broad, stable regions of high performance rather than narrow optima that may fail after small perturbations. To solve this problem with GP uncertainty, Bogunovi´ c et al. [23] introduce the S TABLE OPT algorithm. Given the GP posterior mean μnd (x) and standard deviation σnd (x), the upper and lower confidence bounds are given in Equation 7 and the algorithm first selects the nominal point with the best robust upper confidence bound, 
+
+˜xnd+1 ∈ arg max  
+
+> x∈X
+
+min  
+
+> δ∈∆ϵ(x)
+
+ucb( x + δ), (15) and then samples the most pessimistic perturbation according to the lower confidence bound, 
+
+δnd+1 ∈ arg min  
+
+> δ∈∆ϵ(˜ xn)
+
+lcb(˜ xn + δ). (16) The experiment is performed at ˜xn + δnd , and the GP posterior is updated with the resulting observation. This combines optimism when choosing a promising robust region with pessimism when identifying the most vulnerable point inside that region. In the context of bioprocess development, this formulation is directly relevant because a recommended CPP set point is rarely implemented exactly. Robust BO provides a principled way to prefer recipes that retain acceptable performance under local CPP deviations. 
+
+# 3 Methods 
+
+This section describes the methodological framework developed to guide experimental recipe selection with Gaussian process surrogate models and PFGS. First, the basic PFGS workflow is introduced based on a titer maximization problem, where candidates are selected by balancing predicted performance and model uncertainty. The framework is then extended to include probabilistic CQA constraints and robustness criteria that account for implementation variability in CPPs. 
+
+3.1 Pareto Front Guided Sampling 
+
+Pareto Front Guided Sampling (PFGS) is used in this work to turn BO into a HitL decision-support workflow [33, 34]. Instead of returning a single automatically selected optimum, PFGS presents a set of candidate experiments on a 7A PREPRINT - J UNE 18, 2026 Pareto front, allowing the expert to inspect the trade-off between expected performance and information gain. In the basic titer maximization example, each candidate recipe is evaluated using the Gaussian process surrogate through two quantities: the posterior mean titer prediction, μTiter (x), and the corresponding predictive standard deviation, 
+
+σTiter (x). The mean prediction represents the expected process performance, while the predictive standard deviation reflects model uncertainty and therefore the potential value of sampling that recipe. Displaying these quantities together makes the exploration–exploitation trade-off explicit and interpretable for the practitioner without the need to choose a fixed hyperparameter like β in Equation 7 to govern the trade-off. The workflow is illustrated in Figure 2. After an initial experimental design has been evaluated, the GP is trained and the Pareto front is generated from candidate recipes that are not dominated with respect to predicted titer and predictive uncertainty (Figure 2 a,b). Candidates with high predicted titer exploit regions that already appear promising, whereas candidates with high uncertainty explore regions that are poorly characterized, far from previous experiments, or associated with strong local variation. Rather than forcing the algorithm to decide between these alternatives automatically, PFGS exposes the trade-off to the expert, who can then select experiments according to the current process-development objective. Expert knowledge is incorporated by specifying requirements on the displayed Pareto objectives. For example, a minimum acceptable predicted titer can be imposed to remove candidates with insufficient expected performance. At the same time, a minimum predictive uncertainty can be required to avoid repeatedly sampling regions that are already well characterized or close to the measurement-noise floor. These requirements are shown in Figure 2 c,d, where the red vertical line defines the lower bound on predicted titer and the red horizontal line defines the lower bound on predictive uncertainty. Candidate recipes that do not satisfy all requirements are excluded from the selectable region of the Pareto front. From the remaining candidates, the expert can manually select a batch using domain knowledge, practical feasibility considerations, or preferences for diverse operating conditions. Alternatively, the final selection can be delegated to an automated procedure. In this case, all expert-defined requirements are first enforced, after which the feasible point with lowest euclidean distance to the utopia point in normalized objective space is selected. Additional batch points are then chosen to maximize their minimum distance from previously selected candidates and from experiments that have already been performed, thereby encouraging diversity in the investigation space. After the selected recipes are evaluated experimentally or in simulation, the new observations are added to the dataset, the GP is retrained, and the Pareto front is recomputed. The updated Pareto front in Figure 2 f can then be compared with the initial front to assess whether the iteration improved the attainable predicted titer, reduced uncertainty in relevant regions, or both. The corresponding change in the GP prediction is shown in Figure 2 e. Based on this updated information, the practitioner can revise the requirements and continue the next PFGS iteration. If no candidates remain that satisfy the specified requirements, the expert may either reduce the batch size, relax one or more requirements, or stop the optimization if the region of interest has been characterized to the desired accuracy. The latter can be interpreted as a stopping criterion, indicating that the campaign has reached a point where the desired accuracy has been achieved. Once the expert considers the model sufficiently accurate, a final optimization step can be performed that prioritizes both objective maximization and uncertainty minimization. This is particularly relevant for later-stage process development and manufacturing, where the preferred operating point should not only achieve high predicted performance but also be supported by low model uncertainty for regulatory justification. 
+
+3.2 Constrained Pareto front Guided Sampling 
+
+In the constrained case, PFGS is extended by adding the probability of satisfying a CQA as an additional Pareto objective, e.g. a purity of a certain level. In general, the process objective may still be maximized, while one or more quality attributes must remain within an acceptable interval. Since the GP surrogate provides a predictive distribution for each modeled response, constraint satisfaction can be expressed probabilistically rather than as a deterministic pass–fail criterion. For a candidate recipe x with CQA prediction fc(x) ∼ N (μc(x), σ 2 
+
+> c
+
+(x)) and lower and upper specification limits θl and θu, the probability of satisfying the two-sided constraint is 
+
+P (θl ≤ fc(x) ≤ θu) = Φ 
+
+ θu − μc(x)
+
+σc(x)
+
+
+
+− Φ
+
+ θl − μc(x)
+
+σc(x)
+
+
+
+, (17) where Φ( ·) is the standard normal CDF. A visualization of this probability calculation is shown in Figure 3. This probability is then treated as an additional Pareto objective alongside the mean titer prediction and the predictive titer uncertainty. The resulting constrained PFGS problem therefore differs from the unconstrained case by replacing the two-dimensional Pareto front with a three-dimensional Pareto front. Candidate recipes are compared with respect to (i) high predicted 8A PREPRINT - J UNE 18, 2026 
+
+Figure 2: Basic PFGS workflow for titer maximization: pink points indicate performed experiments, blue points indicate Pareto-front recipes, black points indicate recipes discarded by the expert, and orange points indicate selected recipes. (a) Initial trained GP used to generate the initial Pareto front. (b) Initial Pareto front presenting candidate recipes according to predicted mean titer and predictive standard deviation. (c,d) Expert-defined requirements, such as a minimum expected titer and a minimum uncertainty threshold, restrict both the selectable region of the Pareto front and parts of the investigation space. (e,f) After the selected experiments are evaluated and the GP is retrained, the updated Pareto front shows the progress achieved in one iteration, with higher mean titer predictions and lower variance. 9A PREPRINT - J UNE 18, 2026 
+
+Figure 3: Probabilistic calculation of CQA constraint satisfaction for a candidate recipe. The GP predictive distribution is shown together with lower and upper specification limits. The shaded area corresponds to P (θl ≤ fc(x) ≤ θu),which is used as a feasibility objective in the constrained PFGS formulation. titer, (ii) high predictive uncertainty or information gain, and (iii) high probability of satisfying the purity constraint. For visualization and expert selection, this three-dimensional Pareto front is shown through two two-dimensional projections in Figure 4. The first projection relates predicted titer to predictive uncertainty, analogous to the unconstrained case, while the second projection relates predicted titer to the probability of purity satisfaction. Expert requirements can then be applied to all Pareto axes, for example by requiring a minimum expected titer, a minimum uncertainty threshold, and a minimum probability of satisfying purity > 0.8.In the first iteration, these requirements restrict the Pareto front to candidate recipes that are both promising and sufficiently likely to meet the CQA. Recipes that fail the purity-confidence requirement are removed even if their predicted titer is high, because they do not satisfy the quality constraint with sufficient probability. The restricted Pareto front therefore provides the expert with a smaller and more relevant set of candidates for batch selection. This highlights the main conceptual difference from the basic PFGS workflow: the expert no longer selects only between exploitation and exploration, but also between performance and probabilistic quality assurance. 
+
+3.3 Robust Pareto Front Guided Sampling 
+
+Robustness is incorporated into PFGS to identify candidate recipes that remain attractive when the CPP values deviate from their nominal set points. This is important because experimental recipes are rarely executed exactly as proposed: pipetting errors, raw-material variability, sensor uncertainty, and scale-dependent disturbances can all shift the realized operating point. In the robust formulation, the expert specifies an expected perturbation range or standard deviation for each CPP, and this local uncertainty region is evaluated in addition to the nominal recipe performance. The resulting robustness score can then be added as another Pareto objective, allowing the expert to select candidates that balance high predicted titer, information gain, constraint satisfaction, and stability under CPP variation. Two robustness strategies are considered in this work. The first is a worst-case strategy over an expert-defined error box around the candidate recipe. For a proposed recipe x, the error box contains all perturbed recipes ˜x satisfying 
+
+|˜xi − xi| ≤ ∆i for each CPP i, where ∆i denotes the expected implementation tolerance. Robustness can then be quantified by the lowest conservative performance predicted within this box, for example 
+
+Rwc (x) = min  
+
+> ˜x:|˜xi−xi|≤ ∆i
+
+[μ(˜ x) − βσ (˜ x)] . (18) This criterion favors recipes whose lower-confidence performance remains high even under the most adverse admissible perturbation, making it suitable when operating margins are required [28], a visual representation is shown in Figure 5a. The second strategy is Monte-Carlo (MC) sampling based and estimates robustness from a distribution of likely CPP deviations around the candidate recipe. For each candidate x, ns perturbed points are sampled from a Gaussian 10 A PREPRINT - J UNE 18, 2026 
+
+Figure 4: Restricted constrained Pareto front for the first PFGS iteration with a purity requirement of 0.8. The Pareto front was restriced by an expert that expects μTiter (x) > 1300 , σTiter (x) > 100 and P Purity >0.8(x) > 0.8. (left) Projection of the feasible candidate recipes onto predicted titer and predictive uncertainty, showing the remaining exploration–exploitation trade-off after applying expert requirements. (right) Projection onto predicted titer and probability of purity satisfaction, showing how the CQA constraint removes high-titer candidates that are unlikely to meet the required purity threshold. distribution centered at the proposed recipe with expert-defined standard deviations σe,i for each input dimension i. The robustness objective is then defined as the mean lower confidence bound of the GP titer predictions over these sampled perturbations: 
+
+RMC (x) = 1
+
+nsnsX
+
+> j=1
+
+[μ(xj ) − βσ (xj )] , xj ∼ N (x, diag( σe2)) . (19) Here, μ(xj ) and σ(xj ) are the GP posterior mean and standard deviation at perturbation sample xj , and β = 1 .96 
+
+corresponds to a two-sided 95% confidence interval. Compared with the worst-case strategy, this sampling-based metric, visualized in Figure 5b, reflects average expected robustness over likely deviations rather than the single most conservative point in the uncertainty region. In both cases, robustness is introduced as an additional optimization axis and used to support expert decision-making. The robustness criterion must be defined separately for each response of interest, so the robustness of different objectives can be optimized and interpreted independently. A visualization of the resulting Pareto front generated with the sampling method is shown in Figure 6 (right). The diagonal reference line indicates the ideal case in which the robust performance is equal to the nominal prediction. Points close to this line therefore correspond to recipes whose predicted performance does not decrease under the specified CPP perturbations. Two candidate recipes are highlighted with orange crosses: one with high robustness and one with lower robustness. When the corresponding GP prediction is inspected in Figure 6 (left), the highly robust recipe is located in a region that is insensitive to pH variation, whereas the less robust recipe lies in a region where small pH deviations lead to a stronger performance decrease. Although both candidates have similar nominal performance, their different robustness values are visible on the Pareto front and can be explained by the local shape of the GP prediction. 
+
+3.4 Implementation 
+
+The implementation was written in Python and follows a modular structure separating simulation, surrogate modeling, Pareto-front generation, requirement filtering, and candidate selection. Gaussian process surrogate models were trained for each modeled response using the accumulated experimental dataset. At every PFGS iteration, a large set of candidate recipes was evaluated by the surrogate models, returning the posterior mean μ(x) and standard deviation σ(x) for each objective. For unconstrained optimization, these quantities were used directly as Pareto objectives. When constraints were present, feasibility was incorporated probabilistically according to Equation 17. If robust solutions were required, the robustness objective was computed according to Equation 18 or Equation 19 and added as an additional Pareto 11 A PREPRINT - J UNE 18, 2026  
+
+> (a) Worst-case robustness (b) Sampling-based robustness
+
+Figure 5: Robustness strategies used to extend PFGS beyond nominal recipe optimization. (a) Worst-case robustness evaluates the most conservative predicted performance within a bounded CPP error box. (b) MC Sampling-based robustness evaluates the lower-confidence performance over likely CPP perturbations around the proposed recipe. 
+
+Figure 6: Example of robustness-based candidate interpretation. (left) Pareto representation of nominal predicted titer and sampling-based robust titer. The diagonal reference line indicates the ideal case where robustness equals nominal performance; points closer to this line are less sensitive to the specified CPP perturbations. The highlighted candidates have similar nominal performance but different robustness values. (right) Corresponding GP prediction illustrating that the more robust candidate lies in a locally stable region with respect to pH, whereas the less robust candidate is located in a region where small pH deviations lead to a stronger performance decrease. 12 A PREPRINT - J UNE 18, 2026 axis. Pareto fronts were generated with the NSGA-II algorithm implemented in the Python package pymoo [44]. The optimization problem was defined by a custom Python objective function that queried the GP models that were trained using BoTorch [40], and returned the required Pareto objectives for each candidate. All relevant hyperparameter are shown in the Appendix A.3. After optimization, the resulting non-dominated candidates were filtered according to the expert-defined requirements on the dashboard for manual selection as shown in Figure A1, A2, A3, A4, A5 in the Appendix or processed by the automated selection routine described above. The overall algorithmic workflow is summarized in Algorithm 1. The same sequence is used for the unconstrained, constrained, and robust variants; only the objective vector ft(x) and the expert-defined requirements R change depending on the problem formulation. Algorithm 1: Human-in-the-Loop Pareto Front Guided Sampling (PFGS). 
+
+Input: D0, q // dataset, batch size 
+
+1 fit GP (x) on Dt = {(xi, yi)}nd
+
+> i=1
+
+2 init NSGA-II population X(0) 
+
+3 while not converged do: 4 ˆy, ˆσ ← GP (X(g)) // GP posterior 
+
+5 ft(x) ← μt, σ t, P t(θl ≤ fc ≤ θu), Rt
+
+
+
+// 4-obj. fitness 
+
+6 select via non-dom. sort + crowding dist. // NSGA-II ranking 
+
+7 check convergence ( ∆HV < ε or max gen.) // stopping criterion 
+
+8 apply crossover & mutation → X(g+1) 
+
+// genetic operators 
+
+9 return X∗ 
+
+> t
+
+← Pareto front of ft
+
+// non-dominated set 
+
+10 visualize X∗ 
+
+> t
+
+on interactive dashboard // human-in-the-loop 
+
+11 get expert thresholds τ R on ft
+
+12 PR,t ← { x ∈ X∗ 
+
+> t
+
+: ft(x) ≥ τ R}
+
+13 if PR,t = ∅: // stopping criteria 
+
+14 stop 15 select Bt ⊆ P R,t , |B t| ≤ q, // automated or manual selection 
+
+16 run experiments → Yt = {y(x) : x ∈ B t}
+
+17 Dt+1 ← D t ∪ { (x, y(x)) : x ∈ B t} // new dataset 
+
+18 if not budget exhausted :19 repeat from L1 
+
+The code will be made available on the Autonomous Industrial Systems Lab GitHub page at https://github.com/ AISL-at-Imperial-College-London .
+
+# 4 Case Study 
+
+The bioprocess case study uses an eight-dimensional, three-output fed-batch simulator described by a system of ordinary differential equations shown in Appendix A.2. The model structure is based on the formulations reported by [45, 13] and is extended here to include aggregation and purity alongside titer as process outputs. The simulated process represents a two-week fed-batch reactor operation with two scheduled feeding events on days 5 and 10 (Figure 7). The decision variables comprise the initial culture conditions and feed concentrations for glucose and glutamine, while the outputs describe product formation and quality-related attributes. Table 2 summarizes the input ranges and model outputs used throughout the case study. Within this work, the simulator provides a controlled yet bioprocess-relevant benchmark for evaluating optimization performance in a high-dimensional setting where direct visualization is limited and expert interpretability becomes increasingly important. 13 A PREPRINT - J UNE 18, 2026 
+
+Figure 7: Schematic of the bioreactor process, including the initial setup, two bolus feeds, and the final harvest. Table 2: Input variables and output responses of the fed-batch bioprocess simulator. 
+
+Inputs Outputs Estimated Name Range Unit Standard Devation Default Name Range Unit 
+
+Temperature [30.0, 40.0] ◦C 0.1 33.4 Titer – g/L pH [6.0, 8.0] – 0.2 6.7 Aggregation – %Initial GLC [0.0, 4.0] g/L 0.05 4.0 Purity – %Initial GLN [0.0, 4.0] g/L 0.05 4.0 Feed 1 GLC [0.0, 4.0] g/L 0.05 2.0 Feed 1 GLN [0.0, 4.0] g/L 0.05 1.0 Feed 2 GLC [0.0, 4.0] g/L 0.05 2.0 Feed 2 GLN [0.0, 4.0] g/L 0.05 1.0 The optimization problem is formulated using endpoint data at the end of the 14-day cultivation period; therefore, the sequential decision-making framework does not explicitly model the full process dynamics. However, the PFGS methodology is not limited to static endpoint models. As long as the predictive model provides a point and associated uncertainty estimate for each candidate condition, the same framework can also be applied to time-resolved process models. To provide an interpretable visualization of the eight-dimensional case study, a two-dimensional version of the simulator is used to showcase some effects while the remaining six inputs are fixed at the default values listed in Table 2. This two dimensional problem is shown in Figure 8a for the the titer objective, the purity response (Figure 8b), and the constrained optimization problem obtained by requiring purity to be greater than 0.8 (Figure 8c). 
+
+# 5 Results & Discussion 
+
+This section evaluates the proposed HitL PFGS workflow on the bioprocess case study described in Section 4. First, the optimization problem is defined, including the Pareto objectives used to represent performance, uncertainty, constraint satisfaction, and robustness. The subsequent sections discuss how these Pareto-front projections can support expert decision-making during the optimization campaign and assess the improvement achieved over successive iterations. 14 A PREPRINT - J UNE 18, 2026   
+
+> (a) Titer objective (b) Purity response (c) Constrained objective
+
+Figure 8: Two-dimensional slice of the bioprocess simulator with all non-displayed inputs fixed at their default values. (a) Titer response surface used as the optimization objective. (b) Purity response surface used to define the quality constraint. (c) Resulting constrained optimization landscape for titer maximization subject to purity > 0.8 (black dashed line), showing how the feasible region restricts the objective search space. 
+
+5.1 Setup of the Optimization Problem 
+
+The optimization objective was setup to identify recipes with high predicted titer while satisfying a minimum purity requirement of approximately 80% . This intentionally broad specification reflects the flexibility of PFGS, which allows objectives and preferences to be adapted throughout the optimization campaign rather than fixed a priori . As a result, decision-making criteria can evolve in response to newly acquired process knowledge and changing development priorities. In addition, robustness is considered by accounting for expected implementation variability in the input variables. These perturbations are modeled using input-specific distributions with standard deviations defined for the investigated CPPs listed in Table 2. These values are specified by the operator, who often has practical knowledge of the expected CPP variation from previous processes, alternatively, they could be estimated from historical process data. Following the standard PFGS formulation described in Section 3.1, titer optimization is represented by two Pareto objectives: the GP posterior mean titer, μTiter (x), and the corresponding predictive standard deviation, σTiter (x). The mean prediction captures expected process performance, whereas the predictive standard deviation represents model uncertainty and can be seen as a proxy for information gain from sampling a candidate recipe. To incorporate the purity constraint, the probability of satisfying the required purity threshold is added as an additional Pareto objective, following Equation 17. Robustness is included using the sampling-based formulation in Equation 19, because there is more meaning for the HitL in the estimated expected lower-confidence titer concentration under likely CPP deviations rather than the most conservative worst-case response. The resulting optimization problem therefore uses a four-dimensional Pareto representation consisting of predicted titer, titer uncertainty, probability of purity satisfaction, and robust titer performance. The optimization campaign is initialized with 10 experiments sampled using Latin hypercube sampling. Separate GP surrogate models are then trained for titer and purity using the initial dataset. The resulting four-dimensional Pareto front after this initial sampling stage shown in Figure 9a provides the first set of candidate recipes for expert inspection and selection. 
+
+5.2 Pareto-Front Analysis 
+
+The initial Pareto front is presented to the expert to define practical selection requirements. The first criterion considered is the probability of satisfying the CQA constraint, shown in Figure 9a (right), because purity is a critical feasibility requirement. At this early stage of development, the expert observes that achieving a high probability of Purity > 0.8
+
+is challenging across the candidate set. Therefore, a relatively permissive minimum threshold of 60% is selected for the probability of purity satisfaction. The expert then considers the GP posterior mean titer, μTiter (x), shown on the horizontal axes of the Pareto-front projections. Since the initial Pareto front contains predicted titers up to approximately 2000 mg/L, candidates with predicted titer below 1000 mg/L are excluded from further consideration. These low-performance regions are not prioritized because they are unlikely to contribute useful process-development information relative to higher-performing alternatives. 15 A PREPRINT - J UNE 18, 2026 
+
+> (a)
+> (b)
+> (c)
+
+Figure 9: Evolution of the Pareto front throughout the optimization campaign. Blue points denote Pareto-optimal candidates, while black points represent recipes rejected by the expert. Furthermore, orange diamonds indicate the recipes selected by the expert. Each row shows three projections: (left) the classical PFGS projection of the GP posterior mean titer, μTiter (x), versus the predictive standard deviation, σTiter (x); (middle) the robustness projection for the titer prediction, where candidates on or above the diagonal are expected to retain their nominal performance under the specified CPP perturbations; and (right) the probability of satisfying the purity constraint, P (Purity > 0.8) , plotted against the GP posterior mean titer. (a) shows the initial Pareto front used to select experiments for the subsequent optimization iteration, resulting in the updated Pareto front shown in (b). Panel (c) depicts the Pareto front at a later stage of the campaign, after six PFGS iterations. Robustness is evaluated next using the robust titer projection in Figure 9a (middle). The expert again selects a threshold of 1000 mg/L, requiring candidates with lower nominal predicted titer to at least maintain acceptable performance under the specified CPP perturbations. This prevents the selection of recipes whose already moderate predicted performance would decrease further under expected input variability. Finally, the remaining candidates are inspected with respect to predictive uncertainty. Since all remaining Pareto candidates have σTiter (x) > 100 , no additional requirement is imposed on this axis. After applying these requirements, the expert selects a batch of five experiments. Because the campaign is still in an early development stage, the selected recipes are chosen from the remaining candidates with the highest predictive 16 A PREPRINT - J UNE 18, 2026 standard deviation. This prioritizes information gain and supports rapid improvement of the surrogate model. The selected experiments are then evaluated experimentally or in simulation, the new observations are added to the dataset, and the GP models are retrained before generating the next Pareto front. The Pareto front obtained after the second iteration (Figure 9b) shows a clear improvement in the explored design space. In the classical PFGS projection, the reachable predicted titer range increases, indicating that the surrogate model has identified more promising high-performance regions. The candidates in the robustness projection move closer to the diagonal, suggesting that a larger fraction retains their nominal predicted performance under the specified CPP perturbations. In addition, higher predicted titers can now be achieved with larger probabilities of satisfying the purity constraint. Three representative candidate recipes are highlighted with crosses: the red candidate combines high predicted titer and robustness but has a low probability of satisfying the purity constraint; the pink candidate offers a high probability of constraint satisfaction with moderate titer and robustness but lower expected information gain; and the orange candidate provides a favorable trade-off between performance and information gain, although with comparatively lower robustness and constraint satisfaction probability. This highlights both the complexity of expert decision-making and the process insight that can be gained by interpreting the Pareto-front trade-offs. 
+
+5.3 Late-Stage Pareto Front 
+
+At a later stage of the development campaign, after six PFGS iterations have been performed, the progress of the optimization is visible in the updated Pareto front shown in Figure 9c. Compared with the initial Pareto front in Figure 9a, the predicted titer values extend to substantially higher levels, indicating improved model knowledge of high-performing regions. The robustness projection also exhibits a more diagonal structure, suggesting that a larger fraction of candidates retain their nominal predicted performance under the specified CPP perturbations. In addition, the probability of satisfying the purity requirement approaches 100% for candidates with predicted titers up to approximately 2000 mg/L, whereas in the initial iteration high feasibility probabilities were primarily observed at lower titer values. These changes illustrate that PFGS provides not only candidate recipes for the next iteration, but also interpretable insight into the current state of process understanding and the performance levels that can realistically be expected. Because the campaign is now at a later development stage, the expert applies more conservative selection requirements. The minimum probability of satisfying the purity constraint is increased to 90%, while the robust titer threshold is maintained at 1000 mg/L. The remaining candidates are then inspected with respect to predictive uncertainty. Candidates with σTiter (x) < 100 mg/L are discarded because their uncertainty is close to the expected experimental variation in titer and therefore provides limited additional information gain. After applying these requirements, only three candidate recipes remain. The expert therefore reduces the experimental batch from five to three reactors to conserve resources. Alternatively, the unused reactor capacity could be used to generate replicates of promising operating conditions and estimate experimental repeatability. This example highlights how expert expectations and selection criteria can evolve during process development. Regions discarded in one iteration may differ from those discarded later as the surrogate model becomes more informative and the development objective shifts from broad exploration toward more conservative refinement. This adaptability is a central advantage of PFGS: instead of fixing a single acquisition function or objective weighting a priori, the expert can decide which objective should be prioritized in the current iteration based on the visualized Pareto-front trade-offs. 
+
+5.4 Generalization of PFGS 
+
+The example above demonstrates how PFGS can be used for constrained and robust optimization. More generally, however, PFGS is not limited to the specific objectives used in this case study. A wide range of BO acquisition functions or surrogate-derived quantities can be reformulated as Pareto objectives and presented in a HitL decision framework. This allows operators and domain scientists to inspect the model recommendations, compare competing objectives, and incorporate process knowledge before selecting the next experiments. The framework therefore does not introduce a new acquisition function, but reorganizes existing BO objectives into an interpretable multi-objective format that supports expert decision-making and the integration of domain knowledge. A visualization of the interactive dashboard used to include the human into the loop is shown in the appendix A.1 
+
+# 6 Conclusion 
+
+The results highlight several practical advantages of this approach for process development. Expert-defined requirements can restrict the search to feasible and relevant regions, while the Pareto-front representation provides insight into the potential performance within these regions. This also supports informed stopping decisions: if the remaining feasible candidates no longer provide sufficient improvement, the expert can decide that the current region has been characterized 17 A PREPRINT - J UNE 18, 2026 with adequate accuracy. Although GP models were used in this case study, the framework is not limited to GPs. Any surrogate model that provides reliable estimates of predictive mean and uncertainty could, in principle, be used within the same PFGS workflow. Similarly, while the case study focused on biopharmaceutical process development, the methodology is applicable more broadly to experimental optimization problems where expert knowledge, constraints, and robustness are important. Several limitations remain. Introducing a human decision-maker also introduces the possibility of bias or suboptimal guidance, especially if the selected requirements do not reflect the true process-development objective. The quality of the final recommendations therefore depends not only on the surrogate model, but also on the expertise and consistency of the user. In addition, the reliability of the Pareto front depends on the convergence of the underlying optimization algorithm. If the genetic algorithm (NSGA-II) does not adequately approximate the true non-dominated front, relevant candidate recipes may be missed or incorrectly represented. Future work should extend the framework to multi-fidelity optimization, where experiments at different scales or levels of accuracy can be balanced against their respective cost and information gain. This is particularly relevant for scale-up workflows, where small-scale experiments, pilot-scale studies, and full-scale validation runs differ substantially in cost and reliability. Additional case studies in chemistry, chemical engineering, and other experimental sciences should also be investigated to assess the generality of the approach. Finally, future work should compare HitL PFGS with fully automated BO strategies in controlled benchmark studies. Once the surrogate model has reached sufficient accuracy, the objective could also be reformulated for late-stage process optimization and manufacturing, where the goal is no longer to explore uncertain regions but to identify robust, constraint-satisfying operating conditions with low predictive uncertainty. 
+
+# 7 Acknowledgments 
+
+This research was initiated as part of a Master’s thesis at ETH Zurich in collaboration with DataHow AG and was subsequently further developed during an internship at DataHow AG and doctoral studies at Imperial College London. The work was supported by financial contributions from DataHow AG and the Department of Chemical Engineering Scholarship at Imperial College London. Generative AI tools were used to assist with language editing and coding, and all content was reviewed and approved by the authors. 
+
+# 8 Author Identifiers 
+
+Stricker S: 0009-0008-2261-8430 
+
+Wirnsperger C: 0009-0000-8511-1428 
+
+Butté A: 0000-0003-3506-3792 
+
+Helleckes L. M: 0000-0001-7825-7998 
+
+Guillén Gosálbez G: 0000-0001-6074-8473 
+
+Del Rio Chanona A: 0000-0003-0274-2852 
+
+Mercangöz M: 0000-0002-4449-0414 
+
+# References 
+
+[1] Maximilian Siska et al. “A Guide to Bayesian Optimization in Bioprocess Engineering”. en. In: Biotechnology and Bioengineering 123.4 (2026), pp. 805–830. ISSN : 1097-0290. DOI : 10.1002/bit.70129 .[2] Benjamin J. Shields et al. “Bayesian reaction optimization as a tool for chemical synthesis”. en. In: Nature 
+
+590.7844 (Feb. 2021), pp. 89–96. ISSN : 1476-4687. DOI : 10.1038/s41586-021-03213-y .[3] Peter I. Frazier and Jialei Wang. Bayesian optimization for materials design . 2016. DOI : 10.1007/978-3-319-23871-5_3 .[4] Osney Pérez-Ones and Antonio Flores-Tlacuahuac. “A stochastic data-driven Bayesian optimization approach for intensified ethanol–water separation systems”. In: Chemical Engineering and Processing - Process Intensification 
+
+197 (Mar. 2024), p. 109708. ISSN : 0255-2701. DOI : 10.1016/j.cep.2024.109708 .[5] Alice Kasemiire et al. “Design of experiments and design space approaches in the pharmaceutical bioprocess optimization”. In: European Journal of Pharmaceutics and Biopharmaceutics 166 (Sept. 2021), pp. 144–154. 
+
+> ISSN
+
+: 0939-6411. DOI : 10.1016/j.ejpb.2021.06.004 .[6] Stewart Greenhill et al. “Bayesian Optimization for Adaptive Experimental Design: A Review”. In: IEEE Access 
+
+8 (2020), pp. 13937–13948. ISSN : 2169-3536. DOI : 10.1109/ACCESS.2020.2966228 .18 A PREPRINT - J UNE 18, 2026 [7] Peter I. Frazier. A Tutorial on Bayesian Optimization . July 2018. DOI : 10.48550/arXiv.1807.02811 .[8] Shiwei Yang et al. “Aspects and Implementation of Pharmaceutical Quality by Design from Conceptual Frame-works to Industrial Applications”. en. In: Pharmaceutics 17.5 (May 2025), p. 623. ISSN : 1999-4923. DOI :
+
+10.3390/pharmaceutics17050623 .[9] Mohammad Mehrian et al. “Maximizing neotissue growth kinetics in a perfusion bioreactor: An in silico strategy using model reduction and Bayesian optimization”. en. In: Biotechnology and Bioengineering 115.3 (2018), pp. 617–629. ISSN : 1097-0290. DOI : 10.1002/bit.26500 .[10] Harini Narayanan et al. “Design of Biopharmaceutical Formulations Accelerated by Machine Learning”. eng. In: Molecular Pharmaceutics 18.10 (Oct. 2021), pp. 3843–3853. ISSN : 1543-8392. DOI : 10 . 1021 / acs . molpharmaceut.1c00469 .[11] Zachary Cosenza et al. “Multi-objective Bayesian algorithm automatically discovers low-cost high-growth serum-free media for cellular agriculture application”. en. In: Engineering in Life Sciences 23.8 (2023), e2300005. ISSN :1618-2863. DOI : 10.1002/elsc.202300005 .[12] Laura Marie Helleckes et al. “High-throughput screening of catalytically active inclusion bodies using laboratory automation and Bayesian optimization”. en. In: Microbial Cell Factories 23.1 (Feb. 2024), p. 67. ISSN : 1475-2859. 
+
+> DOI
+
+: 10.1186/s12934-024-02319-y .[13] Adrian Martens et al. Holistic Bioprocess Development Across Scales Using Multi-Fidelity Batch Bayesian Optimization . Aug. 2025. DOI : 10.48550/arXiv.2508.10970 .[14] Jacob Gardner et al. “Bayesian Optimization with Inequality Constraints”. en. In: Proceedings of the 31st International Conference on Machine Learning . PMLR, June 2014, pp. 937–945. [15] Riley J. Hickman et al. “Bayesian optimization with known experimental and design constraints for chemistry applications”. en. In: Digital Discovery 1.5 (Oct. 2022), pp. 732–744. ISSN : 2635-098X. DOI : 10 . 1039 / D2DD00028H .[16] Joel A. Paulson and Congwen Lu. “COBALT: COnstrained Bayesian optimizAtion of computationaLly expensive grey-box models exploiting derivaTive information”. In: Computers & Chemical Engineering 160 (Apr. 2022), p. 107700. ISSN : 0098-1354. DOI : 10.1016/j.compchemeng.2022.107700 .[17] Akshay Kudva, Farshud Sorourifar, and Joel A. Paulson. “Constrained robust Bayesian optimization of expensive noisy black-box functions with guaranteed regret bounds”. en. In: AIChE Journal 68.12 (2022), e17857. ISSN :1547-5905. DOI : 10.1002/aic.17857 .[18] Felix Berkenkamp, Andreas Krause, and Angela P. Schoellig. “Bayesian optimization with safety constraints: safe and automatic parameter tuning in robotics”. en. In: Machine Learning 112.10 (Oct. 2023), pp. 3713–3747. 
+
+> ISSN
+
+: 0885-6125, 1573-0565. DOI : 10.1007/s10994-021-06019-1 .[19] Dinesh Krishnamoorthy and Francis J. Doyle. Safe Bayesian Optimization using Interior-Point Methods – Applied to Personalized Insulin Dose Guidance . May 2022. DOI : 10.48550/arXiv.2205.02327 .[20] Panagiotis Petsagkourakis, Benoit Chachuat, and Ehecatl Antonio del Rio-Chanona. “Safe Real-Time Optimiza-tion using Multi-Fidelity Gaussian Processes”. In: 2021 60th IEEE Conference on Decision and Control (CDC) .Dec. 2021, pp. 6734–6741. DOI : 10.1109/CDC45484.2021.9683599 .[21] Santiago Ramos Garces et al. “Efficient Tuning of an Isotope Separation Online System Through Safe Bayesian Optimization with Simulation-Informed Gaussian Process for the Constraints”. en. In: Mathematics 12.23 (Jan. 2024), p. 3696. ISSN : 2227-7390. DOI : 10.3390/math12233696 .[22] Hoai Phuong Le and Juergen Branke. “Bayesian Optimization Searching for Robust Solutions”. In: 2020 Winter Simulation Conference (WSC) . Dec. 2020, pp. 2844–2855. DOI : 10.1109/WSC48552.2020.9383978 .[23] Ilija Bogunovic et al. “Adversarially Robust Optimization with Gaussian Processes”. In: Advances in Neural Information Processing Systems . Vol. 31. Curran Associates, Inc., 2018. [24] Dorina Weichert et al. Robust Entropy Search for Safe Efficient Bayesian Optimization . May 2024. DOI : 10. 48550/arXiv.2405.19059 .[25] Joel A. Paulson, Georgios Makrygiorgos, and Ali Mesbah. “Adversarially robust Bayesian optimization for efficient auto-tuning of generic control structures under uncertainty”. en. In: AIChE Journal 68.6 (2022), e17591. 
+
+> ISSN
+
+: 1547-5905. DOI : 10.1002/aic.17591 .[26] Akshay Kudva, Wei-Ting Tang, and Joel A. Paulson. “Robust Bayesian optimization for flexibility analysis of expensive simulation-based models with rigorous uncertainty bounds”. In: Computers & Chemical Engineering 
+
+181 (Feb. 2024), p. 108515. ISSN : 0098-1354. DOI : 10.1016/j.compchemeng.2023.108515 .[27] Akshay Kudva and Joel A. Paulson. “BONSAI: Structure-exploiting robust Bayesian optimization for networked black-box systems under uncertainty”. In: Computers & Chemical Engineering (Sept. 2025), p. 109393. ISSN :0098-1354. DOI : 10.1016/j.compchemeng.2025.109393 .19 A PREPRINT - J UNE 18, 2026 [28] Qi Zhang, Kaiyi Ji, and Shaofeng Zou. Distributionally Robust Bayesian Optimization: From Single to Multiple Objectives . en. Oct. 2025. [29] Miquel Romero-Obon et al. “Human-in-the-Loop AI Use in Ongoing Process Verification in the Pharmaceutical Industry”. en. In: Information 16.12 (Dec. 2025), p. 1082. ISSN : 2078-2489. DOI : 10.3390/info16121082 .[30] Tom Savage and Ehecatl Antonio del Rio Chanona. “Human-algorithm collaborative Bayesian optimization for engineering systems”. In: Computers & Chemical Engineering 189 (Oct. 2024), p. 108810. ISSN : 0098-1354. 
+
+> DOI
+
+: 10.1016/j.compchemeng.2024.108810 .[31] Masaki Adachi et al. Looping in the Human: Collaborative and Explainable Bayesian Optimization . en. Feb. 2024. [32] Keren J. Kanarik et al. “Human–machine collaboration for improving semiconductor process development”. en. In: Nature 616.7958 (Apr. 2023), pp. 707–711. ISSN : 1476-4687. DOI : 10.1038/s41586-023-05773-7 .[33] Samuel Stricker. “Optimal Design of Experiments for Bio-Processes using Hybrid Models”. English. MA thesis. Zurich: ETH Zurich, Sept. 2024. [34] Samuel Stricker et al. “Pareto Front Guided Sampling for Efficient Bioprocess Experimentation”. en. In: System & Control Transactions . PSE Press, June 2026. [35] Aqsa Qaisar et al. “A Comprehensive Review on Implementation of Quality by Design in Varied Pharmaceutical Formulations”. en. In: Global Pharmaceutical Sciences Review 9.1 (Mar. 2024), pp. 1–9. ISSN : 2788-5445. DOI :
+
+10.31703/gpsr.2024(IX-I).01 .[36] Carl Edward Rasmussen and Christopher K. I. Williams. Gaussian Processes for Machine Learning . en. The MIT Press, Nov. 2005. ISBN : 978-0-262-25683-4. DOI : 10.7551/mitpress/3206.001.0001 .[37] M. Nicolás Cruz-Bournazou et al. “Hybrid Gaussian Process Models for continuous time series in bolus fed-batch cultures”. In: IFAC-PapersOnLine . 13th IFAC Symposium on Dynamics and Control of Process Systems, including Biosystems DYCOPS 2022 55.7 (Jan. 2022), pp. 204–209. ISSN : 2405-8963. DOI : 10.1016/j. ifacol.2022.07.445 .[38] Florian Gisperg et al. “Bayesian Optimization in Bioprocess Engineering—Where Do We Stand Today?” en. In: 
+
+Biotechnology and Bioengineering 122.6 (2025), pp. 1313–1325. ISSN : 1097-0290. DOI : 10.1002/bit.28960 .[39] Niranjan Srinivas et al. “Information-Theoretic Regret Bounds for Gaussian Process Optimization in the Bandit Setting”. In: IEEE Transactions on Information Theory 58.5 (May 2012), pp. 3250–3265. ISSN : 1557-9654. DOI :
+
+10.1109/TIT.2011.2182033 .[40] Maximilian Balandat et al. BoTorch: A Framework for Efficient Monte-Carlo Bayesian Optimization . Dec. 2020. [41] Nathan Hunt. “Batch Bayesian Optimization”. PhD thesis. Massachusetts Institute of Technology, 2020. [42] Michael A. Gelbart, Jasper Snoek, and Ryan P. Adams. Bayesian Optimization with Unknown Constraints . Mar. 2014. DOI : 10.48550/arXiv.1403.5607 .[43] Christian Fiedler et al. “On Safety in Safe Bayesian Optimization”. en. In: Transactions on Machine Learning Research (May 2024). ISSN : 2835-8856. [44] Julian Blank and Kalyanmoy Deb. “Pymoo: Multi-Objective Optimization in Python”. In: IEEE Access 8 (2020), pp. 89497–89509. ISSN : 2169-3536. [45] Stephen Craven et al. “Process model comparison and transferability across bioreactor scales and modes of operation for a mammalian cell bioprocess”. en. In: Biotechnology Progress 29.1 (2013), pp. 186–196. ISSN :1520-6033. DOI : 10.1002/btpr.1664 .20 A PREPRINT - J UNE 18, 2026 
+
+# A Appendix 
+
+A.1 Dashboard Visualization 
+
+Fig A1: The setting section loads the relevant run from mlflow and shows the used investigation space and optimization problem. 21 A PREPRINT - J UNE 18, 2026 
+
+Fig A2: The Experiment section show the bi-variate investigation space responses of the experiments and the parallel coordinate plot for the performed experiments. 22 A PREPRINT - J UNE 18, 2026 
+
+Fig A3: The Investigation Space responses of the experiments and the Pareto front. 23 A PREPRINT - J UNE 18, 2026 
+
+Fig A4: The Pareto Front section show the bi-variate Pareto front and have the interactive table the restrict the Pareto fronts according to expert requirements. 24 A PREPRINT - J UNE 18, 2026 
+
+Fig A5: The Selected Recipes are shown in a table. 25 A PREPRINT - J UNE 18, 2026 
+
+A.2 Bioprocess Simulator 
+
+The bioprocess simulator models a CHO fed-batch culture based on [45, 13], extended to include product aggregation and purity. The model describes the dynamics of eight state variables: viable cell density xviable , total cell density xtotal ,dead cell density xdead , product concentration cproduct , aggregate concentration caggregates , glucose cglc , glutamine 
+
+cgln , lactate clac , and ammonia cammonia .
+
+Specific Growth Rate 
+
+The specific growth rate is modeled as a product of Monod kinetics and environmental penalty factors: 
+
+μ = μmax · cglc 
+
+ksat,glc + cglc 
+
+· cgln 
+
+ksat,gln + cgln 
+
+· ksat,lac 
+
+ksat,lac + clac 
+
+· ksat,ammonia 
+
+ksat,ammonia + cammonia 
+
+· ftemp · fpH (20) where ftemp and fpH are asymmetric Gaussian penalty factors for temperature and pH, respectively: 
+
+ftemp = rtemp ·
+
+
+
+exp −0.8 ·
+
+ T − Topt 
+
+3.0
+
+2!
+
+T < T opt 
+
+exp −1.0 ·
+
+ T − Topt 
+
+8.0
+
+2!
+
+T ≥ Topt 
+
+(21) 
+
+fpH = rpH ·
+
+
+
+exp −0.8 ·
+
+ pH − pH opt 
+
+1.5
+
+2!
+
+pH < pH opt 
+
+exp −1.5 ·
+
+ pH − pH opt 
+
+0.5
+
+2!
+
+pH ≥ pH opt 
+
+(22) Both factors are clipped to a minimum of 0.2. The effective growth rate incorporates a reactor-specific inhibition term 
+
+ginhibition and the death rate kdeath :
+
+kdeath = kdeath,max · kdeath,μ 
+
+μ + kdeath,μ 
+
+· sscale (23) 
+
+Cell Population Dynamics 
+
+dx total 
+
+dt = μ · ginhibition · xviable − klysis · xdead (24) 
+
+dx viable 
+
+dt = ( μ · ginhibition − kdeath ) xviable (25) 
+
+dx dead 
+
+dt = kdeath · xviable − klysis · xdead (26) 26 A PREPRINT - J UNE 18, 2026 
+
+Metabolite and Product Dynamics 
+
+dc product 
+
+dt = xtotal · yproduct,total + xviable · yproduct,viable · μ − 2 kagg c2 
+
+> product
+
+(27) 
+
+dc aggregates 
+
+dt = kagg c2 
+
+> product
+
+(28) 
+
+dc glc 
+
+dt = xviable 
+
+
+
+− μycells,glc 
+
+− mglc 
+
+
+
+(29) 
+
+dc gln 
+
+dt = xviable 
+
+
+
+− μycells,gln 
+
+− mgln 
+
+
+
+− kdeg,gln cgln (30) 
+
+dc lac 
+
+dt = −ylactate 
+
+dc glc 
+
+dt (31) 
+
+dc ammonia 
+
+dt = −yammonia · xviable 
+
+
+
+− μycells,gln 
+
+− mgln 
+
+
+
++ kdeg,gln cgln (32) 
+
+Product Purity 
+
+Product purity is defined as the fraction of active product relative to all protein-like and metabolic species: purity = cproduct 
+
+cproduct + caggregates + cHCP + cglc + cgln + clac + cammonia 
+
+(33) where host cell protein is estimated as cHCP = xdead · klysis · hcp per cell .
+
+Noise Model 
+
+Two noise sources are included to reproduce experimental variability. Process noise is modeled as proportional Brownian motion: 
+
+dX t = Xt · σprocess 
+
+√dt dW t (34) Measurement noise is modeled as independent proportional Gaussian white noise: 
+
+Xmeasured = Xtrue (1 + σmeasurement N (0 , 1)) (35) where σprocess and σmeasurement are dimensionless relative noise intensities. 
+
+A.3 Hyperparameter for Results 
+
+The hyperparameter for PFGS used to generate the results in Section 5, are listed in Table A1 27 A PREPRINT - J UNE 18, 2026 Table A1: Experimental setup for Pareto front optimization. Parameter Value 
+
+General 
+
+Initial LHS samples 10 Batch size 5Robustness confidence 0.95 
+
+NSGA-II 
+
+Population size per dimension 25 Maximum number of generations 1000 
+
+Bioprocess simulator – initial conditions 
+
+cproduct 0.0 
+
+Xtotal 800000.0 
+
+Xviable 800000.0 
+
+Bioprocess simulator – cell type parameters 
+
+μmax 0.0451639932 
+
+klysis 0.0446990515 
+
+kdeg,gln 0.0013441722 
+
+kdeath,max 0.0101556537 
+
+kdeath ,μ 0.0145125692 
+
+ksat,lac 141.4574131165 
+
+ksat,ammonia 37.778062819 
+
+ksat,glc 1.1634941712 
+
+ksat,gln 0.2123961928 
+
+Yammonia 9.98 × 10 −8
+
+Ylactate 0.8061528449 
+
+Ycells,glc 1.5330 × 10 8
+
+Ycells,gln 8.3637 × 10 9
+
+mglc 4 × 10 −10 
+
+mgln 0.0 pH opt 6.7 pH robustness factor 1.1 
+
+Ea 33.4 Temperature robustness factor 1.1 
+
+Yproduct,total 9.98 × 10 −8
+
+Yproduct,viable 4.9308 × 10 −6
+
+HCP per cell 2 × 10 −6
+
+kagg,product 3 × 10 −6
+
+28

@@ -6,70 +6,56 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-06-17
-- 运行时间：2026-06-17 21:58:42 UTC
+- 最新运行日期：2026-06-18
+- 运行时间：2026-06-18 21:03:09 UTC
 - 运行状态：成功
-- 本次总论文数：16
-- 精读区：5
-- 速读区：11
+- 本次总论文数：12
+- 精读区：6
+- 速读区：6
 
 ### 今日简报（AI）
-今日研究聚焦于LLM在过程系统工程中的工业部署挑战与过程孪生开发，精读两篇高分论文。  
-最值得关注的方向是LLM驱动的工业过程孪生构建以及图原生AI系统与LLM的协同。  
-建议普通读者重点关注过程系统工程中LLM的落地场景与本地记忆增强分子模型的新思路。
-- 详情：[/202606/17/README](/202606/17/README)
+今日共处理12篇论文，精读6篇，重点关注LLM驱动的流程孪生系统与参数知识注入的混合专家模型。最值得关注的方向是《FacProcessTwin: An LLM-Based System for Process Twin Development》（9.0分）提出的LLM流程孪生框架，以及《Decoupled Mixture-of-Experts for Parametric Knowledge Injection》（8.0分）对知识注入的改进。建议优先精读这两篇高分论文，速读中可浏览LLM结构化推理与自适应启发式设计。
+- 详情：[/202606/18/README](/202606/18/README)
 
 ### 精读区论文标签
-1. [Large Language Models in Process Systems Engineering: Opportunities, Architectures, and Industrial Deployment Challenges](/202606/17/2606.11589v1-large-language-models-in-process-systems-engineering-opportunities-architectures-and-industrial-deployment-challenges)  
+1. [FacProcessTwin: An LLM-Based System for Process Twin Development](/202606/18/2606.17666v1-facprocesstwin-an-llm-based-system-for-process-twin-development)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：关于过程系统工程中大语言模型应用的综述，直接对应化工领域利用LLM
-2. [FacProcessTwin: An LLM-Based System for Process Twin Development](/202606/17/2606.17666v1-facprocesstwin-an-llm-based-system-for-process-twin-development)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：基于大语言模型的流程孪生开发系统
-3. [SemPiper: Interactive Code Synthesis for Semantic Operators in Machine Learning Pipelines](/202606/17/2606.14361v1-sempiper-interactive-code-synthesis-for-semantic-operators-in-machine-learning-pipelines)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：使用LLM驱动的语义数据操作符进行机器学习管道数据准备
-4. [IndustryBench-MIPU: Benchmarking Multi-Image Attribute Value Extraction for Industrial Products](/202606/17/2606.14383v1-industrybench-mipu-benchmarking-multi-image-attribute-value-extraction-for-industrial-products)  
+   evidence：基于LLM的系统用于构建化工厂流程孪生，直接涉及过程优化
+2. [Decoupled Mixture-of-Experts for Parametric Knowledge Injection](/202606/18/2606.14243v1-decoupled-mixture-of-experts-for-parametric-knowledge-injection)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：基准测试多模态大语言模型从工业产品图像中提取属性
-5. [Theorem-Grounded Execution Ontologies for Interpretable Machine Reasoning](/202606/17/2606.16010v1-theorem-grounded-execution-ontologies-for-interpretable-machine-reasoning)  
+   evidence：提出解耦MoE为大语言模型注入参数化知识
+3. [Tying the Loop -- Tied Expert Layers in Mixture-of-Experts Language Models](/202606/18/2606.16825v1-tying-the-loop----tied-expert-layers-in-mixture-of-experts-language-models)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：提出基于定理的执行本体实现可解释的大语言模型推理
+   evidence：专注于大语言模型架构（MoE）改进
+4. [Toward Controllable Catalyst Inverse Design via Large-Scale Autoregressive Pretraining](/202606/18/2606.17445v1-toward-controllable-catalyst-inverse-design-via-large-scale-autoregressive-pretraining)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：利用GPT进行催化剂逆设计，结合化学工程和大语言模型
+5. [From Specification to Execution: AI Assisted Scientific Workflow Management](/202606/18/2606.18425v1-from-specification-to-execution-ai-assisted-scientific-workflow-management)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：使用大语言模型从自然语言生成和调试科学工作流
+6. [AdsMind: A Physics-Grounded Multi-Agent System for Self-Correcting Discovery of Adsorption Configurations on Heterogeneous Catalyst Surfaces](/202606/18/2606.19152v1-adsmind-a-physics-grounded-multi-agent-system-for-self-correcting-discovery-of-adsorption-configurations-on-heterogeneous-catalyst-surfaces)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：结合物理反馈的LLM多智能体系统用于吸附构型发现
 
 ### 速读区论文标签
-1. [LLMs+Graphs: Toward Graph-Native, Synergistic AI Systems](/202606/17/2606.11560v1-llmsgraphs-toward-graph-native-synergistic-ai-systems)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：LLM与图计算协同用于数据挖掘
-2. [Augmenting Molecular Language Models with Local $n$-gram Memory](/202606/17/2606.12113v1-augmenting-molecular-language-models-with-local-n-gram-memory)  
+1. [Structured Inference with Large Language Gibbs](/202606/18/2606.19264v1-structured-inference-with-large-language-gibbs)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：利用大语言模型的条件分布进行结构化概率推断
+2. [MeEvo: Metacognitive Evolution Combined with Natural Evolution for Automatic Heuristic Design](/202606/18/2606.14202v3-meevo-metacognitive-evolution-combined-with-natural-evolution-for-automatic-heuristic-design)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：通过局部n-gram记忆增强分子语言模型，直接关于大语言模型改进
-3. [Real-time nonlinear model predictive control framework for event-triggered switching in industrial batch polymerization process](/202606/17/2606.14976v1-real-time-nonlinear-model-predictive-control-framework-for-event-triggered-switching-in-industrial-batch-polymerization-process)  
+   evidence：利用大语言模型通过元认知和自然进化进行自动启发式设计
+3. [Using AI in engineering education: a balancing act, driven by clear purpose](/202606/18/2606.16626v1-using-ai-in-engineering-education-a-balancing-act-driven-by-clear-purpose)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：实时非线性模型预测控制用于间歇聚合过程的事件触发切换，属于化工过程优化
-4. [Large Language Model-Driven Cooperative Operator Ensemble Evolution for Permutation Flow Shop Scheduling](/202606/17/2606.15334v1-large-language-model-driven-cooperative-operator-ensemble-evolution-for-permutation-flow-shop-scheduling)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：LLM驱动的集成进化用于排列流水车间调度，与过程优化相关
-5. [Large Language Model-Driven Cooperative Operator Ensemble Evolution for Permutation Flow Shop Scheduling](/202606/17/2606.15334v2-large-language-model-driven-cooperative-operator-ensemble-evolution-for-permutation-flow-shop-scheduling)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：LLM驱动的集成进化用于排列流水车间调度，与过程优化相关
-6. [Contrastive learning of dynamical representations for enhanced molecular sampling](/202606/17/2606.15495v1-contrastive-learning-of-dynamical-representations-for-enhanced-molecular-sampling)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：自监督对比学习用于分子采样，人工智能在化学工程中的应用
-7. [MeEvo: Metacognitive Evolution Combined with Natural Evolution for Automatic Heuristic Design](/202606/17/2606.14202v1-meevo-metacognitive-evolution-combined-with-natural-evolution-for-automatic-heuristic-design)  
+   evidence：调查工程教育中学生对大语言模型的使用和看法
+4. [Prediction of Runtime Parameters of Parallel Chemistry Applications via Active and Generative Learning](/202606/18/2606.16226v1-prediction-of-runtime-parameters-of-parallel-chemistry-applications-via-active-and-generative-learning)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：基于大语言模型的自动启发式设计用于优化问题
-8. [MeEvo: Metacognitive Evolution Combined with Natural Evolution for Automatic Heuristic Design](/202606/17/2606.14202v2-meevo-metacognitive-evolution-combined-with-natural-evolution-for-automatic-heuristic-design)  
+   evidence：使用机器学习预测并行化学应用的运行时参数
+5. [Enhancing neural network extrapolation in thermo-fluid systems using steady-state solutions](/202606/18/2606.18417v1-enhancing-neural-network-extrapolation-in-thermo-fluid-systems-using-steady-state-solutions)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：基于LLM的自动启发式设计用于优化，可应用于化工过程优化
-9. [Stitching Molecular Worlds Together with Physics-Coupled Diffusion Models](/202606/17/2606.16147v1-stitching-molecular-worlds-together-with-physics-coupled-diffusion-models)  
+   evidence：使用稳态解增强神经网络在热流体系统中的外推能力（化学工程应用）
+6. [A Human-in-the-Loop Bayesian Optimization Framework for Constraint-Aware Bioprocess Development](/202606/18/2606.19230v1-a-human-in-the-loop-bayesian-optimization-framework-for-constraint-aware-bioprocess-development)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：物理耦合扩散模型用于复杂化学系统，属于化学领域AI方法
-10. [Transferable machine learning of excited-state dynamics with extremal pooling](/202606/17/2606.16859v1-transferable-machine-learning-of-excited-state-dynamics-with-extremal-pooling)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：机器学习用于光化学激发态动力学，人工智能在化学工程中的应用
-11. [Towards Fast GNN Surrogates for CO2 Migration in Complex Geological Formations](/202606/17/2606.17180v1-towards-fast-gnn-surrogates-for-co2-migration-in-complex-geological-formations)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：图神经网络替代模型用于地质封存中CO2运移预测，属于化工领域AI应用
+   evidence：人机协同贝叶斯优化用于生物过程开发，考虑约束条件
 
 
 <div class="dpr-home-promo-card">
