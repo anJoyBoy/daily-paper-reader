@@ -1,0 +1,533 @@
+Title: IndustryBench-MIPU: Benchmarking Multi-Image Attribute Value Extraction for Industrial Products
+
+URL Source: https://arxiv.org/pdf/2606.14383v2
+
+Published Time: Wed, 17 Jun 2026 00:33:18 GMT
+
+Number of Pages: 17
+
+Markdown Content:
+# IndustryBench-MIPU: Benchmarking Multi-Image Attribute Value Extraction for Industrial Products 
+
+Multimodal and Industrial AI Team †
+
+Taobao&Tmall, Alibaba Group Industrial products such as valves and circuit breakers are defined by dense technical specifications that govern procurement, compatibility, and safety across supply chains. These specifications are scattered across multiple heterogeneous product images, including specification tables, nameplates, and technical drawings, yet whether Multimodal Large Language Models (MLLMs) can reliably recover them remains underexplored. To fill this gap, we introduce IndustryBench-MIPU, the first large-scale benchmark for multi-image industrial product understanding, built around structured attribute extraction—recovering property-value pairs from product images. This task jointly probes text recognition on specification tables and nameplates, visual reasoning over technical drawings, domain knowledge to decode industrial terminology, and cross-image evidence integration to as-semble scattered specifications. Concretely, the benchmark comprises 4,559 products across 27,652 images with 103,703 annotations spanning 18 industrial categories, constructed through multi-model consensus and three-tier quality assurance. Evaluating nine MLLMs under both single-image and product-level multi-image settings reveals a stark completeness gap : models achieve high precision (86–94% ) but the best recovers only 49.9% of product-level attributes; moving from single-image to multi-image extraction costs 15–34 percentage points of recall. Multi-image completeness, not single-image accuracy, is the core bottleneck. Dataset and code are publicly available. 
+
+Date: June 2026 
+
+Paper: arxiv.org/abs/2606.14383 
+
+Dataset: huggingface.co/datasets/alibaba-multimodal-industrial-ai/IndustryBench-MIPU 
+
+Code: github.com/alibaba-multimodal-industrial-ai/IndustryBench-MIPU 
+
+# 1 Introduction 
+
+Industrial products such as valves, circuit breakers, chemical reagents, and steel alloys are defined by dense technical specifications that govern purchasing decisions, product compatibility, and operational safety across manufacturing and supply chains. As Multimodal Large Language Models (MLLMs) are increasingly deployed to automate procurement, inventory cataloging, and cross-supplier product matching (Balkan and Akyuz, 2025; Chen et al., 2024), a critical question emerges: can these models understand the complex, knowledge-intensive specifications of industrial products distributed across multiple product images? 
+
+Figure 1 illustrates why this question is challenging. Industrial product specifications appear in dense tables, nameplates, and labels, requiring reliable text recognition. Beyond surface-level reading, technical drawings demand visual reasoning to associate measurements, arrows, and structural annotations with product attributes. Many attributes further require domain knowledge interpretation: “DN20” denotes nominal diameter and “304” indicates a steel grade. These challenges compound in the multi-image setting: relevant evidence is scattered across multiple images interspersed with irrelevant content, forcing models to locate and integrate specification fragments across heterogeneous visual sources. Despite these challenges being central to real-world industrial scenarios, existing benchmarks address only fragments of the problem. General-purpose MLLM benchmarks evaluate broad visual reasoning (Yue et al., 2024; Liu et al., 2024a; Meng et al., 2025) or text recognition (Liu et al., 2024b; Singh et al., 2019; Mathew et al., 2021), but not the domain knowledge required to interpret technical specifications. Attribute value extraction benchmarks target text, single product images, or consumer goods (Zheng et al., 2018; Xu et al.,  
+
+> arXiv:2606.14383v2 [cs.CV] 16 Jun 2026 Nominal Diameter: 40mm
+> 3) Domain Knowledge
+> Flow Direction: Unidirectional
+> Material: Stainless Steel
+> Specification Table
+> 4) Multi-Image Retrival
+> Simple OCR
+> Width: 25mm Height: 65mm
+> Applicable Temp.: -40°C~+70°C
+> 1) Text Recognition 2) Visual Reasoning
+> Specifications Reasoning
+> External Dimensions: 15.5*10.5*11.8
+
+Figure 1 Four Challenges in Multi-Image Industrial Product Understanding: (1) text recognition from labels and specification tables; (2) visual reasoning over technical drawings; (3) domain knowledge interpretation; (4) cross-image evidence integration. 
+
+2019; Yang et al., 2022; Zhu et al., 2020; Zou et al., 2024a), but not multi-image industrial profiles. Industrial AI benchmarks focus on defect detection and assembly recognition (Bergmann et al., 2019; Jian et al., 2026) or text-only domain QA (Bai et al., 2026), without evaluating multimodal specification comprehension. No prior work jointly evaluates text recognition, visual reasoning, domain knowledge, and cross-image evidence integration in the industrial product domain. To fill this gap, we introduce IndustryBench-MIPU (Multi-Image Industrial Product Understanding Benchmark), the first multi-image benchmark for evaluating MLLM understanding of industrial products. We adopt structured attribute extraction—recovering property-value pairs from product images given a product-specific schema—as the evaluation task, since it naturally engages all four challenges. Concretely, extracting a complete product record requires reading specification tables, interpreting technical drawings, decoding domain terminology, and locating evidence across images, while the structured output remains schema-constrained and objectively scorable. We construct the benchmark through a semi-automated pipeline with multi-model consensus and three-tier quality assurance. Evaluation proceeds under both single-image and product-level multi-image settings to separately probe localized extraction and cross-image integration. Evaluating nine MLLMs reveals a substantial completeness gap : no model exceeds 50% recall in the multi-image setting, and moving from single-image to multi-image extraction costs 15–34 percentage points of recall, demonstrating that cross-image evidence integration—not per-image recognition—is the primary bottleneck. Our contributions are as follows: • Task formalization. We formalize multi-image industrial product attribute extraction and define two eval-uation settings—single-image and product-level multi-image—that separately probe localized extraction and cross-image integration (§3). • Benchmark. We construct IndustryBench-MIPU, a large-scale benchmark spanning 18 industrial categories with over 100K product-level annotations, built through multi-model consensus and three-tier quality assurance (§4). • Findings. We benchmark nine MLLMs under both settings, showing that current models are precise but substantially incomplete, and that the completeness bottleneck is driven by cross-image evidence integration rather than per-image recognition (§6). 
+
+# 2 Related Work 
+
+Multimodal LLM Benchmarks. Most MLLM benchmarks frame evaluation as per-question correctness: MMMU (Yue et al., 2024) and MMMU-Pro (Yue et al., 2025) measure college-level multimodal reasoning, MMBench (Liu et al., 2024a) spans 20 ability dimensions, and OCRBench (Liu et al., 2024b) targets text recognition accuracy. Multi-image benchmarks such as MMIU (Meng et al., 2025) and MMRB (Cheng et al., 2025b) extend evaluation to cross-image reasoning across diverse tasks. A complementary line of work probes whether models genuinely ground their answers in visual context rather than language priors, e.g., resolving textual ambiguity from paired images (Wang et al., 2026; Pan et al., 2026; Tang et al., 2026). However, these benchmarks assess general visual understanding through closed-form questions, whereas industrial product understanding demands structured extraction from domain-specific, multi-image inputs—a fundamentally different evaluation paradigm. 
+
+2(4) Quality Assurance 
+
+Frontier Model Audit 
+
+Gold -Standard 
+
+Cross -Check 
+
+(3) Benchmark Assembly 
+
+Image -level benchmark Product -level benchmark 
+
+(2) Multi -Model Processing Pipeline 
+
+Stage 1: 
+
+Entity Recognition 
+
+Stage 2: 
+
+Image Filtering 
+
+Stage 3: 
+
+Per -Image Extraction 
+
+(1) Data Source and Sampling 
+
+Data 
+
+> Title
+> Schema
+> Category
+> Gold Attributes
+> Images
+
+Sample 
+
+Stratified Sampling 
+
+18 
+
+Categories 
+
+4559 
+
+Products 
+
+27k 
+
+Images 
+
+Single Image Union Output 
+
+Attribute Merging ,
+
+Semantic Deduplication 
+
+Human 
+
+Verification Single -Image 
+
+Benchmark 
+
+Union Single -Image Benchmark 
+
+Attribute Merging ,
+
+Semantic Deduplication                   
+
+> 标题 :可DIY 温控器
+> KSD9700 铁壳热保
+> 护器瑞迈⼯⼚⼩体
+> 积温控器温控开关
+> Title: DIY -Compatible KSD9700 Iron
+> Shell Thermal Protector –Ruimai
+> Factory Small -Size Thermostat
+> Temperature Control Switch
+> 标题： 热保护器
+> Title: Thermal Protector
+> 标题 :⼩能⼈汽⻋应急
+> 启动电源⼤容量⻋载搭
+> 电神器电瓶移动充电宝
+> 点⽕器
+> 标题 :⼯艺牌⾼精滚珠
+> 丝杆磨制丝杠轧制丝
+> 杠替代台湾标准丝杆
+> Title: High Precision Ground &
+> Rolled Ball Screw –Taiwan
+> Standard Compatible, Gongyi Brand
+> 标题 :⼯艺牌⾼精滚珠
+> 丝杆磨制丝杠轧制丝
+> 杠替代台湾标准丝杆
+> Title: High Precision Ground &
+> Rolled Ball Screw –Taiwan
+> Standard Compatible, Gongyi Brand
+> Title: High Capacity Car
+> Jump Starter Portable Power Bank –
+> Emergency Vehicle Battery Booster
+> & Mobile Charger Ignition Starter
+> 输出电压 : 5V. 输出电流 :2A
+> Output Voltage: 5V
+> Output Current: 2A
+
+Figure 2 Overview of the IndustryBench-MIPU Construction Pipeline. Product profiles are collected via stratified sampling (§4.2.1). Five MLLMs independently execute a three-stage annotation pipeline (§4.2.2). Results are assembled into image-level and product-level benchmarks via union and semantic deduplication (§4.2.3), followed by three-tier quality assurance (§4.2.4). 
+
+Attribute Value Extraction. AVE has evolved from sequence labeling on product titles (Zheng et al., 2018; Xu et al., 2019) through multi-source text datasets (Yang et al., 2022) to multimodal approaches integrating visual features (Zhu et al., 2020). Recent work has expanded along several axes: ImplicitAVE (Zou et al., 2024a) benchmarks implicit extraction via generative MLLMs, EIVEN (Zou et al., 2024b) and MICE (Gong et al., 2025) improve multimodal extraction through contrastive learning and captioning augmentation, and VideoAVE (Cheng et al., 2025a) extends extraction to product videos. However, existing AVE work does not address the industrial domain, where extraction requires interpreting domain-encoded values (e.g., “DN20” for nominal diameter), handling product-specific attribute schemas, and integrating specifications dispersed across multiple heterogeneous images. 
+
+Industrial AI Benchmarks. Existing industrial AI benchmarks focus on visual perception or text-only knowledge. MVTec AD (Bergmann et al., 2019) evaluates surface anomaly detection; FORGE (Jian et al., 2026) benchmarks manufacturing tasks such as material sorting and assembly recognition. These assess whether models can see defects and distinguish parts, but not whether they can understand product specifications. On the text side, IndustryBench (Bai et al., 2026) probes industrial domain knowledge through text-only QA without visual input. In the adjacent e-commerce setting, EcomBench (Min et al., 2025) evaluates foundation agents on realistic shopping tasks, but targets agentic decision-making rather than multimodal specification understanding. In summary, existing benchmarks address visual reasoning, attribute extraction, and industrial knowledge in isolation, but none targets the intersection where all three converge: extracting structured technical attributes from multi-image industrial product profiles. 
+
+# 3 Task Definition 
+
+To enable systematic evaluation of the challenges identified above, we formalize multimodal industrial product attribute extraction as follows. 
+
+3Statistic Value          
+
+> Products 4,559 Valid images 27,652 Top-level categories 18 Unique property names 3,564 Image-level annotations 182,527 Product-level annotations 103,703 Median images per product 5 (IQR: 2–8) Median attrs per product 15 (IQR: 7–30)
+> Table 1 Key Statistics of IndustryBench-MIPU.
+
+Input. An industrial product profile x = ( t, e, c1, cl , {I(1), . . . , I(n)}, Sx ), consisting of a product title t, an entity description e identifying the target product, top-level category c1, leaf category cl , a set of product images {I(i)}ni=1, and a product-specific attribute schema Sx defining permissible property names. 
+
+Output. A set of property-value pairs Y = {(pj, vj)}, where pj ∈ Sx is a property name and vj is the corresponding value extracted from the visual and textual input. We define two evaluation settings of increasing difficulty: 
+
+Single-Image Extraction. Given a single product image along with the product metadata and attribute schema, the model extracts all property-value pairs visible in that image. This setting isolates the model’s core capabilities in text recognition, visual reasoning, and domain knowledge application. 
+
+Multi-Image Extraction. Given the complete product profile with all associated images, the model produces a unified set of property-value pairs for the entire product. This setting additionally tests the model’s ability to locate relevant information across multiple images, filter irrelevant content, and integrate attributes from different sources. 
+
+# 4 IndustryBench-MIPU 
+
+## 4.1 Overview 
+
+To make completeness measurable, the benchmark must define a target record that exceeds what any single model can produce—otherwise evaluation only measures agreement with one model’s ceiling rather than true specification coverage. IndustryBench-MIPU achieves this through multi-model consensus: five MLLMs independently annotate the same products and their outputs are unioned, producing a recall ceiling substantially above any individual annotator. IndustryBench-MIPU is sourced from a large-scale Chinese industrial e-commerce platform covering 18 top-level categories. Table 1 summarizes the key statistics. The benchmark comprises 4,559 products ,
+
+27,652 valid images , and 103,703 product-level annotations across 3,564 unique property names, supporting both image-level (182,527 annotations) and product-level evaluation. All product profiles, schemas, and annotations are in Chinese; evaluated models extract Chinese-language property-value pairs. 
+
+## 4.2 Construction Pipeline 
+
+Constructing a reliable benchmark for this task is non-trivial due to three interrelated challenges: (1) data scarcity —publicly available multi-image industrial product profiles with structured attribute annotations are difficult to obtain; (2) schema complexity —industrial products require product-specific attribute schemas (e.g., pressure rating for valves vs. rated current for circuit breakers); and (3) annotation difficulty —many attributes are implicit (e.g., “DN20” denotes nominal diameter, “304” a steel grade), making purely manual annotation at scale prohibitively expensive. We address these challenges with a semi-automated pipeline that combines multi-model consensus with systematic quality assurance, as illustrated in Figure 2.     
+
+> 4Multi-Image Single-Image ∆(Multi
+
+− Single) Model Rank Prec. Rec. F1 Prec. Rec. F1 Prec. Rec. F1         
+
+> Closed-source
+> Gemini 3.1 Pro (1) 93.8 49.9 65.1 94.0 65.4 77.1
+
+−0.2 −15.5 −12.0 GPT-5.4 (3) 86.3 46.6 60.5 82.7 55.3 66.2 +3.6 −8.7 −5.7 Qwen 3.5 Plus (4) 88.1 45.4 59.9 82.9 79.7 81.3 +5.2 −34.3 −21.4 Claude Opus 4.6 (5) 88.2 42.3 57.2 85.1 58.6 69.4 +3.1 −16.3 −12.2          
+
+> Open-source
+> Qwen 3.5-397B-A17B (MoE) (2) 88.2 48.6 62.7 80.6 72.0 76.0 +7.6
+
+−23.4 −13.3 Kimi-K2.5-1T-A32B (MoE) (6) 88.6 41.7 56.7 79.0 64.3 70.9 +9.6 −22.6 −14.2 Qwen 3.5-27B (Dense) (7) 88.0 40.8 55.8 78.8 65.4 71.5 +9.2 −24.6 −15.7 Qwen 3.5-122B-A10B (MoE) (8) 88.8 34.9 50.1 77.6 64.6 70.5 +11.2 −29.7 −20.4 Qwen 3.5-35B-A3B (MoE) (9) 86.0 11.7 20.6 75.1 63.3 68.7 +10.9 −51.6 −48.1    
+
+> Table 2 Main Results (%) on IndustryBench-MIPU. Rank is determined by multi-image F1. Single-image precision, recall, and F1 are included as secondary references for localized extraction ability; ∆columns report multi-image minus single-image performance. Bold and underlined values mark the best and second-best metric scores, respectively.
+
+4.2.1 Data Source and Sampling 
+
+We source product profiles from a major Chinese industrial e-commerce platform, covering 18 top-level categories including hardware and tools, chemicals, electrical equipment, machinery, safety and protection, and packaging. Each profile consists of a product title, top-level and leaf-level category names, multiple product images, a product-specific attribute schema, and a set of verified but non-exhaustive standard attributes. To ensure category diversity, we employ stratified sampling : for each leaf-level product category, we randomly sample a fixed number of products using a fixed seed. This yields a balanced dataset that avoids the long-tail dominance of popular categories, ultimately producing 4,559 products with 27,652 images. 
+
+4.2.2 Multi-Model Annotation Pipeline 
+
+We run the entire annotation pipeline independently with K = 5 MLLMs (GPT-5.4, Claude Opus 4.6, Gemini 3.1 Pro, Kimi-K2.5, and Qwen 3.5 Plus). Each model receives the product title, category names, product images, and product-specific attribute schema, and executes a three-stage pipeline that mirrors how a domain expert reviews a product profile: first identify what the product is, then determine which images are informative, then extract specifications from each valid image. 
+
+Stage 1: Entity Recognition. Given the product title t and product images, the model identifies the core product entity e (e.g., “stainless steel two-piece ball valve”). This anchoring prevents entity drift —extracting attributes from complementary products, installation contexts, or product-line overviews that frequently appear alongside the target product. 
+
+Stage 2: Image Filtering. For each image I(i), the model determines whether it contains attribute-relevant information for entity e, marking images such as factory facilities, marketing banners, and unrelated products as invalid. This pre-extraction filtering prevents hallucination cascades by eliminating a primary source of false annotations. Approximately 31% of candidate images are filtered out. 
+
+Stage 3: Per-Image Attribute Extraction. Each valid image is processed by an extraction agent that outputs structured property-value pairs, conditioned on entity e and the product-specific attribute schema 
+
+Sx. Each extracted attribute includes a property name, value, and extraction rationale. When multiple valid values exist for the same property, each value is represented as a separate property-value pair. 
+
+> 5
+
+4.2.3 Benchmark Assembly 
+
+We assemble the benchmark at two granularities from the five independent model runs. 
+
+Image-level benchmark. For each image, we pool all property-value pairs proposed by the five models. We take the union rather than majority vote because the goal is to maximize the recall ceiling of the benchmark: a valid attribute found by even one model should appear in the target record, otherwise the benchmark can only measure agreement with the majority rather than true specification coverage. We then normalize surface forms to merge formatting variants (e.g., “304 stainless steel” and “stainless steel 304”) and use Qwen 3.6 Plus to semantically deduplicate near-equivalent entries. 
+
+Product-level benchmark. To construct product-level annotations for each individual product, we merge the single-image benchmark attributes across all images of that product. When the same property appears with different values across images, we retain all values rather than forcing a single resolution, reflecting that industrial products may have multiple valid specification values (e.g., multiple models or supported voltage ratings). The aggregated set undergoes a second round of semantic deduplication to remove near-duplicates introduced during cross-image merging. 
+
+4.2.4 Quality Assurance 
+
+We employ a three-tier quality assurance mechanism to ensure annotation reliability. Each tier targets a different class of errors, and the tiers are applied sequentially so that cheaper automated checks handle the bulk of filtering before expensive human review. 
+
+Tier 1: Frontier Model Audit. An independent frontier model (Qwen 3.6 Plus, which is not among the nine evaluated models) reviews all candidate annotations. The audit applies four rule categories: (1) hallucinated attributes with no visual evidence, (2) entity misattribution where the attribute belongs to a different product in the image, (3) property name–value type mismatches (e.g., a color field containing a part number), and (4) semantic implausibility. Annotations flagged by any rule are marked as dropped and excluded from the benchmark. This tier filters 57,478 out of 240,054 candidate annotations (23.9%). 
+
+Tier 2: Gold-Standard Cross-Check. Each product is associated with a verified but non-exhaustive set of standard attributes. For properties covered by these gold attributes, we directly replace the corresponding LLM-generated annotations with the verified values. 
+
+Tier 3: Human Verification. Domain experts perform spot-check verification on a random 10% sample of annotated products, checking both attribute correctness and coverage of important specifications. The verification pass rate is 96.7%, confirming the effectiveness of the preceding automated tiers. Because the five annotator models also appear among the evaluated models, we analyze annotation overlap and discuss potential self-evaluation bias in Appendix F. 
+
+# 5 Evaluation Protocol 
+
+Matching Strategy. We evaluate predicted property-value pairs against benchmark pairs within the same image or product scope. Property names require exact string match. Values are matched with a cascaded strategy: we first apply rule-based normalization (Unicode NFKC, case folding, punctuation/space removal, unit normalization, and numeric canonicalization) and accept exact normalized matches or character-level F1 above 0.6; remaining candidates are judged by Qwen 3.6 Plus for semantic equivalence. Predictions whose property names are absent from the benchmark are counted as extra-property errors. 
+
+Metrics. We report precision, recall, and F1 at both image and product levels (formal definitions in Ap-pendix A). Precision is the fraction of predictions that are matched; recall is the fraction of benchmark pairs matched by at least one prediction, with all instances in the evaluation scope included in the denominator.      
+
+> 61–3 4–7 8–15 >15
+> Image Count
+> 0
+> 20
+> 40
+> 60
+> 80
+> Attrs / Product
+> 96
+> 21 12
+> 37
+> 19
+> 60
+> 25
+
+(a) By Input Images       
+
+> 1–10 11–20 21–40 >40
+> Gold Attribute Count
+> 5315 9
+> 29
+> 16
+> 65
+> 33
+
+(b) By Gold Attributes     
+
+> 60.3
+> 73.0
+> 52.5
+> 67.0
+> 47.2
+> 63.0
+> 38.7
+> 55.1
+> 30
+> 40
+> 50
+> 60
+> 70
+> 80 Recall / F1 (%)
+> 57.9
+> 70.2
+> 54.5
+> 68.8
+> 52.0
+> 67.2
+> 45.1
+> 61.1
+> Gold Predicted Recall F1
+
+Figure 3 Bottleneck Analysis for Gemini 3.1 Pro. Bars show the average number of gold and predicted property-value pairs per product, while lines show recall and F1. As the number of input images and benchmark attributes increases, gold evidence grows faster than model outputs, and recall/F1 decline. 
+
+We additionally report error-type breakdowns in Appendix B.1. Further details on property name and value matching are provided in Appendix E. 
+
+# 6 Experiments 
+
+## 6.1 Experimental Setup 
+
+Models. We evaluate nine MLLMs, including four closed-source models (Gemini 3.1 Pro, Qwen 3.5 Plus, GPT-5.4, Claude Opus 4.6) and five open-source models (Kimi-K2.5-1T-A32B and four Qwen 3.5 variants: 27B, 35B-A3B, 122B-A10B, and 397B-A17B). 
+
+Settings. Our primary setting is multi-image extraction , where a model receives all valid images of a product and outputs product-level property-value pairs. We also report single-image extraction , where images are processed independently, as a diagnostic reference for localized extraction ability. Unless otherwise specified, we use the full extraction prompt and enable thinking mode for models that support it. 
+
+## 6.2 Main Results 
+
+Table 2 presents the main results. On the multi-image task, Gemini 3.1 Pro leads (F1 = 65.1%), followed by Qwen 3.5-397B-A17B (62.7%) and GPT-5.4 (60.5%). The dominant pattern across all models is a precision–recall asymmetry: precision is consistently high (86–94%), but even the best model recovers only half of the product-level benchmark attributes. The ranking is therefore recall-driven, with recall ranging from 11.7% to 49.9% while precision varies within an 8-point band. This pattern holds across all 18 categories (Appendix B.2). Qwen 3.5 Plus sharpens the distinction between localized extraction and product-level understanding: it achieves the best single-image F1 (81.3%) but drops to fourth on the multi-image task. The ∆ columns quantify this gap systematically. For most models, moving from single-image to multi-image extraction costs 15–34 percentage points of recall; Qwen 3.5-35B suffers a near-complete collapse (63.3% → 11.7%). Crucially, precision holds or rises—the cost is paid entirely in recall. Models do not become less accurate with more images; they become less complete , missing specifications in dense tables or distributed across less salient images. The remaining subsections diagnose the sources of this completeness gap. 
+
+7Subtype #Attr #Bench Prec. Rec. F1                      
+
+> Direct std. 346 40,855 90.7 45.9 60.9
+> Domain know. 182 11,451 88.1 44.1 58.8 Multi-value 124 27,245 89.1 42.8 57.9 Visual reason. 101 5,857 85.9 36.6 51.3
+> Table 3 Semantic Subtype Results (%) in the Main Multi-Image Setting. Metrics are pooled over six representative multi-image model outputs. Subtypes are assigned from property semantics, independent of empirical model difficulty.
+
+## 6.3 Bottlenecks: Image Count and Specification Density 
+
+Where does the recall gap originate? We stratify multi-image results along two axes: the number of input images (cross-image localization difficulty) and the number of benchmark attributes per product (specification density). Figure 3 reports stratified results for Gemini 3.1 Pro; the same trend holds across models. Both factors substantially affect recall. When the number of input images increases from 1–3 to more than 15, Gemini’s recall drops from 60.3% to 38.7% and F1 from 73.0% to 55.1%. The model does produce more attributes for image-heavy products, but not proportionally: products in the largest image bucket contain 60.1 gold attributes on average, yet the model outputs only 25.6 predictions. Cross-image evidence localization is a direct source of under-extraction. Attribute density shows the same pattern. For products with more than 40 gold attributes, Gemini outputs 33.0 predictions for 65.9 gold attributes, recovering only 45.1%. In both cases, precision remains stable while recall declines—models stop extracting before they have exhausted the available evidence. 
+
+## 6.4 Semantic Subtype Analysis of Industrial Attributes 
+
+The bottleneck analysis above shows how much models miss as complexity grows; we now ask what kinds of attributes are most affected. We classify the 753 distinct property types into four semantic subtypes based on the cognitive demand they place on the extractor, defined independently of observed model difficulty: direct standardized (single-value fields readable via OCR or fixed formats), domain knowledge (interpretation-heavy industrial terminology, standards, codes, and material grades), multi-value compound specifications (ranges, lists, and composite dimensions), and visual reasoning (structural cues, appearance-based judgments, and diagram interpretation). Table 3 reveals a recall gradient that tracks cognitive demand. Direct standardized fields are easiest yet still reach only 45.9% recall, confirming that the completeness bottleneck extends beyond complex reasoning. Recall degrades further for domain knowledge (44.1%) and multi-value compound specifications (42.8%), and is lowest for visual reasoning (36.6%)—a 9.3-point spread that shows technical interpretation and dense-list aggregation compound the extraction gap. Per-model breakdowns (Appendix B.3) confirm this ordering is consistent across models, with the gap between stronger and weaker models widening on reasoning-intensive subtypes. 
+
+## 6.5 Scaling Behavior 
+
+The Qwen 3.5 family—five models sharing the same architecture and training methodology—enables a controlled study of how scale affects the single-image/multi-image gap. Table 4 reveals two distinct regimes. In the single-image setting, performance improves smoothly with scale: F1 rises from 68.7% (35B-A3B) to 76.0% (397B-A17B), with Qwen 3.5 Plus reaching 81.3%. Notably, the 27B dense model outperforms the 122B-A10B MoE variant, indicating that active parameter count matters more than total parameters for localized extraction. The multi-image setting reveals a far sharper scale dependence. The smallest model (35B-A3B, 3B active) nearly collapses to 20.6% F1, while 397B-A17B reaches 62.7%—a 42-point spread compared to only 7.3 points in single-image F1. The sharpest jump occurs between 10B and 17B active parameters, where multi-image F1 gains 12.6 points versus 5.5 in single-image. Cross-image integration—maintaining attention, locating distributed evidence, and assembling complete specifications—is substantially more scale-sensitive than localized extraction. 
+
+> 8
+
+Multi-Image Single-Image Model Active Rec. F1 Rec. F1 Qwen 3.5 Plus – 45.4 59.9 79.7 81.3 
+
+397B-A17B 17B 48.6 62.7 72.0 76.0 27B (Dense) 27B 40.8 55.8 65.4 71.5 122B-A10B 10B 34.9 50.1 64.6 70.5 35B-A3B 3B 11.7 20.6 63.3 68.7 
+
+Table 4 Scaling Analysis (%) Within the Qwen 3.5 Family. Multi-image extraction exhibits a much sharper scale sensitivity than single-image extraction. (a) Per-image recall overview 
+
+> Hero
+> 7/9 (78%)
+> Brand
+> 1/1 (100%)
+> Apps
+> 13/13 (100%)
+> Close-up
+> 5/7 (71%)
+> Obj. specs
+> 7/20 (35%)
+> Mag. matrix
+> 5/27 (19%)
+> Variants
+> 10/16 (62%)
+> (b) Dense specification evidence
+> Spec sheet
+> 20 benchmark attrs, 7 matched
+> Dense table;
+> partial coverage
+
+7/20 
+
+> 35% recall
+> (c) Matrix enumeration failure
+> Magnification matrix
+> 27 benchmark attrs, 5 matched
+> Stops after
+> leading entries
+
+5/27 
+
+> 19% recall
+
+Figure 4 Case Product Evidence Layout. Panel (a) shows per-image recall for the product’s 7 valid images, with labels reporting matched / benchmark attributes and recall percentage. Panels (b) and (c) zoom into the two spec-dense images where recall collapses: the objective-spec sheet and the magnification matrix. Green / amber / red denote ≥85%, 50–85%, and <50% recall, respectively. 
+
+## 6.6 Ablations: Prompting and Inference Mode 
+
+We conduct two ablations with Qwen 3.5 Plus to examine whether inference and prompting choices change the precision–recall tradeoff. These ablations do not change the benchmark or evaluation protocol. Table 5 shows that both ablations shift the precision–recall tradeoff without eliminating the completeness bottleneck. Removing thinking slightly increases recall (+1.1 pp) with a modest precision drop. The simpler prompt has a stronger effect: recall rises from 45.4% to 52.6% and F1 from 59.9% to 62.6%, but precision falls from 88.1% to 77.3%. The simple prompt elicits 47% more predictions (50K → 74K) by removing schema constraints that act as implicit extraction gates, trading precision for coverage. This shows that the recall ceiling is partly prompt-induced, but even the most permissive setting still misses nearly half the target record. Notably, the thinking effect reverses in the single-image setting (Appendix D). 
+
+9Ablation Setting Prec. Rec. F1 #Pred.                    
+
+> Inference Thinking 88.1 45.4 59.9 50,334 No-think 86.9 46.5 60.6 56,180 Prompt Full 88.1 45.4 59.9 50,334 Simple 77.3 52.6 62.6 73,777
+> Table 5 Ablation Results for Qwen 3.5 Plus on Multi-Image Extraction. No-thinking and simpler prompting both increase recall, but at different precision costs.
+
+## 6.7 Case Study: Anatomy of the Completeness Gap 
+
+The preceding analyses show that the multi-image gap is primarily a recall problem. We now examine one representative product to identify what the missing attributes look like. The product is a coaxial-light microscope objective from the instruments category, with 7 valid images and 69 benchmark attributes. Under the multi-image setting, the top-ranked model attains 100% precision but only 45.0% recall: every extracted value is correct, yet more than half of the visible specifications are omitted. 
+
+Per-image recall follows evidence layout. Figure 4 separates the product images into two regimes. On compact, well-segmented evidence—the brand logo, the 9-cell application-icon grid, and the hero shot—the model recovers 21 of 23 benchmark attributes ( >91%). On spec-dense evidence, recall collapses: the objective-spec sheet contains 20 benchmark attributes but yields only 7 matches (35%), while the magnification matrix—a 9-column table listing objective and total magnifications side by side—contains 27 attributes but yields only 5 matches (19%). The failure is therefore not caused by the mere presence of multiple images; it appears when a single image requires exhaustive enumeration from a dense specification layout.                                       
+
+> Property #GT #Pred #Match Example missed values
+> Application 13 13 13 —Brand 222—Objective magnification 14 440.7X, 1X, 1.5X, 2X, 2.5X, . . . Total magnification 15 55160X, 230X, 350X, 460X, 580X, . . . Lens type 722plan apochromat, metallographic, beam-splitter Model code 400L Plan 5X/0.12, 10X/0.25, 20X/0.40 Color 511red, yellow, green, silver Optical structure 532coaxial-light, plan, apochromatic
+> Table 6 Selected Per-Property Breakdown for the Case Product. Single-instance fields (top block) are recovered exhaustively, whereas variant lists and product-matrix fields (bottom block) are systematically under-extracted from dense specification images.
+
+Failures concentrate in enumerative fields. Table 6 shows the same split at the property level. Single-instance fields are not the bottleneck: brand and application values are recovered exhaustively. The missing attributes instead concentrate in fields whose values form a list or product matrix. Among the 14 objective magnifications and 15 total magnifications in the matrix table, the model returns only the first 4–5 values and then stops, leaving the remaining visible entries unreported. The four manufacturer-code variants (L Plan 5X/0.12, L Plan 10X/0.25, L Plan 20X/0.40, WD10.4), shown in another specification image, are missed in their entirety. 
+
+Connection to the aggregate findings. This case instantiates the patterns in §6.3 and §6.4. The model recognizes the relevant specification fields and reads several values correctly, but terminates before enumer-ating the complete set. The dominant error mode is thus premature stopping in multi-value extraction, rather than hallucination or broad OCR failure. This explains how high precision can coexist with low recall, and why the aggregate gap widens on dense, multi-value industrial specifications. 
+
+> 10
+
+# 7 Conclusion 
+
+We presented IndustryBench-MIPU, the first multi-image benchmark for evaluating MLLM understanding of industrial products through structured attribute extraction. Spanning 4,559 products, 27,652 images, and 103,703 annotations across 18 industrial categories, IndustryBench-MIPU reveals a consistent completeness gap: current MLLMs achieve high precision but recover at most half of the product-level specifications, with the deficit concentrating at the intersection of cross-image evidence integration, specification density, and domain-specific reasoning. Prompt and scale adjustments shift this tradeoff without closing it, suggesting that the bottleneck is not merely an artifact of a single prompt or inference mode. We release IndustryBench-MIPU to the community as a testbed for closing this gap—bridging multimodal reasoning, domain knowledge, and multi-image comprehension in real-world industrial settings. 
+
+# † Author Contributions 
+
+Project Leader: Liang Ding. 
+
+Core contributors: Haonan Qi, Jin Cao, Yongqi Zhang, Xintong Wang 1, Weidong Tang, Bin Chen, Chengfu Huo, Liang Ding 1.
+
+Contributors: Haojun Pan, Hengyu You, Jing Li, Yingde Wang. 
+
+# Limitations 
+
+The dataset contains only Chinese-language product profiles, which may limit generalizability to other languages. The LLM-in-the-loop annotation may inherit systematic biases from the MLLMs used for candidate generation, though we mitigate this through multi-model consensus and human verification. Our main results use a single prompt per evaluation setting; the ablation in §6.6 shows that prompt choice can shift F1 by up to 2.7 percentage points, so model rankings may be partially prompt-sensitive. 
+
+# Ethics Statement 
+
+IndustryBench-MIPU is constructed from industrial product profiles rather than personal or conversational data. We do not intentionally collect private user information; the images and text describe commercial products, specifications, labels, and packaging. Because product images may contain brand names, logos, and supplier-provided markings, the released benchmark should be used for research on multimodal product understanding rather than for misrepresentation, counterfeit detection claims, or automated procurement decisions without human oversight. The benchmark annotations are produced with MLLM assistance and may still contain residual errors despite multi-model consensus, frontier-model audit, gold-standard cross-checking, and human verification. AI tools were also used to assist paper writing and editing, with all content reviewed by the authors. We therefore encourage users to treat model outputs as decision-support signals, especially in safety-critical industrial settings where incorrect specifications could have operational consequences. 
+
+# References       
+
+> Songlin Bai, Xintong Wang, Linlin Yu, Bin Chen, Zhiang Xu, Yuyang Sheng, Changtong Zan, Xiaofeng Zhu, Yizhe Zhang, Jiru Li, Mingze Guo, Ling Zou, Yalong Li, Chengfu Huo, and Liang Ding. IndustryBench: Probing the industrial knowledge boundaries of LLMs. arXiv preprint arXiv:2605.10267 , 2026. URL https://arxiv.org/abs/2605.102 67 .Dursun Balkan and Goknur Arzu Akyuz. Artificial intelligence (AI) and machine learning (ML) in procurement and purchasing decision-support (DS): A taxonomic literature review and research opportunities. Artificial Intelligence Review , 58:341, 2025. doi: 10.1007/s10462-025-11336-1. URL https://doi.org/10.1007/s10462-025-11336-1 .
+> 1Corresponding to: hanfeng.wxt@alibaba-inc.com , and zuorui.dl@alibaba-inc.com
+> 11
+
+Paul Bergmann, Michael Fauser, David Sattlegger, and Carsten Steger. MVTec AD – a comprehensive real-world dataset for unsupervised anomaly detection. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) , pages 9592–9600, Long Beach, California, USA, June 2019. URL https://openaccess.thecvf.com/co ntent_CVPR_2019/html/Bergmann_MVTec_AD_--_A_Comprehensive_Real-World_Dataset_for_Uns upervised_Anomaly_CVPR_2019_paper.html .Nanjiang Chen, Xuhui Lin, Hai Jiang, and Yi An. Automated building information modeling compliance check through a large language model combined with deep learning and ontology. Buildings , 14(7):1983, 2024. doi: 10.3390/buildings1 4071983. URL https://doi.org/10.3390/buildings14071983 .Ming Cheng, Tong Wu, Jiazhen Hu, Jiaying Gong, and Hoda Eldardiry. VideoAVE: A multi-attribute video-to-text attribute value extraction dataset and benchmark models. In Proceedings of the 34th ACM International Conference on Information and Knowledge Management (CIKM) , Seoul, Republic of Korea, November 2025a. URL https://doi.org/ 10.1145/3746252.3761621 .Ziming Cheng, Binrui Xu, Lisheng Gong, Zuhe Song, Tianshuo Zhou, Shiqi Zhong, Siyu Ren, Mingxiang Chen, Xiangchao Meng, Yuxin Zhang, Yanlin Li, Lei Ren, Wei Chen, Zhiyuan Huang, Mingjie Zhan, Xiaojie Wang, and Fangxiang Feng. Evaluating MLLMs with multimodal multi-image reasoning benchmark. arXiv preprint arXiv:2506.04280 , 2025b. URL 
+
+https://arxiv.org/abs/2506.04280 .Jiaying Gong, Hongda Shen, and Janet Jenq. MICE: Mixture of image captioning experts augmented e-commerce product attribute value extraction. In Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (ACL), Industry Track , pages 1151–1160, Vienna, Austria, July 2025. URL https://aclanthology.org/2025.acl-ind ustry.80/ .Xiangru Jian, Hao Xu, Wei Pang, Xinjian Zhao, Chengyu Tao, Qixin Zhang, Xikun Zhang, Chao Zhang, Guanzhi Deng, Alex Xue, Juan Du, Tianshu Yu, Garth Tarr, Linqi Song, Qiuzhuang Sun, and Dacheng Tao. FORGE: Fine-grained multimodal evaluation for manufacturing scenarios. arXiv preprint arXiv:2604.07413 , 2026. URL https: //arxiv.org/abs/2604.07413 .Yuan Liu, Haodong Duan, Yuanhan Zhang, Bo Li, Songyang Zhang, Wangbo Zhao, Yike Yuan, Jiaqi Wang, Conghui He, Ziwei Liu, Kai Chen, and Dahua Lin. MMBench: Is your multi-modal model an all-around player? In Proceedings of the European Conference on Computer Vision (ECCV) , pages 216–233, Milan, Italy, September 2024a. URL https: //doi.org/10.1007/978-3-031-72658-3_13 .Yuliang Liu, Zhang Li, Mingxin Huang, Biao Yang, Wenwen Yu, Chunyuan Li, Xu-Cheng Yin, Cheng-Lin Liu, Lianwen Jin, and Xiang Bai. OCRBench: On the hidden mystery of OCR in large multimodal models. Science China Information Sciences , 67(12):220102, 2024b. doi: 10.1007/s11432-024-4235-6. Minesh Mathew, Dimosthenis Karatzas, and C. V. Jawahar. DocVQA: A dataset for VQA on document images. In 
+
+Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision (WACV) , pages 2200–2209, Waikoloa, Hawaii, USA (Virtual), January 2021. URL https://openaccess.thecvf.com/content/WACV2021/html/Ma thew_DocVQA_A_Dataset_for_VQA_on_Document_Images_WACV_2021_paper.html .Fanqing Meng, Jin Wang, Chuanhao Li, Quanfeng Lu, Hao Tian, Jiaqi Liao, Xizhou Zhu, Jifeng Dai, Yu Qiao, Ping Luo, Kaipeng Zhang, and Wenqi Shao. MMIU: Multimodal multi-image understanding for evaluating large vision-language models. In Proceedings of the 13th International Conference on Learning Representations (ICLR) , Singapore, April 2025. URL 
+
+https://openreview.net/forum?id=WsgEWL8i0K .Rui Min, Zile Qiao, Ze Xu, Jiawen Zhai, Wenyu Gao, Xuanzhong Chen, Haozhen Sun, Zhen Zhang, Xinyu Wang, Hong Zhou, Wenbiao Yin, Bo Zhang, Xuan Zhou, Ming Yan, Yong Jiang, Haicheng Liu, Liang Ding, Ling Zou, Yi R. Fung, Yalong Li, and Pengjun Xie. EcomBench: Towards holistic evaluation of foundation agents in e-commerce. arXiv preprint arXiv:2512.08868 , 2025. URL https://arxiv.org/pdf/2512.08868 .Jingheng Pan, Xintong Wang, Longyue Wang, Liang Ding, Weihua Luo, and Chris Biemann. VIDA: A dataset for visually dependent ambiguity in multimodal machine translation. arXiv preprint arXiv:2605.02035 , 2026. URL 
+
+https://arxiv.org/pdf/2605.02035 .Amanpreet Singh, Vivek Natarajan, Meet Shah, Yu Jiang, Xinlei Chen, Dhruv Batra, Devi Parikh, and Marcus Rohrbach. Towards VQA models that can read. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) , pages 8317–8326, Long Beach, California, USA, June 2019. URL https://openaccess.thecvf.com/co ntent_CVPR_2019/html/Singh_Towards_VQA_Models_That_Can_Read_CVPR_2019_paper.html .12 Weidong Tang, Zhiyuan Liang, Xinyan Wan, Chen Zhu, Zhaopan Xu, Pengfei Zhou, Yan Song, Yang You, and Wangbo Zhao. Efficient video object segmentation and tracking with recurrent dynamic submodel. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) , pages 20912–20921, June 2026. Ru Wang, Selena Song, Yuquan Wang, Liang Ding, Mingming Gong, Yusuke Iwasawa, Yutaka Matsuo, and Jiaxian Guo. MMA: Benchmarking multi-modal large language models in ambiguity contexts. In Proceedings of the Third Conference on Parsimony and Learning (CPAL) , 2026. URL https://proceedings.mlr.press/v328/wang26a.html .Huimin Xu, Wenting Wang, Xin Mao, Xinyu Jiang, and Man Lan. Scaling up open tagging from tens to thousands: Comprehension empowered attribute value extraction from product title. In Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics (ACL) , pages 5214–5223, Florence, Italy, July 2019. URL https://aclant hology.org/P19-1514/ .Li Yang, Qifan Wang, Zac Yu, Anand Kulkarni, Sumit Sanghai, Bin Shu, Jonathan Elsas, and Bhargav Kanagal. MAVE: A product dataset for multi-source attribute value extraction. In Proceedings of the 15th ACM International Conference on Web Search and Data Mining (WSDM) , pages 1256–1265, Tempe, Arizona, USA, February 2022. URL https: //doi.org/10.1145/3488560.3498377 .Xiang Yue, Yuansheng Ni, Kai Zhang, Tianyu Zheng, Ruoqi Liu, Ge Zhang, Samuel Stevens, Dongfu Jiang, Weiming Ren, Yuxuan Sun, Cong Wei, Botao Yu, Ruibin Yuan, Renliang Sun, Ming Yin, Boyuan Zheng, Zhenzhu Yang, Yibo Liu, Wenhao Huang, Huan Sun, Yu Su, and Wenhu Chen. MMMU: A massive multi-discipline multimodal understanding and reasoning benchmark for expert AGI. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) , pages 9556–9567, Seattle, Washington, USA, June 2024. URL https://openaccess.thecvf. com/content/CVPR2024/html/Yue_MMMU_A_Massive_Multi-discipline_Multimodal_Understandi ng_and_Reasoning_Benchmark_for_CVPR_2024_paper.html .Xiang Yue, Tianyu Zheng, Yuansheng Ni, Yubo Wang, Kai Zhang, Shengbang Tong, Yuxuan Sun, Botao Yu, Ge Zhang, Huan Sun, Yu Su, Wenhu Chen, and Graham Neubig. MMMU-Pro: A more robust multi-discipline multimodal understanding benchmark. In Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (ACL) ,pages 15134–15186, Vienna, Austria, July 2025. URL https://aclanthology.org/2025.acl-long.736/ .Guineng Zheng, Subhabrata Mukherjee, Xin Luna Dong, and Feifei Li. OpenTag: Open attribute value extraction from product profiles. In Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD) , pages 1049–1058, London, United Kingdom, August 2018. URL https://doi.org/10.1145/3219 819.3219839 .Tiangang Zhu, Yue Wang, Haoran Li, Youzheng Wu, Xiaodong He, and Bowen Zhou. Multimodal joint attribute prediction and value extraction for e-commerce product. In Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing (EMNLP) , pages 2129–2139, Online, November 2020. URL https://aclanthology.o rg/2020.emnlp-main.166/ .Henry Peng Zou, Vinay Samuel, Yue Zhou, Weizhi Zhang, Liancheng Fang, Zihe Song, Philip S. Yu, and Cornelia Caragea. ImplicitAVE: An open-source dataset and multimodal LLMs benchmark for implicit attribute value extraction. In 
+
+Findings of the Association for Computational Linguistics: ACL 2024 , pages 338–354, Bangkok, Thailand, August 2024a. URL https://aclanthology.org/2024.findings-acl.20/ .Henry Peng Zou, Gavin Heqing Yu, Ziwei Fan, Dan Bu, Han Liu, Peng Dai, Dongmei Jia, and Cornelia Caragea. EIVEN: Efficient implicit attribute value extraction using multimodal LLM. In Proceedings of the 2024 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies (NAACL-HLT), Industry Track , pages 453–463, Mexico City, Mexico, June 2024b. URL https://aclanthology.org/2024.naacl-indus try.40/ .
+
+# A Formal Metric Definitions 
+
+This section provides formal definitions for the metrics described in §5. Let G be the set of gold CPV pairs and P the set of predicted CPV pairs for a given evaluation scope. Let 
+
+MG ⊆ G and MP ⊆ P be the matched subsets found by the greedy matching algorithm. Then: Precision = |M P||P | , Recall = |M G ||G| . (1) F1 = 2 · Precision · Recall Precision + Recall . (2) 
+
+13 The matching algorithm iterates over predicted pairs in sorted order and greedily assigns each to the first unmatched gold pair with the same property name and a soft-matching value. Exact value matches are preferred over soft matches when multiple candidates exist. 
+
+# B Additional Results 
+
+## B.1 Error Patterns 
+
+The main results (§6.2) show that errors are dominated by omissions rather than incorrect values. Here we decompose the non-omission errors into two types: extra property errors, where the model predicts a property name absent from the benchmark, and value mismatch errors, where the property name is correct but the predicted value does not match. 
+
+Model Extra ValMis. Rule 
+
+Gemini 3.1 Pro 4.3 1.7 92.3 
+
+Qwen 3.5 Plus 9.8 6.8 85.1 Claude Opus 4.6 11.7 3.2 82.8 GPT-5.4 10.7 6.6 80.4 Kimi-K2.5 15.3 5.7 75.7 
+
+Table 7 Error Rates (%) in Single-Image Extraction. Extra : predictions with property name absent from benchmark; 
+
+ValMis. : value mismatch; Rule : predictions matched by rule-based matching without LLM semantic judgment. 
+
+Value mismatch rates are comparatively small across models. This reinforces the completeness gap identified in the main results: the dominant error mode is missing attributes, not incorrect values. 
+
+## B.2 Category-Level Variation 
+
+Table 8 extends the main multi-image results (§6.2) by reporting Gemini 3.1 Pro’s performance across all 18 top-level categories (12 shown; 6 categories with fewer than 300 benchmark annotations are omitted for space). 
+
+Category Prec. Rec. F1 #Bench 
+
+Rubber & Plastics 95.6 56.1 70.7 7,925 Steel 80.4 63.0 70.6 378 Electronic Components 93.3 52.7 67.4 7,053 Instruments 92.3 52.5 66.9 2,579 Chemicals 93.9 51.5 66.5 14,095 Construction Materials 95.7 50.2 65.8 2,168 Hardware & Tools 93.5 49.5 64.7 26,782 Electrical Equipment 93.3 49.3 64.5 10,112 Machinery 92.7 48.7 63.8 14,543 Safety & Protection 95.8 47.6 63.6 5,904 Packaging 95.0 42.7 58.9 7,029 Textiles & Leather 95.0 35.3 51.4 3,677 
+
+Table 8 Multi-Image Performance (%) by Category for Gemini 3.1 Pro. #Bench = benchmark annotations per category. 
+
+Precision remains uniformly high across all categories (80–96%), while recall varies substantially—from 56.1% on Rubber & Plastics to 35.3% on Textiles & Leather. The precision–recall asymmetry observed in the main results holds within every category: inter-category difficulty is driven entirely by variation in completeness, not accuracy. 
+
+14 B.3 Per-Model Semantic Subtype Results 
+
+Table 9 disaggregates the pooled subtype results from §6.4 into individual models. The recall gradient that tracks cognitive demand in the main text is consistent across all six models: visual reasoning < domain knowledge ≈ multi-value < direct standardized. Notably, the inter-model recall spread varies by subtype: it is widest for multi-value (14.7 pp) and domain knowledge (12.6 pp) but narrowest for visual reasoning (5.4 pp), suggesting that visual reasoning is a shared ceiling rather than a differentiator among current models.                               
+
+> Gem. GPT 397B Opus Kimi 27B
+> Direct std. 50.6 47.3 46.8 43.6 44.3 42.7 Domain know. 51.2 45.2 47.4 39.9 42.2 38.6 Multi-value 51.9 46.3 43.6 40.0 37.2 38.2 Visual reason. 36.1 39.9 39.4 33.9 35.8 34.5
+> Table 9 Recall (%) by Semantic Subtype and Model in Multi-Image Extraction. Precision is uniformly high (82–95%) across all cells and omitted for clarity.
+
+# C Evaluation Prompt Templates 
+
+We provide the core prompt templates used in evaluation. The released code contains the full Chinese prompts with the same structure and output schema. 
+
+Multi-image extraction prompt. The model is instructed to act as an industrial product attribute extraction expert. Inputs include all product images, the product entity, top-level and leaf categories, and the product-specific schema. The model must extract only schema-listed property-value pairs supported by image evidence, including visible product features, labels, nameplates, specification tables, certification marks, and technical diagrams. It must ignore unrelated products, factory or marketing images, packaging containers when they are not the target product, and marketing language. Multiple values for the same property are output as separate pairs, duplicate values across images are removed, units are preserved, and the output must be a JSON object with a cpv_results list. 
+
+Single-image extraction prompt. The single-image prompt follows the same evidence and schema con-straints, but the source is restricted to one image. Product title, category, and entity information are used only to identify the target product and cannot serve as direct evidence for attribute values. 
+
+Simple prompt ablation. The simplified prompt keeps only the essential instruction: given all product images and the product-specific schema, extract all visible or inferable schema-listed property-value pairs for the target industrial product and return them as JSON. It removes most detailed evidence, entity-drift, confidence calibration, and filtering rules. 
+
+Semantic matching judge prompt. When rule-based value matching fails, the judge receives a property name, one predicted value, and candidate benchmark values for the same property. It must decide whether the prediction is semantically equivalent to any benchmark value, allowing formatting, ordering, abbreviation, and unit-surface variation when meaning is unchanged, and return a JSON decision with the matched benchmark value and a short reason. 
+
+# D Thinking Mode in Single-Image Extraction 
+
+Table 10 reports the thinking vs. no-thinking comparison for Qwen 3.5 Plus in the single-image setting. In contrast to the multi-image setting, where disabling thinking yields only a marginal recall gain of +1.1 pp (§6.6), single-image extraction benefits substantially from explicit reasoning.               
+
+> 15 Setting Prec. Rec. F1 #Pred.
+> Thinking 82.9 79.7 81.3 166,994 No-thinking 79.1 70.5 74.6 165,264
+> ∆(No-thinking
+
+− Thinking) −3.8 −9.2 −6.7  
+
+> Table 10 Thinking vs. No-Thinking for Qwen 3.5 Plus on Single-Image Extraction. Thinking improves both precision and recall, with the recall gain (+9.2 pp) driving most of the F1 improvement.
+
+Thinking mode improves recall by 9.2 pp in the single-image setting, indicating that explicit reasoning helps the model more exhaustively enumerate attributes from a single image. The asymmetry between settings suggests that the multi-image bottleneck lies in evidence localization across images rather than in per-image enumeration —a challenge that thinking alone does not address. 
+
+# E Evaluation Protocol Details 
+
+Property name matching. Property names are matched by exact string equality after Unicode NFKC normalization. Because the benchmark schema provides canonical property names and both annotation and evaluation are schema-constrained, near-synonym ambiguity is rare: models must output property names from the provided schema. In our evaluation, over 99% of correct predictions match on the first exact-match pass. 
+
+Value matching. When normalized exact match fails, remaining candidates are judged by Qwen 3.6 Plus for semantic equivalence, allowing formatting, ordering, abbreviation, and unit-surface variation when meaning is unchanged. The cascaded design ensures that the LLM judge handles only a small residual fraction of comparisons, limiting its potential error impact on overall metrics. 
+
+# F Annotation Overlap and Self-Evaluation Analysis 
+
+Because all five annotator models also serve as evaluated models, we analyze annotation consensus to assess potential self-evaluation bias. 
+
+Consensus distribution. Table 11 reports the fraction of final product-level benchmark annotations that were independently proposed by k of the 5 annotator models. Over half (53.2%) of annotations are supported by 3 or more models, and 71.5% by at least 2 models. While 28.5% of annotations come from a single model, these have survived the three-tier QA process (including frontier model audit and gold-standard cross-check), indicating that they represent valid long-tail attributes that only one model successfully identified.                       
+
+> Consensus #Annot. %Cumul.
+> 5/5 models 15,219 14.3 14.3 4/5 models 17,080 16.0 30.3 3/5 models 24,461 22.9 53.2 2/5 models 19,502 18.3 71.5 1/5 models 30,438 28.5 100.0 Total 106,700
+> Table 11 Consensus Distribution of Product-Level Benchmark Annotations. Each row shows how many annotations were independently proposed by exactly kof the 5 annotator models (after QA filtering).
+
+Why self-evaluation bias is limited. Three design choices mitigate the concern that annotator models are advantaged during evaluation: (1) The benchmark uses the union of five models’ outputs, so no single model’s 
+
+> 16
+
+annotations dominate—an evaluated model’s own contributions are diluted by the other four annotators. (2) The independent QA tier (Tier 1) removes 23.9% of candidates, including model-specific hallucinations, using a model (Qwen 3.6 Plus) that is not among the nine evaluated models. (3) Gold-standard cross-check (Tier 2) replaces LLM-generated values with verified ground truth for properties covered by the platform’s standard attributes, further decoupling the benchmark from any individual annotator model’s outputs. Moreover, the evaluation is recall-dominated: a model’s primary challenge is finding attributes it missed 
+
+during annotation (attributes contributed by other models), not confirming attributes it already proposed. The result that no model exceeds 50% multi-image recall—despite contributing to the benchmark—empirically confirms that the benchmark is substantially harder than any single model’s coverage.
