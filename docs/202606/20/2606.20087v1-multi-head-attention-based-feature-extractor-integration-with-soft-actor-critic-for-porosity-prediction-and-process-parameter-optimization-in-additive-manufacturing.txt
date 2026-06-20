@@ -1,0 +1,1256 @@
+Title: Multi-Head Attention-Based Feature Extractor Integration with Soft Actor-Critic for Porosity Prediction and Process Parameter Optimization in Additive Manufacturing
+
+URL Source: https://arxiv.org/pdf/2606.20087v1
+
+Published Time: Fri, 19 Jun 2026 00:55:10 GMT
+
+Number of Pages: 8
+
+Markdown Content:
+> 1
+
+# Multi-Head Attention-Based Feature Extractor Integration with Soft Actor-Critic for Porosity Prediction and Process Parameter Optimization in Additive Manufacturing 
+
+Kianoush Aqabakee Leonardo Stella 
+
+Abstract —Additive manufacturing process optimization re-quires precise parameter control to minimize defects such as porosity. Traditional reinforcement learning (RL) approaches using discrete action spaces suffer from slow convergence and susceptibility to local optima, limiting their effectiveness for high-precision manufacturing tasks. This study addresses these limitations by employing a continuous action space combined with a novel architecture that integrates a multi-head attention mechanism with the Soft Actor-Critic (SAC) algorithm. The attention-based feature extractor enhances the agent’s ability to capture subtle variations in low-dimensional input features, enabling more effective exploration-exploitation balance for nav-igating value spaces with local minima. We validate our approach on porosity prediction and process parameter optimization in laser powder bed fusion, demonstrating faster convergence and higher final reward values compared to standard RL methods including DQN, PPO, TD3, and vanilla SAC. The proposed methodology achieves a convergence value of 322.79 within 14 episodes, outperforming existing approaches while maintaining stability throughout training. 1
+
+Index Terms —Multi-Head Attention, Soft Actor-Critic, Process Optimization, Additive manufacturing 
+
+I. I NTRODUCTION 
+
+In recent years, metal additive manufacturing (AM) has gained significant traction across various industries [1], such as aerospace [2], architecture and construction [3, 4], and biomedical applications [5, 6]. The technology presents nu-merous advantages, including material savings, lower proto-typing costs, and the ability to fabricate complex or highly customized components. Despite these benefits, one of the primary challenges hindering the broader adoption of metal AM is ensuring consistency in production [7]. This issue arises from the intricate physical processes involved, the diversity of AM systems, and the choice of metal powders and alloys used [8]. This has led to a growing interest in exploring advanced optimization methods [9, 10] to enhance process control and improve reliability in AM systems [11, 12]. Re-searchers have increasingly turned to data-driven and machine-
+
+Kianoush Aqabakee is with Department of Electrical Engineering, Amirk-abir University of Technology (Tehran Polytechnic), Tehran, Iran, and De-partment of Mechanical Engineering, Amirkabir University of Technology (Tehran Polytechnic), Tehran, Iran. Email: kianoush.aqabakee@aut.ac.ir. Leonardo Stella is with the School of Computer Science, Univer-sity of Birmingham, Birmingham B15 2TT, United Kingdom. Email: l.stella@bham.ac.uk. 
+
+> 1
+
+GitHub Repository 
+
+learning approaches for optimizing metal AM processes to address these challenges. Traditional CI methods for optimization tasks, such as regression-based techniques and ensemble learning [13, 14], are limited by the need for large datasets, which make them time and resource intensive in applications such as AM. In [9], a cascade forward neural network (NN)-based data-driven approach is introduced to predict process windows and fundamental track geometries in Laser Wire AM of 316L stainless steel. Furthermore, in [15], a convolutional neural network (CNN) is utilized to predict laser power values from melt-pool images, underscoring the broader application of data-driven methods in AM image processing. In [10], an automated parameter selection method is presented, leveraging process signatures derived from a Physics-Informed Neural Network (PINN) simulation to optimize Laser Powder Bed Fusion (L-PBF) while obviating the need for repeated Finite Element Method (FEM) simulations. Similarly, [16] introduces an ANN-SOA approach for optimizing metal 3D printing in L-PBF by examining the impact of milling speed, layer thickness, and orientation on surface roughness. Additionally, heuristic optimization methods, while useful, tend to converge slowly and are prone to getting stuck in local optima, limiting their effectiveness in complex, high-dimensional problems. These limitations underscore the need for more dynamic approaches. RL has emerged as a powerful alternative, offering the ability to optimize complex processes, such as autonomous driving [17], robotics [18], battery charg-ing management [19, 20], and AM [21], by learning directly from interactions with the environment, without the need for extensive pre-existing datasets. In recent years, RL has demonstrated significant potential in optimizing complex systems, including materials science applications. For instance, RL has been applied to process parameter estimation, enabling the adaptation of manufactur-ing strategies in various component geometries without the need for repeated data collection and model retraining, thereby improving efficiency and cost-effectiveness [22]. Addition-ally, RL has been integrated into automated deposition path planning, where it enhances adaptability in wire arc AM by dynamically adjusting welding parameters to handle complex geometries [23]. Another key application of RL in this domain is the optimization of the processing paths to achieve the desired microstructural properties in materials. In particular, 
+
+> arXiv:2606.20087v1 [cs.AI] 18 Jun 2026 2
+
+[21] explores how RL can be used to control processing conditions and optimize the resulting mechanical properties of materials. This study uses a discrete action space due to the RL agent implemented in this research. In contrast, using a continuous action space allows us to include more features by selecting slight parameter variations. These subtle characteristics offered by the continuous action space enable us to enhance our production process. For instance, in [24], a printed product can have varying partition thicknesses. Figure 1 presents an adapted example from this research, illustrating how the approach can be applied to customize the printed product. This strategy helps to customize the printed product. 2D Top View 3D View 
+
+Fig. 1: Characterization in production, with different partition thickness for a 3D-printed product. Building on this foundation, this paper aims to analyze the most widely used RL approaches and propose an improved algorithm to further advance RL-driven optimization in mate-rials processing. The contributions of this work are as follows: 1) A comparative analysis of various RL approaches is conducted from multiple perspectives to highlight their potential advantages for this specific application. 2) The integration of a multi-head attention mechanism with a best candidate selection strategy is proposed to achieve an optimal balance between exploration and exploitation, tailored to the value space of this research. The remainder of this paper is structured as follows: Sec-tion II details the optimization formulation and the components of the reward function. Section III analyzes the relevant value space, followed by the presentation of the proposed methodology. Section IV reports the implementation results and evaluates their performance. Finally, Section V concludes the paper and outlines potential directions for future research. II. P RELIMINARIES 
+
+The primary objective in this RL case is to identify the processing pathways that produce materials with improved mechanical properties performance. The environment is char-acterized by the state of the material microstructure, and the agent actions represent decisions related to processing parameters. The reward function used in this research is adapted from [21], which is explained in detail below: 
+
+A. Reward Function 
+
+The reward function used in the RL framework was de-signed by [21] to evaluate the efficacy of each processing step in terms of its contribution to the target mechanical properties of the material. The reward function, R(ˆ π1, ˆπ2, VED ), evaluates the ef-fectiveness of the selected actions in terms of the material microstructural and mechanical properties. The function is formulated on the basis of the Eagar-Tsai thermal model as follows: 
+
+R(ˆ π1, ˆπ2, VED ) = 51 + e−6ˆ π1−0.8 + 51 + e−12ˆ π2−0.75 
+
+− 21 + e17 −0.1VED − 2 − 21 + e5−0.1VED ,
+
+(1) where:  
+
+> •
+
+ˆπ1: A parameter related to the first aspect of the mi-crostructure or process condition, such as a phase fraction or processing temperature. It can be calculated as follows: 
+
+π1 = πdw 
+
+2hp , (2) where d, w, h, p are melt pool depth, melt pool width, hatch spacing, and powder thickness.  
+
+> •
+
+ˆπ2: A parameter related to the second aspect of the microstructure or process condition, possibly representing another phase fraction or time-related factor. It can be calculated as follows: 
+
+π2 = γd vxμσ , (3) where γ, v x, μ, σ are surface tension, horizontal backflow velocity, dynamic viscosity, and laser spot deviation.  
+
+> •
+
+VED: A variable that could represent a Volumetric Energy Density (VED) or other energy-related metrics influencing the microstructural development [25]. The reward function consists of two main components: 1) The first two terms, 51+ e−6ˆ π1−0.8 and 51+ e−12ˆ π2−0.75 ,model the benefits of achieving desired values for the parameters ˆπ1 and ˆπ2, with higher rewards as these parameters approach optimal values. 2) The last two terms, − 21+ e17 −0.1VED and − 21+ e5−0.1VED ,impose penalties when the energy density, VED, devi-ates from desirable values. These terms ensure that the energy input remains within an optimal range, thereby discouraging excessive or insufficient energy use. This reward function encourages the RL agent to optimize the microstructural parameters while considering energy con-sumption, guiding the learning process toward the desired material properties and efficient processing conditions. In the next phase, common RL methods will be analyzed and classified based on their suitability for the problem char-acteristics, highlighting their advantages and disadvantages. III. M ETHODOLOGY 
+
+A. Value Space 
+
+One of the critical factors in identifying the most suitable method for this task is the shape of the value space. Since the task is episodic, the value space can be visualized as depicted in Fig. 2. Three contour plots were generated to 3
+
+analyze the return space based on varying action parameters. In Fig. 2a, laser power is kept constant, showing the effect of scan speed and hatch spacing on the return. Fig. 2b fixes the scan speed, illustrating the interaction between laser power and hatch spacing. Lastly, Fig. 2c presents the return space for a fixed hatch spacing, displaying the combined influence of laser power and scan speed. These plots provide a comprehensive view of how state values shape the return landscape. The provided figures show that the value space appears to have a smooth topology with small local minima. Therefore, finding the global optimum may not require a high exploration rate and that a lower level of exploration could be sufficient. In the next step, various DRL approaches are examined, offering different perspectives on the advantages and disad-vantages of each with respect to specific characteristics. 
+
+B. Characteristics of Deep Reinforcement Learning Algo-rithms 
+
+In this section, we analyze the characteristics of four se-lected deep reinforcement learning (DRL) algorithms: Deep Q-Network (DQN) [26], Twin Delayed Deep Deterministic Policy Gradient (TD3) [27], Proximal Policy Optimization (PPO) [28], and Soft Actor-Critic (SAC) [29]. A discrete action space in RL reduces the optimization complexity, but may overlook nuances in the solution space. Therefore, we also explore continuous RL methods to deter-mine which approach offers better performance. By examining their exploration-exploitation strategies, pol-icy types, and convergence behaviors, we aim to identify the most suitable approach for the given task. 
+
+1) Exploration and Exploitation: The selected algorithms incorporate different strategies to balance exploration and exploitation. DQN utilizes an ϵ-greedy approach that decays over time, gradually shifting from exploration to exploita-tion. In contrast, PPO uses a clip objective to limit policy changes, striking a balance between these two aspects. SAC optimizes for maximum entropy, inherently promoting diverse exploration while focusing on high rewards, thus maintaining a dynamic balance. 
+
+2) Stochastic and Deterministic Policies: The algorithms can also be distinguished by their policies. DQN and TD3 use deterministic policies; however, DQN directly selects actions based on Q-value approximation without a policy model, whereas TD3 employs a deterministic policy within an actor-critic framework. On the other hand, both PPO and SAC operate with stochastic policies, sampling actions from a prob-ability distribution. SAC further enhances this with entropy maximization, which encourages more extensive exploration. 
+
+3) Policy-Based and Value-Based Approaches: DQN is a value-based method among the four algorithms since it approximates the Q-value to determine actions. TD3, PPO, and SAC, however, are policy-based approaches. TD3 and PPO use an actor-critic architecture, where the critic guides policy updates. SAC, also a policy-based method, differs by simultaneously maximizing both reward and policy entropy, thus optimizing for long-term exploration and exploitation. 
+
+4) Convergence and Robustness: DQN and TD3 are known for rapid convergence, with TD3 benefiting from deterministic policies, which makes it less robust when dealing with local maxima. PPO and SAC provide more robustness, with PPO’s clipped objective maintaining stable updates, while SAC’s entropy maximization allows it to explore diverse action spaces effectively, enhancing its robustness across various environ-ments. The discussed exploration-exploitation strategies, policy types, methodological distinctions, and convergence properties are summarized in Table I. Based on the analyzed charac-teristics of the selected RL approaches and the value space, TD3 is expected to achieve the fastest convergence speed and the highest convergence value. However, the presence of small local minima in the value space can be effectively managed with minimal exploration. The SAC method, which offers a more sophisticated and comprehensive exploration strategy, emerges as a strong candidate. Nevertheless, SAC employs a high exploration rate, which can lead to prolonged convergence times. To mitigate this issue, a novel architecture is selected for the actor and critic, allowing the input domain to be mapped into more informative features. This enhancement enables the SAC agent to locate the global optimum more quickly. Consequently, the proposed methodology provides a balanced approach between exploration and exploitation, particularly suited for value spaces with small local minima 50 100 150 200 250 300 350 400 
+
+> Laser Power (W)
+> 750
+> 1000
+> 1250
+> 1500
+> 1750
+> 2000
+> 2250
+> 2500
+> 2750
+> 3000
+> Scan Speed (mm/s)
+
+Contour Plot (Hatch Spacing = 0.075 mm)     
+
+> 140
+> 160  160
+> 160
+> 160
+> 160
+> 160
+> 160
+> 160
+> 160
+> 180
+> 180
+> 180
+> 180
+> 180
+> 180
+> 180
+> 180
+> 180
+> 180
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300 300
+> 300
+> 300
+> 300 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300  300 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300 300
+> 320
+> 320
+> 320
+> 320
+> 320
+> 320
+> 320
+> 320
+> 320
+> 120
+> 144
+> 168
+> 192
+> 216
+> 240
+> 264
+> 288
+> 312
+> Cumulative Reward per Episode
+
+(a) Cumulative Reward per Episode 750 1000 1250 1500 1750 2000 2250 2500 2750 3000 
+
+Scan Speed (mm/s) 
+
+0.04 
+
+0.06 
+
+0.08 
+
+0.10 
+
+0.12 
+
+0.14 
+
+> Hatch Spacing (mm)
+
+Contour Plot (Laser Power = 200 W) 
+
+> 160
+> 180
+> 180
+> 180
+> 180
+> 180
+> 180
+> 180
+> 180
+> 180
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+
+120 
+
+144 
+
+168 
+
+192 
+
+216 
+
+240 
+
+264 
+
+288 
+
+312  
+
+> Cumulative Reward per Episode
+
+(b) Cumulative Reward per Episode 50 100 150 200 250 300 350 400 
+
+> Laser Power (W)
+> 0.04
+> 0.06
+> 0.08
+> 0.10
+> 0.12
+> 0.14
+> Hatch Spacing (mm)
+
+Contour Plot (Scan Speed = 1500 mm/s)  
+
+> 140
+> 160
+> 160
+> 160
+> 160
+> 160
+> 180
+> 180
+> 180
+> 180
+> 180
+> 180
+> 180
+> 180
+> 180
+> 180
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 200
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 220
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 240
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 260
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 280
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 300
+> 320
+> 320
+> 320
+> 320
+> 320
+> 320
+> 320
+> 320
+> 120
+> 144
+> 168
+> 192
+> 216
+> 240
+> 264
+> 288
+> 312
+> Cumulative Reward per Episode
+
+(c) Cumulative Reward per Episode 
+
+Fig. 2: Value Space related to reward function 1 4
+
+TABLE I: Comparison of RL Algorithms                             
+
+> Aspect DQN TD3 PPO SAC Exploration-Exploitation ϵ-greedy decay Target policy smoothing Clipped objective Maximum entropy
+> Policy Type Deterministic (Q-learning) Deterministic (actor-critic) Stochastic Stochastic (entropy maximization)
+> Method Type Value-based Policy-based Policy-based Policy-based
+> Architecture Q-network Actor-Critic Actor-Critic Actor-Critic
+> Action Space Discrete Continuous Continuous Continuous
+> Convergence Fast but unstable Fast, sensitive to local maxima Stable updates Robust, adaptive exploration
+
+in their topology. 
+
+C. Multi-Head Attention Feature Extraction Mechanism 
+
+In this section, we present the architecture of the proposed attention-based feature extractor, which is integrated into the SAC framework. The primary objective of this architecture is to enhance the representation of features by using self-attention, allowing the agent to capture long-range dependen-cies and better understand the structure of the input space. This is achieved through a sequence of fully connected layers and a multi-head attention [30, 31] mechanism. Below, we will go over the components of the proposed architecture, starting with the initial fully connected layer, followed by the self-attention mechanism, and concluding with the final fully connected layer. 1) Fully Connected Layer 1: 
+
+Let x ∈ Rn be the input observation of dimension n,and let W1 ∈ Rdmodel ×n be the learned weights. The output of the first fully connected layer is: 
+
+h1 = W1x + b1, (4) where b1 ∈ Rdmodel is the bias term. 2) Self-Attention Mechanism :The self-attention mechanism computes three matrices: query Q, key K, and value V , which are linear projec-tions of the input h1.
+
+Q = WQh1, K = WK h1, V = WV h1. (5) For a single attention head, the attention output is computed as: Attention (Q, K, V ) = softmax 
+
+ QK ⊤
+
+√dk
+
+
+
+V, (6) where dk is the dimensionality of the key. For multi-head attention with h heads, the outputs from each head are concatenated and projected using WO :MultiHead (Q, K, V ) = WO
+
+> h
+
+M
+
+> i=1
+
+Attention (Qi, K i, V i)
+
+!
+
+,
+
+(7) where L stands for concatenation. 3) Fully Connected Layer 2 :After the attention mechanism, the output is passed through a second fully connected layer, mapping the 
+
+dmodel -dimensional output to the desired feature dimen-sion d:
+
+hout = W2h2 + b2, (8) where W2 ∈ Rd×dmodel and h2 ∈ Rdmodel is the output from the attention mechanism. The architecture of the proposed model is shown in Fig. 3. Concat 
+
+Linear   
+
+> Linear Linear Linear Linear Linear Linear Linear Linear Linear
+> x
+
+h
+
+> MatMul
+> SoftMax
+> Scale
+> MatMul
+
+Q K V
+
+> MatMul
+> SoftMax
+> Scale
+> MatMul
+
+Q K V
+
+> Linear
+
+Fig. 3: Multi-Head Attention Architecture 
+
+D. Multi-Head Attention-based Soft Actor-Critic 
+
+To address the optimization problem based on RL, we define our reward function as (1). The policy π drives the selection of actions, and the corresponding action value function Qπ ,representing the cumulative reward for a given action under 
+
+π, is estimated using neural networks. These networks are referred to as the actor and the critic, which are formulated as follows:  at ∼ πθ (st) ,Qπ = Qϕ (ˆ st, ˆat) . (9) In the SAC algorithm, a dual critic strategy enhances the stability of value estimation by mitigating overestimation bias. Moreover, each critic network has a corresponding target critic network, which is used for more stable target value computa-tion. These networks improve learning efficiency and reduce variance by providing more reliable Q-value estimates during 5Concat       
+
+> Linear
+> Linear Linear Linear Linear Linear Linear Linear Linear Linear
+> h
+> MatMul
+> SoftMax
+> Scale
+> MatMul
+> QKV
+> MatMul
+> SoftMax
+> Scale
+> MatMul
+> QKV
+> Linear
+
+Reward 
+
+Min                           
+
+> Update
+> Information Flow
+> Soft Update
+> Actor & Environment
+> Information Flow
+> Laser
+> Build
+> Platform
+> Powder
+> Collectio
+> n
+> Powder
+> Feed
+> Part
+> Lenses
+> Laser Recoater
+> Laser
+> Build
+> Platform
+> Powder
+> Collectio
+> n
+> Powder
+> Feed
+> Part
+> Lenses
+> Laser Recoater
+> State
+> Next Step State
+> Concat
+> Linear
+> Linear Linear Linear Linear Linear Linear Linear Linear Linear
+> h
+> MatMul
+> SoftMax
+> Scale
+> MatMul
+> QKV
+> MatMul
+> SoftMax
+> Scale
+> MatMul
+> QKV
+> Linear
+> Concat
+> Linear
+> Linear Linear Linear Linear Linear Linear Linear Linear Linear
+> h
+> MatMul
+> SoftMax
+> Scale
+> MatMul
+> QKV
+> MatMul
+> SoftMax
+> Scale
+> MatMul
+> QKV
+> Linear
+> Concat
+> Linear
+> Linear Linear Linear Linear Linear Linear Linear Linear Linear
+> h
+> MatMul
+> SoftMax
+> Scale
+> MatMul
+> QKV
+> MatMul
+> SoftMax
+> Scale
+> MatMul
+> QKV
+> Linear
+> Concat
+> Linear
+> Linear Linear Linear Linear Linear Linear Linear Linear Linear
+> h
+> MatMul
+> SoftMax
+> Scale
+> MatMul
+> QKV
+> MatMul
+> SoftMax
+> Scale
+> MatMul
+> QKV
+> Linear
+
+Min 
+
+Actor 
+
+Q-Network 1 
+
+Q-Network 2 
+
+Target 
+
+Q-Network 2 
+
+Target 
+
+Q-Network 1 
+
+Fig. 4: Multi-Head Attention-based Soft Actor-Critic Main Diagram policy updates. To minimize the error in value estimation, the mean squared error (MSE) is used as the optimization loss function for the critic networks, defined as follows: 
+
+LCritic =
+
+ ˆQϕ,t − Qtarget ,t 
+
+2
+
+, (10) where Qtarget ,t denotes the target Q-value computed by the target critic networks. These target networks are updated using a soft update mechanism, providing stable targets for the Q-value updates by decoupling them from the rapidly changing main critic networks, thus mitigating divergence during training. Qtarget ,t can be expressed as: 
+
+Qtarget ,t = rt + γ (Qt+1 − αt log π(at+1 | st+1 )) , (11) where α is the temperature parameter that controls the trade-off between maximizing expected returns and encouraging exploration. The critic networks provide estimated Q-values that guide the actor network in selecting actions expected to yield higher returns. Accordingly, the actor loss function is defined as: 
+
+Lactor = −  min  Qϕ, 1(st, u t), Q ϕ, 2(st, u t)
+
+− α log π(ut | st). (12) Furthermore, the gradient calculation rule can be obtained as follows: 
+
+∂Lactor 
+
+∂θ = −
+
+h ∂ min  Qϕ, 1(st, u t), Q ϕ, 2(st, u t)
+
+∂ˆat
+
+∂ˆat
+
+∂π θ (st)
+
+− αt
+
+∂(log π(a | s)) 
+
+∂π θ (st)
+
+i ∂π θ (st)
+
+∂θ .
+
+(13) Additionally, the temperature parameter α is updated using the following objective: 
+
+Lα = −α  log π(a | s) + Htarget 
+
+, (14) where Htarget is target entropy. This loss ensures that the entropy temperature α is automatically adjusted to balance exploration and exploitation by driving the policy entropy toward the desired target Htarget Finally, the target critic networks are updated using a soft update process, based on the critic parameters. This is formulated as: 
+
+ϕtarget = τ ϕ target + (1 − τ )ϕtarget , (15) where 0 < τ < 1. The architecture of the actor and all four critic networks is based on the Multi-Head Attention Feature Extraction Mechanism, as described in III-C. The entire mechanism is illustrated in Fig. 4. IV. R ESULTS AND DISCUSSION 
+
+The discussed algorithms were implemented over a total of 2000 episodes. A discount factor of 0.99 was used across all simulations. For PPO, the clip range was set to 0.2, GAE lambda to 0.95, and the entropy coefficient to zero. In TD3, the soft update rate was 0.005, policy noise was applied, and the policy update delay was set to 2. For SAC, the soft update rate was 0.005, with automatic tuning of the entropy coefficient and a target update interval of 1. The remaining hyperparameters used in this implementation are detailed in Table II. The cumulative reward (Return) for the first 30 episodes of the training process is depicted in Fig. 5. As observed, the initial values for the DQN and PPO methods fall within a specific range, indicating a balanced trade-off between exploration and exploitation. In contrast, the SAC method demonstrates a higher level of exploration, as evidenced by its substantial deviation and oscillation. The TD3 and the proposed method display minimal deviation, with the proposed method achiev-ing slightly better convergence and a faster convergence speed 6
+
+TABLE II: Hyperparameters used in implementation for the discussed RL methods. 
+
+Method Learning Rate Buffer Size Batch Size 
+
+DQN 1e-4 1e6 32 PPO 3e-4 - 128 TD3 1e-3 1e6 128 SAC 3e-4 1e6 256 ABFE-SAC 3e-4 1e6 64 
+
+than TD3. Furthermore, the complete simulation results are 0 5 10 15 20 25 
+
+> Episode
+> 200
+> 220
+> 240
+> 260
+> 280
+> 300
+> 320
+> 340
+> Cumulative Reward per Episode
+> Early Convergence: Rolling Mean of Cumulative Reward per Episode per Episode
+> PPO: Rolling Mean of Return
+> PPO: Rolling Std Dev of Return
+> TD3: Rolling Mean of Return
+> TD3: Rolling Std Dev of Return
+> SAC: Rolling Mean of Return
+> SAC: Rolling Std Dev of Return
+> DQN: Rolling Mean of Return
+> DQN: Rolling Std Dev of Return
+> ABFE-SAC: Rolling Mean of Return
+> ABFE-SAC: Rolling Std Dev of Return
+
+Fig. 5: Return diagram rolling window size 5 presented in Fig. 6. Over the course of long-term training, the DQN algorithm demonstrates the weakest convergence, with the deviation in the return diagram remaining consistent from the beginning to the end of training. The SAC algorithm exhibits the highest degree of exploration during the initial episodes. However, after a substantial number of episodes, the deviation decreases, indicating the onset of convergence. This characteristic makes SAC a promising choice in environments where the return space contains large local maxima. The PPO algorithm, by contrast, demonstrates a smooth convergence pattern. It initially displays high deviation due to exploration but steadily converges to a high return value with minimal and bounded deviation. Finally, the TD3 algorithm shows stable and high convergence, though the proposed method achieves slightly better final performance and converges a bit faster than TD3. Table. III presents the convergence values and convergence episodes for discussed methods, illustrating the point at which each method achieves stable performance. Ultimately, the TABLE III: Convergence values and convergence times for different RL methods. 
+
+Method Convergence Value Convergence Episodes 
+
+DQN 288 .65 −
+
+PPO 316 .26 944 
+
+SAC 312 .45 1293 
+
+TD3 321 .80 14 
+
+ABFE-SAC 322 .79 14 0 250 500 750 1000 1250 1500 1750 2000 
+
+> Episode
+> 175
+> 200
+> 225
+> 250
+> 275
+> 300
+> 325
+> 350
+> Cumulative Reward per Episode
+> Rolling Mean of Cumulative Reward per Episode per Episode with Standard Deviation
+> PPO: Rolling Mean of Return
+> PPO: Standard Deviation
+> TD3: Rolling Mean of Return
+> TD3: Standard Deviation
+> SAC: Rolling Mean of Return
+> SAC: Standard Deviation
+> DQN: Rolling Mean of Return
+> DQN: Standard Deviation
+> ABFE-SAC: Rolling Mean of Return
+> ABFE-SAC: Standard Deviation
+
+Fig. 6: Return diagram rolling window size 30 proposed algorithm demonstrates the best performance across all criteria. The final aspect to be analyzed is whether the agent successfully converged to the global solution. To provide further insight into the training process, Fig.7 illustrates vari-ous components of the agent. The return value stabilizes at the convergence point after approximately six episodes, as depicted in Fig.7e. Additionally, the value space estimation error, computed by the critic networks, initially exhibits a decreasing trend, as shown in Fig.7a. Similarly, the policy log-likelihood declines over time, as illustrated in Fig.7d. Following the initial convergence phase, the agent attempts to increase the weight of the entropy term to enhance explo-ration and identify actions with higher probabilities, thereby avoiding local minima. Consequently, the loss associated with the α parameter drives an increase in α, as shown in Fig.7c. This results in a subsequent rise in the actor error, as depicted in Fig.7b. However, after many training episodes, the return value remains stable, indicating that the agent has successfully reached the global solution. V. C ONCLUSION 
+
+This study explores the porosity prediction to optimize the parameters of AM processes. We propose a RL methodology with two key innovations. First, we incorporate both reward and entropy maximization to identify the global optimum in the value space effectively. Second, we enhance the conver-gence speed and value by using a continuous action space and integrating a multi-head attention feature extractor into the SAC algorithm. This allows us to capture the thin features and enhance sensitivity to minor variations. As a result, the need for practical testing is reduced, leading to improved material characterization. In addition, we evaluate standard RL approaches to provide a comparative analysis, highlighting their respective charac-teristics and contrasting them with the performance of the proposed method. The comparison criteria focus on the con-vergence speed and the final convergence value, which shows the superior performance of the proposed approach. This method can easily incorporate data directly coming from machines and can be used with much richer data sets. 70 250 500 750 1000 1250 1500 1750 2000 
+
+Episodes      
+
+> 200 250
+> Re
+> 02000 4000 6000 8000 10000
+
+Steps 
+
+> 0.0 2.5 5.0 7.5
+> Critic Loss
+> 1e33
+
+Q1 Loss Q2 Loss      
+
+> 02000 4000 6000 8000 10000
+
+Steps 
+
+> 0.00 0.25 0.50 0.75 1.00
+> Actor Loss
+> 1e17
+
+Actor Loss 
+
+> 1000
+> 800
+> 600
+> 400
+> 200
+> Loss
+
+Loss      
+
+> 02000 4000 6000 8000 10000
+
+Steps 
+
+> 0123
+> variable changes  1e15
+
+variable changes      
+
+> 02000 4000 6000 8000 10000
+
+Steps 
+
+> 0.0 0.5 1.0 1.5
+> log  (at + 1  st + 1 ) 1e32
+
+log (at + 1 st + 1 )             
+
+> 1700 1710 1720 1730 1740 1750 310 320
+> 02468200 225 250 275
+> 024680.2 0.4 0.6 0.8 1.0 1e8
+> Q1 Loss Q2 Loss
+
+(a) Critic loss. 750 1000 1250 1500 1750 2000 
+
+Episodes 
+
+Return        
+
+> 8000 10000 02000 4000 6000 8000 10000
+
+Steps 
+
+> 0.00 0.25 0.50 0.75 1.00
+> Actor Loss
+> 1e17
+
+Actor Loss 
+
+> 1000
+> 800
+> 600
+> 400
+> 200
+> Loss
+
+Loss        
+
+> 8000 10000 02000 4000 6000 8000 10000
+
+Steps 
+
+> 0.0 0.5 1.0 1.5
+> log  (at + 1  st + 1 ) 1e32
+
+log (at + 1 st + 1 )      
+
+> 1700 1710 1720 1730 1740 1750 310 320 330 340
+> 68
+
+(b) Actor and entropy temperature losses. 0 250 500 750 1000 1250 1500 1750 2000 
+
+Episodes 
+
+> 200 250 300
+> Return
+
+Return      
+
+> 02000 4000 6000 8000 10000
+
+Steps 
+
+> 0.0 2.5 5.0 7.5
+> Critic Loss
+> 1e33
+
+Q1 Loss Q2 Loss      
+
+> 02000 4000 6000 8000 10000
+
+Steps 
+
+> 0.00 0.25 0.50 0.75 1.00
+> Actor Loss
+> 1e17
+
+Actor Loss 
+
+> 1000
+> 800
+> 600
+> 400
+> 200
+> Loss
+
+Loss      
+
+> 02000 4000 6000 8000 10000
+
+Steps 
+
+> 0123
+> variable changes  1e15
+
+variable changes      
+
+> 02000 4000 6000 8000 10000
+
+Steps 
+
+> 0.0 0.5 1.0 1.5
+> log  (at + 1  st + 1 ) 1e32
+
+log (at + 1 st + 1 )         
+
+> 1700 1710 1720 1730 1740 1750 310 320 330 340
+> 02468200 225 250 275 300 325
+
+(c) The entropy temperature. 0 750 1000 1250 1500 1750 2000 
+
+Episodes 
+
+Return         
+
+> 08000 10000 02000 4000 6000 8000 10000
+
+Steps 
+
+> 0.00 0.25 0.50 0.75 1.00
+> Actor Loss
+> 1e17
+
+Actor Loss 
+
+> 1000
+> 800
+> 600
+> 400
+> 200
+> Loss
+
+Loss         
+
+> 08000 10000 02000 4000 6000 8000 10000
+
+Steps 
+
+> 0.0 0.5 1.0 1.5
+> log  (at + 1  st + 1 ) 1e32
+
+log (at + 1 st + 1 )       
+
+> 1700 1710 1720 1730 1740 1750 310 320 330 340
+> 468
+
+(d) The policy log likelihood. 0 250 500 750 1000 1250 1500 1750 2000     
+
+> Episodes
+> 200 250 300
+> Return Return
+> 02468200 225 250 275 300 325
+
+(e) Cumulative Reward per Episode. 
+
+Fig. 7: Proposed Multi-Head Attention-based SAC agent re-sults. Future research could investigate the extension of the proposed methodology to other manufacturing techniques, such as di-rected energy deposition, in addition to its current application in laser powder bed fusion. Furthermore, future work may address challenges related to instability and nonstationarity avoidance [32], as well as the development of optimization strategies for multi-agent systems [33]. REFERENCES 
+
+[1] P. Onu, S. M. Gad, A. A. Adediran, and C. Mbohwa, “Additive manufacturing for sustainable production: A survey on titanium alloys,” in 2024 International Conference on Science, Engineering and Business for Driving Sustainable Development Goals (SEB4SDG) , 2024, pp. 1–12. DOI : 10 . 1109/SEB4SDG60871.2024.10629899 [2] V. Uralde, F. Veiga, A. Suarez, A. Lopez, I. Goenaga, and T. Ballesteros, “Novel sensorized additive manufacturing-based enlighted tooling concepts for aeronautical parts,” Scientific Reports , vol. 14, no. 1, p. 17 692, 2024. [3] K. Zhang et al., “Aerial additive manufacturing with multiple autonomous robots,” Nature , vol. 609, no. 7928, pp. 709–717, 2022. [4] G. Leite and M. E. Fontana, “Additive manufacturing and the evolution of the construction industry: A systematic lit-erature review 2015-2021,” in 2021 International Conference on Decision Aid Sciences and Application (DASA) , 2021, pp. 294–298. DOI : 10.1109/DASA53625.2021.9682363 [5] A. Vyatskikh, S. Delalande, A. Kudo, X. Zhang, C. M. Portela, and J. R. Greer, “Additive manufacturing of 3d nano-architected metals,” Nature communications , vol. 9, no. 1, p. 593, 2018. [6] P. Gasnier et al., “Design, simulations and tests of a novel force and moments sensor for instrumented knee implants,” 
+
+IEEE Transactions on Biomedical Engineering , vol. 70, no. 12, pp. 3480–3489, 2023. DOI : 10 . 1109 / TBME . 2023 . 3289623 [7] S. Di Cataldo et al., “Optimizing quality inspection and con-trol in powder bed metal additive manufacturing: Challenges and research directions,” Proceedings of the IEEE , vol. 109, no. 4, pp. 326–346, 2021. DOI : 10.1109/JPROC.2021.3054628 [8] B.-M. Roh, T. W. Simpson, H. Yang, S. R. T. Kumara, P. Witherell, and A. T. Jones, “Ensuring quality in metal additive manufacturing through a v-model framework,” IEEE Access ,vol. 11, pp. 123 807–123 819, 2023. DOI : 10.1109/ACCESS. 2023.3327054 [9] M. Roberts, M. Xia, and A. Kennedy, “Data-driven pro-cess parameter optimisation for laser wire metal additive manufacturing,” in 2022 27th International Conference on Automation and Computing (ICAC) , 2022, pp. 1–6. DOI : 10. 1109/ICAC55051.2022.9911139 [10] F. Depaoli et al., “Physics-informed neural networks: A step towards data-driven optimization of additive manufacturing,” in 2024 IEEE 29th International Conference on Emerging Technologies and Factory Automation (ETFA) , 2024, pp. 1–4. 
+
+DOI : 10.1109/ETFA61755.2024.10710827 [11] E. Dalpadulo, F. Pini, and F. Leali, “Cad-platform-based process optimization design method by selective laser melt-ing simulation,” in 2020 IEEE 10th International Confer-ence Nanomaterials: Applications & Properties (NAP) , 2020, 02SAMA13-1-02SAMA13–5. DOI : 10.1109/NAP51477.2020. 9309632 [12] H.-C. Tran, Y.-L. Lo, H.-C. Yang, H.-C. Hsiao, F.-T. Cheng, and T.-H. Kuo, “Intelligent additive manufacturing architec-ture for enhancing uniformity of surface roughness and me-chanical properties of laser powder bed fusion components,” 
+
+IEEE Transactions on Automation Science and Engineering ,vol. 20, no. 4, pp. 2527–2538, 2023. DOI : 10.1109/TASE. 2022.3204847 [13] R. U. Rehman et al., “Process parameter optimization of ad-ditively manufactured parts using intelligent manufacturing,” 
+
+Sustainability , vol. 14, no. 22, 2022, ISSN : 2071-1050. DOI :10.3390/su142215475 [Online]. Available: https://www.mdpi. com/2071-1050/14/22/15475 [14] B. Kappes, S. Moorthy, D. Drake, H. Geerlings, and A. Steb-ner, “Machine learning to optimize additive manufacturing parameters for laser powder bed fusion of inconel 718,” in 
+
+Proceedings of the 9th International Symposium on Super-alloy 718 & Derivatives: Energy, Aerospace, and Industrial Applications , E. Ott et al., Eds., Cham: Springer International Publishing, 2018, pp. 595–610, ISBN : 978-3-319-89480-5. 8
+
+[15] O. Kwon, H. G. Kim, W. Kim, G.-H. Kim, and K. Kim, “A convolutional neural network for prediction of laser power using melt-pool images in laser powder bed fusion,” IEEE Access , vol. 8, pp. 23 255–23 263, 2020. DOI : 10 . 1109 / ACCESS.2020.2970026 [16] C. Li, “Optimizing metal 3d printing using artificial neural network based seagull optimization algorithm,” in 2024 Third International Conference on Distributed Computing and Elec-trical Circuits and Electronics (ICDCECE) , 2024, pp. 1–4. 
+
+> DOI
+
+: 10.1109/ICDCECE60827.2024.10549345 [17] A. J. Aghdasian, A. H. Ardakani, K. Aqabakee, and F. Ab-dollahi, “Autonomous driving using residual sensor fusion and deep reinforcement learning,” in 2023 11th RSI International Conference on Robotics and Mechatronics (ICRoM) , 2023, pp. 265–270. DOI : 10.1109/ICRoM60803.2023.10412516 [18] K. Aqabakee, F. Abdollahi, A. Taghvaeipour, and M.-R. Akbarzadeh-T, “Recursive generalized type-2 fuzzy radial basis function neural networks for joint position estimation and adaptive emg-based impedance control of lower limb exoskeletons,” Biomedical Signal Processing and Control ,vol. 100, p. 106 791, 2025, ISSN : 1746-8094. DOI : https : / / doi . org / 10 . 1016 / j . bspc . 2024 . 106791 [Online]. Avail-able: https : / / www . sciencedirect . com / science / article / pii / S1746809424008498 [19] A. Heydarian Ardakani and F. Abdollahi, “A fast balance op-timization approach for charging enhancement of lithium-ion battery packs through deep reinforcement learning,” Journal of Energy Storage , vol. 89, p. 111 755, 2024, ISSN : 2352-152X. 
+
+> DOI
+
+: https : / / doi . org / 10 . 1016 / j . est . 2024 . 111755 [Online]. Available: https://www.sciencedirect.com/science/article/pii/ S2352152X24013409 [20] A. H. Ardakani, K. Aqabakee, F. Abdollahi, and E. Shirazi, “Scalable charging optimization of battery energy storage systems with deep reinforcement learning,” in 2024 IEEE PES Innovative Smart Grid Technologies Europe (ISGT EUROPE) ,2024, pp. 1–5. DOI : 10 . 1109 / ISGTEUROPE62998 . 2024 . 10863295 [21] A. M. Faizan Mohamed, F. Careri, R. H. Khan, M. M. Attallah, and L. Stella, “A novel porosity prediction frame-work based on reinforcement learning for process parameter optimization in additive manufacturing,” Scripta Materialia ,vol. 255, p. 116 377, 2025, ISSN : 1359-6462. DOI : https : / / doi . org / 10 . 1016 / j . scriptamat . 2024 . 116377 [Online]. Available: https : / / www. sciencedirect . com / science / article / pii/S1359646224004123 [22] S. Dharmadhikari, N. Menon, and A. Basak, “A reinforce-ment learning approach for process parameter optimization in additive manufacturing,” Additive Manufacturing , vol. 71, p. 103 556, 2023, ISSN : 2214-8604. DOI : https://doi.org/10. 1016/j.addma.2023.103556 [Online]. Available: https://www. sciencedirect.com/science/article/pii/S2214860423001690 [23] J. Petrik and M. Bambach, “Reinforcement learning and optimization based path planning for thin-walled structures in wire arc additive manufacturing,” Journal of Manufacturing Processes , vol. 93, pp. 75–89, 2023, ISSN : 1526-6125. DOI :https : / / doi . org / 10 . 1016 / j . jmapro . 2023 . 03 . 013 [Online]. Available: https://www.sciencedirect.com/science/article/pii/ S1526612523002219 [24] F. Careri, L. Stella, R. H. U. Khan, and M. M. Attallah, “Application of machine learning in additive manufacturing of a novel al alloy heat exchanger,” 2025. DOI : 10.1007/s00170-025-15389-y [25] M. Buhairi et al., Review on volumetric energy density: Influence on morphology and mechanical properties of ti6al4v manufactured via laser powder bed fusion, prog addit manuf 8 (2023) 265–283 .[26] V. Mnih et al., “Human-level control through deep reinforce-ment learning,” nature , vol. 518, no. 7540, pp. 529–533, 2015. [27] S. Fujimoto, H. van Hoof, and D. Meger, “Addressing function approximation error in actor-critic methods,” CoRR ,vol. abs/1802.09477, 2018. arXiv: 1802 . 09477. [Online]. Available: http://arxiv.org/abs/1802.09477 [28] J. Schulman, F. Wolski, P. Dhariwal, A. Radford, and O. Klimov, “Proximal policy optimization algorithms,” CoRR ,vol. abs/1707.06347, 2017. arXiv: 1707 . 06347. [Online]. Available: http://arxiv.org/abs/1707.06347 [29] T. Haarnoja, A. Zhou, P. Abbeel, and S. Levine, “Soft actor-critic: Off-policy maximum entropy deep reinforcement learn-ing with a stochastic actor,” CoRR , vol. abs/1801.01290, 2018. arXiv: 1801.01290. [Online]. Available: http://arxiv.org/abs/ 1801.01290 [30] A. Vaswani et al., “Tensor2tensor for neural machine transla-tion,” CoRR , vol. abs/1803.07416, 2018. [Online]. Available: http://arxiv.org/abs/1803.07416 [31] A. Vaswani, “Attention is all you need,” Advances in Neural Information Processing Systems , 2017. [32] T. Zhang, L. Stella, and J. Barreiro-Gomez, Experience-replay innovative dynamics , 2025. arXiv: 2501 . 12199 [cs.LG] .[Online]. Available: https://arxiv.org/abs/2501.12199 [33] T. Zhang, H. Gupta, K. Suprabhat, and L. Stella, “A multi-agent reinforcement learning approach to promote cooperation in evolutionary games on networks with environmental feed-back,” in 2023 62nd IEEE Conference on Decision and Con-trol (CDC) , 2023, pp. 2196–2201. DOI : 10.1109/CDC49753. 2023.10383787

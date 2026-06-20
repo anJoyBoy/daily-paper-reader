@@ -1,0 +1,1731 @@
+Title: A Theory-Guided Advanced Regulatory Control Synthesis for Cooling-Limited Exothermic Semi-Batch Reactors
+
+URL Source: https://arxiv.org/pdf/2606.18799v1
+
+Published Time: Thu, 18 Jun 2026 00:38:20 GMT
+
+Number of Pages: 39
+
+Markdown Content:
+# A Theory-Guided Advanced Regulatory Control Synthesis for Cooling-Limited Exothermic Semi-Batch Reactors 
+
+Chenchen Zhou and Jose Matias 
+
+Chemical and Biochemical Reactor Engineering and Safety (CREaS), KU Leuven Jan Pieter de Nayerlaan 5, Sint-Katelijne-Waver 2860, Belgium 
+
+chenchen.zhou@kuleuven.be ; jose.matias@kuleuven.be 
+
+Abstract 
+
+This paper studies theory-guided advanced regulatory control (ARC) synthesis for cooling-limited exothermic semi-batch reactors, whose productivity and thermal safety are governed by changing active constraints. Industrial ARC uses feedback loops, cascades, selectors, feedfor-ward/override logic, and valve-position elements, but signal selection, pairing, interconnection, and tuning remain heuristic. Nonlinear model predictive control (NMPC) gives a systematic constrained-operation workflow, but requires a maintained nonlinear model, state estimator, and online optimizer. We combine finite-horizon minimum-time optimality with local safety analysis to develop a systematic analysis-to-architecture ARC synthesis workflow for cooling-limited semi-batch reactors. Under stated assumptions, the workflow translates boundary-seeking optimality into a cooling-demand valve-position-control (VPC) architecture and translates local safety requirements into near-boundary tuning rules. On a reduced benchmark and an industrial-scale polymerization, ARC is nominally competitive with an implemented nominal-model output-feedback nonlinear model predictive control (OF-NMPC) benchmark using extended Kalman filter (EKF) state estimation. In the studied adverse parameter mismatch and unmodeled fault scenarios, ARC keeps temperature-limit violation at 0%, whereas OF-NMPC either violates the limit or fails to complete the batch. 
+
+Keywords: Advanced regulatory control, semi-batch reactors, thermal safety, optimal control, endpoint safety screen. 
+
+# 1 Introduction 
+
+Exothermic semi-batch reactors operate under a tight trade-off between productivity and thermal safety. Thermal runaway begins when heat generation exceeds the removal capacity of the reactor and utility system, causing temperature and pressure to rise uncontrollably; major accidents have repeatedly been linked to loss of cooling or poorly characterized reactive hazards [ 2, 7 ]. Semi-batch operation is especially difficult because reactants accumulate, heat release changes with the batch state, and productivity is often improved by moving toward thermally active conditions [ 8, 10 , 13 , 24 , 27 ]. The control problem is therefore not only temperature regulation, but productive operation near a thermal limit without losing safety or product quality. Industrial plants usually address this task with advanced regulatory control (ARC): coordinated PID, cascade, ratio, selector, feedforward, and supervisory layers implemented on plant automation platforms such as distributed control systems (DCSs) and programmable logic controllers (PLCs) [5, 18 , 21 , 28 ]. ARC is transparent and maintainable, but exothermic semi-batch polymerization makes its design challenging. Startup, reaction, and finishing phases are not separated by reliable 1
+
+> arXiv:2606.18799v1 [eess.SY] 17 Jun 2026
+
+fixed time schedules; their boundaries depend on holdup, heat release, pressure inventory, cooling availability, and model–plant mismatch. A loop architecture or pairing that is reasonable in one phase can become ineffective or unsafe later. Switching selectors or supervisory layers can also move the thermal load to a different actuator while integrators and saturated elements retain the memory from previous control configurations. The design problem is therefore architectural as well as parametric: controlled variables (CVs), CV–MV pairings, controller elements, and tuning rules must be chosen as a coupled design. Nonlinear model predictive control (NMPC) provides the standard systematic alternative because it embeds the model, objectives, and constraints in an online optimal-control problem [ 15 ]; it has been demonstrated for temperature tracking and endpoint-property control in semi-batch and polymerization applications [ 8, 11 , 12 ]. Its practical burden remains high: nonlinear state estimation, repeated online optimization, model-mismatch sensitivity, and lifecycle maintenance [ 14 , 21 ]. For industrial batch units with changing recipes or limited identification data, maintaining this predictive-control stack can be harder than maintaining an ARC architecture. The design gap is therefore specific: ARC has deployable elements, but lacks a theory-guided design approach for cooling-limited batch operation with changing active constraints, actuator saturation, and phase-dependent heat release. This paper studies systematic ARC design for cooling-limited exothermic semi-batch reactors whose productivity is governed by an active cooling boundary. The active cooling boundary is translated into a deployable economic VPC design: optimality analysis determines the cooling-demand CV, feed-side MV pairing, and VPC architecture, while local safety analysis determines the near-boundary controller elements and tuning requirements. This treats ARC architecture as a synthesis object rather than only a loop-selection or tuning exercise. To the best of our knowledge, it is among the first demonstrations in which optimality analysis and local safety analysis are used jointly to synthesize a deployable ARC architecture for cooling-limited semi-batch operation. This addresses the recent call for theory-guided ARC design beyond heuristic architecture selection [ 21 ], and extends the spirit of self-optimizing and measurement-based dynamic optimization [ 4 , 19 , 25 , 26 ]to a deployable regulatory-control design for a difficult dynamic process class. The procedure is guided by a direct engineering intuition. During the reaction phase of a cooling-limited batch, unused cooling capacity usually means unused time. If the reactor is below its temperature/quality boundary while cooling is still applied, the batch can often be shortened by moving closer to that boundary. Once the boundary is reached, the useful economic signal is no longer the temperature error itself, but the cooling demand required to remain on the thermal boundary. This turns the optimal-control result into a regulatory-control design rule: keep the temperature/quality loop responsible for safety, and let a feed-related economic loop regulate the cooling-demand signal near its capacity limit. Overall, the paper gives a theory-guided ARC synthesis procedure for cooling-limited semi-batch operation: 1. Boundary-seeking optimality principle. We show that, under the stated assump-tions, minimum-time operation seeks the active cooling boundary rather than an arbitrary temperature-tracking or feed-rate target. 2. Optimization-derived ARC architecture. We translate this boundary-seeking result into cooling-demand CV selection, feed-side CV–MV pairing, and an economic valve-position-control (VPC) architecture. 3. Safety-oriented endpoint tuning screen. We derive finite-window endpoint inequalities that link VPC-error dynamics and cumulative feed over a short window to implementable 2requirements for near-boundary VPC tuning and anti-windup behavior. We evaluate the workflow on a reduced isothermal benchmark, where the boundary-seeking feed profile and endpoint-test quantities can be checked directly, and on an industrial semi-batch polymerization case study [ 9, 29 ], where the practical ARC realization is assessed under nominal, mismatch, and fault scenarios. The rest of the paper is organized as follows. Section 2 states the reactor model, constraints, and design scope. Section 3 derives the boundary-seeking optimality result, and Section 4 translates it into the ARC/VPC architecture. Section 5 develops the finite-window endpoint tuning screen. Sections 6 and 7 evaluate the workflow on the reduced benchmark and industrial polymerization case study. Section 8 discusses scope, implications, and conclusions. 
+
+# 2 Problem Formulation and Background 
+
+2.1 Process Model 
+
+We consider an open, non-isothermal semi-batch reactor without an outlet stream. The industrial case study later uses a polymerization reactor, but the dynamical structure is generic to liquid-phase semi-batch reactions [ 4 , 16 ]. The notation is unit-independent; numerical scaling is specified only in the case study. The state consists of species holdups and reactor temperature, n(t) ∈ Rns , T (t) ∈ R,where ns is the number of species, n collects the species holdups, and T is the reactor temperature. The dynamics are described by the mass and energy balances ˙n(t) = N r  n(t), T (t) + Win uin (t), (1) 
+
+CP
+
+ n(t), T (t) ˙T (t) = G n(t), T (t) + H uin (t)
+
+− qex 
+
+ T (t), F cw (t). (2) Here t denotes time, r(n, T ) ∈ Rnr is the reaction-rate vector, and N ∈ Rns×nr encodes stoichiometry. The manipulated inlet-feed vector uin (t) ∈ Rnu is constrained by equipment limits: 0 ≤ uin (t) ≤
+
+umax , and the constant matrix Win ∈ Rns×nu maps the chosen feed coordinates to species-holdup rates, including the corresponding inlet compositions. In (2) , CP (n, T ) is the effective heat capacity, G(n, T ) is reaction heat release, H(uin ) is inlet sensible heat, and qex (T, F cw ) is utility heat removal. The scalar Fcw (t) ∈ [0 , F max cw ] is the cooling-water flow rate. The analysis uses only the input-affine feed term, finite heat-removal capacity, and the regularity and monotonicity assumptions stated in section 3. 
+
+2.2 Control task 
+
+The operating objective is to produce the required on-spec material in minimum time while maintaining safety and product quality. We model one campaign on a finite horizon [0 , t f ], with 
+
+tf > 0 as a decision variable. Let wP ∈ Rnr 
+
+> ≥0
+
+weight the reaction channels that create on-spec material. The cumulative on-spec production along a trajectory is then 
+
+NP (t) := 
+
+Z t
+
+> 0
+
+w⊤ 
+
+> P
+
+r n(τ ), T (τ ) dτ. (3) We require the campaign to deliver at least a prescribed amount N req  
+
+> P
+
+of on-spec product, 
+
+NP (tf ) ≥ N req  
+
+> P
+
+. (4) 3The state ( n(·), T (·)) evolves according to (1) –(2) , and the admissible control inputs are the inlet feeds uin (t) and the cooling-water flow rate Fcw (t), both assumed measurable and bounded. The operating policy must reconcile three requirements over [0 , t f ]: operating path constraints, product quality, and campaign endpoint logic. 
+
+(i) Operating path constraints. Physical limits and operability envelopes constrain the manipu-lated feeds, the utility flow, and the reactor temperature: 
+
+0 ≤ uin (t) ≤ umax , 0 ≤ Fcw (t) ≤ F max cw ,T min ≤ T (t) ≤ T safe max , t ∈ [0 , t f ]. (5) Together these path constraints define the admissible operating envelope by enforcing actuator limits, cooling-capacity limits, and a thermal-safety upper bound. 
+
+(ii) Product-quality requirement and thermal surrogate. At the plant level, product release is governed by grade specifications, denoted abstractly by Qprop , involving terminal composition, residual monomer, molecular-weight distribution, viscosity, and appearance. These properties can depend on full reaction and thermal histories and are not modeled explicitly in the ARC synthesis. We use the measured reactor-temperature trajectory as the online enforceable quality surrogate, 
+
+T (t) − Tref (t) ≤ ∆T , t ∈ [0 , t f ], (6) where ∆ T > 0 is the allowed temperature tolerance. Because reaction rates increase with temperature, a productivity-maximizing controller tends to drive the temperature toward its upper bound; the lower bound in (6) is therefore usually inactive. The online quality requirement then reduces to preventing temperature from exceeding the recipe target. We use the one-sided constraint 
+
+T (t) ≤ Tref (t), t ∈ [0 , t f ]. (7) For notational simplicity, we hereafter omit the explicit tolerance ∆ T by interpreting Tref (t) as the effective upper quality limit (i.e., we define Tref (t) := T nom ref (t) + ∆ T ). 
+
+(iii) Endpoint logic. The batch is complete only after the scheduled material has been charged and the remaining reactive inventory is low enough that continuing reaction is negligible. In an ideal model this combines the production target NP (tf ) ≥ N req  
+
+> P
+
+in (4) with a conversion set 
+
+n(tf ) ∈ Cconv , (8) encoding targets on overall conversion and limits on residual monomer, initiator, or other species. Because these compositional criteria are not generally measured online, plant operation relies on endpoint signals indicating “material charged” and “reactive material essentially depleted”. The material-charged condition corresponds to the scheduled feeds and induces the integral constraint Z tf
+
+> 0
+
+uin (t) d t = Umax , (9) where Umax ∈ Rnu 
+
+> ≥0
+
+collects the total feed doses for each inlet stream that is fully charged during the batch. For analysis, the depleted endpoint is written in terms of the residual reactant inventory 
+
+nR(t) := w⊤ 
+
+> R
+
+n(t), (10) 4where wR ≥ 0 aggregates the limiting reactants (e.g., monomer). The depletion requirement is 
+
+nR(tf ) ≤ nmin  
+
+> R
+
+. (11) This condition is the model-level endpoint signal used in the analysis. In the industrial polymerization case, the corresponding online endpoint is the low-pressure finishing target after monomer feeding has stopped; in other systems it may be vanishing cooling demand during a hold or an online composition measurement. In all cases, the signal marks negligible continuing reaction and heat release. Together, (9) and (11) encode the charge-and-deplete endpoint logic used as the model-level surrogate for the ideal production and conversion requirements (4) and (8). 
+
+2.3 Optimal control formulations 
+
+The batch optimization problem treats the quality bound (7) , dose (9) , and depletion condition (11) as hard constraints. The objective is to minimize the batch time required to satisfy them: min 
+
+> uin (·), F cw (·), t f
+
+tf
+
+s.t. dynamics (1)–(2) , t ∈ [0 , t f ],
+
+0 ≤ uin (t) ≤ umax ,
+
+0 ≤ Fcw (t) ≤ F max cw ,T min ≤ T (t) ≤ T safe max ,T (t) ≤ Tref (t), t ∈ [0 , t f ],
+
+Z tf
+
+> 0
+
+uin (t) d t = Umax ,nR(tf ) ≤ nmin 
+
+> R
+
+(12) 
+
+Remark 1 (Generality of the Formulation) The dynamic optimization problem (12) captures a structure common to many safety-critical semi-batch reactions. It follows the measurement-based optimization viewpoint of Srinivasan et al. [ 25 , 26 ]: active path constraints, here temperature and cooling capacity, determine the economically relevant operating policy under uncertainty. 
+
+2.4 ARC Synthesis Problem 
+
+The optimal-control problem above defines the regulatory-control design problem considered in this paper. Following the self-optimizing-control viewpoint [ 19 , 20 ], the first design question is to choose a controlled variable whose regulation at a constant setpoint gives near-optimal operation despite disturbances and model mismatch. For the present semi-batch task, the synthesis must also decide the manipulated-variable pairing, the ARC architecture elements needed to respect the path and endpoint constraints in (5) – (11) , and the controller parameters, including setpoints, gains, and integral bounds. Candidate controlled variables are built from standard industrial measurements and regulatory signals: reactor temperature, pressure when a gas phase is present, flow rates, utility-actuator signals, and setpoints. The intended design therefore avoids dependence on model-based state estimates or specialized online devices such as composition analyzers, online calorimetry, or molecular-weight sensors. The desired output is a deployable ARC architecture and tuning rule that uses these signals to operate productively while maintaining safety and product quality. 53 Optimality Analysis for ARC Synthesis 
+
+This section analyzes optimal solutions of problem (12) to obtain the optimality basis for ARC architecture design. The arguments concern regular cooled arcs of feasible semi-batch campaigns. We first state the assumptions used in the local optimality analysis. 
+
+3.1 Assumptions for the optimality analysis 
+
+Assumption 1 (Regular process and heat-removal maps) 
+
+1. The maps r, CP , G, H, and qex are C1, with CP (n, T ) ≥ Cmin > 0, G(n, T ) ≥ 0, and H(uin )
+
+affine in uin .2. The heat-removal map qex (T, F cw ) is strictly increasing in Fcw for fixed T and strictly increasing in T for fixed Fcw .
+
+This is the usual nonsingular jacket-cooling setting used in semi-batch dynamic optimization and thermal-safety analysis [6, 23, 25, 26]. 
+
+Assumption 2 (Feasibility of the industrial campaign) There exists a nonempty set of ini-tial conditions X0 such that, for every (n0, T 0) ∈ X 0, problem (12) admits at least one feasible solution satisfying the dynamics and constraints (5) –(11) .
+
+This defines the campaign set for which an admissible recipe exists and the optimality target is well posed. 
+
+Assumption 3 (Positive thermal-depletion sensitivity) The reactant depletion rate χ(n, T ) := 
+
+−w⊤ 
+
+> R
+
+N r (n, T ) is C1 and strictly increasing in T for fixed n. On any compact finite interval where the trajectory has a positive margin to the temperature bound and cooling is active, a sufficiently small cooling reduction with fixed feed remains inside the local admissible trajectory tube and increases the integrated depletion to first order. 
+
+This is the local Arrhenius-type condition used in the re-timing argument: a slightly warmer cooled arc consumes reactive inventory faster while remaining feasible [22]. 
+
+Assumption 4 (Feasible local feed re-timing) There exists δu > 0 such that every feed com-ponent constrained by (9) has a positive-measure set Ji ⊂ [0 , t ⋆f ] on which u⋆i, in (t) ≤ umax  
+
+> i
+
+− δu. The 
+
+O(τ ) feed adjustment caused by local horizon shortening can be placed on these sets without violating input bounds or inactive path constraints in the local tube. 
+
+This captures the unsaturated feed intervals available in semi-batch campaigns with distinct charging and conversion/holding periods, where small feed re-timing can be accommodated without activating additional constraints [17]. 
+
+3.2 Active cooling below the temperature bound 
+
+We first consider intervals on which the cooling input is positive while the temperature constraint is inactive, i.e., T (t) < T ref (t). The following proposition gives the corresponding local optimality consequence. 6Proposition 1 (No sustained active cooling below the temperature bound) Under Assump-tions 1–4, an optimal solution of problem (12) cannot contain a positive-measure interval I ⊂ [0 , t ⋆f ]
+
+on which T ⋆(t) < T ref (t) while F ⋆
+
+> cw
+
+(t) > 0.Interpretation. If cooling is already removing heat while the temperature constraint is inactive, a local cooling reduction uses the available temperature margin to create a depletion margin; feasible feed re-timing then restores the required dose on a shorter horizon. 
+
+Proof idea. A detailed proof is provided in Supplementary Material, Section S2.1. If useful cooling is applied while the trajectory has a positive temperature margin, a small cooling reduction lifts the trajectory within a local admissible tube that preserves this margin. Assumption 3 gives a positive depletion margin for this variation, and Assumption 4 allows the required feed adjustment to be re-timed over unsaturated feed intervals without violating path constraints. The same dose and terminal condition can then be achieved with a shorter batch. 
+
+Control consequence. On actively cooled production arcs covered by Proposition 1, the optimal policy eliminates systematic temperature margin and operates at the effective reference bound 
+
+Tref , up to transition portions. Once this primary temperature-tracking objective is assigned to the temperature/quality loop, the remaining question is which feed-side signal should carry the economic adjustment. On the tracking manifold T (t) ≡ Tref (t), the required heat-removal rate is 
+
+qreq (n, u, t ) := G(n, T ref (t)) + H(u) − CP (n, T ref (t)) ˙Tref (t). (13) The cooling flow required to provide this heat removal is 
+
+F th cw (n, u, t ) = q−1ex 
+
+
+
+Tref (t), q req (n, u, t )
+
+
+
+, (14) where q−1ex (T, ·) denotes the cooling-flow value that achieves a specified heat-removal rate at temper-ature T . This inverse is well defined on its range by the monotonicity in Assumption 1. The maximum removable heat at the temperature cap is qex (Tref (t), F max cw ). Define the thermal-capacity mismatch as required heat removal minus maximum heat removal: 
+
+ϕ(n, u, t ) := qreq (n, u, t ) − qex (Tref (t), F max cw ) ≤ 0. (15) Here ϕ < 0 means that heat-removal capacity remains, ϕ = 0 is the active cooling boundary, and ϕ > 0 means that tracking Tref (t) would require more cooling than the plant can provide. This margin to the cooling limit gives the pointwise feed-feasibility condition used below in the tracking-manifold optimality analysis. Define 
+
+UT (n, t ) := 
+
+n
+
+u ∈ Rnu 0 ≤ u ≤ umax , ϕ (n, u, t ) ≤ 0
+
+o
+
+. (16) Because H(u) is affine, ϕ(n, u, t ) is affine in u for fixed state and time. Hence UT (n, t ) is the intersection of a box and a half-space: a possibly empty compact convex polytope. It is nonempty whenever ϕ(n, 0, t ) ≤ 0. To write the total feed dosage constraint (9) as an endpoint constraint, introduce the cumulative feed amount m(t) ∈ Rnu :˙m(t) = uin (t), m(0) = 0, (17) with the terminal constraint m(tf ) = Umax . Since uin (t) ≥ 0, this terminal equality also implies 
+
+m(t) ≤ Umax for all t ∈ [0 , t f ]. 7The reduced minimum-time problem is min 
+
+> uin (·),t f
+
+J = tf
+
+s.t. ˙n(t) = N r  n(t), T ref (t) + Win uin (t),
+
+˙m(t) = uin (t),
+
+uin (t) ∈ U T
+
+ n(t), t , t ∈ [0 , t f ],
+
+m(0) = 0, m(tf ) = Umax ,nR(tf ) ≤ nmin  
+
+> R
+
+.
+
+(18) 
+
+3.3 Hamiltonian Feed Allocation on the Tracking Manifold 
+
+The Hamiltonian associated with the minimum-time problem (18) separates the reaction-dependent terms from the input-affine part: 
+
+H(n, m, u, λ, t ) = 1 + λ⊤ 
+
+> n
+
+N r  n, T ref (t)
+
++  W⊤
+
+> in
+
+λn + λm
+
+⊤u
+
+=: H0(n, λ, t ) + σ(n, λ, t )⊤u,
+
+(19) where λ ∈ Rns+nu is the costate vector, and σ(·) is the switching function vector. By Pontryagin’s minimum principle, the optimal control u⋆(t) minimizes this Hamiltonian pointwise: 
+
+u⋆(t) = arg min   
+
+> u∈U T(n⋆(t),t )
+
+σ(t)⊤u. (20) Only the pointwise minimization property is used here. The costate dynamics and transversality conditions enter through the switching-function vector and hence affect switching times, but they need not be solved explicitly to characterize the instantaneous active-constraint structure. 
+
+Proposition 2 (Active-constraint structure of the time-optimal feed) Under Assumption 1, the pointwise Hamiltonian minimization (20) is a linear program over the convex polytope UT (n, t ).The optimal feed rate u⋆(t) is determined by the active constraints: 
+
+• Cooling-margin regime. If cooling margin remains, 
+
+ϕ(n⋆(t), u⋆(t), t ) < 0,
+
+the feed rate is determined solely by the switching-function signs: 
+
+u⋆i (t) = 
+
+
+
+0 if σi(t) > 0,umax  
+
+> i
+
+if σi(t) < 0,
+
+singular if σi(t) = 0 .
+
+• Cooling-limited regime. If the cooling margin is exhausted on the tracking manifold, 
+
+ϕ(n⋆(t), u⋆(t), t ) = 0 ,
+
+then the feed must satisfy the active thermal-capacity equality. Equivalently, F th cw = F max cw , so the required cooling reaches the maximum available cooling capacity. 
+
+8Interpretation. When cooling capacity is not limiting, ϕ < 0, the optimal feed is determined by the switching-function signs over the input box. When cooling capacity becomes limiting, ϕ = 0, the feed must additionally satisfy the active thermal-capacity equality (15) , so the required heat removal equals the maximum available cooling duty. 
+
+Proof idea. A detailed proof is provided in Supplementary Material, Section S2.2. The Hamiltonian minimization is pointwise and linear in the feed inputs. In the cooling-margin regime, the input box determines feed switching. On the cooling-capacity boundary, ϕ = 0 is exactly the equality between required and maximum removable heat, or F th cw = F max cw on the tracking manifold. The statement is an a.e. reduced-manifold result; other active state constraints, endpoint conditions, or singular arcs can override this local feed structure. 
+
+Architecture consequence. Together, the two optimality properties identify the economic self-optimizing signal on the tracking manifold. The temperature loop supplies the required-cooling signal, and the economic loop should regulate its margin to available cooling capacity. Feed-related inputs are the relevant economic manipulated variables because they change future heat release and therefore the required heat removal seen by this cooling-capacity margin. 
+
+Remark 2 (Typical three-stage operation) Proposition 2 is an instantaneous feed-allocation statement, not a complete batch schedule. In a typical semi-batch polymerization, the physical sequence is as follows. Early in the reaction, heat generation is modest and cooling margin remains (ϕ < 0), so the switching-function signs and feed bounds determine the feed rate. During the main thermally limited period, heat generation reaches the cooling limit and the feed must be throttled so that ϕ = 0 , equivalently F th cw = F max cw . Near the endpoint, dose completion, residual-reactant depletion, or finishing constraints dominate, and the feed is terminated or moved to its finishing policy. 
+
+# 4 ARC Architecture from Cooling-Demand Regulation 
+
+The optimality analysis assigns two controller roles. The primary loop regulates the tempera-ture/quality constraint through utility actuation. The economic loop uses feed-related inputs to move the cooling-demand signal toward available cooling capacity. Figure 1 implements these roles as a two-loop ARC architecture; its interconnection signal is the virtual cooling demand produced by the primary loop. 
+
+Architecture-level pairing logic. The pairing used here is an architecture-level rule for cooling-limited semi-batch operation. The temperature/quality CV is paired with the utility actuator because utility flow directly changes heat removal and is the closest actuator to the path constraint. The cooling-demand CV is paired with feed-related inputs because these inputs change future heat release and therefore move the cooling-capacity coordinate seen by the temperature loop. 
+
+4.1 Virtual cooling demand and actuator saturation 
+
+The economic loop uses the primary-loop cooling request as its regulatory signal. Define the virtual cooling demand F vcw (t) as the unsaturated cooling-water request from the temperature/quality controller: 
+
+F vcw (t) = CT
+
+ Tref (t) − T (t), (21) where CT (·) includes the sign convention for cooling actuation, so larger F vcw means larger requested cooling. In a plant cascade, CT includes the reactor-temperature master, the jacket or coolant slave, gain scheduling, and anti-windup. The analysis uses only this unsaturated primary-loop output. 9Figure 1: Proposed two-loop ARC architecture. 
+
+The physical cooling-water flow Fcw (t) is obtained from F vcw (t) through an explicit saturation nonlinearity: 
+
+Fcw (t) = sat  F vcw (t); 0 , F max cw 
+
+
+
+:= max  0, min  F vcw (t), F max cw 
+
+ (22) which enforces 0 ≤ Fcw (t) ≤ F max cw . When 0 < F vcw < F max cw , the temperature controller behaves as if it acted directly on the actuator. When F vcw exceeds the capacity limit, the physical flow is clipped at F max cw , while F vcw still records the unmet cooling demand. This virtual/physical separation gives the economic loop a single coordinate for unused cooling capacity and overload. Loop 2 regulates the virtual cooling demand toward a setpoint Fcw ,sp ≈ F max cw 
+
+by manipulating feed-related inputs: 
+
+uin (t) = Cceiling 
+
+ Fcw ,sp − F vcw (t), (23) where Cceiling (·) is a PI element with bounded integral action. If F vcw < F cw ,sp , the economic loop increases heat release through feed-related actuation; if F vcw ≥ Fcw ,sp , it withdraws that actuation. The architecture requirement is input–output coupling: feed action must change future heat release in the same cooling-demand channel. Section 5 gives the corresponding PI, saturation, and integral-bound requirements. 
+
+VPC interpretation. In a generic extra-input VPC structure, the primary controller regulates an output y with input u1, while the VPC element regulates a valve-position variable, or a proxy for it, to a target u1s by adjusting an auxiliary input u2 [21 ]. In Figure 1, this mapping is y ≡ T ,
+
+ys ≡ Tref , u1 ≡ F vcw , u1s ≡ Fcw ,sp ≈ F max cw , and u2 ≡ uin . The topology is therefore VPC-like, but the VPC variable is not a heuristic physical-valve target. Instead, it is the virtual cooling demand required by the temperature/quality loop to maintain tracking. This signal is economically 10 relevant because it measures how close productive operation is to the cooling-capacity boundary. Choosing Fcw ,sp near F max cw makes the VPC error a margin-to-limit signal; zero margin corresponds to operation at the selected cooling-capacity boundary. The utility input remains assigned to temperature/quality tracking, while the auxiliary feed input changes future heat release and carries the economic correction. The architecture-selection step therefore fixes the controlled signals, their pairing, and the VPC topology. 
+
+# 5 Safety-Oriented Controller Synthesis and Tuning 
+
+Having fixed the economic VPC topology, we derive structural and parametric conditions for near-boundary operation. Too little feed underutilizes cooling capacity; excess feed, including integral action that keeps feed high during cooling-limited operation, can accumulate reactant and create future heat release beyond available cooling capacity. We use reduced closed-loop coordinates: the VPC error measures distance from the cooling-demand target, the projected PI law bounds feed and its integral state, and a local window model gives local safety and feasibility conditions. 
+
+5.1 Reduced coordinate and operating band 
+
+The reduced safety–economy coordinate is the VPC tracking error 
+
+ev(t) := Fcw ,sp − F vcw (t), (24) where ev > 0 means that virtual cooling demand is below its economic target and unused cooling capacity remains, while ev < 0 means that demand exceeds the target. The plant-side residual is the signed margin to the cooling limit, ϕ(n, u, t ) from (15) : on the tracking manifold, ϕ < 0 means available cooling margin, ϕ = 0 is the active cooling boundary, and ϕ > 0 means that the demanded tracking would require more cooling than the plant can provide. The reduced analysis is local to the near-boundary thermal-capacity regime 
+
+R :=  t ∈ [0 , t f ] : |ϕ(n, u, t )| ≤ δ , (25) where small feed adjustments can affect the balance between heat generation and cooling capacity. The goal is to keep the VPC error ev within the operating band 
+
+E := [ −ηs, η e], ηs > 0, η e > 0, (26) where −ηs limits the sustained cooling-saturation (overload) side and ηe limits the conservative cooling-margin side. The band is chosen to avoid both sustained cooling saturation and underuti-lization of cooling capacity. 
+
+5.2 Projected economic loop and feed-window budgets 
+
+For the reduced analysis, feed actuation uses one fixed-composition direction, 
+
+uin (t) = α(t) d, α(t) ∈ [0 , α max ], (27) where α changes feed intensity but not composition. The economic VPC loop is the projected PI law 
+
+α(t) = sat  αb + KP ev(t) + r(t); 0 , α max , KP ≥ 0, (28) 11 where αb is the bias term and r(t) is the integral term, evolving as ˙r(t) = 
+
+
+
+KI ev(t), −r− < r (t) < r +,
+
+min {KI ev(t), 0}, r(t) = r+,
+
+max {KI ev(t), 0}, r(t) = −r−.
+
+(29) Here KI > 0 and r(t0) ∈ [−r−, r +]. The projection keeps r(t) within fixed bounds and thereby limits integral-generated feed adjustments. For KP > 0, rearranging (28) shows that ev ≤ − (r+ + αb)/K P
+
+makes the pre-saturation command nonpositive for every admissible r(t) ≤ r+. Hence α = 0: sufficiently large overload forces feed shutoff through the controller structure itself, not through a plant model. This model-independent shutoff is the safety-relevant property. To connect the projected PI law with the local safety analysis, we characterize the feed actions that the controller can generate over a finite window of length τ . At the overload boundary ev = −ηs,the largest feed profile compatible with (28)–(29) is bounded by 
+
+αmax  
+
+> s
+
+(s) := sat 
+
+
+
+αb − KP ηs + max {− r−, r + − KI ηss};0, α max 
+
+, s ∈ [0 , τ ].
+
+(30) This profile is the worst feed load that can persist while cooling demand is already on the overload side. At the conservative boundary ev = ηe, the guaranteed corrective feed profile is bounded below by 
+
+αmin  
+
+> e
+
+(s) := sat 
+
+
+
+αb + KP ηe + min {r+, −r− + KI ηes};0, α max 
+
+, s ∈ [0 , τ ].
+
+(31) Endpoint motion depends on both feed magnitude and timing: feed applied early has more time to build reactive inventory and release heat. We therefore use the weighted cumulative feed budgets 
+
+Jmax  
+
+> w,s
+
+:= 
+
+Z τ
+
+> 0
+
+(τ − s)αmax  
+
+> s
+
+(s) ds, Jmin  
+
+> w,e
+
+:= 
+
+Z τ
+
+> 0
+
+(τ − s)αmin  
+
+> e
+
+(s) ds. 
+
+(32) Here Jmax  
+
+> w,s
+
+is the worst overload-side weighted feed load, and Jmin  
+
+> w,e
+
+is the guaranteed conservative-side recovery budget. 
+
+5.3 Local window model and endpoint screen 
+
+In the proposed ARC architecture, the temperature loop is the primary safety loop. Utility actuation directly changes the temperature/cooling-demand coordinate, whereas feed-side economic action changes required cooling mainly through reactive inventory and future heat release. Thus the dominant feed-side effect on ev is dynamic accumulation rather than an instantaneous static gain. 
+
+Assumption 5 (Local delayed feed effect) In the near-boundary regime R defined by (25) , the VPC coordinate admits the local second-order approximation 
+
+¨ev(t) = d0(t) − q(t) α(t), t ∈ R , (33) 
+
+where 
+
+d− ≤ d0(t) ≤ d+, q− ≤ q(t) ≤ q+, q− > 0. (34) 12 The drift d0 represents recipe motion, reaction evolution, and inner-loop dynamics, while q measures the sensitivity of cooling demand to feed action. Physically, feed changes reactive inventory and concentrations, and then appears to the temperature loop as changed required cooling. This local form corresponds to an augmented closed-loop model in which the feed-side economic direction has local relative degree two with respect to the cooling-demand coordinate; otherwise, the coefficients are interpreted as local closed-loop sensitivity envelopes estimated from reduced simulations or closed-loop data. Smooth process maps and bounded inner-loop motion over R justify finite coefficient bounds, and q− > 0 states that the selected feed direction increases future heat load. For a fixed window [ tk, t k+1 ] with tk+1 = tk + τ , define 
+
+ek := ev(tk), ˙ek := ˙ ev(tk).
+
+Integrating (33) twice yields an expression for the endpoint value ek+1 as a function of the feed applied over the window: 
+
+ek+1 − ek = τ ˙ek +
+
+Z τ
+
+> 0
+
+(τ − s) d0(tk + s) ds 
+
+−
+
+Z τ
+
+> 0
+
+(τ − s) q(tk + s)α(tk + s) ds. 
+
+(35) The kernel ( τ − s) weights early feed more than late feed because early feed has more time to affect reactive inventory and heat release. The relevant reduced quantity is therefore a weighted cumulative feed budget, not an instantaneous feed value. Define 
+
+Jw,k := 
+
+Z τ
+
+> 0
+
+(τ − s) α(tk + s) ds. (36) Combining (35), (36), and the coefficient bounds in (34) gives 
+
+ek+1 ≥ ek + τ ˙ek + d−
+
+2 τ 2 − q+Jw,k , (37) 
+
+ek+1 ≤ ek + τ ˙ek + d+
+
+2 τ 2 − q−Jw,k . (38) The endpoint screen below checks this weighted feed budget at the two edges of the operating band. 
+
+Theorem 3 (Endpoint screen for the operating band) Consider the working band E = [ −ηs, η e]
+
+from (26) . Suppose Assumption 5 holds on a window of length τ . Let ν− 
+
+> s
+
+denote a lower bound on the window-start slope ˙ek at the overload edge ek = −ηs, and let ν+ 
+
+> e
+
+denote an upper bound on ˙ek at the conservative edge ek = ηe. Assume these boundary-slope bounds hold: 
+
+ek = −ηs =⇒ ˙ek ≥ ν− 
+
+> s
+
+, ek = ηe =⇒ ˙ek ≤ ν+ 
+
+> e
+
+, (39) 
+
+and suppose the controller-generated weighted feed satisfies 
+
+ek = −ηs =⇒ Jw,k ≤ Jmax  
+
+> w,s
+
+, ek = ηe =⇒ Jw,k ≥ Jmin  
+
+> w,e
+
+. (40) 
+
+If 
+
+τ ν − 
+
+> s
+
++ d−
+
+2 τ 2 − q+Jmax  
+
+> w,s
+
+≥ 0, (41) 
+
+and 
+
+τ ν + 
+
+> e
+
++ d+
+
+2 τ 2 − q−Jmin  
+
+> w,e
+
+≤ 0, (42) 
+
+then outward endpoint motion is blocked at the band boundary where the window starts: 
+
+ek = −ηs =⇒ ek+1 ≥ − ηs, ek = ηe =⇒ ek+1 ≤ ηe.
+
+13 Interpretation. The theorem checks whether the feed actions allowed by the control structure are sufficient to block outward endpoint motion at the overload and conservative band boundaries over one analysis window. The two inequalities test the lower-bound endpoint condition at the overload edge and the upper-bound endpoint condition at the conservative edge. 
+
+Proof idea. A detailed proof is provided in Supplementary Material, Section S2.3. The theorem substitutes the two boundary cases into (37) –(38) ; conditions (41) and (42) are the resulting one-step endpoint inequalities at the overload and conservative edges. 
+
+Tuning consequence. The two inequalities in Theorem 3 set different tuning requirements at the two band edges. At the cooling-overload edge, proportional withdrawal and integral clamping must limit the weighted feed budget so that accumulated reactant cannot drive future heat release beyond available cooling capacity. At the conservative edge, the controller must retain enough recovery authority to increase feed and move operation back toward the economic cooling-demand target. The resulting tuning problem is a balance between sustained-overload avoidance and recovery performance; the kernel ( τ − s) makes early feed more critical because it has more time to generate heat within the window. The theorem provides a finite-window endpoint screen. Continuous-time excursions inside a window and the mapping from ev to the plant-side residual ϕ are implementation checks discussed in Supplementary Material, Section S3. 
+
+5.4 Controller requirements and tuning workflow 
+
+The theorem gives a tuning workflow for the controller design requirements: choose a working band E, estimate ( d±, q ±) and the slope bounds ( ν− 
+
+> s
+
+, ν + 
+
+> e
+
+), choose τ , and check (41) –(42) . The slope bounds can be estimated from process knowledge, closed-loop simulations, or conservative closed-loop envelopes. The same inequalities guide the VPC target Fcw ,sp , integral limits r±, and gains ( KP , K I ); closed-loop simulations then check behavior outside the local endpoint screen. For ARC realization, Fcw ,sp sets the safety–economy position, r± limit accumulated integral feed addition, and ( KP , K I ) govern cooling-overload withdrawal and recovery speed. With several feed-side channels, this logic supports an ordered realization: fast limited channels provide small economic feed adjustments, while slower high-authority channels provide relief under sustained thermal loading. 
+
+# 6 Reduced Verification Benchmark 
+
+We test Theorem 3 on the reduced isothermal semi-batch benchmark of Srinivasan et al. [ 25 , 26 ], where the assumptions are satisfied and the screen quantities can be computed from the reduced model. Reactant A is initially charged, reactant B is fed with flow rate u(t), and the reactor temperature is held constant: max  
+
+> u(·)
+
+xa(tf )s.t. ˙xa(t) = Riso (xa(t), V (t); T ) V (t)
+
+N 0
+
+> A
+
+,
+
+˙V (t) = u(t),
+
+0 ≤ u(t) ≤ umax , V (t) ≤ Vmax ,Tcf (xa(t), V (t)) ≤ Tmax ,xa(0) = 0 , V (0) = V 0 
+
+> A
+
+.
+
+(43) 14 0 5 10 15 20 25    
+
+> t (h)
+> 0.00
+> 0.01
+> 0.02
+> u (L/h)
+> (a) Feed profiles
+> OCP
+> Reduced ARC
+> Thermal-boundary
+> 510 15 20
+> t (h)
+> −0.1
+> 0.0
+> ev (K)
+> (b) VPC error and endpoint bounds
+> Endpoint bounds
+> ev(t)
+> −ηs
+> ηe
+
+Figure 2: Reduced isothermal benchmark verification. 
+
+where xa is the conversion of A, V is the reactor volume, Riso is the isothermal reaction rate, 
+
+N 0 
+
+> A
+
+is the initial moles of A, and Tcf is the cooling-failure temperature. The OCP reference is a CasADi/IPOPT direct transcription [ 1 , 3 ] with N = 100 uniform intervals and fourth-order Runge–Kutta dynamics. For closed-loop verification, we use the single-channel specialization of Section 5.2. The physical feed is the economic input, so u(t) = α(t) and 
+
+u(t) = sat  αb + KP ev(t) + ζ(t); 0 , u max 
+
+,ζ(t) ∈ [−ζ−, ζ +],
+
+with ζ(t) updated by (29) , using ( ζ, ζ ±) in place of ( r, r ±) to distinguish the benchmark integral state from Riso . The benchmark has no separate temperature cascade; the cooling-failure margin supplies the VPC coordinate 
+
+ev(t) := Tmax − Tcf (xa(t), V (t)) − esp .
+
+Here esp > 0 is the selected cooling-failure margin setpoint. Thus ev = 0 means that the remaining margin equals esp ; ev < 0 is closer to the cooling-failure boundary, and ev > 0 is the conservative cooling-margin side. Panel (a) shows feed recovery on the OCP thermal-boundary interval: the maximal connected segment with 0 < u ⋆ < u max and Tmax − T ⋆ 
+
+> cf
+
+≤ 0.5 K, giving t ∈ [2 .4, 24 .9] h. Panel (b) checks ev
+
+and endpoint bounds on the same interval. Since Tmax − Tcf is the remaining cooling-failure margin, 
+
+ev > −esp is equivalent to Tcf < T max .The reduced tuning follows Section 5.4: set esp = 1 K to keep a one-degree cooling-failure margin, choose the working band ( ηs, η e) = (0 .15 , 0.05) K, estimate the local coefficients on the thermal-boundary interval, and select ( KP , K I , ζ ±) so that the endpoint inequalities hold. The resulting ARC law closely reproduces the OCP feed profile, with a terminal conversion gap of 0 .12% (0 .9219 for the OCP versus 0 .9207 for ARC). More importantly for Theorem 3, the closed-loop trajectory satisfies ev ∈ [−0.029 , −0.001] ⊂ [−0.15 , 0.05] K on the same interval, meaning that the VPC error remains inside the prescribed operating band. Supplementary Material, Section S4 reports the coefficient estimates and endpoint-test values. 15 7 Industrial Semi-Batch Polymerization Case Study 
+
+7.1 Industrial Case Description 
+
+The reactor system, detailed in Supplementary Material, Section S5, follows the industrial gas– liquid polymerization benchmark used in prior process-safety and NMPC studies [ 9 , 29 ]. It is a pressurized aqueous free-radical polymerization of gaseous monomer A initiated by species B. Figure 3 summarizes the recipe logic: heating and pressurization to Tsp = 351 .15 K and Psp = 1 .5MPa, reaction under the quality band Tsp ± 0.7 K and pressure limit Pmax = 1 .6 MPa until 
+
+MA, total = 3250 kg is charged, and finishing with monomer feed stopped, temperature held, and pressure relieved to P end = 1 .0 MPa. The manipulated-input vector is uin = [ uA, u B ]⊤, where uA is the monomer feed to the vessel and uB is the initiator feed. Monomer first enters the gas phase and then dissolves through pressure-driven gas–liquid transfer; lowering Psp reduces gas inventory, transfer driving force, and future heat release. Relative to the reduced model, the case adds pressure-mediated monomer entry, split-range utility actuation, sensor and actuator dynamics, and an unmodeled gel-effect kinetic fault. 
+
+7.2 Application of the Optimality-Derived Framework and Practical ARC Real-ization 
+
+The practical realization uses bounded feed channels uA ∈ [0 , 0.694] kg/s and uB ∈ [0 , 4.0 × 10 −7]kg/s, together with the normalized split-range utility signal vsr ∈ [−1, 1], where vsr = −1 denotes maximum cooling and vsr = 1 denotes maximum heating. The reduced ARC architecture uses the virtual-cooling-demand coordinate F vcw , physical cooling flow Fcw = sat (F vcw ; 0 , F max cw ), economic setpoint Fcw ,sp , and VPC coordinate ev = Fcw ,sp − F vcw . In the industrial implementation, the temperature cascade outputs vsr . On the cooling branch 
+
+Fcw = F max cw max(0 , −vsr ).
+
+Thus smaller vsr means larger cooling demand. The economic loop reads this cooling-side signal and outputs the shared scalar command αeco .Table 1 gives the correspondence between the ARC synthesis variables and their case-study realization. The implemented VPC error uses the opposite subtraction order from the reduced coordinate defined above because smaller vsr means larger cooling demand. 300 
+
+## 325 
+
+## 350 
+
+## IHeat/press. 
+
+## II Reaction/feed 
+
+## III Finish/relief 
+
+## Tsp |Tr − Tsp | ≤ 0.7 K Tr (t)
+
+> Tr [K]
+
+## 0 1 2 3 4
+
+## 0
+
+## 0.75 
+
+## 1.5 Psp 
+
+## P end 
+
+## P (t)
+
+## MA, in ≥ Mtarget 
+
+## P ≤ P end 
+
+## Time [h]  
+
+> P [MPa]
+> Figure 3: Batch recipe and mode-transition logic.
+
+16 Table 1: Correspondence between ARC synthesis variables and case-study realization.                              
+
+> ARC synthesis variable Industrial signal Role
+> Fvcw ,Fcw ,sp cooling branch of vsr and target vsr ,sp cooling-demand CV and target
+> eveVPC =vsr −vsr ,sp economic-loop error
+> αshared command αeco feed-side command
+> dpositive αeco →uB, negative αeco →Psp sign-split fast trim and relief
+> ϕscool cooling ceiling margin
+
+Table 2: Controller tuning parameters for the proposed ARC architecture.                                              
+
+> Loop CV →MV Type KcTI(s)
+> Pressure P→uAPI 4.0 20 Temp. master Tr→Tj,sp PI 35.0 300 Temp. slave Tj→vsr P2.0 –Economic VPC vsr →αeco PI 8.0 40 Initiator map positive αeco →uBStatic 1.0×10 −7–Pressure map negative αeco →Psp Static 1.0×10 4–
+
+The industrial realization aligns two physical channels, uB and Psp , with one signed economic command. Positive αeco is mapped to initiator feedback, whereas negative αeco lowers Psp when the temperature-hold logic is active; the two static maps are therefore sign-split rather than a sequential cascade. This follows the channel physics: uB is fast but limited, whereas the pressure-setpoint channel is slower and stronger because it changes gas inventory and gas–liquid transfer. The temperature cascade uses back-calculation anti-windup, and the economic VPC clamps the shared integral state to [ −r−, r +] = [ −1, 1]. Table 2 gives the main tuning parameters for the ARC architecture in Figure 1. In the two static maps, 1 .0×10 −7 has units kg s −1 per command unit and 1 .0×10 4 has units Pa per command unit. The sign convention, clipping, and enable logic are given explicitly in Supplementary Material, Section S7.1. 
+
+7.3 Evaluation Setup and Benchmark Scope 
+
+We compare ARC with an implemented nominal-model Nonlinear MPC benchmark adapted from [29 ] and an offline nominal OCP reference computed with perfect foresight. The NMPC details are in Supplementary Material, Section S7; in brief, it is a reduced-model EKF-based output-feedback controller with degree-3 Radau collocation, a 30 s update period, and a 30 min prediction horizon. Both implementable controllers use the measured vector y = [ Tr, T J, P, M A,in , M B,in ]⊤. In output-feedback runs, the additive measurement noise on this ordered vector is independent, zero-mean, Gaussian, and has covariance diag  (0 .1/3) 2, (0 .1/3) 2, (5 .0 × 10 3/3) 2, 0, 0 , with temperature in K and pressure in Pa. The implemented standard deviations are 0 .033 K for Tr and TJ, 1 .67 kPa for P , and zero for the cumulative dosage channels. The nominal-model NMPC reconstructs its internal state through an EKF. The comparison covers four scenarios: nominal operation (N), mild favorable mismatch (PM −,less exothermic and better heat transfer), aggressive adverse mismatch (PM +, more exothermic and poorer heat transfer), and PM + with an unmodeled gel-effect fault (F). The PM − and PM + cases scale (∆ Hrxn , U A ) by (0 .8, 1.2) and (1 .2, 0.8) relative to the controller model, respectively. Scenario F adds the auto-acceleration model in Supplementary Material, Section S6. The mechanism metrics separate economic outcome, boundary proximity, and actuator usage. 17 Table 3: ARC ablation summary. Unsafe times are trip times.                                                                                                                                                  
+
+> Scen. Variant Result Mechanism
+> NFull ARC S, 3.75 ¯sc=.213; P=.0003; B=.595 NFixed Psp S, 3.75 ¯sc=.213; P=.0000; B=.595 NRecipe uBS, 4.15 ¯sc=.394; P=.0000; B=.865 NRecipe only S, 4.15 ¯sc=.394; P=.0000; B=.865 PM +Full ARC S, 4.29 ¯sc=.058; P=.215; B=.785 PM +Fixed Psp T, 0.99 ¯sc=−− ;P=.000; B=.000 PM +Recipe uBS, 4.52 ¯sc=.011; P=.951; B=.730 PM +Recipe only T, 1.24 ¯sc=−− ;P=.000; B= 1 .000 FFull ARC S, 4.17 ¯sc=.000; P= 1 .000; B=.000 FFixed Psp T, 0.93 ¯sc=−− ;P=.000; B=.000 FRecipe uBT, 1.79 ¯sc=−− ;P=.885; B=.246 FRecipe only T, 1.18 ¯sc=−− ;P=.000; B= 1 .000 S: safe; T: trip; ¯ sc: average cooling ceiling margin scool ;P:Psp relaxation occupancy; B: nonzero uBoccupancy.
+
+Batch time measures economic outcome. The cooling ceiling margin 
+
+scool := ( F max cw − F vcw )/F max cw 
+
+measures distance from the physical cooling limit; smaller values mean closer boundary operation, and negative values mean that virtual cooling demand exceeds physical capacity. Mechanism metrics are evaluated on the reaction-phase thermal-boundary interval , the thermally active part of Phase II in Fig. 3 corresponding to Remark 2. Pressure-relaxation occupancy is the fraction of this interval with Psp < 1.5 MPa; it quantifies the use of a safety action that carries an economic penalty because lowering Psp reduces gas inventory, monomer transfer, and future heat release but can slow charging. Nonzero uB occupancy measures use of the fast initiator-trimming channel. For the OCP/NMPC comparison, we report batch time, temperature and pressure tracking errors, and the fraction of the batch spent above the temperature constraint after entering the 351 K hold phase. The PM +
+
+tuning quantities use the same reaction-phase thermal-boundary interval for each design. 
+
+7.4 Mechanism Diagnosis by Ablation 
+
+The ablation study tests the channel roles implied by the ARC synthesis. Full ARC lets the economic signal act on both uB and Psp . Fixed Psp removes the pressure-relief channel while retaining feedback-driven uB . Recipe uB keeps pressure relief but replaces feedback-driven initiator action with a fixed recipe. Recipe only fixes Psp at 1.5 MPa and uses the same recipe for uB . Table 3 reports the resulting batch status, average cooling ceiling margin, pressure-relaxation occupancy, and initiator-actuation occupancy on the reaction-phase thermal-boundary interval. The main conclusion is structural: the fast initiator channel carries nominal boundary seeking, the pressure-setpoint channel becomes necessary under adverse thermal load, and the gel-effect fault requires coordinated use of both channels. In Scenario N, removing pressure relief leaves the full-ARC result unchanged, whereas replacing feedback-driven uB with a recipe slows the batch from 3.75 h to 4.15 h and increases the average cooling ceiling margin from 0.213 to 0.394. Thus the nominal economic benefit is carried mainly by the fast initiator channel, while pressure-setpoint modulation is essentially inactive. In Scenario PM +, fixed Psp trips at 0.99 h, but pressure relief with recipe uB remains safe, though slower than full ARC. This identifies Psp as the slower, larger-capacity monomer-entry actuator needed under adverse thermal load. In Scenario F, only full ARC remains safe; both single-channel variants trip. 18 Table 4: Closed-loop benchmark comparison.                                                                     
+
+> Scen. Controller tf(h) Terr (K) Perr (MPa) Viol T(%)
+> NOCP ref. 3.69 –––NNMPC (SF) 3.68 .08/.23 .06/.50 0.00 NARC (NF) 3.76 .04/.15 –0.00 NNMPC (OF) 3.89 .20/.72 .07/.50 0.21 NARC (OF) 3.75 .05/.20 .00/.00 0.00 PM −NMPC (OF) 4.01 1.94/11.00 .06/.50 0.00 PM −ARC (OF) 3.73 .04/.13 .00/.00 0.00 PM +NMPC (OF) 4.58 .85/1.63 .07/.50 24.8 PM +ARC (OF) 4.29 .04/.22 .00/.04 0.00 FNMPC (OF) ––/17.17 ––FARC (OF) 4.16 .07/.69 .12/.20 0.00 SF: NMPC state feedback; NF: noise-free ARC; OF: output feedback/noisy measurements. Error entries are MAE/maximum. Maxima are taken over the full simulated batch, whereas Viol Tis computed only after entry into the temperature-hold phase and uses the threshold T > T sp + 0 .7 K. “–” indicates not applicable or early termination.
+
+The fault response validates the coordinated dual-channel realization selected by the optimality and safety analysis. 
+
+7.5 Benchmark Against OCP and Implemented OF-NMPC 
+
+We compare ARC with two references: an implemented nominal-model output-feedback NMPC benchmark, documented in Supplementary Material, Section S7, and an offline nominal OCP reference. Scenario N includes ideal NMPC state-feedback (SF), noise-free ARC (NF), and practical output-feedback/noisy-measurement (OF) operation; Scenarios PM −, PM +, and F use OF only. Table 4 reports batch time, tracking accuracy, and the thermal-violation metric Viol T . The comparison tests whether the proposed ARC architecture can recover constrained-operation behavior with standard regulatory elements against the implemented nominal-model OF-NMPC baseline. This baseline uses the same temperature and pressure hard constraints as ARC, but uses a nominal kinetic model without disturbance-state augmentation in the adverse mismatch and gel-effect fault cases. Figure 4 gives the main trajectory evidence for the implementable comparison. In Scenario N, ARC stays close to the nominal reference and retains performance under output feedback. In the ideal/noise-free comparison, the OCP, NMPC(SF), and ARC(NF) finish in 3.69 h, 3.68 h, and 3.76 h. Under noisy-measurement OF conditions, the implemented nominal-model OF-NMPC benchmark degrades to 3.89 h and a maximum temperature deviation of 0.72 K, whereas ARC remains at 3.75 h with a maximum deviation of 0.20 K. The mismatch cases expose asymmetric model error. In PM −, where the plant is less exothermic than expected, both controllers remain safe, but OF-NMPC becomes conservative. In PM +, where the plant is more exothermic and harder to cool, OF-NMPC spends 24.8% of the batch above the temperature limit, whereas ARC maintains 0% thermal violation and a maximum temperature deviation of 0.22 K. The corresponding ablation in Table 3 identifies pressure relaxation as the required relief channel under this adverse thermal load. In Scenario F, the nominal-model OF-NMPC benchmark undergoes thermal runaway after 1.16 h and reaches 368.17 K. Full ARC completes the batch in 4.16 h with a maximum temperature deviation of 0.69 K. The right column of Figure 4 shows the mechanism: ARC relaxes the pressure target and suppresses initiator feed as cooling demand rises. The failed ablations show that this 19 340                         
+
+> 345
+> 350
+> Tr (K)
+> 340
+> 360
+> 0
+> 1
+> P, Psp  (MPa)
+> 0
+> 1
+> 0.0 0.5 1.0 1.5 2.0 2.5 3.0 3.5
+> t(h)
+> 0.0
+> 0.5
+> 1.0
+> uB/umax
+> B
+> 0.0 0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0
+> t(h)
+> 0.0
+> 0.5
+> 1.0
+> ARC OF-NMPC Tsp + 0.7 ARC Psp Psp, nom Pmax
+
+Figure 4: Industrial output-feedback closed-loop trajectories for Scenario N (nominal operation, left) and Scenario F (PM + with unmodeled gel-effect fault, right): temperature, pressure/pressure setpoint, and 60 s averaged normalized initiator feed. 
+
+is a coordinated dual-channel response. Additional nominal, PM +, and zoomed fault trajectories, together with endpoint moment checks for completed full-ARC runs, are reported in Supplementary Material, Section S8. 
+
+7.6 Endpoint-Inequality Diagnosis and Tuning Guidance 
+
+The safety analysis is used here as a low-order tuning guide for the PM + mismatch case, where both economic channels become active. The overload-side feed budget Jmax  
+
+> w,s
+
+, computed from the feed envelope with τ = 50 s, remains informative in the full industrial loop because it captures feed that can persist under high cooling demand and store future heat release. The remaining indicators, emin  
+
+> v
+
+, cooling-ceiling occupation, and batch time, are measured from closed-loop runs on the reaction-phase thermal-boundary interval. We compare three realizations around the executed setting: conservative ( Fcw ,sp , K P ) = (0 .90 , 6.0), baseline (0 .95 , 8.0), and aggressive (0 .98 , 10 .0). The cooling ceiling margin scool := ( F max cw − F vcw )/F max cw is negative when virtual cooling demand exceeds physical capacity; cooling-ceiling occupation is the fraction of this interval with scool ≤ 0. 
+
+Table 5: Three PM + controller realizations used for tuning diagnosis. 
+
+Design Jmax  
+
+> w,s
+
+emin  
+
+> v
+
+Occ. (%) tf (h) Cons. (0 .90 , 6.0) 8.58 ×10 3 -0.470 6.37 4.324 Base (0 .95 , 8.0) 5.71 ×10 3 -0.581 20.71 4.265 Aggr. (0 .98 , 10 .0) 4.57 ×10 3 -0.615 38.21 4.242 
+
+Table 5 shows why tuning cannot be read from Jmax  
+
+> w,s
+
+alone. Across these realizations, larger KP
+
+reduces feed accumulation when cooling is saturated, while higher Fcw ,sp moves the operating point closer to the cooling-capacity limit. As a result, the cooling-ceiling occupation fraction rises from 6.37% to 38 .21%, and emin  
+
+> v
+
+deepens from −0.470 to −0.615. The conservative design has the largest safety margin but the longest batch time. The baseline gives the intended compromise: it is 212 s faster than the conservative design, only 81 s slower than the aggressive design, and keeps the cooling-ceiling occupation fraction lower than the aggressive case. The tuning lesson is consistent with Section 5.4. The setpoint Fcw ,sp should be selected first because it determines the primary safety-economy operating condition. The gain KP then governs 20 how aggressively the economic loop withdraws feed when cooling is saturated. In these PM + runs, the positive-feed recovery component remains inactive, so the useful tuning indicators are Jmax  
+
+> w,s
+
+,
+
+emin  
+
+> v
+
+, cooling-ceiling occupation, and batch time. 
+
+# 8 Discussion and Conclusions 
+
+This paper contributes a concrete analysis-to-architecture route for ARC synthesis in cooling-limited semi-batch reactors. ARC is the deployable control layer in many chemical plants, but architecture selection often remains a coupled choice of signals, pairings, controller elements, and tuning. Here, minimum-time optimality determines the economic control target and cooling-demand CV, while local safety analysis determines the near-boundary controller elements and tuning requirements. This gives a systematic path from process analysis to ARC structure for the reactor class studied here. The resulting architecture is organized around virtual cooling demand. During cooling-limited reaction, unused cooling capacity is lost productivity, while excess cooling demand indicates thermal overload. The temperature/quality loop protects the thermal boundary, and the feed-related VPC loop moves future heat release toward the selected cooling-capacity target. The endpoint screen explains why this loop needs feed withdrawal under overload, saturation/projection, bounded integral action, and recovery authority. The reduced benchmark and industrial polymerization case test the two links from analysis to implementation separately and together. The reduced benchmark checks the boundary-seeking feed profile and endpoint-test values directly. The industrial case shows how the same logic becomes a dual-channel ARC realization: initiator feed gives fast economic adjustment, while pressure relaxation gives slower, higher-authority relief under sustained thermal loading. The comparison with the implemented nominal-model OF-NMPC baseline and the ablation results support the selected structure under the studied nominal, mismatch, and gel-effect fault scenarios. Together, these results establish a theory-guided ARC synthesis workflow for cooling-limited semi-batch operation. They also point toward broader ARC synthesis methods in which optimality guides CV and pairing choices, while safety analysis guides controller elements and tuning for constrained batch and semi-batch processes. 21 References 
+
+[1] Joel A. E. Andersson, Joris Gillis, Greg Horn, James B. Rawlings, and Moritz Diehl. CasADi: A software framework for nonlinear optimization and optimal control. Mathematical Programming Computation , 11(1):1–36, March 2019. ISSN 1867-2957. doi: 10.1007/s12532-018-0139-4. [2] Giuseppe Andriani, Gianmaria Pio, Ernesto Salzano, Chiara Vianello, and Paolo Mocellin. Evaluating the thermal stability of chemicals and systems: A review. The Canadian Journal of Chemical Engineering , 103(1):42–62, 2025. ISSN 1939-019X. doi: 10.1002/cjce.25422. [3] L. T. Biegler and V. M. Zavala. Large-scale nonlinear programming using IPOPT: An integrating framework for enterprise-wide dynamic optimization. Computers & Chemical Engineering , 33 (3):575–582, March 2009. ISSN 0098-1354. doi: 10.1016/j.compchemeng.2008.08.006. [4] Dominique Bonvin. Optimal operation of batch reactors: A personal view. Journal of Process Control , 8(5-6):355–368, 1998. doi: 10.1016/S0959-1524(98)00010-9. [5] Gustaf Zacharias Gous, Andries Johannes Wiid, Johan Derik le Roux, and Ian Keith Craig. Advanced regulatory control techniques for improved averaging level control performance. 
+
+Industrial & Engineering Chemistry Research , 62(38):15578–15587, 2023. doi: 10.1021/acs.iecr. 3c01506. [6] Konrad Hungerb¨ uhler, Justin M. Boucher, Cecilia Pereira, Thomas Roiss, and Martin Scheringer. Thermal Process Safety. In Konrad Hungerb¨ uhler, Justin M. Boucher, Cecilia Pereira, Thomas Roiss, and Martin Scheringer, editors, Chemical Products and Processes: Foundations of Environmentally Oriented Design , pages 199–217. Springer International Publishing, Cham, 2021. ISBN 978-3-030-62422-4. doi: 10.1007/978-3-030-62422-4 8. [7] Alex Kummer and Tam´ as Varga. What do we know already about reactor runaway? – a review. Process Safety and Environmental Protection , 147:460–476, 2021. ISSN 0957-5820. doi: 10.1016/j.psep.2020.09.059. [8] Alex Kummer, Lajos Nagy, and Tam´ as Varga. NMPC-based control scheme for a semi-batch reactor under parameter uncertainty. Computers & Chemical Engineering , 141:106998, 2020. ISSN 00981354. doi: 10.1016/j.compchemeng.2020.106998. [9] Simin Li, Shuang-hua Yang, Yi Cao, Xiaoping Jiang, and Chenchen Zhou. A benchmark of industrial polymerization process for thermal runaway process monitoring. Process Safety and Environmental Protection , 193:353–363, 2025. doi: 10.1016/j.psep.2024.11.057. [10] Jingyi Lu, Zhixing Cao, and Furong Gao. Batch process control–overview and outlook. Acta Automatica Sinica , 43(6):933–943, 2017. [11] Sergio Lucia, Tiago Finkler, and Sebastian Engell. Multi-stage nonlinear model predictive control applied to a semi-batch polymerization reactor under uncertainty. Journal of Process Control , 23(9):1306–1319, 2013. doi: 10.1016/j.jprocont.2013.08.008. [12] Zolt´ an K. Nagy, Bernd Mahn, R¨ udiger Franke, and Frank Allg¨ ower. Nonlinear model predictive control of batch processes: An industrial case study. In IFAC Proceedings Volumes , volume 38, pages 1–6, Prague, Czech Republic, 2005. doi: 10.3182/20050703-6-CZ-1902.01576. 22 [13] Lei Ni, Ahmed Mebarki, Juncheng Jiang, Mingguang Zhang, and Zhan Dou. Semi-batch reactors: Thermal runaway risk. Journal of Loss Prevention in the Process Industries , 43: 559–566, 2016. ISSN 0950-4230. doi: 10.1016/j.jlp.2016.07.024. [14] Michael Nikolaou. Model predictive controllers: A critical synthesis of theory and industrial needs. Advances in Chemical Engineering , 26:131–204, 2001. doi: 10.1016/S0065-2377(01) 26003-7. [15] James B. Rawlings, David Q. Mayne, and Moritz M. Diehl. Model Predictive Control: Theory, Computation, and Design . Nob Hill Publishing, Madison, WI, 2 edition, 2017. [16] D. Rodrigues, S. Srinivasan, J. Billeter, and D. Bonvin. Variant and invariant states for chemical reaction systems. Computers & Chemical Engineering , 73:23–33, 2015. ISSN 0098-1354. doi: 10.1016/j.compchemeng.2014.10.009. [17] Ferm´ ın S´ aez-Pardo, Juan Jos´ e Giner-Sanz, Montserrat Garc´ ıa-Gabald´ on, and Valent´ ın P´ erez-Herranz. Modeling of a solution polymerization reactor operating in semi-batch mode for polymethyl methacrylate production. Chemical Engineering Research and Design , 210:230–246, October 2024. ISSN 0263-8762. doi: 10.1016/j.cherd.2024.08.024. [18] Tariq Samad, Margret Bauer, Scott Bortoff, Stefano Di Cairano, Lorenzo Fagiano, Peter Fogh Odgaard, R. Russell Rhinehart, Ricardo S´ anchez-Pe˜ na, Atanas Serbezov, Finn Ankersen, Philippe Goupil, Benyamin Grosman, Marcel Heertjes, Iven Mareels, and Raye Sosseh. Industry engagement with control research: Perspective and messages. Annual Reviews in Control , 49: 1–14, 2020. ISSN 1367-5788. doi: 10.1016/j.arcontrol.2020.03.002. [19] Sigurd Skogestad. Plantwide control: The search for the self-optimizing control structure. 
+
+Journal of Process Control , 10(5–6):487–507, 2000. doi: 10.1016/S0959-1524(00)00023-8. [20] Sigurd Skogestad. Control structure design for complete chemical plants. Computers & Chemical Engineering , 28(1–2):219–234, 2004. doi: 10.1016/j.compchemeng.2003.08.002. [21] Sigurd Skogestad. Advanced control using decomposition and simple elements. Annual Reviews in Control , 56:100903, 2023. doi: 10.1016/j.arcontrol.2023.100903. [22] Ian W. M. Smith. The temperature-dependence of elementary reaction rates: Beyond Arrhenius. 
+
+Chemical Society Reviews , 37(4):812–826, March 2008. ISSN 1460-4744. doi: 10.1039/B704257B. [23] T. J. Snee, C. Barcons, H. Hern´ andez, and J. M. Zald´ ıvar. Characterisation of an exothermic reaction using adiabatic and isothermal calorimetry. Journal of Thermal Analysis , 38(12): 2729–2747, December 1992. ISSN 1572-8943. doi: 10.1007/BF01979748. [24] Masoud Soroush and Costas Kravaris. Nonlinear control of a batch polymerization reactor: An experimental study. AIChE Journal , 38(9):1429–1448, 1992. ISSN 1547-5905. doi: 10.1002/aic. 690380914. [25] B. Srinivasan, D. Bonvin, E. Visser, and S. Palanki. Dynamic optimization of batch processes: II. Role of measurements in handling uncertainty. Computers & Chemical Engineering , 27(1): 27–44, January 2003. ISSN 0098-1354. doi: 10.1016/S0098-1354(02)00117-5. [26] B. Srinivasan, S. Palanki, and Dominique Bonvin. Dynamic optimization of batch processes: I. Characterization of the nominal solution. Computers & Chemical Engineering , 27(1):1–26, January 2003. ISSN 0098-1354. doi: 10.1016/S0098-1354(02)00116-3. 23 [27] Francis Stoessel. Thermal Safety of Chemical Processes: Risk Assessment and Process Design .John Wiley & Sons, 2021. ISBN 978-3-527-33921-1. [28] Hugh L. Wade. Basic and Advanced Regulatory Control: System Design and Application . ISA, Research Triangle Park, NC, 2004. [29] Chenchen Zhou, Zuzhen Ji, and Jose Matias. Real-time nonlinear model predictive control framework for event-triggered switching in industrial batch polymerization process. Journal of Process Control , 163:103738, 2026. doi: 10.1016/j.jprocont.2026.103738. 24 Supplementary Material S1 How to Read This Supplement 
+
+The main paper is intended to be self-contained at the level of the control argument: it states the structural results, the controller synthesis logic, and the evidence chain. This supplement provides the technical material needed to audit that argument. Sections S2–S4 support the reduced ARC theory and benchmark. Sections S5–S8 give the industrial model, fault model, controller implementation, and additional trajectories. 
+
+S1.1 Notation Used in the Supplement 
+
+Table S1 collects the symbols most frequently used in the proof and endpoint-screen sections. Symbols not listed here follow the definitions in the main text.  
+
+> Table S1: Frequently used supplement notation.
+
+Symbol Meaning 
+
+ev VPC error; positive values indicate unused cooling capacity relative to the economic target. 
+
+ϕ Margin to the cooling limit; ϕ < 0 means removable heat capacity remains. 
+
+F vcw , Fcw ,sp Virtual cooling demand and its economic setpoint. 
+
+ηs, η e Overload-side and conservative-side widths of the operating band 
+
+E = [ −ηs, η e]. 
+
+bE, ˆ ηs, ˆηe Inner band used for continuous-time containment between sampled endpoints. 
+
+η⋆v Plant-side threshold mapping the VPC coordinate back to the thermal residual. 
+
+Jw,k Weighted cumulative feed over specified time window for the endpoint screen. 
+
+Jmax  
+
+> w,s
+
+, J min  
+
+> w,e
+
+Overload-side feed upper budget and conservative-side recovery budget. 
+
+d±, q ± Bounds for drift and feed-curvature coefficients in the local window model. 
+
+ν− 
+
+> s
+
+, ν + 
+
+> e
+
+Lower/upper window-start slope bounds at ek = −ηs and ek = ηe.
+
+Le Local derivative bound used in the continuous-time containment estimate. Ψ, Qγ Upper envelope relating ev to ϕ, and conditional quantile at level 
+
+γ.
+
+vsr Industrial split-range utility signal; lower values correspond to stronger cooling. 
+
+Psp , u A, u B Pressure setpoint, monomer feed, and initiator feed in the indus-trial controller. 25 S2 Proof Details for the Reduced ARC Synthesis 
+
+This section proves the three formal results used in the main text. The first result gives the boundary-seeking target, the second converts this target into an active-constraint feed structure, and the third gives the endpoint screen used for safety-oriented tuning. Each proof states the result being proved, the assumptions used, and the proof structure before the technical steps. 
+
+S2.1 No Sustained Cooled Interior Operation 
+
+Result being proved. Proposition 1 states that an optimal minimum-time batch cannot spend a positive-measure interval with T < T ref while nonzero cooling is still applied. 
+
+Assumptions used. The proof uses regularity and heat-removal monotonicity from Assumption 1, the positive thermal-depletion sensitivity from Assumption 3, and feasible local feed re-timing from Assumption 4. 
+
+Proof structure. We proceed by contradiction. Step 1 applies a local cooling-reduction variation to exploit the available temperature margin and create a positive depletion margin inside an admissible trajectory tube. Step 2 restores the required feed dose on the shortened horizon. Step 3 uses local re-timing feasibility to keep the path constraints satisfied and compares the dose adjustment with the depletion margin. Let ( u⋆
+
+> in
+
+, F ⋆
+
+> cw
+
+, x⋆, t ⋆f ) be an optimal solution. Assume there exists a measurable interval I ⊂ [0 , t ⋆f ]of positive measure such that T ⋆(t) < T ref (t) and F ⋆
+
+> cw
+
+(t) > 0 on I.
+
+Step 1: lift the temperature and create a depletion margin. Choose a compact subinterval I0 ⊂ I on which the inequalities T ⋆ < T ref and F ⋆ 
+
+> cw
+
+> 0 have positive margins. By Assumptions 1 and 3, there exists a sufficiently small δ > 0 such that the perturbed cooling ˜Fcw (t) = F ⋆
+
+> cw
+
+(t) − δ on I0 (and ˜Fcw = F ⋆ 
+
+> cw
+
+elsewhere) generates a trajectory in the admissible local tube, with ˜T (t) ∈ (T ⋆(t), T ref (t)] on I0, and gives a positive first variation of the integrated depletion functional. Using the residual inventory nR from (10), the trajectory satisfies ˙nR(t) = −χ(n(t), T (t)) + w⊤ 
+
+> R
+
+Win uin (t).
+
+Thus there exists εR > 0 and, by continuity of the endpoint map, an arbitrarily small τ > 0 such that for the same feed input u⋆ 
+
+> in
+
+the perturbed trajectory satisfies ˜nR(t⋆f − τ ) ≤ n⋆R(t⋆f ) − εR.
+
+Step 2: restore the required dose on the shorter horizon. If the batch is terminated at t⋆f − τ with the original feed schedule, the total charged amount is short of the required dose by ∆U := Umax −
+
+Z t⋆f −τ
+
+> 0
+
+u⋆
+
+> in
+
+(t) dt ∈ Rnu
+
+> ≥0
+
+.
+
+For τ small enough, ∆ Ui = O(τ ) for each feed component. Assumption 4 gives, for each dose-constrained feed component i, a positive-measure set Ji on which u⋆i, in (t) ≤ umax  
+
+> i
+
+− δu. Since the shortened batch ends at t⋆f − τ , restrict Ji to Ji ∩ [0 , t ⋆f − τ ] and use the same symbol for this restricted set. For sufficiently small τ , it still has positive measure. To satisfy the dose constraint (9) on the shorter horizon, define ˆui, in (t) = u⋆i, in (t) + ∆Ui
+
+|J i| 1Ji (t), i = 1 , . . . , n u,
+
+26 where 1Ji is the indicator of Ji. The indicator confines the adjustment to unsaturated feed intervals. Since ∆ Ui = O(τ ), choosing τ small enough gives ∆ Ui/|J i| ≤ δu, hence 0 ≤ ˆuin (t) ≤ umax and 
+
+R t⋆f −τ 
+
+> 0
+
+ˆuin (t) dt = Umax .
+
+Step 3: compare the dose adjustment with the depletion margin. By Assumption 4, the O(τ ) re-timing adjustment above stays in an admissible local trajectory tube and preserves the path constraints for sufficiently small τ . The additional feed increases nR by at most w⊤ 
+
+> R
+
+Win ∆U, which tends to zero as τ → 0. Choosing τ sufficiently small, this increment is dominated by the extra depletion margin 
+
+εR, so the terminal constraint still holds: ˆnR(t⋆f − τ ) ≤ nmin  
+
+> R
+
+. This constructs a feasible solution with final time t⋆f − τ < t ⋆f , contradicting optimality. Therefore Proposition 1 holds. 
+
+S2.2 Active-Constraint Feed Structure 
+
+Result being proved. Proposition 2 states that, on the temperature-tracking manifold and for almost every time at which no other state constraint dominates, the pointwise Hamiltonian feed minimization is a linear program over a box intersected with one cooling-capacity half-space. The optimizer is box-determined when cooling margin remains and must satisfy ϕ = 0 when cooling capacity is limiting. 
+
+Assumptions used. The proof uses Assumption 1, the affine dependence of ϕ on feed, and the pointwise Hamiltonian minimization property. 
+
+Proof structure. Step 1 identifies the feasible polytope on the reduced tracking manifold. Step 2 reads the cooling-margin case from the input box. Step 3 translates the cooling-limited half-space into maximum cooling demand. Singular arcs and additional active state constraints are outside this local statement. 
+
+Step 1: reduce the Hamiltonian minimization to a linear program. The pointwise minimization in (20) is over 
+
+UT = {u | 0 ≤ u ≤ umax , ϕ (n, u, t ) ≤ 0}.
+
+Step 2: read the cooling-margin case from the input box. When the optimizer lies strictly inside the cooling-capacity half-space, the remaining feasible set is locally only the input box. Minimizing the linear form σ⊤u over the box gives the displayed componentwise bang-bang rule, with the usual singular case when σi = 0. 
+
+Step 3: translate the cooling-limited half-space into cooling capacity. When cooling capacity is limiting, the defining equality is ϕ = 0. By (15) , this equality is qreq = qex (Tref , F max cw ), which is equivalent to F th cw = F max cw by the inverse definition (14). This proves Proposition 2. 
+
+S2.3 Endpoint Screen for the Operating Band 
+
+Result being proved. Theorem 3 states that outward endpoint motion is blocked at both edges of E = [ −ηs, η e] when the controller-generated weighted-feed accumulated values satisfy the two endpoint inequalities. 
+
+Assumptions used. The proof uses the local curvature model in Assumption 5, the boundary slope bounds 
+
+ek = −ηs =⇒ ˙ek ≥ ν− 
+
+> s
+
+, ek = ηe =⇒ ˙ek ≤ ν+ 
+
+> e
+
+,
+
+and the controller-generated feed-budget bounds 
+
+ek = −ηs =⇒ Jw,k ≤ Jmax  
+
+> w,s
+
+, ek = ηe =⇒ Jw,k ≥ Jmin  
+
+> w,e
+
+.
+
+The endpoint conditions to be checked are 
+
+τ ν − 
+
+> s
+
++ d−
+
+2 τ 2 − q+Jmax  
+
+> w,s
+
+≥ 0, τ ν + 
+
+> e
+
++ d+
+
+2 τ 2 − q−Jmin  
+
+> w,e
+
+≤ 0.
+
+27 Proof structure. Step 1 applies the lower window bound at the overload edge. Step 2 applies the upper window bound at the conservative edge. Step 3 combines the two endpoint checks. 
+
+Step 1: block outward motion at the overload boundary. At the lower boundary ek = −ηs, combine (37) with the lower-bound slope and feed-budget conditions to obtain 
+
+ek+1 ≥ − ηs + τ ν − 
+
+> s
+
++ d−
+
+2 τ 2 − q+Jmax  
+
+> w,s
+
+.
+
+The overload-side endpoint condition yields ek+1 ≥ − ηs.
+
+Step 2: block outward motion at the conservative boundary. At the upper boundary ek = ηe,combine (38) with the upper-bound slope and feed-budget conditions to obtain 
+
+ek+1 ≤ ηe + τ ν + 
+
+> e
+
++ d+
+
+2 τ 2 − q−Jmin  
+
+> w,e
+
+.
+
+The conservative-side endpoint condition yields ek+1 ≤ ηe.
+
+Step 3: combine the two endpoint checks. The two inequalities show that a window starting at either endpoint of E = [ −ηs, η e] cannot move outward at the next endpoint. This proves Theorem 3. 
+
+# S3 Auxiliary Conditions for Endpoint Interpretation 
+
+The main theorem provides the endpoint screen used in the paper. This section gives the controller-structure facts, the continuous-time containment condition, and the relation between the VPC coordinate ev and the plant-side thermal residual ϕ used for simulation diagnosis and tuning. 
+
+S3.1 Controller-Structure Facts: Projected-PI Shutoff and Curvature Model 
+
+For the projected PI law (28) , the hard integral interval [ −r−, r +] is forward invariant by construction. At r = r+, the projected right-hand side satisfies ˙r = min {KI ev, 0} ≤ 0; at r = −r−, it satisfies ˙r = max {KI ev, 0} ≥ 0. Thus the integral contribution remains bounded whenever it is initialized in the interval. Moreover, if KP > 0 and 
+
+ev(t) ≤ − r+ + αb
+
+KP
+
+,
+
+then, for every admissible r(t) ≤ r+,
+
+αb + KP ev(t) + r(t) ≤ αb − (r+ + αb) + r+ = 0 .
+
+The saturation in (28) therefore gives α(t) = 0. This model-independent shutoff property follows from the controller structure alone. The curvature model (33) is also local. Since ev = Fcw ,sp − F vcw , changes in the virtual cooling demand reflect the heat-generation rate seen by the temperature loop. Feed injected at time t
+
+first changes reactive inventory, and the reaction kinetics convert that inventory into future heat release. On the short windows used in the endpoint screen, this effect is represented by the curvature coefficient q(t), while d0(t) absorbs recipe motion, autonomous reaction evolution, and inner-loop transients. The approximation is meaningful only in the near-boundary operating regime used for the endpoint screen and must be checked on the reduced benchmark or calibrated from closed-loop data in the industrial case. 28 S3.2 Continuous-Time Containment Estimate 
+
+For any t ∈ [tk, t k+1 ], 
+
+|ev(t) − ev(tk)| ≤ 
+
+Z ttk
+
+| ˙ev(s)| ds ≤ Leτ. 
+
+If ev(tk) ∈ [−ˆηs, ˆηe], then 
+
+ev(t) ≥ − ˆηs − Leτ ≥ − ηs, ev(t) ≤ ˆηe + Leτ ≤ ηe,
+
+which proves ev(t) ∈ E throughout the window. 
+
+S3.3 VPC-to-Thermal-Residual Relation 
+
+The endpoint screen in the main text controls the sampled values ev(tk). To keep the continuous trajectory inside the outer band E = [ −ηs, η e], use a tighter inner band 
+
+bE := [ −ˆηs, ˆηe] ⊂ E 
+
+and assume | ˙ev(t)| ≤ Le on each window [ tk, t k+1 ] of length τ . If ˆηs + Leτ ≤ ηs, ˆηe + Leτ ≤ ηe,
+
+then any trajectory with ev(tk) ∈ bE at the window endpoints remains in E between endpoints. For plant-side interpretation, relate ev to the thermal residual ϕ. Assume that in the thermally active regime R there is a nonincreasing upper envelope Ψ such that 
+
+ϕ(t) ≤ Ψ( ev(t)) , t ∈ R .
+
+If Ψ( η⋆v ) < 0, then ev(t) ≥ η⋆v implies ϕ(t) < 0. Under ideal inner-loop tracking, a model-implied candidate is Ψmod (z) := sup 
+
+> t∈R
+
+h
+
+qex 
+
+ Tref (t), F cw ,sp − z − qex 
+
+ Tref (t), F max cw 
+
+i
+
+.
+
+Since Fcw 7 → qex (T, F cw ) is increasing, Ψ mod is nonincreasing in z. In the industrial case study, this relation of the plant-side cooling capacity margin to the virtual cooling demand is calibrated from data. The reported threshold is 
+
+η⋆v (γ) := sup { η : Qγ (ϕ | ev ≥ η) < 0 },
+
+where Qγ (· | · ) denotes the conditional quantile at level γ.
+
+# S4 Reduced-Benchmark Coefficient Estimation 
+
+This section reports the quantities used in the main-text reduced isothermal verification benchmark. The benchmark signal is 
+
+ev = Tmax − Tcf − esp , esp = 1 K ,
+
+so ev is the remaining margin to the cooling-failure limit shifted by the chosen controller setpoint margin. In this benchmark the thermal-feasibility threshold is known exactly from the coordinate definition rather than estimated from data: ev > −esp is equivalent to Tcf < T max , so the benchmark analogue of η∗ 
+
+> v
+
+is the boundary value −esp = −1 K. The OCP trajectory is computed by direct transcription with N = 100 uniform intervals, fourth-order Runge–Kutta integration of the reduced 29 model, and CasADi/IPOPT. The thermal-boundary interval is identified automatically from the OCP as the maximal connected arc with interior feed, 0 < u ⋆ < u max , and near-active cooling-failure boundary, Tmax − T ⋆ 
+
+> cf
+
+≤ 0.5 K; this gives t ∈ [2 .4, 24 .9] h. The benchmark working band is chosen as 
+
+ev ∈ [−ηs, η e], ηs = 0 .15 K , ηe = 0 .05 K .
+
+The controller setpoint margin remains esp = 1 K. The reported endpoint test uses the single window length τ = 120 s. The reduced coefficients are estimated directly from the reduced model. Along the closed-loop trajectory, analytic differentiation gives the curvature and drift terms on the thermal-boundary interval: 
+
+q(t) ∈ [4 .63 × 10 1, 6.86 × 10 2], d0(t) ∈ [−3.56 × 10 −6, −5.88 × 10 −8].
+
+Boundary sampling near ev = −ηs and ev = ηe gives the corresponding slope bounds 
+
+ν− 
+
+> s
+
+= 2 .20 × 10 −3 K/s, ν+ 
+
+> e
+
+= −2.73 × 10 −2 K/s.
+
+For the selected window length τ = 120 s, both endpoint inequalities hold. Along the executed windows on the thermal-boundary interval, the corresponding endpoint bounds satisfy 
+
+e− 
+
+> k+1
+
+∈ [−0.0860 , −0.0595] , e+ 
+
+> k+1
+
+∈ [0 .0038 , 0.0138] ,
+
+while the actual next-endpoint values satisfy 
+
+ek+1 ∈ [−0.0287 , −0.0011] .
+
+The continuous executed closed-loop trajectory satisfies 
+
+ev ∈ [−0.029 , −0.001] on the thermal-boundary interval, which lies inside the chosen band [ −0.15 , 0.05]. These are the quantities summarized qualitatively in the main text. 
+
+# S5 Detailed Reactor Modeling 
+
+This section provides a rigorous description of the reaction network and dynamic model for the industrial semi-batch polymerization case study presented in the main text. The formulation adopts a moment-based approach to capture the evolution of molecular weight distributions alongside the standard mass and energy balances. 
+
+S5.1 Reaction Kinetic Scheme 
+
+The kinetic scheme models the free-radical polymerization of monomer A initiated by species B, in the presence of a chain transfer agent C. The set of elementary reactions considered is listed in Table S2. 
+
+S5.2 Moment-Based Dynamic Model 
+
+The system dynamics are described by the leading moments of the live ( λk) and dead ( μk) polymer chain distributions, coupled with the species concentrations and reactor energy balance. 30 Table S2: Free-radical polymerization kinetic scheme. 
+
+Mechanism Step Reaction Stoichiometry Rate Constant 
+
+Initiator Decomposition B k1
+
+−→ 2R ∗ k1 = k10 exp ( −E1/(R Tr)) Chain Initiation A + R ∗ k2
+
+−→ P1 k2 = k20 exp ( −E2/(R Tr)) Propagation Pn + A k3
+
+−→ Pn+1 k3 = k30 exp ( −E3/(R Tr)) Transfer to Monomer Pn + A k4
+
+−→ Dn + P 1 k4 = k40 exp ( −E4/(R Tr)) Transfer to Agent C Pn + C k5
+
+−→ Dn + R ∗ k5 = k50 exp ( −E5/(R Tr)) Termination Pn + P m k7
+
+−→ Dn+m k7 = k70 exp ( −E7/(R Tr)) 
+
+S5.2.1 Polymer Moments and Species Balances 
+
+The evolution of the zeroth, first, and second moments for live ( λ) and dead ( μ) chains is governed by: 
+
+d(Vlλ0)
+
+dt =  k2cAcR − (k5cC)λ0 − k7λ20
+
+ Vl (S1) 
+
+d(Vlλ1)
+
+dt = ( k2cAcR + ( k3 + k4)cAλ0 − (k4cA + k5cC)λ1 − k7λ0λ1) Vl (S2) 
+
+d(Vlλ2)
+
+dt = ( k2cAcR + ( k3 + k4)cAλ0 + 2 k3cAλ1 − (k4cA + k5cC)λ2 − k7λ0λ2) Vl (S3) 
+
+d(Vlμ0)
+
+dt =
+
+
+
+(k4cA + k5cC)λ0 + 12 k7λ20
+
+
+
+Vl (S4) 
+
+d(Vlμ1)
+
+dt =
+
+
+
+(k4cA + k5cC)λ1 + 12 k7(λ0λ1 + λ1λ0)
+
+
+
+Vl (S5) 
+
+d(Vlμ2)
+
+dt =
+
+
+
+(k4cA + k5cC)λ2 + 12 k7(λ0λ2 + 2 λ21 + λ2λ0)
+
+
+
+Vl (S6) The concentrations of small molecules ( R∗, A, B, C ) follow: 
+
+d(VlcR)
+
+dt = (2 f k 1cB − k2cAcR + ( k5cC)λ0) Vl (S7) 
+
+d(VlcA)
+
+dt = 1000 Fg2l 
+
+MgA 
+
+− (k2cR + ( k3 + k4)λ0) cAVl (S8) 
+
+d(VlcB)
+
+dt = 1000 FB
+
+MgB 
+
+− 2f k 1cBVl (S9) 
+
+d(VlcC)
+
+dt = −k5λ0cCVl (S10) where Fg2l denotes the mass transfer rate of monomer A from gas to liquid phase. 31 S5.2.2 Thermal and Phase Equilibrium 
+
+The reactor temperature Tr, jacket temperature TJ, and pressure P dynamics incorporate the heat of polymerization, heat exchange with the jacket, and gas-liquid mass transfer: 
+
+Mtot Cp
+
+dT r
+
+dt = FACpA(Tin − Tr) + U A (TJ − Tr) + ( −∆Hrxn )Rpoly Vl − Qloss + Qstir (S11) 
+
+MJCp,w 
+
+dT J
+
+dt = Fcw Cp,w (Tcold − TJ) + Fhw Cp,w (Thot − TJ) − U A (TJ − Tr) (S12) 
+
+dN gA 
+
+dt = 1000 
+
+MgA 
+
+(FA − Fg2l ) (S13) 
+
+dP dt = RVg
+
+
+
+Tr
+
+dN gA 
+
+dt + NgA 
+
+dT r
+
+dt 
+
+
+
+(S14) where MJ is the jacket water holdup (kg), Cp,w the water heat capacity (J/(kg K)), Fcw and Fhw 
+
+are the cold and hot jacket water flow rates (kg/s) determined by the normalized split-range utility signal vsr ∈ [−1, 1]: 
+
+Fcw = F max cw max  0, −vsr 
+
+, Fhw = F max hw max  0, v sr 
+
+. (S15) 
+
+Tcold and Thot denote the cold and hot utility inlet temperatures, respectively. The notation vsr is reserved for the split-range utility signal. It is distinct from the economic-loop feed intensity α(t)used in the main text. The gas-liquid mass transfer is driven by the difference between partial pressure and Henry’s law saturation: 
+
+Fg2l = kmt (P H − 1000 cA) (S16) 
+
+S5.3 Model Parameters 
+
+The validated parameters for the industrial polymerization case study are listed in Table S3. The values of ∆ Hrxn and U A in bold correspond to the “true plant” used in Scenarios PM +
+
+and F: ∆ Hplant rxn = 1 .2 × ∆Hmodel rxn and U A plant = 0 .8 × U A model , with nominal model values ∆Hmodel rxn = 272700 J/mol and U A model = 26870 W/K. 
+
+# S6 Plant-Model Mismatch: The Gel Effect 
+
+To evaluate the safety response of the proposed ARC structure, a plant-model mismatch scenario is introduced. The “real” plant exhibits a strong auto-acceleration (gel effect), modeled using free-volume theory. The model adds one auxiliary state and modifies the termination rate constant 
+
+k7 as follows. 
+
+S6.1 Free Volume and Conversion 
+
+Define the monomer conversion X and polymer volume fraction ϕp:
+
+X = cA, 0 Vl, 0 + MA,l (1000 /M gA ) − cA Vl
+
+cA, 0 Vl + MA,l (1000 /M gA ) , (S17) 
+
+ϕp = (1 + εv) X
+
+1 + εv X , εv = 0.966471 − 1.164 × 10 −3 Tr
+
+1.19504 − 3.3 × 10 −4 Tr
+
+, (S18) 32 Table S3: Kinetic and physicochemical parameters used in validation simulations. 
+
+Parameter Description Value Units 
+
+Vtot Total reactor volume 6000 L
+
+−∆H Heat of polymerization 327240 J/mol 
+
+U A Heat transfer product 21496 W/K 
+
+Cp,mix Specific heat capacity (Reacting Mix) 4200 J/(kg K) 
+
+Cp,A Specific heat capacity (Feed A) 804 J/(kg K) 
+
+H Henry’s Constant 1/700 mol/(Pa m 3)
+
+kmt Mass transfer coeff 0.0562 -
+
+k10 Pre-exponential (Decomposition) 1.13E+17 1/s 
+
+k20 Pre-exponential (Initiation) 3.62E+15 -
+
+k30 Pre-exponential (Propagation) 5.49E+07 -
+
+k40 Pre-exponential (Transfer to Monomer) 9.96E+07 -
+
+k50 Pre-exponential (Transfer to Agent) 3.15E+06 -
+
+k70 Pre-exponential (Termination) 3.38E+09 -
+
+E1 Activation Energy (Decomp) 1.35E+05 J/mol 
+
+E2 Activation Energy (Init) 119715 J/mol 
+
+E3 Activation Energy (Prop) 17413.76 J/mol 
+
+E4 Activation Energy (Transfer to Mon) 53020 J/mol 
+
+E5 Activation Energy (Transfer to Agent) 20000 J/mol 
+
+E7 Activation Energy (Term) 13604.5 J/mol 
+
+MgA Molar mass A 100 g/mol 
+
+MgB Molar mass B 228 g/mol 
+
+MJ Jacket water holdup 2000 kg 
+
+Cp,w Water heat capacity 4200 J/(kg K) 
+
+Tcold Cold utility inlet 283 K
+
+Thot Hot utility inlet 363 K
+
+F max cw Max cold water flow 10 kg/s 
+
+F max hw Max hot water flow 1 kg/s 33 where MA,l is the cumulative mass of monomer A dissolved into the liquid phase. The free volume fraction is 
+
+Vf = 0 .025 + ap (Tr − Tgp ) ϕp + am (Tr − Tgm ) (1 − ϕp). (S19) 
+
+S6.2 Gel Onset Criterion 
+
+The Trommsdorff criterion compares a diffusion-weighted index K against a threshold K3:
+
+K =
+
+ MgA (μ2 + λ2)
+
+μ1 + λ1
+
+0.5
+
+exp 
+
+ pA
+
+Vf
+
+
+
+, K3 = exp 
+
+
+
+−0.4 + 4460 
+
+Tr
+
+
+
+. (S20) When K ≥ K3, the system enters the gel regime. 
+
+S6.3 Modified Termination Rate 
+
+The Gel Effect introduces an auxiliary tracking state M w, cr that latches the weight-average molecular weight at the onset of the gel transition: 
+
+dM w, cr 
+
+dt =
+
+
+
+Mw(t) − M w, cr 
+
+τcr 
+
+, K < K 3,
+
+0, K ≥ K3,
+
+(S21) where Mw(t) = MgA (μ2 + λ2)/(μ1 + λ1) is the instantaneous weight-average molecular weight and 
+
+τcr = 10 −4 s is a fast tracking time constant. The effective termination rate constant is then 
+
+keff 7 =
+
+
+
+k7 exp 
+
+
+
+−pA max 
+
+ 1
+
+Vf
+
+− 1
+
+Vf, cr 
+
+, 0
+
+  M w, cr 
+
+Mw(t)
+
+1.75 
+
+, K ≥ K3,k7, K < K 3.
+
+(S22) The first factor captures the free-volume diffusion limitation, and the second factor introduces a molecular-weight-dependent auto-acceleration: as Mw grows beyond the onset value M w, cr ,termination is further suppressed, creating a positive feedback loop that can trigger thermal runaway. 
+
+S6.4 Gel Effect Parameters 
+
+Symbol Description Value Units 
+
+Vf, cr Critical free volume 0.129 –
+
+pA Diffusion exponent 1.11 –
+
+Tgp Glass transition (polymer) 383 K
+
+Tgm Glass transition (monomer) 167 K
+
+ap Expansion coeff (polymer) 4.8 × 10 −4 K−1
+
+am Expansion coeff (monomer) 1.0 × 10 −3 K−1
+
+τcr Tracking time constant 10 −4 s34 S7 Control Implementation Details 
+
+S7.1 ARC Anti-Windup and Signal Conventions 
+
+The industrial-case ARC implementation uses two distinct anti-windup mechanisms, consistent with the main-text correspondence between ARC synthesis variables and the case-study realization. The temperature cascade uses back-calculation anti-windup: 
+
+uI,k = uI,k −1 + KpTs
+
+Ti
+
+ek + Ts
+
+Tt
+
+(usat,k −1 − ucalc,k −1) (S23) 
+
+usat,k = clip( ucalc,k , u min , u max ) (S24) This structure is used in the tracking loop because the jacket-temperature setpoint and split-range utility signal can saturate during startup and large disturbances. The economic VPC does not use back-calculation. Instead, the shared economic integral state is updated with explicit clamping: 
+
+ui VPC ,k = clip 
+
+
+
+ui VPC ,k −1 + KVPC Ts
+
+Ti, VPC 
+
+eVPC ,k , ui min VPC , ui max VPC 
+
+
+
+, (S25) 
+
+val FB ,k = clip  KVPC eVPC ,k + ui VPC ,k , val min FB , val max FB 
+
+ . (S26) This is the implemented realization of the clamped integral state discussed in the main text. In the code-aligned industrial-case coordinate, the economic error is written on the normalized utility-demand signal, 
+
+eVPC = vsr − vsr ,sp ,
+
+which uses the opposite subtraction order from the reduced coordinate because lower vsr means stronger cooling. The same shared output val FB drives the fast initiator channel and the pressure-setpoint relaxation channel through the two static maps listed as the initiator and pressure maps in main-text Table 2. Let vk := val FB ,k , [ v]+ := max (v, 0), and [ v]− := min (v, 0). The full-ARC implementation uses the code-aligned static maps 
+
+ufb  
+
+> B,k
+
+= clip  10 −7[vk]+, 0, u max 
+
+> B
+
+ , (S27) 
+
+Psp ,k =
+
+(
+
+clip  P nom sp + 10 4[vk]−, 1.1 MPa , P nom sp 
+
+ , temperature hold active ,P nom sp , otherwise , (S28) with P nom sp = 1 .5 MPa and vk already clipped to [ −40 , 10] by the VPC update. Thus positive shared command increases the feedback initiator feed, whereas negative shared command lowers the pressure setpoint. The pressure map is disabled in the fixed-Psp ablation, and ufb  
+
+> B,k
+
+is replaced by the recipe map in the recipe-uB ablation; after the initiator dose limit is reached, uB is set to zero. The implemented actuator commands are then passed through the actuator lags and rate limits used in the case-study simulation. 
+
+S7.2 NMPC Formulation and Smooth Mode Blending 
+
+The NMPC benchmark is the implemented nominal-model output-feedback controller used in the main-text comparison. It uses the reduced case-study model for prediction and state estimation, while the plant simulations use the full case-study model. In implementable mode, the controller updates every 30 s, uses a 30 min prediction horizon ( N = 60 control intervals), and solves the 35 nonlinear program with CasADi/IPOPT and degree-3 Radau direct collocation. The output-feedback implementation reconstructs the reduced model state with an extended Kalman filter (EKF) from the measured variables [ Tr, P, T J , M A, in , M B, in ]⊤. This defines a practical nominal-model OF-NMPC reference; offset-free, robust, adaptive, or scenario-retuned NMPC designs are outside the present benchmark set. 
+
+S7.2.1 Optimization Problem 
+
+min  
+
+> u(·)
+
+J =
+
+Z tk +N ∆ttk
+
+L(x(τ ), u(τ )) dτ (S29a) s.t. ˙x = f (x, u, d), x(tk) = ˆ xk (S29b) 
+
+umin ≤ u(τ ) ≤ umax (S29c) 
+
+Tr(τ ) ≤ Tsp + 0 .7 K , P (τ ) ≤ 1.6 MPa (S29d) where N = 60 is the number of control intervals, ∆ t = 30 s is the controller update period, and the prediction horizon is therefore 30 min. The temperature bound is the same recipe quality upper bound used for the main-text violation metric. 
+
+S7.2.2 Stage Cost and Smoothing 
+
+The stage cost L blends the objectives of the feeding phase (production and pressure tracking) and the finishing phase (temperature holding) using a logistic blending factor ω(MA, in ): 
+
+L(x, u) = −wprod RA + wP
+
+ PPsp 
+
+− 1
+
+2!| {z }
+
+> feeding cost
+
+ω(MA, in ) + wT (Tr − Tsp )2
+
+| {z }
+
+> temperature cost
+
+. (S30) 
+
+S7.2.3 Smooth Switching Function 
+
+The transition between phases is governed by the accumulated monomer mass MA, in . We define the blending factor ω ∈ [0 , 1] using a logistic function: 
+
+ω(MA, in ) = 11 + exp ( −λsw (MA, max − MA, in ) + δsw ) . (S31) 
+
+• Transition Steepness : λsw = 10. 
+
+• Shift Parameter : δsw = 10. 
+
+• Switching Threshold : MA, max = 3250 kg. This function smoothly deactivates the production and pressure objectives as the monomer dosage approaches its target, avoiding discontinuities in the gradient-based optimization. 
+
+S7.2.4 Weights 
+
+The weights used in the cost function are: 
+
+• Production : wprod = 1 .0 (Maximizing Rate). 
+
+• Pressure : wP = 3×10 5 
+
+> 360
+
+≈ 833. 
+
+• Temperature : wT = 3×10 2 
+
+> 360
+
+≈ 0.83. 36 S7.2.5 Estimator, Noise, and Numerical Details 
+
+The implementable NMPC benchmark uses an EKF on the reduced model with code-level process covariance 
+
+Q = diag  10 −6, 10 −6, 1, (3 × 10 −5)2, 0.01 , 0.1, 0.04 , 5 × 10 3/3, 0.01 , 10 −6, 10 −6, 1,
+
+measurement covariance R = diag( ρ2), and 
+
+ρ =
+
+ 0.13 , 5 × 10 3
+
+3 , 0.13 , 0.13 , 10 −6
+
+3
+
+⊤
+
+.
+
+The nominal measurement-noise settings are 0.1 K for the temperature channels and 5 kPa for the pressure channel. The NLP is warm-started from the previous solution, and the implementation uses a sensitivity-based online update followed by a background IPOPT solve. The practical comparison therefore reflects this specific implemented nominal-model OF-NMPC workflow. 
+
+# S8 Additional Industrial Trajectory Results 
+
+Figure S1 shows the Scenario N trajectories used to support the nominal comparison in the main text. In the ideal/noise-free comparison, the OCP, NMPC(SF), and ARC(NF) finish in 3.69 h, 3.68 h, and 3.76 h, respectively. Under output feedback/noisy measurements, the implemented nominal-model OF-NMPC benchmark takes 3.89 h, whereas ARC remains at 3.75 h with smaller temperature deviation. Table S4 reports endpoint molecular-weight moment checks for the completed full-ARC runs. The values are computed from the completed full-ARC simulation trajectories using the model output equations 
+
+Mn = MgA 
+
+μ1 + λ1
+
+μ0 + λ0
+
+, Mw = MgA 
+
+μ2 + λ2
+
+μ1 + λ1
+
+, PDI = Mw/M n.
+
+This moment check verifies that the safe full-ARC runs finish in the same molecular-weight regime across the nominal, mismatch, and fault cases.  
+
+> Table S4: Endpoint moment checks for completed full-ARC runs.
+
+Scenario tf (h) Mn (10 6 g/mol) Mw (10 6 g/mol) PDI N 3.746 3.18 6.38 2.004 PM + 4.294 3.18 6.38 2.005 F 4.168 3.02 6.04 2.002 Figure S2 shows the adverse PM + mismatch trajectories used in the main-text benchmark and tuning diagnosis. ARC keeps the reactor temperature below the quality limit while using modest pressure-setpoint relaxation and reduced initiator action as cooling demand rises. The nominal-model OF-NMPC benchmark remains feasible but spends part of the hold phase above the temperature limit, consistent with the main-text violation metric. 37 Figure S1: Scenario N trajectory comparison. Left: ideal NMPC state feedback and noise-free ARC operation. Right: practical output-feedback/noisy-measurement operation. 
+
+Figure S2: Scenario PM + practical output-feedback/noisy-measurement trajectory comparison: reactor temperature, pressure and ARC pressure setpoint, normalized initiator feed, and split-range utility signal. 
+
+38 Figure S3 shows the fault response under the combined PM + and gel-effect scenario. The ARC response relaxes the pressure target and suppresses the initiator channel before the temperature limit is crossed. The implemented nominal-model OF-NMPC benchmark lacks this fault mode in its prediction model and undergoes thermal runaway after 1.16 h.    
+
+> Figure S3: Scenario F trajectory comparison. Left: full trajectory. Right: zoom on t= 0 .8–1 .2 h, where the gel-effect heat-release spike emerges.
+
+39
