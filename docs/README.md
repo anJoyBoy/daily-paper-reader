@@ -6,60 +6,68 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-06-21
-- 运行时间：2026-06-21 21:05:59 UTC
+- 最新运行日期：2026-06-22
+- 运行时间：2026-06-22 21:55:14 UTC
 - 运行状态：成功
-- 本次总论文数：12
-- 精读区：4
-- 速读区：8
+- 本次总论文数：16
+- 精读区：5
+- 速读区：11
 
 ### 今日简报（AI）
-今日收录12篇论文，精读4篇，速读8篇，重点关注大模型推理与数据修复方向。
-
-最值得精读的是《Latent Thought Flow》（高效潜在推理）和《Collaborative Large and Small Language Models》（大小模型协作数据修复），均获9.0高分。
-
-建议优先阅读这两篇高分论文，把握大模型推理效率优化与数据修复协同的最新思路。
-- 详情：[/202606/21/README](/202606/21/README)
+今日共推荐16篇论文，精读5篇，重点聚焦信息抽取与RTL生成两大方向。最值得看的是《BCL: Bayesian In-Context Learning Framework for Information Extraction》（9.0分）提出的贝叶斯上下文学习框架，以及《LLM4RTL: Tool-Assisted LLM for RTL Generation》（8.0分）展示的工具辅助大模型生成硬件代码。建议优先精读这两篇论文，同时可速读《Extending Item Response Theory for Efficient and Meaningful Multilingual Evaluation》关注多语言评估新方法。
+- 详情：[/202606/22/README](/202606/22/README)
 
 ### 精读区论文标签
-1. [Latent Thought Flow: Efficient Latent Reasoning in Large Language Models](/202606/21/2606.16222v1-latent-thought-flow-efficient-latent-reasoning-in-large-language-models)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：大语言模型的新型推理方法
-2. [Collaborative Large and Small Language Models for Accurate and Scalable Data Repair](/202606/21/2606.17582v1-collaborative-large-and-small-language-models-for-accurate-and-scalable-data-repair)  
+1. [BCL: Bayesian In-Context Learning Framework for Information Extraction](/202606/22/2606.18620v1-bcl-bayesian-in-context-learning-framework-for-information-extraction)  
    标签：评分：9.0/10、query:llm-dm
-   evidence：利用大语言模型和小语言模型协作进行数据修复，LLM助力数据挖掘
-3. [BCL: Bayesian In-Context Learning Framework for Information Extraction](/202606/21/2606.18620v1-bcl-bayesian-in-context-learning-framework-for-information-extraction)  
-   标签：评分：9.0/10、query:llm-dm
-   evidence：基于贝叶斯上下文集成的信息抽取框架，直接适用于数据挖掘
-4. [Diffusion Language Models: An Experimental Analysis](/202606/21/2606.19475v1-diffusion-language-models-an-experimental-analysis)  
+   evidence：贝叶斯上下文学习用于信息抽取——核心数据挖掘任务
+2. [LLM4RTL: Tool-Assisted LLM for RTL Generation](/202606/22/2606.15500v1-llm4rtl-tool-assisted-llm-for-rtl-generation)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：对扩散语言模型作为自回归LLM替代方案的系统实验分析
+   evidence：使用大语言模型生成RTL代码，直接涉及LLM应用
+3. [DecoSearch: Complexity-Aware Routing and Plan-Level Repair for Text-to-SQL](/202606/22/2606.17821v1-decosearch-complexity-aware-routing-and-plan-level-repair-for-text-to-sql)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：基于LLM的Text-to-SQL框架，体现LLM在数据挖掘中的应用
+4. [Deep Research in Physical Sciences: A Multi-Agent Framework and Comprehensive Benchmark](/202606/22/2606.18648v1-deep-research-in-physical-sciences-a-multi-agent-framework-and-comprehensive-benchmark)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：包含化学的物理科学LLM多智能体
+5. [Externalizing Research Synthesis and Validation in AI Scientists through a Research Harness](/202606/22/2606.18874v1-externalizing-research-synthesis-and-validation-in-ai-scientists-through-a-research-harness)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：大语言模型驱动的自动化科学研究框架
 
 ### 速读区论文标签
-1. [GRACE-DS: a Guarded Reward-guided Agent Correction Environment in Data Science](/202606/21/2606.16000v2-grace-ds-a-guarded-reward-guided-agent-correction-environment-in-data-science)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：LLM驱动的AutoML代理评估环境，涉及数据挖掘场景
-2. [Scalable Circuit Learning for Interpreting Large Language Models](/202606/21/2606.16939v1-scalable-circuit-learning-for-interpreting-large-language-models)  
+1. [Extending Item Response Theory for Efficient and Meaningful Multilingual Evaluation](/202606/22/2606.15643v1-extending-item-response-theory-for-efficient-and-meaningful-multilingual-evaluation)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：用稀疏回归实现LLM可解释性的可扩展电路学习方法
-3. [Advances in Scientific Machine Learning for Coupled Fluid Flow and Transport](/202606/21/2606.19562v1-advances-in-scientific-machine-learning-for-coupled-fluid-flow-and-transport)  
+   evidence：使用项目反应理论评估多语言LLM
+2. [Generated, Parallel, Scalable? A Study of Agentic AI-Generated Julia Code on Supercomputers](/202606/22/2606.16534v1-generated-parallel-scalable-a-study-of-agentic-ai-generated-julia-code-on-supercomputers)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：科学机器学习在流体流动与传输中的综述，与化工相关
-4. [QMFOL: Benchmarking Large Language Model Reasoning via Quantifiable Monadic First-Order Logic Test Case Generation](/202606/21/2606.20227v1-qmfol-benchmarking-large-language-model-reasoning-via-quantifiable-monadic-first-order-logic-test-case-generation)  
+   evidence：大语言模型智能体生成并行Julia代码
+3. [Progressive Knowledge-Guided Large Language Model Framework for Bearing Fault Diagnosis](/202606/22/2606.16684v1-progressive-knowledge-guided-large-language-model-framework-for-bearing-fault-diagnosis)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：可量化复杂度的LLM推理基准自动生成框架
-5. [AutoPass: Evidence-Guided LLM Agents for Compiler Performance Tuning](/202606/21/2606.20373v1-autopass-evidence-guided-llm-agents-for-compiler-performance-tuning)  
+   evidence：提出大语言模型框架用于轴承故障诊断，属于LLM应用
+4. [Trust-Aware Multi-Agent Traceability: Confidence-Calibrated Knowledge Graphs for Consistent Software Artifact Management](/202606/22/2606.17203v1-trust-aware-multi-agent-traceability-confidence-calibrated-knowledge-graphs-for-consistent-software-artifact-management)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：大语言模型智能体用于编译器优化
-6. [Multi-LCB: Extending LiveCodeBench to Multiple Programming Languages](/202606/21/2606.20517v1-multi-lcb-extending-livecodebench-to-multiple-programming-languages)  
+   evidence：基于大语言模型的多智能体系统与知识图谱
+5. [PDAGENT-BENCH: Characterizing, Grounding, and Architecting LLM Agents for VLSI Physical Design](/202606/22/2606.17253v1-pdagent-bench-characterizing-grounding-and-architecting-llm-agents-for-vlsi-physical-design)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：用于评估LLM代码生成能力的多语言基准
-7. [Stepwise Token Selection for Efficient Multimodal Large Language Models](/202606/21/2606.16067v1-stepwise-token-selection-for-efficient-multimodal-large-language-models)  
+   evidence：用于VLSI物理设计的LLM代理基准
+6. [From Reasoning Traces to Reusable Modules: Understanding Compositional Generalization in Language Model Reasoning](/202606/22/2606.18089v1-from-reasoning-traces-to-reusable-modules-understanding-compositional-generalization-in-language-model-reasoning)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：大语言模型推理
+7. [ToolMenuBench: Benchmarking Tool-Menu Filtering Strategies for Reliable and Efficient LLM Agents](/202606/22/2606.15508v1-toolmenubench-benchmarking-tool-menu-filtering-strategies-for-reliable-and-efficient-llm-agents)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：多模态LLM效率改进
-8. [SpecAlign: Efficient Specification-Grounded Alignment of Large Language Models via Synthetic Data](/202606/21/2606.16276v1-specalign-efficient-specification-grounded-alignment-of-large-language-models-via-synthetic-data)  
+   evidence：LLM代理工具菜单过滤基准
+8. [AIChilles: Automatically Uncovering Hidden Weaknesses in AI-Evolved Systems](/202606/22/2606.15834v1-aichilles-automatically-uncovering-hidden-weaknesses-in-ai-evolved-systems)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：利用合成数据将大语言模型与供应商规范对齐
+   evidence：大语言模型智能体用于AI进化系统弱点检测
+9. [Agentic Framework for Deep Learning workload migration via In-Context Learning](/202606/22/2606.15994v1-agentic-framework-for-deep-learning-workload-migration-via-in-context-learning)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：使用LLM通过上下文学习自动迁移代码
+10. [Towards Scalable Customization and Deployment of Multi-Agent Systems for Enterprise Applications](/202606/22/2606.18502v1-towards-scalable-customization-and-deployment-of-multi-agent-systems-for-enterprise-applications)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：基于LLM的多智能体系统定制与部署
+11. [Be Your Own Teacher: Steering Protein Language Models via Unsupervised Reward Optimization](/202606/22/2606.18961v1-be-your-own-teacher-steering-protein-language-models-via-unsupervised-reward-optimization)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：蛋白质语言模型的无监督奖励优化
 
 
 <div class="dpr-home-promo-card">
