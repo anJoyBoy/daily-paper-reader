@@ -1,0 +1,627 @@
+Title: Accelerating Simulation and Optimisation of Cyclic Adsorption Processes with Differentiable Programming
+
+URL Source: https://arxiv.org/pdf/2606.21523v1
+
+Published Time: Tue, 23 Jun 2026 01:15:31 GMT
+
+Number of Pages: 47
+
+Markdown Content:
+# Accelerating Simulation and Optimisation of Cyclic Adsorption Processes with Differentiable Programming 
+
+# Alex Glover, Maria M. Papathanasiou, ∗ and Ronny Pini ∗
+
+Department of Chemical Engineering, Imperial College London The Sargent Centre for Process Systems Engineering, Imperial College London 
+
+E-mail: maria.papathanasiou11@imperial.ac.uk; r.pini@imperial.ac.uk 
+
+Abstract 
+
+The design of cyclic adsorption processes is computationally demanding, requiring repeated convergence to cyclic steady state within an iterative optimisation loop. Con-ventional workflows treat the process simulator as a black box and rely on derivative-free optimisation, resulting in design campaigns that can require hundreds to thousands of CPU hours. This work presents an end-to-end differentiable model of a pressure vac-uum swing adsorption process, developed using the JAX differentiable programming framework and applied here to a benchmark post-combustion carbon capture prob-lem. Automatic differentiation provides exact gradients throughout the entire compu-tational workflow. The differentiation of a single process cycle provides the Jacobian for a Newton iteration to decrease both the number of iterations and the simulation time required to reach cyclic steady state by a factor of 20 relative to a representative MATLAB implementation. Exact gradients of the performance metrics with respect to the design variables further enable gradient-based multi-objective optimisation using the IPOPT algorithm. Applied to a six-variable design problem, the latter produces 
+
+1
+
+> arXiv:2606.21523v1 [cs.CE] 19 Jun 2026 a superior Pareto front with improved coverage of the trade-off space and closer con-vergence to the optimal front than the genetic algorithm NSGA-II. Notably, the full front is obtained over two orders of magnitude faster than the conventional approach. By retaining the full mechanistic model while making it differentiable, this frame-work transforms cyclic adsorption process design from slow black-box simulation with derivative-free optimisation to efficient gradient-enhanced modelling and optimisation, enabling rapid and systematic exploration of complex design spaces.
+
+# Introduction 
+
+Adsorption-based processes are widely employed in diverse gas separation applications and have received increasing interest for post-combustion and other carbon dioxide capture tech-nologies. 1,2 The process itself is operated through a sequence of steps, in which either the pressure or the temperature, or both, are varied to selectively adsorb and desorb the com-ponents in the gas mixture. Mechanistic adsorption models, such as the one-dimensional axially dispersed plug flow model, have been used extensively throughout the literature for experiment design and interpretation, and to describe the behaviour observed in cyclic pro-cesses. 3–5 These models have been used for open-loop predictions to screen adsorbents 6 and for integrated adsorbent-process optimization. 7 The design exercise is not trivial and requires finding the set of operating parameters (e.g., the duration and operating pressure of each step in the cycle) that balance conflicting objectives (or key performance indicators, KPIs) such as the purity and recovery of the product as well as the productivity and energy consumption of the process. This design workflow is typically formulated as a multi-objective optimisation problem that incorporates a combination of these four KPIs, or as a single-objective eco-nomic optimisation. 8,9 Recent years have seen developments that greatly expand the design space which needs to be explored, including novel adsorbent materials (e.g., metal organic frameworks 10 ), multi-sorbent beds, 11 structured contactors 12 as well as process configura-tions featuring additional steps beyond the foundational 2-bed, 4-step Skarstrom cycle. 13 
+
+2The optimisation of these more advanced designs increases the computational demand, with individual problems often requiring hundreds to thousands of CPU hours. 8,14–17 
+
+The ability to accurately determine model gradients underpins several applications of the mechanistic adsorption model just described – from sensitivity analysis to optimisation. This need becomes critical as the total number of parameters increases and when dealing with highly non-linear processes, as it is the case for the design of adsorption-based separations. Differentiable programming, a framework in which the numerical programme is constructed such that it can be automatically differentiated throughout (i.e. without manual deriva-tion), offers a route to drastically increase the computational efficiency of these tasks. The benefits of differential programming have been demonstrated in several application areas, including crystallisation, 18 computational fluid dynamics, 19 chemical kinetics, 20 and molec-ular dynamics. 21 In this work, we develop a differentiable framework for the simulation and optimisation of cyclic adsorption processes. A one-dimensional axially dispersed plug flow model is implemented in JAX, leveraging just-in-time compilation, automatic differentiation, and accelerated linear algebra throughout the process model. These capabilities are used to accelerate the numerical solution, the convergence to cyclic steady state, and the multi-objective optimisation. The following subsections review the modelling and optimisation approaches used within the adsorption community and contrast these with methods from the process systems engineering literature, highlighting the gap that differentiable program-ming can address. 
+
+# Adsorption Process Design 
+
+The physical phenomena in the fixed-bed adsorption column are described by mass and energy balances alongside equations characterising the local adsorption behaviour, yielding a system of partial differential equations (PDEs). A method of lines approach, typically using a finite volume scheme, is often used to discretise the system of PDEs into a set of ordinary differential equations (ODEs). 9 Upon application of the relevant boundary conditions, these 3equations are solved for each step of the adsorption process using an implicit solver due to the stiffness of the system. 22 Owing to the repeated sequence of steps imposed on the adsorption column, the process is designed to operate at cyclic steady state (CSS) – an operating point for which the state of the column at any given time matches its state at the exact same time in the previous cycle. Reaching CSS typically involves simulation from a startup condition (a clean or saturated bed) through repeated cycles until periodic stability is achieved. Adsorption processes with short cycle times and pressure rather than temperature swings may require hundreds of cycles to reach CSS. 23 
+
+The optimisation of adsorption processes has predominantly been carried out using derivative-free or black box methods due to their simplicity and their ability to deal with non-convex optimisation problems. Here, the cyclic process model is iterated until CSS is reached; the objective function and performance constraints (typically the KPIs) are then evaluated, and the optimisation algorithm computes the next set of parameters for evaluation. This structure is displayed in Figure 1a. A genetic algorithm, such as the non-dominated sorting genetic algorithm II (NSGA-II), 24 is by far the most widely used derivative-free approach in the adsorption literature. 9,11,15,16,25–27 In practice, this approach requires simulating thou-sands of candidate designs, each of which must be iterated to CSS, resulting in the large com-putational times reported in the literature. 8,14–17 Other derivative-free approaches, such as Bayesian optimisation, have been also applied, demonstrating reduced computational times relative to genetic algorithms. 8,28 Alternatively, many studies use simplified models 29,30 or machine learning surrogates trained from a set of high-fidelity simulations 16,31 to reduce the computational cost which are often formulated in a way that alleviates the requirement of iterating to CSS. 
+
+Gradient-based methods for cyclic process optimisation 
+
+The process systems engineering literature reports on a range of gradient-based methods for the optimisation of periodic processes that address many of the computational limita-4tions described above, though these have seen limited adoption in adsorption applications. Early approaches accelerated convergence to CSS using Newton or quasi-Newton iterations applied to the direct determination of the periodic state. 23,32 These methods achieve rapid (quadratic) convergence, but require evaluation of the Jacobian matrix to describe the sen-sitivities of the final state of the cycle with respect to the initial state. While convergence to CSS is achieved in much fewer iterations than successive substitution, the additional com-putational burden of the Jacobian evaluation has limited their adoption. 32–34 Jacobian-free vector-based extrapolation methods have been proposed, 35,36 achieving up to fourfold speed-ups while remaining simple to implement. However, their convergence rate remains inferior to exact Newton iteration methods. Machine learning models have also been used to predict approximate CSS profiles, providing improved initial guesses that accelerate convergence in subsequent simulations. 17 
+
+An alternative strategy for the optimisation of periodic processes is full discretisation of both space and time, 37 transforming the governing PDEs into a nonlinear algebraic system of equations solved via nonlinear programming. While it enables direct inclusion of the CSS criterion and the optimisation objectives (Figure 1b), this approach is highly sensitive to the initial guess and can suffer from convergence issues for complex process models. 33,34 Apseudo-transient formulation has been proposed to mitigate this by gradually introducing system dynamics, improving robustness. 38 
+
+In practice, the single discretisation approach – where PDEs are discretised only in space and the resulting ODEs are integrated in time – is more commonly used. Within this frame-work, simultaneous optimisation formulations incorporate the CSS convergence criterion as an inequality constraint (Figure 1c). 34 Although it avoids explicit iteration to CSS, this approach increases problem size and complexity, as both the state variables at every discre-tised point and the design variables become decision variables. These formulations rely on gradient-based algorithms, requiring sensitivity information that can be obtained via finite differences, 39 adjoint ODEs, 40 or through discrete methods. 34 Many of these optimisation 5problems have been solved using the reduced Hessian Sequential Quadratic Programming (SQP) algorithm. 41,42 Other works have formulated the design problem as an optimal control problem using dynamic optimisation approaches. 43–45 
+
+The computation of sensitivities is typically the dominant computational cost in the gradient-based approaches described above, often exceeding 90% of the CPU time, 34,46 and motivating the development of optimisation algorithms that can accommodate inexact Jaco-bians. 47 Despite these advances, the need for accurate sensitivities – coupled with approxi-mation errors, stability concerns, or implementation effort – has hindered broader adoption. Automatic differentiation within a differentiable programming framework offers exact, stable sensitivities without manual derivation. While differentiable programming has been success-fully applied in adjacent process engineering domains, 18–21 its application to the rigorous simulation and optimisation of cyclic adsorption processes has not been demonstrated. 
+
+Figure 1: Optimisation structures used within the literature: derivative-free optimisation (a), complete discretisation (b), and simultaneous tailored approach (c). Adapted from Biegler et al. 42 
+
+6A differentiable framework for adsorption processes 
+
+In this section, we introduce the differentiable framework for the simulation and optimisation of cyclic adsorption processes. The framework follows the same modelling approach used throughout the adsorption literature: the governing PDEs are discretised with a finite volume scheme, the resulting ODEs are integrated with an implicit solver for each step of the cycle, and the process is iterated to CSS from which the KPIs are computed for use within a multi-objective optimisation problem. The mechanistic model is therefore unchanged. The new development is in making the entire computational workflow differentiable, enabling the use of gradient information for the accelerated simulation and optimisation of the adsorption process. As identified in the preceding section, the conventional model formulation in the adsorp-tion literature does not exploit gradient information at any stage of the design process. The differentiable framework addresses this at three levels, as illustrated in Figure 2. First, at the level of the ODE solution, just-in-time (JIT) compilation and automatic differentiation (AD) within the implicit solver are used to accelerate the numerical integration and provide sensitivities of the solution with respect to the initial state and model parameters (green dashed arrows in the figure). Second, these sensitivities enable a Newton-based direct de-termination method for convergence to CSS, replacing the successive substitution approach (dashed green box in the figure). Third, the CSS condition is treated as an implicit function, such that the model outputs both objective functions (e.g., KPIs) and their gradients with respect to the decision variables for use within gradient-based multi-objective optimisation. These three components are described in the following subsections. 
+
+# Solution and Sensitivities 
+
+The system of PDEs that describes the adsorption process (Table 1) is discretised via a finite volume scheme where the fluxes at the walls are evaluated using a third-order weighted 7Figure 2: Differentiable adsorption model framework. The sensitivity propagation for the computation of the gradients of the objective functions (e.g., KPIs) and the constraints with respect to the decision variables are shown with the green arrows. The two options for the iteration to CSS are illustrated, namely successive substitution (dashed black box) and direct determination (dashed green box). essentially non-oscillatory method. 9 The resulting dimensionless discretised equations are given in the Section S2 of the Supporting Information. Equation 1 describes their general form, where x denotes the vector of dimensionless state variables (pressure, temperature, mole fractions, column wall temperature and adsorbed quantities) at each volume node along the column, θ denotes the model parameters, and x0 is the state of the column at the start of the step. 8Figure 3: Flowchart for the state and the sensitivities computation during the solution of one adsorption cycle. 
+
+dx
+
+dt = f (t, x(t), θ), x(0) = x0 (1) Figure 3 illustrates the flowchart for the solution of one process cycle as well as the 9sensitivities computation and propagation through the model solution. An implicit ODE solver is chosen for the integration of the states due to the stiffness of the equations resulting from the discretised second order spatial derivatives (diffusion and conduction) and the adsorption and heat transfer source/sink terms. 22 At each time step of the implicit solver, a system of non-linear equations must be solved, typically via Newton iterations, which in turn requires the evaluation of the Jacobian of the right-hand side function f (t, x(t), θ) with respect to the state vector x. With the differentiable framework adopted here, this Jacobian is computed using AD rather than being approximated with finite differences or derived manually. A key requirement for the gradient-based methods used in this work is the ability to obtain sensitivities of the solution with respect to the initial state ( ∂xk/∂ x0
+
+> k
+
+) and model parameters ( ∂xk/∂ θ) – see Figure 3. For implicit solvers, such as the one used in this work, a naive use of AD would differentiate through all Newton iterations at each time step, leading to high computational cost and numerical sensitivity to the solver convergence tolerance. Instead, the sensitivities are computed at convergence of the non-linear system as illustrated in Figure 3. This task is achieved by directly differentiating the numerical time-stepping scheme using the discrete sensitivity method, implemented in the forward direction. 48 The resulting tangent gradients are then “manually” propagated alongside the state variables throughout the simulation. To enable comparison with conventional approaches used in adsorption modelling, we have implemented in JAX a version of the numerical differentiation formula (NDF) method used in MATLAB’s ode15s solver. 49 The corresponding state and sensitivity equations are given in Section S1 of the Supporting Information. Notably, in contrast to ode15s , the Jacobian is re-evaluated at every accepted step to ensure accurate sensitivity calculations, rather than being reused at many steps when sensitivities are not required. The Jacobian matrices required in both the state and sensitivity equations exhibit a known sparsity pattern arising from the spatial structure of the discretised transport equa-10 tions for the adsorption column. The sparsity is exploited by partitioning the right-hand side function f (t, x(t), θ) so that each evaluation operates only on the subset of volumes that directly influence a given spatial location. AD is then applied locally to these reduced functions, computing only the non-zero derivative entries. These operations are vectorised across all control volumes using JAX’s vmap function. The linear systems arising in both the Newton iterations and the sensitivity equations share the same sparsity pattern and are solved using a sparse linear solver (KLU algorithm 50 ). This exploitation of sparsity ensures that the approach scales to finer spatial discretisation. 
+
+# Direct Determination of Cyclic Steady State 
+
+Adsorption processes are typically cyclic in nature where each cycle is composed of a sequence of steps for which the end state of a cycle becomes the initial state of the following cycle. In modelling studies, a mathematical criterion is used to define whether a process is operating at CSS. Throughout the literature, authors have enforced this criterion based upon change in the values of the state variables, 37 KPIs 51 and the overall mass balance for a cycle. 4 In this work we define the cycle error as the difference between the vector of state variables at the start and end of a cycle: 
+
+ek = xk − x0 
+
+> k
+
+(2) The CSS criterion is satisfied when all elements of this vector, normalised to the initial state x0
+
+> k
+
+, are below a predefined tolerance (for example, 10 −5). Typically, the so-called successive substitution method is used to reach the CSS. This method involves simulating the process from an initial condition (a bed saturated with the light or heavy component) to CSS. Mathematically, this is known as a Picard iteration where the output of the cycle function is used as the input to the next cycle. This method has the benefit of following the dynamics of the process from startup to CSS – information not necessarily required for 11 optimisation studies where the target is a design at CSS. This method can be slow, especially for systems where the cycle time is short, which is common in pressure swing processes. The slow convergence is described by the CSS having a spectral radius, the largest eigenvalue of the cycle Jacobian matrix ∂xk/∂ x0 
+
+> k
+
+and also known as the dominant Floquet multiplier, close to, but less than 1. 52 In contrast, the direct determination method does not follow the process dynamics; rather it predicts the input to the next cycle from a Newton iteration step: 23 
+
+x0 
+
+> k+1
+
+= x0 
+
+> k
+
+− α ∂ek
+
+∂x0
+
+> k
+> −1
+
+ek (3) where the error, ek, and the error gradient with respect to the initial state, ∂ek/∂ x0
+
+> k
+
+, are computed at each iteration k. Figure 2 illustrates the flowchart for the differentiable model, where the iteration to CSS is shown with the loop. The traditional successive substitution and the direct determination methods are shown. The error gradient is computed as follows: 
+
+∂ek
+
+∂x0
+
+> k
+
+= ∂xk
+
+∂x0
+
+> k
+
+− I (4) Again, the differentiable framework described above allows for the efficient evaluation of the full Jacobian matrix for the sensitivities of the states at the end of the cycle with respect to the initial states at each iteration. As the Newton iteration does not follow the process dynamics, it can generate initial conditions for the model that include non-physical values, 23 such as negative mole fractions or adsorbed quantities. To prevent failure of the ODE solver, a damped Newton iteration is implemented in Equation 3, which uses a damping factor α ∈ [0 , 1] to scale the Newton step: 
+
+α = 12min ( x0
+
+> k,i
+
+x0 
+
+> k,i
+
+− x0,u k+1 ,i 
+
+) (5) where x0,u 
+
+> k+1 ,i
+
+is the state variable for the next iteration from the undamped Newton iteration ( α = 1), i corresponds to the discretised state variable where negative values 12 are encountered, and x0 
+
+> k,i
+
+is the corresponding discretised state variable from the previous iteration. The minimum is hence only taken over state variables where negative values are encountered and the factor of 12 provides a safety margin to ensure the next iterate is not close to negative values. 
+
+# Gradient-Based Optimisation 
+
+The gradient-based optimisation methodology uses the same structure as the derivative-free optimisation studies illustrated in Figure 1a, where the iteration to CSS is the inner loop within each evaluation. Without loosing generality and with reference to Figure 2, Equation 6 describes an optimisation problem involving a single objective function ϕ, alongside a set of inequality constraints g, which are both typically described through the evaluation of the KPIs of the process. The decision variables for the optimisation θ are bounded (the subscript 
+
+L and U refer to the lower and upper bound, respectively), and x∗ is the vector of the state variables at the start of the cycle where the CSS criterion is satisfied. min  
+
+> θ
+
+ϕ(x∗, θ)s.t. g(x∗, θ) ≤ 0
+
+θ ∈ [θL, θU ](6) The CSS condition is expressed as an implicit function: 
+
+x∗ − fcycle (x∗, θ) = 0 (7) where the function fcycle describes the whole process cycle. At each iteration, the gradients of the objective function and the constraints with respect to the design parameters are computed as follows: 
+
+dϕ dθ = ∂ϕ ∂θ + ∂ϕ ∂x∗
+
+dx∗
+
+dθ (8) 13 dg
+
+dθ = ∂g
+
+∂θ + ∂g
+
+∂x∗
+
+dx∗
+
+dθ (9) where dx∗/d θ is evaluated through the implicit function theorem: 
+
+dx∗
+
+dθ =
+
+
+
+I − ∂fcycle 
+
+∂x∗
+
+−1 ∂fcycle 
+
+∂θ (10) Figure 2 illustrates how these gradients are applied in the differentiable model framework developed in this work. We note that the implicit nature of the CSS criterion implies that the optimiser does not ’see’ this constraint. As a result, any error associated with the CSS tolerance can lead to noise in the gradients. In this work, a CSS constraint tolerance of 10 −5
+
+has been used throughout. However, for systems where the spectral radius approaches 1 and tighter optimality tolerances are used within the optimiser, a tighter CSS tolerance might be required. 
+
+# Pressure Vacuum Swing Adsorption Case Study 
+
+The case study considered in this work is a four-step pressure vacuum swing adsorption (PVSA) process for the separation of CO 2 from a dry flue gas containing 15 mol% CO 2 in N2 (number of species, nc = 2) at atmospheric pressure and 298 K, using Zeolite 13X as the adsorbent. This system has been the subject of numerous optimisation studies owing to its relevance to post-combustion carbon capture and is therefore a good benchmark for this work. 8,9,16 The four-step cycle consists of (Figure 4): adsorption at high pressure during which the feed is introduced at one end of the column and the light product (N 2) exits at the other; co-current blowdown to an intermediate pressure which removes most of the residual N2 from the column; reverse evacuation to the low vacuum pressure during which the heavy product (CO 2) is collected; and feed pressurisation back to the adsorption pressure. A one-dimensional, non-isothermal, non-isobaric model describes the coupled heat and 14 Figure 4: Four-step PVSA cycle. Each step from left to right is: Adsorption (ads), Blowdown (bd), Reverse Evacuation (evac), Feed Pressurisation (pres). In our case study, the feed is a mixture of CO 2 and N 2, the light product is the N 2-rich stream and the heavy product is the CO 2-rich stream. PH, PI and PL refer to the high, intermediate and low pressure. The duration of each step is indicated by the horizontal arrows. 15 mass transfer within the packed adsorption column. The model comprises partial differential equations for the component mass balances, the overall mass balance, the column internal energy balance, the column wall energy balance and the steady-state momentum balance in the form of Darcy’s law for the pressure drop along the column. The following assumptions are adopted in deriving the governing equations: 
+
+• Only axial gradients are considered (radial gradients within the bed are neglected). 
+
+• The gas phase obeys the ideal gas law. 
+
+• Local thermal equilibrium exists between the gas, adsorbed and solid phases within the bed. 
+
+• The heat capacities of the gas, adsorbed and solid phases are constant. 
+
+• The densities of the adsorbent and the column wall are constant. 
+
+• The column void fraction and adsorbent particle radius are uniform and constant. 
+
+• The axial mass dispersion coefficient and effective thermal conductivity are constant. 
+
+• The pressure drop along the column is described by Darcy’s law. The governing equations are summarised in Table 1. The state variables are the total pressure p, the gas-phase mole fractions yi of each component i apart from the last, the gas temperature T , the column wall temperature Tw, and the solid-phase loadings qi for all components. In this work, the PDEs are discretised with 10 finite volumes. These equations are accompanied by the adsorption isotherms which describe the thermodynamic equilibrium between the gas and the adsorbed phase. For the Zeolite 13X material used in this work, the extended dual-site Langmuir model is used to quantify this relationship for the CO 2/N 2
+
+mixture: 
+
+q∗ 
+
+> i
+
+= qb,i bici
+
+1 + Pnc 
+
+> i
+
+bici
+
++ qd,i dici
+
+1 + Pnc 
+
+> i
+
+dici
+
+(11) 16 where qb,i and qd,i are the saturation capacities at each adsorption site for each component, 
+
+ci = yip/RT is the concentration of each component in the gas phase, and bi and di are the equilibrium constants: 
+
+bi = b0,i e−∆Ub,i RT (12) 
+
+di = d0,i e−∆Ud,i RT (13) The isotherm parameters are taken from the unequal energy sites fitting from Wilkins and Rajendran. 53 The mass transfer resistance for the diffusion from the bulk gas to the adsorption site is described through the linear driving force (solid phase material balance in Table 1) with a constant mass transfer coefficient, k. Lastly, the longitudinal dispersion coefficient is found through the following correlation. 54 
+
+DL = 0 .7Dm + vfeed rp (14) where Dm is a molecular diffusion coefficient and vfeed is the superficial feed velocity. Values of the parameters used within this model are given within Table 2. The boundary conditions for each step are set according to the direction of flow and the type of operation. During the adsorption step, the feed-end boundary imposes Danckwerts conditions on the mole fractions and temperature, and a fixed inlet velocity. During blowdown and evacuation steps, an exponential pressure profile is imposed at the product end of the column, whilst zero-flux conditions are applied at the closed end. During the pressurisation step, an ex-ponential pressure profile is prescribed at the feed boundary. The boundary conditions for each step are described in Section S5 of the Supporting Information. 17 Table 1: Mass, energy and momentum balances for the 1-dimensional axially dispersed plug flow model 
+
+Overall material balance 
+
+∂p ∂t − pT∂T ∂t = −T ∂∂z 
+
+pv T
+
+
+
+− RT ρb
+
+ϵ
+
+Pnc
+
+> i=1
+
+∂q i
+
+∂t 
+
+Component material balance for species i ∈ { 1, . . . , n c − 1}
+
+∂y i
+
+∂t = Tp DL
+
+∂∂z 
+
+ pT∂y i
+
+∂z 
+
+
+
+− Tp
+
+ ∂∂z 
+
+yipv T
+
+
+
+− yi
+
+∂∂z 
+
+pv T
+
+
+
+− RT pρb
+
+ϵ
+
+
+
+yi
+
+Pnc
+
+> i=1
+
+∂q i
+
+∂t − ∂q i
+
+∂t 
+
+
+
+Solid phase material balance for species i ∈ { 1, . . . , n c}
+
+∂q i
+
+∂t = k(q∗ 
+
+> i
+
+− qi)
+
+Column energy balance 
+
+
+
+Cp,g
+
+PRT + ρb
+
+ϵ (Cp,s + Cp,a
+
+Pnc 
+
+> i=1
+
+qi)
+
+ ∂T ∂t = Kz
+
+ϵ∂2T∂z 2 − Cp,g
+
+R
+
+∂(pv )
+
+∂z − T ∂∂z 
+
+pv T
+
+
+
+−ρb
+
+ϵ T (Cp,a − Cp,g) Pnc
+
+> i=1
+
+∂q i
+
+∂t + ρb
+
+ϵ
+
+Pnc
+
+> i=1
+
+
+
+−∆Hi
+
+∂q i
+
+∂t 
+
+
+
+− 2hin 
+
+ϵr in 
+
+(T − Tw)
+
+Column wall energy balance 
+
+ρwCp,w
+
+∂T w
+
+∂t = Kw
+
+∂2Tw
+
+∂z 2 + 2rin hin 
+
+r2out − r2in 
+
+(T − Tw) − 2rout hout 
+
+r2out − r2in 
+
+(Tw − Ta)
+
+Steady-state momentum balance (Ergun equation) 
+
+− ∂p ∂z = 150 4r2p
+
+1 − ϵϵ
+
+2
+
+μv 
+
+18 Isosteric heat of adsorption 
+
+The isosteric heat of adsorption describes the enthalpy released during adsorption. The Clausius-Clapeyron equation for the isosteric heat of adsorption for a multicomponent ideal gas mixture in equilibrium with an adsorbent is given as: 55 
+
+−∆Hiso ,i = RT 2
+
+d ln( P y i)dT
+
+
+
+> q
+
+= RT 2
+
+"
+
+1
+
+P
+
+dP
+
+dT
+
+
+
+> q
+
++ 1
+
+yi
+
+dyi
+
+dT
+
+
+
+> q
+
+#
+
+(15) The subscript q = ( q1, . . . , q nc ) indicates that the derivative is evaluated at constant adsorbed-phase loading of every component. As the DSL isotherm describes loading as a function of the gas phase pressure, temperature and composition, we apply implicit differ-entiation to this isotherm using AD in JAX. At constant loading ( dq i = 0), the following expression is derived for all components: 0 = ∂q i
+
+∂P 
+
+dP
+
+dT + ∂q i
+
+∂T +
+
+> nc−1
+
+X
+
+> j=1
+
+∂q i
+
+∂y j
+
+dyj
+
+dT , (16) Equation 16 is solved simultaneously for each component i = 1 ..n c, whereby (d ync /dT )q =
+
+− Pnc−1 
+
+> j=1
+
+(d yj /dT )q. The derivatives of pressure, and all mole fractions with respect to tem-perature at constant loading are used in Equation 15 to estimate the isosteric heat of ad-sorption. 
+
+# Key Performance Indicators 
+
+The four KPIs that are used for the design of the PVSA process include the purity of the CO 2
+
+product ( P u CO 2 ), the recovery of CO 2 (Re CO 2 ), the productivity of the process ( P r ) and the energy consumption associated with the compressors and vacuum pumps ( ET). For the calculation of these KPIs, three further process units are integrated in time along with the states of the column. These include an isentropic compressor, an isentropic vacuum pump and a tank to calculate the quantity and composition of gas discharged from the outlet of the adsorption step. The power consumption of the compressor and vacuum pump as well 19 Table 2: Parameters used within adsorption model simulation 
+
+Column length, L [m] 1.0 Column inner radius, rin [m] 0.145 Column outer radius, rout [m] 0.162 Bed density, ρb [kg/m 3] 712 Bed voidage, ϵ 0.37 Particle voidage, ϵp 0.35 Particle radius, rp [m] 0.001 Particle tortuosity, τp 3Molecular diffusivity, Dm [m 2/s] 1.5 × 10 −7
+
+Thermal conductivity of gas, Kz [J/m/K/s] 0.09 Thermal conductivity of wall, Kw [J/m/K/s] 16 Heat capacity of gas phase, Cpg [J/mol/K] 30.7 Heat capacity of adsorbed phase, Cpa [J/mol/K] 30.7 Heat capacity of adsorbent, Cps [J/kg/K] 1,070 Heat capacity of column wall, Cpw [J/kg/K] 502 Density of wall, ρw [kg/m 3] 7,800 Dynamic viscosity of gas, μ [kg/m/s] 1.72 × 10 −5
+
+Overall inside heat transfer coefficient, hin [J/m 2/K/s] 8.6 Overall outside heat transfer coefficient, hout [J/m 2/K/s] 2.5 Pressure profile time constant, λ [/s] 0.5 Compressor efficiency, η 0.72 Mass transfer coefficient (LDF), k [/s] 26.25 Saturation capacity of CO 2 at site 1, qb,CO 2 [mol/kg] 3.257 Saturation capacity of CO 2 at site 2, qd,CO 2 [mol/kg] 3.24 Saturation capacity of N 2 at site 1, qb,N2 [mol/kg] 3.257 Saturation capacity of N 2 at site 2, qd,N2 [mol/kg] 3.24 Adsorption equilibrium constant of CO 2 at site 1, bCO 2,0 [m 3/mol] 2.09 × 10 −7
+
+Adsorption equilibrium constant of CO 2 at site 2, dCO 2,0 [m 3/mol] 1.06 × 10 −7
+
+Adsorption equilibrium constant of N 2 at site 1, bN2,0 [m 3/mol] 7.96 × 10 −7
+
+Adsorption equilibrium constant of N 2 at site 2, dN2,0 [m 3/mol] 6.94 × 10 −7
+
+Molar internal energy change for adsorption of CO 2 at site 1, −∆Ub,CO 2 [kJ/mol] 42.67 Molar internal energy change for adsorption of CO 2 at site 2, −∆Ud,CO 2 [kJ/mol] 32.21 Molar internal energy change for adsorption of N 2 at site 1, −∆Ub,N2 [kJ/mol] 18.86 Molar internal energy change for adsorption of N 2 at site 2, −∆Ud,N2 [kJ/mol] 17.76 
+
+as the total gas and CO 2 molar flowrate from the outlet of the adsorption step are added as state variables for the ODE solution. The equations for these units and the KPIs are given in Sections S7 and S8 of the Supporting Information. 
+
+# Process optimisation 
+
+The design of adsorption processes for post combustion carbon capture applications typically involve multi-objective optimisation of two conflicting KPIs. The first involves the max-imisation of the purity and recovery, which we formulate as a constrained single-objective 20 optimisation problem: min  
+
+> θ
+
+− Re CO 2 (θ)s.t. P u CO 2 (θ) ≥ ε
+
+θ ∈ [θL, θU](17) where ε is suitably varied so as to identify the Pareto curve of optimal solutions (epsilon-constraint method 56 ). The second optimisation problem uses an analogous formulation to maximise productivity and minimise energy consumption, albeit under constraints on purity and recovery: min  
+
+> θ
+
+ET(θ)s.t. P r (θ) ≥ εP u CO 2 (θ) ≥ 95% 
+
+Re CO 2 (θ) ≥ 90% 
+
+θ ∈ [θL, θU](18) For these optimisation problems, the design variables are bounded with the values given in Table 3, and include the duration and pressure of the adsorption step ( tads and PH ,respectively), the feed velocity ( vfeed ), the duration and pressure of the blowdown ( tbd and 
+
+PI, respectively), and the duration of the evacuation step ( tevac ). For the design of the PVSA process, the low pressure set point was fixed at 0.05 bar and the pressurisation time at 20 s. Table 3: Design variable bounds for the optimisation of the 4-step PVSA process 
+
+Variable tads PH vfeed tbd PI tevac 
+
+Unit s bar m s −1 s bar s
+
+Lower Bound 20 1 0.1 30 0.07 30 
+
+Upper Bound 100 10 2 100 3 100 The two optimisation problems described above are solved using the IPOPT nonlin-21 ear programming algorithm. 57 Although IPOPT is employed here, the overall optimisation framework is readily transferable to other gradient-based optimisers and thus the method-ology is not restricted to a single numerical solver implementation. Furthermore, due to the nonconvexity of the optimisation problem, this gradient-based algorithm could converge to local minima. To explore this, a multi-start is conducted for each optimisation problem, where ten runs of the algorithm are completed, each from a random start point within the de-sign space. The random point is not required to satisfy the constraints. The gradient-based approach is compared to the NSGA-II algorithm, which is widely used in the adsorption literature for the multi-objective black-box optimisation, where a population size of 72 with 70 generations was used. Sobol sampling of the design space is also used for this comparison with 4096 samples. All the simulations were performed on an Intel Core i5-10500 CPU with 8GB of RAM. 
+
+# Results 
+
+The performance of the end-to-end differentiable model is quantified at various levels. First, we compare the simulation results with those from a similar model within the literature. Second, we compare by means of forward simulations the direct determination method to accelerate the convergence to CSS to the successive substitution method. Lastly, we compare results obtained by solving various multi-objective optimisation problems. 
+
+# Simulation verification 
+
+The framework developed in this work is based upon the standard model formulation used throughout the adsorption literature. 8,9,13–16,36 Before the methods introduced in this work are compared, the model is verified against published results to confirm that the implementa-tion produces consistent predictions. The minimum energy designs reported by Haghpanah et al. 9 are used for this comparison, where constraints of 90% purity and 90% recovery are 22 enforced. The operating conditions for each design are taken directly from the reported optimal solutions and evaluated in the present model without re-optimisation. The model parameters used for this comparison are provided in Section S9 of the Supporting Informa-tion. Table 4 compares the productivity and specific energy consumption obtained from the present model with the values reported by Haghpanah et al. across five minimum energy designs at different evacuation pressures. The two models show good agreement, with devi-ations in productivity within ±5% and deviations in energy consumption within 4%. The purity and recovery values obtained from the present model are consistent with the enforced constraints. Minor differences between the two implementations exist in the model formula-tion and in the calculation of the key performance indicators (Section S9 of the Supporting Information). Table 4: Comparison of the present model with the results of Haghpanah et al. 9 for the min-imum energy designs at different evacuation pressures. Productivity is given in mol m −3 s−1
+
+and energy consumption in kWh t −1. ∆ denotes the relative difference between the present model and the reference values.                                                   
+
+> Productivity Energy consumption
+> PL[bar] Purity Recovery This work Ref. ∆ [%] This work Ref. ∆ [%]
+> 0.02 0.906 0.894 0.297 0.312 −4.97 143.6 149.0 −3.62 0.03 0.906 0.907 0.508 0.512 −0.87 194.5 201.5 −3.46 0.05 0.903 0.909 0.333 0.348 −4.42 289.3 298.9 −3.23 0.07 0.910 0.914 0.704 0.688 +2.35 373.2 388.7 −3.98 0.10 0.918 0.911 0.721 0.694 +3.86 486.8 499.7 −2.56
+
+# Acceleration to CSS 
+
+The convergence performance to CSS of the successive substitution and direct determination methods is compared for two different initial conditions in Figure 5: a bed saturated with the feed gas and a bed saturated with N 2 (the light component). The successive substitution method (Figure 5a) requires 82 and 115 iterations to reach the CSS tolerance from a bed 23 Figure 5: Convergence plots for the successive substitution (left) and direct determination (right) methods for two initial conditions: feed- (solid line) and nitrogen-saturated bed (dashed line). In the direct determination method, two different fallback methods were used when negative mole fractions or adsorbed quantities were encountered successive substitution (dashed line) and damped Newton (dotted-dashed line). Design parameters: PH = 8 bar, 
+
+PI = 1 .5 bar, vfeed = 0 .8 ms −1, tads = 50 s, tbd = 100 s, tevac = 100 s. 24 saturated with feed and with N 2, respectively. In both scenarios, linear convergence is exhibited, as expected for this fixed point iteration, and nearly 300 iterations are required to reach the error associated with the solver tolerance. In contrast, the direct determination method (Figure 5b) requires significantly fewer iterations to attain CSS (between 5 and 10 iterations, depending on the scenario), reflecting the near-quadratic convergence behaviour expected for a Newton iteration near the solution. The scenario with the bed saturated with the feed gas as the initial condition features the best convergence, with just 5 iterations required to reach CSS. The scenarios with the bed saturated with N 2 show a slightly lower performance, because either the damping fallback method or the successive substitution method had to be deployed as fall-back options when the (undampened) Newton iteration predicted negative values of mole fraction and adsorbed quantity for the next iteration. A similar observation was reported by Croft and LeVan 23 in their air purification example where the initial state is an empty bed. In our study, the damping fallback method provides an improved convergence to the CSS than reverting to the successive substitution method. The two methods are again compared in Figure 6 by considering 4096 different designs in the six-dimensional design space (Table 3). To this end, we have considered a cycle that begins with the high pressure adsorption step (the bed is saturated with the feed gas). In the figure, the violin plots show the number of iterations required to reach CSS for all 4096 samples and for the two methods (the sample set was identical for both methods). The direct determination method requires on average just 5.1 iterations to reach CSS with all of the 4096 designs converging within 11 iterations. The successive substitution method requires on average 112 cycles to reach CSS, with a much wider distribution of number of iterations (40–2000) compared to the direct determination method. The mass balance error (Equation 57 in the Supporting Information) of the cycle at CSS, as well as the difference between the KPIs obtained for the two methods are given in Table 5. Both methods feature negligibly small errors in the mass balance, with maximum errors of 0.003% and 0.0001% for the successive substitution and the direct determination method, 25 Figure 6: Violin plots of the number of iterations required to reach CSS for the direct determination and successive substitution methods across 4096 Sobol sampled designs. The white box illustrates the quartiles of the distribution and the whiskers correspond to 1.5 times the interquartile range. The mean of the distribution is indicated by the diamond symbol. 26 respectively. Across all 4096 designs, there is excellent agreement of the KPIs computed through both methods, with all designs being within 0.1% of each other for the four KPIs recorded. This shows that the two methods converge to the same CSS for all the designs explored. It is possible that a process cycle can exhibit multiple periodic states or have a periodic state that repeats every 2 cycles, but this was not observed for this process. 58 Furthermore, it is possible the direct determination method could converge to a point that is mathematically a CSS, but physically unattainable. A CSS of this type is unstable such that any disturbance would cause the system to diverge from this CSS. Mathematically, this CSS would have a spectral radius greater than 1. The spectral radius for the design corresponding to the convergence plots in Figure 5 is 0.9509, confirming a stable and physically plausible CSS. The value of this spectral radius also gives an insight into the cycle dynamics where values closer to unity exhibit slower cycle dynamics and would represent a process that requires more cycles to reach CSS. Table 5: Mass balance errors and KPI differences between the successive substitution and direct determination methods. 
+
+Successive Substitution Direct Determination Mean (%) Max (%) Mean (%) Max (%) 
+
+Mass Balance Error 
+
+Overall 1.86 × 10 −4 3.15 × 10 −3 4.26 × 10 −6 1.30 × 10 −4
+
+KPI Difference vs. Successive Substitution a
+
+Purity — — 9.31 × 10 −4 2.51 × 10 −2
+
+Recovery — — 7.83 × 10 −4 6.99 × 10 −3
+
+Productivity — — 1.36 × 10 −3 5.59 × 10 −2
+
+Energy consumption — — 7.94 × 10 −4 3.96 × 10 −3 
+
+> aKPI differences are computed as the absolute percentage deviation of the Direct Determina-tion method relative to Successive Substitution as the reference solution.
+
+27 PVSA process optimisation 
+
+Three decision variables 
+
+The direct determination method provides acceleration to the solution speed of each indi-vidual simulation for use within an optimisation framework. For this design problem, three different approaches are compared: Sobol sampling of the design space (4096 samples), the NSGA-II algorithm and the gradient-based optimisation using the IPOPT algorithm. The latter exploits the gradient information readily available from the differentiable model. The comparison is first performed for a reduced design problem involving three decision variables: the gas feed velocity, vfeed , the high pressure set point, PH, and the intermediate pressure set point, PI. The adsorption, blowdown and evacuation step durations are fixed at 50, 100 and 100 seconds, respectively. 59 
+
+Figure 7 shows the Pareto fronts obtained for the multi-objective optimisation problem where both purity and recovery are maximised (Equation 17). To construct the gradient-based Pareto front, the epsilon constraint on purity is varied between 90% and 99.5% in 0.5% increments, with additional evaluations at 99.9% and 99.99% purity. The three solution methods identify similar Pareto fronts and capture the trade-off between CO 2 purity and CO 2 recovery. The gradient-based optimisation yields a slightly improved front than the genetic algorithm, with both methods improving upon Sobol sampling, which produces a cloud of feasible designs lying close to but below the optimal front. The multi-start strategy adopted for the gradient-based optimisation reveals that the non-convexity of this problem is significant in the sub-problem with the 98% purity constraint. Two of the ten multi-start points converge to a distinct sub-optimal point, characterised by a larger intermediate pressure and feed velocity, while the high pressure converges to its upper bound in all cases. The translucent green crosses in Figure 7 indicate these locally optimal points. The raw data for all gradient-based optimisation runs are provided in the Supplementary Information. Figure 8 shows the Pareto fronts obtained for the multi-objective optimisation problem 28 Figure 7: Pareto front for the purity-recovery optimisation problem solved with Sobol sam-pling, the NSGA-II algorithm and the IPOPT algorithm which uses gradients from the differentiable model. For the latter, a multi-start strategy (10 random initial start points) is adopted and all runs are shown with the green crosses. where productivity is maximised and energy usage is minimised (Equation 18) - again, for the three methods. The genetic algorithm and the gradient-based optimisation produce Pareto fronts that are in close agreement, while the approach that uses the 4096 Sobol sam-ples demonstrates obvious deficiencies. In fact, as shown in Figure 7, relatively few points in the whole design space satisfy simultaneously the constraints on CO 2 purity (95%) and CO 2 recovery (90%). In other words, for the same number of Sobol samples, a reduction in the size of the sampled input space would be needed to increase the frequency of feasible designs. In contrast to the purity/recovery optimisation problem, every multi-start point for each epsilon-constrained sub-problem converges to the same solution. The added purity and recovery constraints restrict the feasible region for this optimisation which likely reduces the 29 Figure 8: Pareto front for the minimisation of energy consumption and maximisation of productivity with 95% purity and 90% recovery constraints comparing Sobol sampling, the NSGA-II algorithm and the IPOPT algorithm which uses gradients from the differentiable model. Scenarios with three decision variables. possibility of converging to multiple optima. The gradient-based algorithm is also used to evaluate single-objective optimisation problems for maximising the productivity (indicated by the red cross) and for minimising the energy consumption (indicated by the purple cross) and to explore the extreme ends of the Pareto front. We note that neither the genetic algor-tihm, nor the Sobol sampling points reached the point with the lowest energy consumption, highlighting the value of the single-objective gradient-based optimisation to capture the ex-tremes of the Pareto curve. The convergence of the multi-start to identical points in the gradient-based optimisation and the strong agreement with the NSGA-II optimiser provide confidence that the identified Pareto front closely represents the true optimal trade-off for this three-variable problem. 30 Figure 9: Pareto front for the minimisation of energy consumption and maximisation of productivity with 95% purity and 90% recovery constraints comparing Sobol sampling, the NSGA-II algorithm and the IPOPT algorithm which uses gradients from the differentiable model. Scenarios with six decision variables. 
+
+Six decision variables 
+
+We explore in this section the full design problem to include all six decision variables in Table 3. Figure 9 shows the Pareto fronts obtained with the same three methods as in the previous section. For this higher-dimensional problem, the gradient-based optimisation produces a Pareto front that is significantly improved over the one produced by the genetic algorithm. Notably, the latter also shows a shorter Pareto curve and doesn’t extend into the region of low and high productivity bounded by the solution of the two single-objective optimisation problems. Again - and not surprisingly - both the gradient-based algorithm and the genetic algorithm outperform Sobol sampling. The widening of the gap between these methods relative to the case with three decision 31 variables illustrates the curse of dimensionality in this optimisation problem. The design space grows exponentially with the number of decision variables. Both the sampling- and population-based methods must explore this space with finite number of evaluations. With 4096 Sobol samples in a six-dimensional space, the coverage is sparse and is equivalent to approximately four levels per variable if the sampling were uniform (4 6 = 4096). The gradient-based approach is less affected by this scaling as the gradient information avail-able to the optimiser grows linearly with the number of decision variables, which provides directional information that guides the search. A further distinction between the three meth-ods is in the termination criterion. The gradient-based optimisation provides a first-order optimality guarantee at convergence, terminating when the gradients of the objective and constraints satisfy the necessary conditions for a local optimum. The genetic algorithm and Sobol sampling, by contrast, are typically run with a predefined computational budget and offer no such guarantee. The limitation of the gradient-based approach is the potential for convergence to local optima, which can be mitigated through a multi-start strategy, though global optimality cannot be guaranteed. To further compare the solutions obtained with the gradient-based optimisation and the genetic algorithm, Figure 10 shows the values of the decision variables (normalised to their bounds) of the optimal designs as a function of the productivity (i.e. moving along the Pareto front). The solid lines refer to the solution of each epsilon-constrained sub-problem and the translucent crosses represent results from all 10 multi-start solutions for each sub-problem. The results from the NSGA-II algorithm are shown by the scattered translucent circles. Overall, there is general agreement between the trends outlined by the two optimisation algorithms. The shift of the results obtained with the genetic algorithm and their limited coverage of productivity values reflect the deficiencies observed in Figure 9 when this algorithm is compared to the solution obtained by gradient-based optimisation. As discussed above, these differences reflect the lower precision of the population-based search within its computational budget. 32 Figure 10: Decision variables of the optimal designs obtained by gradient-based optimisation (solids lines) and by the NSGA-II algorithm (symbols), i.e. the Pareto curves in Figure 9. The decision variables are normalised to their bounds and are plotted as a function of the productivity obtained for those points. The results from the multi-start for the gradient-based optimisation provide further in-sight into the optimisation landscape. For the majority of the Pareto front, all 10 starts converge to the same solution in both the objective and decision variables space. At the low energy and low productivity end of the Pareto front, the optimisation landscape is very flat, as can be seen from the large range of productivities that yield a very similar energy con-sumption in Figure 9. In this region, both the high pressure and the intermediate pressure converge to the same points. These variables contribute significantly to the energy consump-tion. The adsorption time and the feed velocity, however, freely trade off against each other, 33 as their product determines the total feed volume per adsorption step. This observation sug-gests that the contribution of the pressure drop to the overall energy consumption is smaller than the optimality tolerance, and the optimiser does not resolve a unique combination of feed velocity and adsorption time. At the high productivity end of the Pareto front, local op-tima emerge. At the third highest productivity point on the front (14.6 tonne CO 2 m−3 day −1), 7 of the 10 starts converge to the best solution, while 3 converge to a local optimum that differs by only 0.2 kWh/tonne in energy consumption. Yet, these solution differ significantly in their decision variables, suggesting that there are different arcs of optimal solutions within this region of the Pareto front. At the maximum productivity extreme, 2 of the 10 starts find a local optimum that is dominated by the other 8 solutions. In both scenarios where local optima are found, the impact on the objective function is small. 
+
+# Discussion 
+
+The direct determination method requires significantly fewer iterations to attain CSS than successive substitution. However, each iteration of the direct determination method incurs additional computation for the evaluation of the cycle Jacobian ( ∂xk/∂ x0 
+
+> k
+
+in Equation 4), such that a comparison of the total computational time is necessary. Furthermore, a compar-ison is made to the successive substitution method for a near-identical model implemented in MATLAB, which represents the standard practice for this model formulation. The two implementations differ in the solution method: the JAX formulation uses automatic differen-tiation for the Jacobian evaluation of the ODE right-hand side function within the implicit solver, rather than numerical approximation in the MATLAB version, and benefits from just-in-time compilation. As shown in Figure 11 for 4096 Sobol sampled designs, the direct determination method in JAX requires an average wall-clock time of 4.54 seconds to reach CSS, compared to 14.78 seconds for successive substitution in JAX and approximately 20 times longer for the MATLAB implementation with successive substitution. These times 34 do not include the compilation time for the JAX implementation, which is 26 seconds for the direct determination method. This is a one-time cost, as once compiled, all subsequent designs are evaluated without recompilation. 
+
+Figure 11: Violin plots of the computational time required to reach CSS for the direct deter-mination and successive substitution methods in JAX as well as the successive substitution method in MATLAB across 4096 Sobol sampled designs. The white box illustrates the quar-tiles of the distribution and the whiskers correspond to 1.5 times the interquartile range. The mean of the distribution is indicated by the diamond symbol. The gradient-based optimisation method outperforms both Sobol sampling and the NSGA-II algorithm in attaining the Pareto front for the multi-objective optimisation problems stud-ied. Table 6 compares the number of model evaluations and the total computational time for each method applied to the productivity/energy usage design problem shown in Figures 8 and 9. Again, we also compare in Table 6 solutions obtained using the differentiable model in JAX and the conventional model in MATLAB. The solution method in terms of the finite volume scheme, the ODE solver and the optimisation structure is the same for the model in JAX and the model in MATLAB, with the former providing computation of gradients to improve the computational speed and the Pareto front obtained. We acknowledge that the 35 direct comparison of the computational time remain difficult as the methods differ both in their structure and in the quality of the solution. Yet, these values provide useful context for the practitioner. The Sobol sampling method evaluates 4096 points to attain both the maximal purity and recovery front and the productivity/energy Pareto front, unlike a tar-geted optimisation problem. The GA, with a population size of 72 and with 70 generations, evaluates the model 5040 times for a single optimisation problem. In the gradient-based optimisation, the problem is broken into single-objective sub-problems as well as having a multi-start to evaluate the non-convexity of the problem, such that the comparison is not like for like. For the purity/recovery optimisation problem, a total of 130 sub-problems are completed to obtain the pareto front with the multistart strategy. Each individual sub problem requires an average of 18 model evaluations and 188 s of wall-clock time to complete. The statistics for the productivity/energy consumption optimisation problems for both the three variable optimisation and the six variable optimisation are given in Table 6. For these problems, a total of 120 sub-problems are completed. An average of 13 model evaluations and a wall-clock time of 47 seconds are required to solve each sub-problem in the three dimensional optimisation, and 23 evaluations and 80 seconds for each sub-problem in the six variable optimisation. A multi-start strategy is not deemed essential for the productivity/energy consumption optimisation problem as the nonconvexity of the design space does not affect the obtained Pareto, thus it is not included in the statistics in Table 6. The statistics therefore just include 12 sub-problems for evaluating the Pareto front. As such, the gradient-based optimisation with the differentiable framework yields a speed-up of over 2 orders of magnitude compared to the state-of-the-art representative approach. We note that parallelism offers a direct route to reducing the computational time of adsorption process optimisation, as many of the computational workflows discussed involve independent model evaluations that can be distributed across multiple processors. The extent to which each method benefits from parallelisation, however, differs. Sobol sampling is trivially parallel, as all 4096 designs are independent and can be evaluated simultaneously 36 Table 6: The performance of the differentiable model in JAX is evaluated across different optimisation methods and against the conventional benchmark model. 
+
+Differentiable Model (JAX) Conventional Model (MATLAB) IPOPT IPOPT NSGA-II Sobol NSGA-II (3 var.) (6 var.) Sampling Model evaluations a 167 315 5,040 4,096 5,040 
+
+Wall-clock time 9.5 min 16 min 7.9 hr 5.2 hr 129 hr 
+
+Speedup ×486 ×16 ×1 
+
+> aIPOPT evaluation counts are for 12 Pareto front points without multistart
+
+given sufficient computational resources. The NSGA-II genetic algorithm is parallel within each generation, where the population of candidate designs can be evaluated concurrently, though synchronisation is required between generations. Each individual optimisation run for the gradient-based optimisation is inherently sequential, however the parallelism potential comes with the potential to run each sub-problem in the multi-objective optimisation in parallel. Similarly, if a multi-start strategy is desired, these can be run in parallel. 
+
+# Conclusion 
+
+The design of cyclic adsorption processes presents a significant computational challenge. The requirement to simulate from startup to cyclic steady state for every candidate design, combined with the use of derivative-free optimisation, results in design campaigns requir-ing hundreds to thousands of CPU hours. This burden limits the ability to systematically explore the expanding design space of new adsorbent materials, cycle configurations, and operating conditions. In this work, we have demonstrated that differentiable programming addresses this challenge by transforming the entire process model into an end-to-end dif-ferentiable computational workflow, while retaining the same physical model and numerical discretisation used throughout the adsorption literature. A four-step pressure vacuum swing adsorption process for post-combustion carbon capture was implemented in JAX, with au-37 tomatic differentiation providing exact gradients throughout the model without the manual derivation of sensitivity equations. The framework delivers acceleration at three levels of the design workflow. At the level of the ODE solution, just-in-time compilation and automatic differentiation of the implicit solver reduce the simulation time to cyclic steady state from 91 seconds of wall-clock time in MATLAB to 15 seconds in JAX for the successive substitution method. At the level of cyclic steady state convergence, the differentiation of a single process cycle provides the Jacobian required for a Newton-based direct determination method. This exploits the near-quadratic convergence of the Newton iteration, which requires an average of 5.1 iterations to reach cyclic steady state compared to 112 for successive substitution, further reducing the simulation time to 4.5 seconds — a reduction of approximately 20-fold relative to the conventional MATLAB implementation. At the level of the optimisation, the availability of exact gradients of the key performance indicators with respect to the design variables enables the use of the IPOPT algorithm for multi-objective optimisation via the epsilon-constraint method. For the six-variable problem maximising productivity and minimising energy consumption subject to purity and recovery constraints, the gradient-based approach obtains the Pareto front in approximately 16 minutes — over two orders of magnitude faster than the conventional genetic algorithm approach. The resulting front is also of superior quality, capturing the extremes of the trade-off curve that the genetic algorithm does not reach. The central advantage of the approach lies in its generality. Because automatic differ-entiation operates throughout the computational workflow irrespective of the specific model formulation, exact gradients are made available wherever they are useful, without the manual derivation of sensitivity equations that has historically limited the adoption of gradient-based methods in the adsorption community. The framework is therefore readily applicable to al-ternative adsorbents, cycle configurations, and column designs. Future work will extend the approach to more complex multi-column cycles, integrate the differentiable model with GPU-38 accelerated solvers for the massively parallel evaluation of designs, and exploit the available gradients for uncertainty quantification and adsorbent screening. More broadly, this work il-lustrates how differentiable programming can shift cyclic process design from slow black-box simulation with derivative-free optimisation towards efficient, gradient-enhanced modelling and optimisation, with relevance to the wider class of periodic processes encountered in chemical engineering. 39 Acknowledgements 
+
+A.G. gratefully acknowledges funding from the EPSRC DTP scholarship granted to the Department of Chemical Engineering at Imperial College London and by the Bansal Bursary. The authors also thank Ben Moseley and Ashwin Kumar Rajagopalan, along with members of their respective research groups, for valuable discussions. 
+
+# References 
+
+(1) Raganati, F.; Miccio, F.; Ammendola, P. Adsorption of Carbon Dioxide for Post-combustion Capture: A Review. Energy & Fuels 2021 , 35 , 12845–12868. (2) Pini, R.; Petit, C.; Danaci, D.; Haghpanah, R.; Luberti, M.; Ribeiro, A. M.; Sub-raveti, S. G.; Ward, A. CO2 capture by adsorption: Research progress and technology demonstration. International Journal of Greenhouse Gas Control 2026 , 153 , 104652. (3) Ward, A.; Pini, R. Integrated uncertainty quantification and sensitivity analysis of single-component dynamic column breakthrough experiments. Adsorption 2022 , 28 ,161–183. (4) Krishnamurthy, S.; Rao, V. R.; Guntuka, S.; Sharratt, P.; Haghpanah, R.; Rajen-dran, A.; Amanullah, M.; Karimi, I. A.; Farooq, S. CO2 capture from dry flue gas by vacuum swing adsorption: A pilot plant study. AIChE Journal 2014 , 60 , 1830–1842, eprint: https://aiche.onlinelibrary.wiley.com/doi/pdf/10.1002/aic.14435. (5) Todd, R. S.; He, J.; Webley, P. A.; Beh, C.; Wilson, S.; Lloyd, M. A. Fast Finite-Volume Method for PSA/VSA Cycle SimulationExperimental Validation. Industrial & Engineering Chemistry Research 2001 , 40 , 3217–3224. (6) Rajagopalan, A. K.; Avila, A. M.; Rajendran, A. Do adsorbent screening metrics predict 40 process performance? A process optimisation based study for post-combustion capture of CO2. International Journal of Greenhouse Gas Control 2016 , 46 , 76–85. (7) Khurana, M.; Farooq, S. Integrated adsorbent-process optimization for carbon capture and concentration using vacuum swing adsorption cycles. AIChE Journal 2017 , 63 ,2987–2995, eprint: https://aiche.onlinelibrary.wiley.com/doi/pdf/10.1002/aic.15602. (8) Ward, A.; Pini, R. Efficient Bayesian Optimization of Industrial-Scale Pressure-Vacuum Swing Adsorption Processes for CO2 Capture. Industrial & Engineering Chemistry Research 2022 , 61 , 13650–13668. (9) Haghpanah, R.; Majumder, A.; Nilam, R.; Rajendran, A.; Farooq, S.; Karimi, I. A.; Amanullah, M. Multiobjective Optimization of a Four-Step Adsorption Process for Postcombustion CO2 Capture Via Finite Volume Simulation. Industrial & Engineering Chemistry Research 2013 , 52 , 4249–4265. (10) Mahajan, S.; Lahtinen, M. Recent progress in metal-organic frameworks (MOFs) for CO2 capture at different pressures. Journal of Environmental Chemical Engineering 
+
+2022 , 10 , 108930. (11) Ward, A.; Pini, R. Design and Performance Evaluation of Multisorbent Vacuum-Swing Adsorption Processes for Postcombustion Carbon Capture. Industrial & Engineering Chemistry Research 2024 , 63 , 13787–13800. (12) Antunes Morgado, N.; Mazzotti, M. 3D modeling of isothermal adsorption in structured contactors. Computers & Chemical Engineering 2026 , 205 , 109404. (13) Pai, K. N.; Haghpanah, R.; Edsall, W. Superstructure Model for the Simultaneous Design and Optimization of a Pressure Vacuum Swing Adsorption Process Cycle. In-dustrial & Engineering Chemistry Research 2025 , 64 , 627–638. 41 (14) Peh, S. B.; Farooq, S.; Zhao, D. A metal-organic framework (MOF)-based temperature swing adsorption cycle for postcombustion CO2 capture from wet flue gas. Chemical Engineering Science 2022 , 250 , 117399. (15) Wilkins, N. S.; McKinnon, D. M.; Baliga, C.; Nguyen, T. T. T.; Moroy, B.; Xu, I.; Lin, X.; Tulpar, O.; Wheeler, N.; Tran, V.; Moghaddam, A. L.; Cronin, D.; Rezaei, S.; Liu, A. Pilot-Scale Demonstration of a Laminate-Based CALF-20 Rapid Cycle Pressure-Vacuum Swing Adsorption Process for Carbon Capture. 2025; https://chemrxiv. org/engage/chemrxiv/article-details/6912315ea10c9f5ca19991ac .(16) Subraveti, S. G.; Li, Z.; Prasad, V.; Rajendran, A. Machine Learning-Based Multiobjec-tive Optimization of Pressure Swing Adsorption. Industrial & Engineering Chemistry Research 2019 , 58 , 20412–20422. (17) Pai, K. N.; Prasad, V.; Rajendran, A. Experimentally validated machine learning frame-works for accelerated prediction of cyclic steady state and optimization of pressure swing adsorption processes. Separation and Purification Technology 2020 , 241 , 116651. (18) Alsubeihi, M.; Jessop, A.; Moseley, B.; Fonte, C. P.; Rajagopalan, A. K. Modern, Efficient, and Differentiable Transport Equation Models Using JAX: Applications to Population Balance Equations. Industrial & Engineering Chemistry Research 2025 , 64 ,4541–4553. (19) Bezgin, D. A.; Buhendwa, A. B.; Adams, N. A. JAX-Fluids: A fully-differentiable high-order computational fluid dynamics solver for compressible two-phase flows. Computer Physics Communications 2023 , 282 , 108527. (20) Lee, I.; Buse, S.; Winfree, E. Differentiable Programming of Indexed Chemical Reac-tion Networks and Reaction-Diffusion Systems. LIPIcs, Volume 347, DNA 31 2025 ,
+
+347 , 4:1–4:23, Artwork Size: 23 pages, 4252393 bytes ISBN: 9783959773997 Medium: application/pdf. 42 (21) Schoenholz, S. S.; Cubuk, E. D. JAX, M.D. A framework for differentiable physics*. 
+
+Journal of Statistical Mechanics: Theory and Experiment 2021 , 2021 , 124016. (22) LeVeque, R. J. Finite Volume Methods for Hyperbolic Problems ; Cambridge University Press, 2002; Google-Books-ID: QazcnD7GUoUC. (23) Croft, D. T.; LeVan, M. Periodic states of adsorption cycles—I. Direct determination and stability. Chemical Engineering Science 1994 , 49 , 1821–1829. (24) Deb, K.; Agrawal, S.; Pratap, A.; Meyarivan, T. A Fast Elitist Non-dominated Sort-ing Genetic Algorithm for Multi-objective Optimization: NSGA-II. Parallel Problem Solving from Nature PPSN VI. Berlin, Heidelberg, 2000; pp 849–858. (25) Pai, K. N.; Prasad, V.; Rajendran, A. Generalized, Adsorbent-Agnostic, Artificial Neu-ral Network Framework for Rapid Simulation, Optimization, and Adsorbent Screen-ing of Adsorption Processes. Industrial & Engineering Chemistry Research 2020 , 59 ,16730–16740. (26) Beck, J. H. Efficient Targeted Optimisation for the Design of Pressure Swing Adsorption Systems for CO2 Capture in Power Plants. 2014 ,(27) Liao, Y.; Wright, A.; Li, J. Simulation and optimisation of vacuum (pressure) swing adsorption with simultaneous consideration of real vacuum pump data and bed fluidi-sation. Separation and Purification Technology 2025 , 358 , 130354. (28) Hao, Z.; Caspari, A.; Schweidtmann, A. M.; Vaupel, Y.; Lapkin, A. A.; Mhamdi, A. Efficient hybrid multiobjective optimization of pressure swing adsorption. Chemical Engineering Journal 2021 , 423 , 130248. (29) Khurana, M.; Farooq, S. Adsorbent Screening for Postcombustion CO 2 Capture: AMethod Relating Equilibrium Isotherm Characteristics to an Optimum Vacuum Swing 43 Adsorption Process Performance. Industrial & Engineering Chemistry Research 2016 ,
+
+55 , 2447–2460. (30) Subramanian Balashankar, V.; Rajagopalan, A. K.; De Pauw, R.; Avila, A. M.; Ra-jendran, A. Analysis of a Batch Adsorber Analogue for Rapid Screening of Adsorbents for Postcombustion CO 2 Capture. Industrial & Engineering Chemistry Research 2019 ,
+
+58 , 3314–3328. (31) Chatziasteriou, C. C.; Georgiadis, M. C.; Kikkinides, E. S. Surrogate modeling and optimization of Pressure/Vacuum Swing Adsorption (P/VSA) processes for carbon capture from post-combustion CO2 point sources. Chemical Engineering Research and Design 2025 , 213 , 286–295. (32) Ding, Y.; LeVan, M. D. Periodic states of adsorption cycles III. Convergence accelera-tion for direct determination. Chemical Engineering Science 2001 , 56 , 5217–5230. (33) Ko, D.; Siriwardane, R.; Biegler, L. T. Optimization of a Pressure-Swing Adsorption Process Using Zeolite 13X for CO2 Sequestration. Industrial & Engineering Chemistry Research 2003 , 42 , 339–348. (34) Jiang, L.; Biegler, L. T.; Fox, V. G. Simulation and optimization of pressure-swing adsorption systems for air separation. AIChE Journal 2003 , 49 , 1140–1157, eprint: https://onlinelibrary.wiley.com/doi/pdf/10.1002/aic.690490508. (35) Subraveti, S. G.; Karimi, K.; Gazzani, M.; Anantharaman, R. A Study on Accelerated Convergence of Cyclic Steady State in Adsorption Process Simulations. Breckenridge, Colorado, USA, 2024; pp 215–221. (36) Subraveti, S. G.; Karimi, K.; Gazzani, M. Vector Acceleration Methods for Faster Convergence of Cyclic Steady State in Adsorption Process Simulations. Industrial & Engineering Chemistry Research 2026 , acs.iecr.6c00407. 44 (37) Nilchan, S.; Pantelides, C. On the Optimisation of Periodic Adsorption Processes. Ad-sorption 1998 , 4, 113–147. (38) Tsay, C.; Pattison, R. C.; Baldea, M. A pseudo-transient optimization framework for periodic processes: Pressure swing adsorption and simulated moving bed chromatography. AIChE Journal 2018 , 64 , 2982–2996, eprint: https://aiche.onlinelibrary.wiley.com/doi/pdf/10.1002/aic.15987. (39) Cruz, P.; Magalh˜ aes, F. D.; Mendes, A. On the optimization of cyclic ad-sorption separation processes. AIChE Journal 2005 , 51 , 1377–1395, eprint: https://onlinelibrary.wiley.com/doi/pdf/10.1002/aic.10400. (40) Latifi, M. A.; Salhi, D.; Tondeur, D. Optimisation-based simulation of a pressure swing adsorption process. Adsorption 2008 , 14 , 567–573. (41) Ternet, D. J.; Biegler, L. T. Recent improvements to a multiplier-free reduced Hes-sian successive quadratic programming algorithm. Computers & Chemical Engineering 
+
+1998 , 22 , 963–978. (42) Biegler, L. T.; Jiang, L.; Fox, V. G. Recent Advances in Simulation and Optimal Design of Pressure Swing Adsorption Systems. Separation & Purification Reviews 2005 , 33 ,1–39, eprint: https://doi.org/10.1081/SPM-120039562. (43) Agarwal, A.; Biegler, L. T.; Zitney, S. E. Superstructure-Based Optimal Synthesis of Pressure Swing Adsorption Cycles for Precombustion CO 2 Capture. Industrial & Engineering Chemistry Research 2010 , 49 , 5066–5079. (44) Dowling, A. W.; Vetukuri, S. R. R.; Biegler, L. T. Large-scale optimization strategies for pressure swing adsorption cycle synthesis. AIChE Journal 2012 , 58 , 3777–3791, eprint: https://aiche.onlinelibrary.wiley.com/doi/pdf/10.1002/aic.13928. 45 (45) Khajuria, H.; Pistikopoulos, E. N. Optimization and Control of Pressure Swing Ad-sorption Processes Under Uncertainty. AIChE Journal 2013 , 59 , 120–131, eprint: https://aiche.onlinelibrary.wiley.com/doi/pdf/10.1002/aic.13783. (46) Kawajiri, Y.; Biegler, L. T. Optimization strategies for simulated moving bed and PowerFeed processes. AIChE Journal 2006 , 52 , 1343–1350, eprint: https://aiche.onlinelibrary.wiley.com/doi/pdf/10.1002/aic.10736. (47) Vetukuri, S. R. R.; Biegler, L. T.; Walther, A. An Inexact Trust-Region Algorithm for the Optimization of Periodic Adsorption Processes. Industrial & Engineering Chemistry Research 2010 , 49 , 12004–12013. (48) Sapienza, F.; Bolibar, J.; Sch¨ afer, F.; Groenke, B.; Pal, A.; Boussange, V.; Heim-bach, P.; Hooker, G.; P´ erez, F.; Persson, P.-O.; Rackauckas, C. Differentiable Program-ming for Differential Equations: A Review. 2024; http://arxiv.org/abs/2406.09699 ,arXiv:2406.09699 [math]. (49) Shampine, L. F.; Reichelt, M. W. The MATLAB ODE Suite. SIAM Journal on Scien-tific Computing 1997 , 18 , 1–22. (50) gdsfactory/klujax. 2026; https://github.com/gdsfactory/klujax , original-date: 2021-06-01T19:26:37Z. (51) Marcinek, A.; Guderian, J.; Bathen, D. Performance determination of high-purity N2-PSA-plants. Adsorption 2020 , 26 , 1215–1226. (52) Douglas LeVan, M.; Croft, D. T. Determination of periodic states of pressure swing adsorption cycles. Gas Separation & Purification 1995 , 9, 13–16. (53) Wilkins, N. S.; Rajendran, A. Measurement of competitive CO2 and N2 adsorption on Zeolite 13X for post-combustion CO2 capture. Adsorption 2019 , 25 , 115–133. 46 (54) Ruthven, D. M. Principles of Adsorption and Adsorption Processes ; John Wiley & Sons, 1984; Google-Books-ID: u7wq21njR3UC. (55) Sircar, S. Estimation of isosteric heats of adsorption of single gas and multicomponent gas mixtures. Industrial & Engineering Chemistry Research 1992 , 31 , 1813–1819. (56) Miettinen, K. In Nonlinear Multiobjective Optimization ; Hillier, F. S., Ed.; International Series in Operations Research & Management Science; Springer US: Boston, MA, 1998; Vol. 12. (57) W¨ achter, A.; Biegler, L. T. On the implementation of an interior-point filter line-search algorithm for large-scale nonlinear programming. Mathematical Programming 2006 ,
+
+106 , 25–57. (58) Croft, D. T.; LeVan, M. Periodic states of adsorption cycles—II. Solution spaces and multiplicity. Chemical Engineering Science 1994 , 49 , 1831–1841. (59) Sachio, S.; Ward, A.; Pini, R.; Papathanasiou, M. M. Operability-economics trade-offs in adsorption-based CO2 capture processes. Communications Engineering 2024 ,
+
+3, 1–10. 47
