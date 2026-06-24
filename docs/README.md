@@ -6,71 +6,70 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-06-23
-- 运行时间：2026-06-23 21:02:47 UTC
+- 最新运行日期：2026-06-24
+- 运行时间：2026-06-24 21:42:03 UTC
 - 运行状态：成功
-- 本次总论文数：17
+- 本次总论文数：16
 - 精读区：6
-- 速读区：11
+- 速读区：10
 
 ### 今日简报（AI）
-今日共17篇论文，精读6篇，重点关注化学语言模型与模型深度对齐的新发现。最值得看的是精读满分论文《What Does a Chemical Language Model Know About Molecules?》揭示模型分子理解机制，以及9分论文《Deeper is Not Always Better》提出缓解对齐税的自信层解码方法。建议优先阅读这两篇精读论文，获取前沿模型设计与评估的实用结论。
-- 详情：[/202606/23/README](/202606/23/README)
+今日精选16篇论文，聚焦化学与AI交叉领域。  
+最值得关注的是化学工厂脱碳与可再生能源系统的去中心化运营，以及化学语言模型对分子知识的深度解析。  
+建议优先精读这两篇9分论文，快速把握化学工业和AI在分子理解上的前沿趋势。
+- 详情：[/202606/24/README](/202606/24/README)
 
 ### 精读区论文标签
-1. [What Does a Chemical Language Model Know About Molecules?](/202606/23/2606.23443v1-what-does-a-chemical-language-model-know-about-molecules)  
-   标签：评分：10.0/10、query:chemical-llm
-   evidence：化学语言模型的分子理解机制分析
-2. [Deeper is Not Always Better: Mitigating the Alignment Tax via Confident Layer Decoding](/202606/23/2606.21906v1-deeper-is-not-always-better-mitigating-the-alignment-tax-via-confident-layer-decoding)  
+1. [Decentralized Operations of Decarbonized Chemical Plants with Renewable-driven Transmission Systems](/202606/24/2606.22973v1-decentralized-operations-of-decarbonized-chemical-plants-with-renewable-driven-transmission-systems)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：大语言模型解码策略论文
-3. [BCL: Bayesian In-Context Learning Framework for Information Extraction](/202606/23/2606.18620v1-bcl-bayesian-in-context-learning-framework-for-information-extraction)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：贝叶斯上下文学习用于信息提取，属于数据挖掘任务
-4. [A Unified Generative Framework for Scalable Chemical Reaction Network Exploration](/202606/23/2606.21002v1-a-unified-generative-framework-for-scalable-chemical-reaction-network-exploration)  
+   evidence：化工过程优化
+2. [What Does a Chemical Language Model Know About Molecules?](/202606/24/2606.23443v1-what-does-a-chemical-language-model-know-about-molecules)  
+   标签：评分：9.0/10、query:chemical-llm
+   evidence：研究化学语言模型中的分子表示，直接与大语言模型相关
+3. [Synergizing Physically Constrained MCMC and Chemical-Informed Gaussian Processes for Reaction Network Discovery](/202606/24/2606.23757v1-synergizing-physically-constrained-mcmc-and-chemical-informed-gaussian-processes-for-reaction-network-discovery)  
+   标签：评分：9.0/10、query:chemical-llm
+   evidence：使用物理约束MCMC和高斯过程进行化学工程反应网络发现
+4. [Breaking Bottlenecks in Solid Electrolyte Discovery with Large Artificial Intelligence Models](/202606/24/2606.24480v1-breaking-bottlenecks-in-solid-electrolyte-discovery-with-large-artificial-intelligence-models)  
+   标签：评分：9.0/10、query:chemical-llm
+   evidence：利用大语言模型进行化学工程
+5. [DecoSearch: Complexity-Aware Routing and Plan-Level Repair for Text-to-SQL](/202606/24/2606.17821v1-decosearch-complexity-aware-routing-and-plan-level-repair-for-text-to-sql)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：生成式人工智能用于化学反应网络探索
-5. [Atomistic Language Models Understand and Generate Materials](/202606/23/2606.21395v1-atomistic-language-models-understand-and-generate-materials)  
+   evidence：用于文本到SQL查询分解与修复的大型语言模型
+6. [GRIMIP: A General Framework for Instance-Specific Configuration of MIP Solvers Using LLMs](/202606/24/2606.23299v1-grimip-a-general-framework-for-instance-specific-configuration-of-mip-solvers-using-llms)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：将大语言模型与原子编码器集成用于材料生成
-6. [INCARBench: A Benchmark for Scientific Configuration in VASP INCAR by Large Language Models](/202606/23/2606.23571v1-incarbench-a-benchmark-for-scientific-configuration-in-vasp-incar-by-large-language-models)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：大语言模型在化学VASP配置上的基准测试
+   evidence：大语言模型框架用于配置混合整数规划求解器，可应用于化学工程过程优化
 
 ### 速读区论文标签
-1. [Accelerating Simulation and Optimisation of Cyclic Adsorption Processes with Differentiable Programming](/202606/23/2606.21523v1-accelerating-simulation-and-optimisation-of-cyclic-adsorption-processes-with-differentiable-programming)  
+1. [INCARBench: A Benchmark for Scientific Configuration in VASP INCAR by Large Language Models](/202606/24/2606.23571v1-incarbench-a-benchmark-for-scientific-configuration-in-vasp-incar-by-large-language-models)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：可微分编程加速循环吸附过程优化
-2. [Embedding Linear Equality Constraints in Probabilistic Neural Networks for Dynamic Modelling](/202606/23/2606.21728v1-embedding-linear-equality-constraints-in-probabilistic-neural-networks-for-dynamic-modelling)  
+   evidence：用于评估大语言模型科学配置能力的基准，直接与大语言模型相关
+2. [INCARBench: A Benchmark for Scientific Configuration in VASP INCAR by Large Language Models](/202606/24/2606.23571v2-incarbench-a-benchmark-for-scientific-configuration-in-vasp-incar-by-large-language-models)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：带约束的概率神经网络用于化工过程建模
-3. [False Summit and Silent Drift: A Failure Taxonomy and Efficiency Analysis of LLM-Assisted Multiphysics Simulation in an Open-Source Framework](/202606/23/2606.21841v1-false-summit-and-silent-drift-a-failure-taxonomy-and-efficiency-analysis-of-llm-assisted-multiphysics-simulation-in-an-open-source-framework)  
+   evidence：用于评估大语言模型科学配置能力的基准，直接与大语言模型相关
+3. [AutoSpec: Safety Rule Evolution for LLM Agents via Inductive Logic Programming](/202606/24/2606.24245v1-autospec-safety-rule-evolution-for-llm-agents-via-inductive-logic-programming)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：LLM辅助化学工程多物理仿真（LPCVD）
-4. [ARIA: A Causal-Aware Framework for Rescuing LLM Reasoning in Trustworthy Materials Discovery](/202606/23/2606.22375v1-aria-a-causal-aware-framework-for-rescuing-llm-reasoning-in-trustworthy-materials-discovery)  
+   evidence：大语言模型
+4. [Scaling Laws for Task-Specific LLM Distillation](/202606/24/2606.24747v1-scaling-laws-for-task-specific-llm-distillation)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：大语言模型结合因果感知实现可信材料发现
-5. [Empowering Polymeric Materials Discovery by Artificial Intelligence](/202606/23/2606.20753v1-empowering-polymeric-materials-discovery-by-artificial-intelligence)  
+   evidence：大语言模型
+5. [MMGNN: Multi-level, multi-color graph neural networks for molecular property prediction](/202606/24/2606.20906v1-mmgnn-multi-level-multi-color-graph-neural-networks-for-molecular-property-prediction)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：人工智能用于高分子材料发现
-6. [Integrating Large Language Model Agents with Digital Twins for Industrial Autonomous Systems](/202606/23/2606.20761v1-integrating-large-language-model-agents-with-digital-twins-for-industrial-autonomous-systems)  
+   evidence：化学工程中的人工智能
+6. [Sub-Billion, Super-Frontier: Small Language Models Rival Zero-Shot Frontier LLMs on General and Literary Relation Extraction](/202606/24/2606.22606v1-sub-billion-super-frontier-small-language-models-rival-zero-shot-frontier-llms-on-general-and-literary-relation-extraction)  
+   标签：评分：7.0/10、query:llm-dm
+   evidence：基于大语言模型的关系抽取用于文本挖掘
+7. [Reaction-Network-Level Discovery of Ammonia Synthesis Catalysts via Ten-Million-Scale Generative Exploration](/202606/24/2606.22926v1-reaction-network-level-discovery-of-ammonia-synthesis-catalysts-via-ten-million-scale-generative-exploration)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：大语言模型代理与数字孪生集成用于工业自动化
-7. [MMGNN: Multi-level, multi-color graph neural networks for molecular property prediction](/202606/23/2606.20906v1-mmgnn-multi-level-multi-color-graph-neural-networks-for-molecular-property-prediction)  
-   标签：评分：7.0/10、query:coal-liquid
-   evidence：用于分子性质预测的图神经网络，与分子表征相关
-8. [Right Knowledge, Wrong Answer: Test-Time Steering for Temporal Fact Conflicts in Open-Weight Language Models](/202606/23/2606.20959v1-right-knowledge-wrong-answer-test-time-steering-for-temporal-fact-conflicts-in-open-weight-language-models)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：大语言模型中时间事实冲突的测试时干预
-9. [Active learning-based Bayesian optimization in the realm of copper slag-blended cement systems](/202606/23/2606.21948v1-active-learning-based-bayesian-optimization-in-the-realm-of-copper-slag-blended-cement-systems)  
+   evidence：氨合成催化剂发现，核心化学工程问题
+8. [Machine learning metallic glass critical cooling rates through elemental and molecular simulation based featurization](/202606/24/2606.21467v1-machine-learning-metallic-glass-critical-cooling-rates-through-elemental-and-molecular-simulation-based-featurization)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：贝叶斯优化用于水泥配方设计，属于化工过程优化
-10. [Multigrid Training for Molecular Generation using Graph Neural Networks](/202606/23/2606.22377v1-multigrid-training-for-molecular-generation-using-graph-neural-networks)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：人工智能方法用于化学分子生成
-11. [Sub-Billion, Super-Frontier: Small Language Models Rival Zero-Shot Frontier LLMs on General and Literary Relation Extraction](/202606/23/2606.22606v1-sub-billion-super-frontier-small-language-models-rival-zero-shot-frontier-llms-on-general-and-literary-relation-extraction)  
+   evidence：机器学习在化学工程材料中的应用
+9. [TACO: Task-Aware Column Description Generation Using LLMs](/202606/24/2606.21685v1-taco-task-aware-column-description-generation-using-llms)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：小语言模型与LLM在关系抽取任务上的对比，属于文本挖掘
+   evidence：利用大语言模型生成列描述，辅助数据挖掘任务
+10. [Substitution-Based Analysis of Structural Novelty for Generative Models of Materials](/202606/24/2606.23166v1-substitution-based-analysis-of-structural-novelty-for-generative-models-of-materials)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：人工智能在化工材料中的应用
 
 
 <div class="dpr-home-promo-card">
