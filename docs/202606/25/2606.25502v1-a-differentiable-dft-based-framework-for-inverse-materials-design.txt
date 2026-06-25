@@ -1,0 +1,851 @@
+Title: A Differentiable DFT-Based Framework for Inverse Materials Design
+
+URL Source: https://arxiv.org/pdf/2606.25502v1
+
+Published Time: Thu, 25 Jun 2026 00:38:41 GMT
+
+Number of Pages: 24
+
+Markdown Content:
+# A Differentiable DFT-Based Framework for Inverse Materials Design 
+
+## Kohei Ishii 1* , Hisazumi Akai 1,2 , Tetsuya Fukushima 3,Hikari Shinya 3, Koji Inui 1,4* 
+
+> 1*
+
+Institute for Solid State Physics, University of Tokyo, Kashiwa, Japan. 
+
+> 2
+
+Department of Precision Engineering, Graduate School of Engineering, The University of Osaka, Suita, Japan. 
+
+> 3
+
+Materials DX Research Center, National Institute of Advanced Industrial Science and Technology, Tsukuba, Japan. 
+
+> 4
+
+Calmarion Inc., Tokyo, Japan. *Corresponding authors. E-mails: kishii@issp.u-tokyo.ac.jp; koji-inui@issp.u-tokyo.ac.jp; Contributing authors: akai@issp.u-tokyo.ac.jp; t.fukushima@aist.go.jp; hikari.shinya@aist.go.jp; 
+
+Abstract 
+
+Discovering solid-state materials with target properties remains a central chal-lenge in computational materials science. Existing approaches—high-throughput screening, surrogate optimization, and generative models—require extensive eval-uations or training data and extrapolate poorly to unseen compositions. Here we develop a first-principles inverse-design framework, integrating reverse-mode automatic differentiation (AD) into KKR-CPA—the Korringa–Kohn–Rostoker method with the coherent potential approximation—where atomic compositions are continuous variables to be optimized. Reverse-mode AD yields gradients of objective functions with respect to composition at a cost independent of the number of candidate elements, enabling gradient-based optimization to iden-tify materials from compositional spaces spanning dozens of elements. In this framework, any computable quantity can serve as the objective. We demonstrate this generality through two contrasting applications, magnetic alloys and half-metals, yielding candidates such as (Lu 0.553 Yb 0.447 )(Co 0.759 Fe 0.241 )2Fe 3 and FeZr(Sb 0.94 Te 0.06 ). Our framework offers a physically grounded route from a target property to the material that realizes it. 
+
+1
+
+> arXiv:2606.25502v1 [cond-mat.mtrl-sci] 24 Jun 2026
+
+Discovering solid-state materials with desired functional properties is a longstanding goal of materials science: ideally, one would specify a target property and obtain a material that realizes it. In practice, the space of candidate materials is enormous and cannot be exhaustively explored. A material is specified by both its crystal structure and its composition. Predicting the crystal structure is a hard problem in its own right. Here we keep the structure fixed, as researchers often do in practice, and focus on the composition, which is the main degree of freedom that tunes a material’s functional properties. Even so, the space of compositions is combinatorially vast. First-principles calculations predict the property of a given composition, but offer no direct route from a target property back to the composition that realizes it. A variety of approaches have been applied to this inverse problem, includ-ing high-throughput screening [1], surrogate-model optimization such as Bayesian optimization [2], and generative models [3]. High-throughput screening enumerates compositions and evaluates each one by direct first-principles calculation; its cost is the forward-evaluation cost times the number of candidates, and grows prohibitive once the compositional space spans many candidate elements. Surrogate-model opti-mization and generative models are data-driven [4, 5]: they rely on training data and extrapolate poorly to compositions far from the training distribution. Gradient-based inverse design [6] offers a more direct route: it follows the gradient of an objective straight toward a target, avoiding both the brute-force cost of screening and the training-data dependence of data-driven methods. These approaches, however, have typically relied on classical Hellmann–Feynman gradients, as in the recent effective-atom theory [7], and so require a simplified model and can target only a restricted set of objectives and parameters. Automatic differentiation (AD) [8, 9] overcomes these limitations: it computes exact gradients with respect to many variables for essentially any differentiable objec-tive, and now underpins gradient-based inverse design across fields, most notably nanophotonics [10]. The standard alternative, numerical differentiation by finite dif-ferences, has two limitations: its cost grows linearly with the number of parameters, and it requires a hand-chosen step size. AD removes both. In reverse mode, it com-putes the gradient of a scalar output with respect to all input parameters in a single backward pass, at a cost independent of the parameter count; this parameter-count independence is what makes gradient-based inverse design tractable even when the number of design parameters is large. AD also applies the chain rule to each ele-mentary operation of the computational graph and accumulates derivatives exactly, without any step size to tune; gradients are limited only by floating-point roundoff. Applying AD to first-principles methods could therefore enable the inverse design of materials. So far, however, gradient-based inverse design has been demonstrated mostly at the model level—for model Hamiltonians and quantum transport [11–13] and for porous materials [14]—while differentiable first-principles methods, developed for quantum chemistry [15, 16], plane-wave density functional theory (DFT) [17, 18], and molecular dynamics [19], target geometry or parameter optimization rather than composition. Inverse design of solid-state composition from first principles has thus rarely been attempted, and no demonstration has searched a space of more than a few dozen candidate elements. The obstacle is composition itself: in plane-wave DFT and 2other supercell-based methods, the element on each lattice site is a discrete choice, so composition is not a differentiable parameter. Supercell-based remedies such as special quasi-random structures [20] only access compositions at the discrete granularity of the cell, while the virtual crystal approximation [21, 22] restores continuity by replacing the candidate elements on a site with a single fictitious element, so that the individual elements lose their distinct character. A first-principles framework in which compositions are intrinsically continuous is the Korringa–Kohn–Rostoker (KKR) method [23, 24] combined with the coher-ent potential approximation (CPA) [25–27], hereafter KKR-CPA [28–30]. KKR is a Green’s-function formulation of the Kohn–Sham equations, and CPA performs the configurational average over substitutional disorder analytically: each crystallographic site is occupied by multiple elements with continuous concentrations, while the distinct scattering of each element is retained. KKR-CPA requires no supercell, and its cost is nearly independent of the number of elements mixed on each site. Historically, KKR-CPA has been the standard first-principles method for impurities, dilute alloys, and substitutionally disordered systems—regimes in which composition is genuinely contin-uous in physical reality. These continuous-composition predictions are quantitatively reliable: across disordered alloys, KKR-CPA reproduces measured electronic struc-ture [31], composition-dependent magnetic moments and Curie temperatures [32], and transport properties such as the anomalous Hall effect [33], establishing it as a practi-cal, experimentally validated method. KKR-CPA thus offers a mature first-principles platform on which composition is intrinsically continuous and differentiable. Here we integrate reverse-mode AD into KKR-CPA, yielding gradients of an objective with respect to composition directly from the first-principles calculation and enabling gradient-based optimization (Fig. 1). Fig. 1a contrasts the conventional forward problem—predicting properties O(x) from a known composition—with the inverse problem solved here: finding compositions that yield target properties. The right panel shows the conceptual KKR-CPA computational graph through which reverse-mode AD propagates gradients ∇xO from output to input at a cost indepen-dent of the number of parameters. The workflow (Fig. 1b) implements this approach as an iterative loop: KKR-CPA forward evaluation produces O(x), reverse-mode AD provides ∇xO, and the composition is updated. Iteration continues until convergence. In this framework, dozens of elements can be considered and optimized all at once, at no added computational cost. Every composition visited during the optimization is evaluated by a full first-principles calculation, and as the optimization proceeds it drives unneeded elements toward zero, selecting both the elements and their propor-tions. Any objective computable within KKR-CPA can serve as the target, so the same machinery applies to a wide range of design goals. Because the gradient cost is independent of the parameter count, the approach scales to inverse design in large compositional spaces. To demonstrate the framework’s generality, we chose two contrasting targets: the total magnetic moment, and a target based on the shape of the density of states (DOS). The first three demonstrations optimize the total magnetic moment, μtot . This is well motivated by permanent magnet alloys: their performance is sensitive to minor compositional changes across a large space of candidate elements, and historically the 3field has advanced largely by guided substitution [34, 35] from alnico and ferrite mag-nets to rare-earth intermetallics such as SmCo 5 [36] and Nd 2Fe 14 B [37, 38]. For a bcc FeCoNi ternary, the framework rediscovers the experimental Slater–Pauling peak, converging from three different starting points to Fe 0.87 Co 0.13 (μtot ≈ 2.34 μB/atom). For a single-site alloy with thirty candidate elements, it selects the same high-moment Fe–Co composition (Fe 0.86 Co 0.14 ) directly from the 30-dimensional space, without enumerating compositions. For the multi-site LnT 5 rare-earth intermetallics (Ln = lanthanide, T = transition metal), it optimizes 43 composition parameters across three sublattices simultaneously and returns a family of permanent-magnet candidates, including high-moment compositions such as PrFe 5 (∼12 μB/f.u.) and (Lu 0.553 Yb 0.447 )(Co 0.759 Fe 0.241 )2Fe 3. Note that, starting from different initial compo-sitions, the framework finds several local optima, each a promising candidate as long as it meets the target property. The fourth demonstration optimizes the DOS to realize a half-metal, in which one spin channel is metallic and the other insulating. For a half-Heusler XY Z compound we maximize a score that rewards this behaviour, and the optimization converges to FeZr(Sb 0.94 Te 0.06 ), close to the known half-metal FeZrSb. Across these demonstra-tions, we show that the same procedure works for very different targets. This proves that the framework is a general route for narrowing a vast compositional space down to materials with the desired properties. Inverse Design Simulation 
+
+Differentiable DFT Materials Properties            
+
+> NSInitial composition x
+> Compute electronic structure with KKR-CPA
+> Compute objective function O(x)
+> Compute gradient ∇xOby AD
+> Update xby gradient ∇xO
+> Is xconverged?
+> Optimized composition xopt
+> Yes
+> No
+
+Fig. 1 Gradient-based inverse materials design. a , Conceptual overview. Left: the forward problem predicts material properties O(x) from a given material composition. The inverse materi-als design reverses this mapping. Right: the Korringa–Kohn–Rostoker method combined with the coherent potential approximation (KKR-CPA) expressed as a conceptual computational graph, where composition variables x1, x 2, x 3, x 4, . . . flow forward through mathematical operations to yield O(x)representing the physical properties, and reverse-mode automatic differentiation (AD) propagates gradients ∇xO backward. b, Optimization workflow. From an initial composition x, the KKR-CPA solver (AkaiKKR) converges the electronic structure, the differentiable KKR-CPA re-implementation evaluates O(x), and reverse-mode AD obtains ∇xO at a cost independent of parameter number. The optimizer updates x and the loop repeats until convergence. The crystal structure in a was rendered with VESTA [39]. 
+
+41 Results 
+
+## 1.1 Rediscovery of the Slater–Pauling curve 
+
+To confirm that the framework works, we first maximize the total magnetic moment 
+
+μtot per atom of a ternary body-centered cubic (bcc) Fe xFe Co xCo Ni xNi alloy, a problem whose optimum is already known. Its magnetic moment takes its largest value when Co is added to Fe in the absence of Ni, known as the Slater–Pauling maximum [40, 41]. This well-characterized optimum is the target the framework should recover. First, we optimized the three composition ratios to maximize μtot , starting from the equiatomic composition xFe = xCo = xNi = 1 /3. Figure 2a,b shows that, as the iterations proceed, the composition converges to xFe ≈ 0.87, xCo ≈ 0.13, xNi < 0.003 (a), while μtot rises monotonically to ≈ 2.34 μB/atom (b). To probe robustness of this result, we repeat the optimization from three widely separated compositions: equiatomic, Co-rich, and Ni-rich. Figure 2c shows those trajectories in the ternary composition space over an independently computed KKR-CPA map of μtot . All three converge to the same optimum independent of the starting point, and this optimum almost coincides with the maximum of that map. This converged composition lies near the experimental Slater–Pauling peak: the framework rediscovers the known optimum from first principles. Note that it does not coincide exactly with the experimental peak composition; this small offset reflects the approximations of the electronic-structure method (Methods, Sec. 3.4), not a failure of the optimization. This establishes the framework’s reliability on a well-characterized landscape; the following sections apply it to higher-dimensional and multi-site design. 
+
+## 1.2 Selection from thirty candidate elements 
+
+We next apply the framework to a 30-element alloy—ten 3 d, ten 4 d, and ten sp 
+
+elements (spanning B to Te) on the same bcc lattice as the FeCoNi case. Gradient-based optimization addresses such many-element composition spaces directly, without enumerating compositions. Fig. 3a shows the composition evolution starting from an equiatomic mixture of all 30 elements. After approximately 50 iterations, only Fe (86.4%) and Co (13.6%) retain significant fractions, with the remaining 28 elements driven to negligible concentrations. The optimizer thus selects the same high-moment Fe–Co composition as in the ternary case (Sec. 1.1), from a 30-dimensional search space. Figure 3b shows μtot rising steadily from the start as the composition is refined. Near iteration 10, the curve briefly dips: at this point the local moment of Cr becomes aligned antiparallel to those of Fe and Co, so it subtracts from the total moment 
+
+μtot rather than adding to it. The optimizer recovers by suppressing Cr and resumes its climb, showing that gradient-based optimization can navigate such non-smooth features in the landscape. The per-iteration cost increased by only a factor of 3 when moving from 3 to 30 compositional parameters (30 s vs 83 s). This modest increase reflects the growth of the CPA equations, not the gradient computation, whose cost is independent of the number of parameters. The framework can thus scale to even larger compositional spaces without a proportional increase in computational effort. 5Next, we ran the optimization from 144 random starting compositions and exam-ined which optima they reached. They converged to four distinct local optima (Extended Data Table 1): the majority (58 runs) reached Fe 0.86 Co 0.14 , while 49 con-verged to Co 0.66 Mn 0.34 (μtot = 1 .94 μB/atom), a metastable bcc phase experimentally realized as epitaxial thin films [42]. The framework thus returns not just a single optimum but several distinct viable candidates. 
+
+## 1.3 Multi-site design of permanent-magnet candidates 
+
+We next apply the framework to a multi-site permanent-magnet system. The hexag-onal LnT 5 system, which includes SmCo 5 [36] and its derivatives [43–45], has three inequivalent crystallographic sites: Ln(1a), T(2c), and T(3g). Each hosts a different set of candidate elements: 15 lanthanides (La through Lu) for Ln(1a), and 14 transi-tion metals from the 3 d (Ti to Ni) and 4 d (Zr to Pd) series for each T site. In total, this gives 43 parameters. As in the other two demonstrations, the objective is the total magnetic moment, μtot . Note that the lanthanide 4 f moments are numerically deli-cate, so the optimization uses the valence moment only and adds their 4 f contribution afterward (Methods, Sec. 3.4). Starting from an equiatomic mixture of all candidate elements, the optimization converges to (Lu 0.78 Ce 0.22 )Fe 5: the Ln(1a) site is dominated by Lu and Ce, while both T(2c) and T(3g) sites converge to nearly pure Fe (Fig. 4a–c). Its total magnetic moment, μtot ≈ 9.35 μB/f.u. (formula unit; 6 atoms for LnT 5), exceeds the 6.96 μB/f.u. of SmCo 5 (Fig. 4d). To our knowledge, this composition has not been experimentally reported. Repeating the optimization from 144 random starting compositions yielded 25 distinct compositions (Table 1). The most frequently reached composition is (Lu 0.78 Ce 0.22 )Fe 5 (9.35 μB/f.u., 30 runs), and PrFe 5 reaches the highest moment (12.15 μB/f.u., 10 runs); other recurring compositions include (Lu , Yb)(Co , Fe) 2Fe 3
+
+(10.26 μB/f.u., 8 runs) and several Yb–Fe–Co variants (17 and 14 runs). The Fe-rich members belong to a class long valued for its high magnetization, and SmFe 5
+
+has already been synthesized as a metastable phase by melt spinning [46]. Such non-equilibrium routes can reach these phases even though the bulk CaCu 5-type LnFe 5
+
+structure is not thermodynamically stable, unlike LnCo 5 [47]. Finally, we show that the framework is also effective for designing dopants for an existing material. Initialized at SmCo 5 instead of a random composition, the gradient progressively drives Sm → Pr and Co → Fe substitutions (Extended Data Fig. 1a), tracing a continuous path from SmCo 5 to the metastable PrFe 5; representative com-positions along this path are listed in Extended Data Fig. 1b. We emphasize that these intermediate compositions are not merely optimization iterates, but concrete doping levels backed by first-principles calculations. This initialization is practically important: SmCo 5 is a canonical permanent-magnet compound, and experimental design often proceeds by stepwise substitution from such known materials. The frame-work thus explores substitution pathways from a known compound without exhaustive screening. As an additional test, we also ran the optimization with the 4 f open-core correction included in the objective. This changes the substitution path, with Pr and 6Nd preferred earlier, but still converges to the same PrFe 5 endpoint (Extended Data Table 2). 0 30 60 90 
+
+Iteration 
+
+10 −3 
+
+10 −2 
+
+10 −1 
+
+10 0
+
+> Concentration
+
+a
+
+> Fe
+> Co
+> Ni
+
+0.0 0.2 0.4 0.6 0.8 1.0 
+
+x
+
+0.0 
+
+0.2 
+
+0.4 
+
+0.6 
+
+0.8 
+
+1.0 
+
+> x
+
+c
+
+0.0 
+
+0.5 
+
+1.0 
+
+1.5 
+
+2.0 
+
+2.5 
+
+> μ (μ /atom)
+
+0 30 60 90 
+
+Iteration 
+
+1.6 
+
+1.8 
+
+2.0 
+
+2.2 
+
+2.4 
+
+> μ (μ /atom)
+
+b
+
+Fig. 2 Optimization of bcc FeCoNi ternary alloy. (a,b) A representative optimization starting from the equiatomic composition, showing (a) the composition and (b) the total magnetic moment 
+
+μtot (in μB/atom) as functions of the iteration. (c) The background color map shows μtot computed across the ternary composition space by direct KKR-CPA evaluation. Each curve traces the gradient-ascent trajectory of a single optimization run projected onto the xCo –xNi plane. Three starting compositions—equiatomic (blue), Co-rich (vermillion), and Ni-rich (green)—all converge to xFe ≈
+
+0.87, xCo ≈ 0.13, xNi < 0.003 (white star). The trajectory endpoints almost coincide with the map maximum. 
+
+## 1.4 Half-metal design via a density-of-states objective 
+
+This framework is not limited to scalar physical quantities; the objective can be any differentiable function derived from the DFT calculation. To demonstrate this flexibil-ity, we design a half-metal, rewarding a vanishing DOS at the Fermi level in one spin channel while the other remains metallic. The objective S to be maximized is defined as 
+
+S = min(max( ⟨n↑⟩δ , ⟨n↓⟩δ ), c ) − min( ⟨n↑⟩δ , ⟨n↓⟩δ ), (1) where ⟨nσ ⟩δ = (1 /2δ) R EF+δEF−δ nσ (E) dE is the spin-resolved DOS averaged over a rect-angular window of half-width δ centred at the Fermi level. This window averaging makes the objective robust to fine features of the DOS around EF. The constant c caps 70 25 50 75 100 
+
+Iteration 
+
+10 −6 
+
+10 −5 
+
+10 −4 
+
+10 −3 
+
+10 −2 
+
+10 −1 
+
+10 0
+
+> Concentration
+
+a
+
+> B
+> Al
+> Si
+> Sc
+> Ti
+> V
+> Cr
+> Mn
+> Fe
+> Co
+> Ni
+> Cu
+> Zn
+> Ga
+> Ge
+> As
+> Y
+> Zr
+> Nb
+> Mo
+> Tc
+> Ru
+> Rh
+> Pd
+> Ag
+> Cd
+> In
+> Sn
+> Sb
+> Te
+
+0 25 50 75 100 
+
+Iteration 
+
+0.0 
+
+0.5 
+
+1.0 
+
+1.5 
+
+2.0 
+
+2.5 
+
+> μ (μ /atom)
+
+bFig. 3 Optimization of 30-element bcc alloy. a , Composition evolution during magnetic-moment optimization from an equiatomic initial composition. Only Fe and Co retain fractions above 1% at convergence. b, Total magnetic moment μtot per atom vs optimization iteration, showing con-vergence after ∼50 iterations. The arrow marks a transient dip near iteration 10, reflecting a sign flip of the Cr local moment (antiferromagnetic alignment); the optimizer subsequently suppresses Cr and recovers monotonic convergence. 
+
+the majority channel, preventing the optimization from increasing the score by making the majority channel excessively large instead of driving the minority channel toward zero. The score is invariant under spin swap. We set δ = 0 .010 Ry ≈ 0.136 eV, below the ∼0.2–0.5 eV gap scale typical of the insulating channel of half-metallic Heusler alloys [48, 49], and c = 6 states/Ry. The upper bound S = c corresponds to an ideal half-metal in which the majority window-average reaches c and the minority window-average vanishes. We consider the half-Heusler XY Z structure (space group F¯ 43m, Fig. 5d), a canonical family of predicted half-metals [50]. We placed composition vari-ables on the three inequivalent crystallographic sites simultaneously: 4 candidates on the X site (Cu, Zn, Co, Fe), 4 on the Y site (V, Ti, Zr, Mn), and 6 on the Z site ( sp 
+
+elements P, As, Sn, Sb, Bi, Te), giving 14 parameters in total. Figure 5a–c shows the composition evolution at each site. Starting from an equiatomic composition on all three sites, a single optimization of S drove the X site to essentially pure Fe and the Y site to essentially pure Zr, while the Z site converged to Sb with minor Te, giving FeZr(Sb 0.94 Te 0.06 ). This is close to FeZrSb, which has been predicted to be a half-metal by density functional theory [51]. Figure 5e shows S rising monotonically toward the bound, reaching 5.45 out of the maximum value c = 6. The final DOS (Fig. 5f) shows clear half-metallic behaviour: the minority-spin DOS is sup-pressed over a ∼0.4 eV window around EF while the majority channel remains metallic, giving a spin polarization at EF of P = ( ⟨n↑⟩δ − ⟨ n↓⟩δ )/(⟨n↑⟩δ + ⟨n↓⟩δ ) = 97 .6%. The minority-spin DOS does not vanish completely but retains a small residual of 
+
+∼0.5 states/Ry, a consequence of the disorder broadening in the CPA average. 80 50 100 150 200 250 
+
+Iteration 
+
+10 −6 
+
+10 −4 
+
+10 −2 
+
+10 0
+
+> Concentration
+
+a Ln(1a) La 
+
+> Ce
+> Pr
+> Nd
+> Pm
+> Sm
+> Eu
+> Gd
+> Tb
+> Dy
+> Ho
+> Er
+> Tm
+> Yb
+> Lu
+
+0 50 100 150 200 250 
+
+Iteration 
+
+10 −6 
+
+10 −4 
+
+10 −2 
+
+10 0
+
+b T(2c) Ti 
+
+> V
+> Cr
+> Mn
+> Fe
+> Co
+> Ni
+> Zr
+> Nb
+> Mo
+> Tc
+> Ru
+> Rh
+> Pd
+
+0 50 100 150 200 250 
+
+Iteration 
+
+10 −6 
+
+10 −4 
+
+10 −2 
+
+10 0
+
+> Concentration
+
+c T(3g) Ti 
+
+> V
+> Cr
+> Mn
+> Fe
+> Co
+> Ni
+> Zr
+> Nb
+> Mo
+> Tc
+> Ru
+> Rh
+> Pd
+
+0 50 100 150 200 250 
+
+Iteration 
+
+0
+
+2
+
+4
+
+6
+
+8
+
+10 
+
+> μ (μ /f.u.)
+
+dFig. 4 Optimization of LnT 5-type permanent-magnet system. Composition evolution at each crystallographic site: a, Ln(1a) sublattice (15 lanthanide elements); b, T(2c) sublattice (14 transition metals); c, T(3g) sublattice (14 transition metals). Lu and Ce dominate the Ln site while both T sites converge to nearly pure Fe. d, Total magnetic moment μtot , with the 4 f open-core contribution added post hoc to the optimized value. 
+
+# 2 Discussion 
+
+By integrating reverse-mode AD [8, 9] into KKR-CPA, our framework treats composi-tion as an intrinsically continuous variable with clear physical meaning and computes gradients of essentially any differentiable objective. This combination makes four things possible at once. First, because composition is a continuous variable, it can be optimized efficiently by gradient descent. Second, inverse design is intrinsic to the first-principles calculation: it needs no training data and is free of the extrapolation failures of data-driven models. Third, because the gradient cost does not grow with the num-ber of parameters, a vast composition space can be narrowed directly, enabling the search for entirely unknown materials. Fourth, the objective can be any differentiable quantity, so one can design for any target property. Our results bear out all four: we optimized compositions by gradient descent, grounded every step in a full DFT calcu-lation, scaled to up to 43 compositional parameters, and reached targets as different 90 50 100 150 
+
+Iteration 
+
+10 −6 
+
+10 −4 
+
+10 −2 
+
+10 0
+
+> Concentration
+
+a X(4c) 
+
+Cu 
+
+Zn 
+
+Co 
+
+Fe 
+
+0 50 100 150 
+
+Iteration 
+
+10 −6 
+
+10 −4 
+
+10 −2 
+
+10 0
+
+> Concentration
+
+b Y(4a) 
+
+V
+
+Ti 
+
+Zr 
+
+Mn 
+
+0 50 100 150 
+
+Iteration 
+
+10 −6 
+
+10 −4 
+
+10 −2 
+
+10 0
+
+> Concentration
+
+c Z(4b) 
+
+P
+
+As 
+
+Sn 
+
+Sb 
+
+Bi 
+
+Te 
+
+0 50 100 150 
+
+Iteration 
+
+−4 
+
+−2 
+
+0
+
+2
+
+4
+
+6
+
+> half-metal score
+
+e      
+
+> −3 −2 −1 0123
+
+E − E (eV) 
+
+−10 
+
+−5 
+
+0
+
+5
+
+10 
+
+> DOS (states/eV)
+
+f
+
+> Initial
+> Final
+
+dFig. 5 Gradient-based half-metal design in a 14-parameter half-Heusler space. All three inequivalent crystallographic sites of the XY Z half-Heusler structure are optimized simultaneously using the windowed clipped half-metal score S (Eq. 1). a–c, Composition evolution at the X, Y , and 
+
+Z sites (4, 4, and 6 candidate elements, respectively). d, Half-Heusler crystal structure (space group F¯ 43m, rendered with VESTA [39]). e, Half-metal score S versus iteration. f, Initial (equiatomic) versus final spin-resolved DOS. The final DOS shows a ∼0.4 eV suppression of the minority-spin channel around the Fermi level (dashed vertical line), a clear half-metallic signature. 
+
+10 Table 1 Candidate LnT 5 compositions and their total magnetic moments. Each composition was re-evaluated with progressively denser Brillouin-zone sampling to verify numerical convergence. N gives the number of optimization runs (out of 144 random starts) that converged to each composition; the dash marks the SmCo 5 reference row, computed with the same method. μtot includes the 4 f open-core correction, and a value in parentheses did not fully converge with respect to k -point sampling. Sorted by μtot descending. 
+
+N Composition μtot (μB/f.u.) – SmCo 5 (reference) 6.96 10 PrFe 5 12.15 1 Pr(Mn 0.966 Fe 0.034 )2(Fe 0.986 Co 0.014 )3 11.16 8 (Lu 0.553 Yb 0.447 )(Co 0.759 Fe 0.241 )2Fe 3 10.26 1 (Lu 0.532 Yb 0.453 Tm 0.015 )(Co 0.756 Fe 0.244 )2Fe 3 10.15 3 (Lu 0.81 Yb 0.19 )(Co 0.52 Fe 0.48 )2Fe 3 (10.05) 1 Yb(Co 0.701 Fe 0.299 )2Fe 3 9.98 1 (Lu 0.842 Yb 0.158 )(Fe 0.515 Co 0.485 )2Fe 3 9.97 1 Lu(Fe 0.574 Co 0.426 )2Fe 3 9.96 10 LuFe 2(Fe 0.881 Co 0.119 )3 9.55 14 Yb(Fe 0.731 Co 0.269 )2Fe 3 9.36 30 (Lu 0.781 Ce 0.219 )Fe 5 9.35 17 YbFe 2(Fe 0.792 Co 0.208 )3 9.27 2 PmMn 2(Co 0.51 Ni 0.49 )3 9.00 1 (Yb 0.928 Eu 0.072 )Fe 2(Fe 0.784 Co 0.216 )3 8.75 1 SmMn 2(Ni 0.854 Co 0.146 )3 7.53 2 SmMn 2(Ni 0.523 Co 0.477 )3 7.14 1 (Pr 0.5Tm 0.287 Er 0.197 Ho 0.016 )Fe 5 6.79 1 EuNi 2(Ti 0.954 V0.046 )3 6.27 1 GdV 2(Ti 0.698 V0.302 )3 6.13 2 Pr(V 0.559 Ti 0.441 )2V3 4.81 2 (Eu 0.634 Yb 0.366 )Fe 2(Fe 0.741 Co 0.259 )3 4.74 5 DyMn 2(Ni 0.861 Co 0.139 )3 2.46 1 EuFe 2(Fe 0.738 Co 0.262 )3 2.10 1 (Eu 0.943 Lu 0.057 )Mn 2(Ni 0.984 Co 0.016 )3 0.72 1 GdMn 2(Ni 0.877 Co 0.123 )3 0.62 
+
+as the total magnetic moment and the shape of the density of states. In each case, this led to genuinely new candidate materials. No existing method offers all four at once. Combining conventional plane-wave DFT [18] or tight-binding [52] with AD, for example, cannot treat composition as a continuous variable and therefore cannot design materials by composition. Effective-atom theory [7] is limited to objectives that are functions of the energy, and only its final, discrete compositions are physical. Our framework therefore offers a new approach to materials design. It builds materials from scratch, pinpointing entirely unknown compositions with the desired properties. It also searches for the dopants that most improve an existing functional material, a setting that may be of even greater practical value. 11 Our framework can optimize for any target that KKR-CPA can compute: the elec-tronic structure of disordered systems [31, 53], magnetism and Curie temperatures through the Liechtenstein–Katsnelson–Antropov–Gubanov (LKAG) magnetic-force theorem and the disordered-local-moment formalism [32, 54, 55], and transport coef-ficients such as the anomalous Hall effect [33]. Each becomes an optimization target simply by adding the routine that computes it. The objective need not be a single phys-ical property: multiple targets can be combined, and even quantities unrelated to the electronic structure can be included. For example, adding the concentration-weighted price to the objective leads to lower-cost materials. Finally, we turn to the current limitations of the framework and the future direc-tions they suggest. The present implementation uses the atomic-sphere approximation; a full-potential treatment would improve the accuracy of the underlying electronic-structure calculation. Thermodynamic stability and lattice relaxation are not yet addressed, so the outputs are compositions on a fixed lattice rather than relaxed equi-librium phases; because the total energy can be differentiated with respect to the atomic positions, however, lattice relaxation can be brought into the same framework, lifting this limitation in future work. The same differentiability extends beyond the atomic positions to external parameters such as applied magnetic and electric fields, pointing toward a framework that inverse-designs composition, lattice, and external fields together to realize a desired property. Pursued together, these directions would make the first-principles calculation a general engine for materials design, offering a direct and physically grounded route from a target property to the material that realizes it. 
+
+# 3 Methods 
+
+## 3.1 KKR-CPA Method 
+
+The KKR method [23, 24, 29, 30] solves the Kohn–Sham equations of density func-tional theory [56, 57] via multiple scattering theory, computing the single-particle Green’s function directly rather than solving an eigenvalue problem for Bloch eigen-states. In multiple scattering theory, the scattering of electrons from each atomic potential is described by a t-matrix, the operator that maps an incident wave to the scattered wave at energy E. Within the atomic-sphere approximation (ASA) [58] adopted here, the atomic potentials are spherically symmetric, and the t-matrix is diagonal in the angular-momentum quantum numbers L = ( l, m ), where l is the orbital and m the magnetic quantum number. It is then characterized by the radial elements 
+
+t(s) 
+
+> l
+
+(E) at each inequivalent site s in the basis. These elements are obtained by solving the radial Schr¨ odinger equation within the atomic sphere. The resulting phase shifts 
+
+η(s) 
+
+> l
+
+(E), defined by the asymptotic phase of the partial-wave radial wavefunction at large distance, determine t(s) 
+
+> l
+
+. The propagation of scattered waves between sites is described by the structure-constant matrix gss ′ 
+
+> LL ′
+
+(k, E ), which depends on the crystal geometry and energy but not on the atomic potentials. The central quantity is the 12 scattering path operator 
+
+τ (k, E ) = t−1(E) − g(k, E )−1 , (2) which sums all multiple-scattering events in the crystal. Here τ , t, and g are matrices in the joint ( s, L ) space; t−1(E) is block-diagonal over inequivalent sites with on-site elements δLL ′ /t (s) 
+
+> l
+
+(E), and the matrix inversion runs over the joint ( s, L ) space. Physical observables are obtained from the site-diagonal Green’s function Gs(r, r′; E), constructed from τ by partial-wave decomposition with the regular and irregular radial solutions of the Schr¨ odinger equation within each atomic sphere [29, 59]. The central matrix entering this construction is the on-site BZ-integrated scattering path operator 
+
+T (s) 
+
+> LL ′
+
+(E) = 1ΩBZ 
+
+R 
+
+> BZ
+
+d3k τ ss LL ′ (k, E ). The CPA [25–28] provides a continuous-composition framework on which the objec-tive function O(x) can be defined as a differentiable function of x. Rather than placing specific atoms at lattice sites, the CPA assigns each site continuous concentrations 
+
+x(s) 
+
+> i
+
+specifying the probability that element i occupies site s. Configurational averag-ing is performed analytically: at each inequivalent site s, the atomic t-matrices are replaced by a coherent t-matrix ˜ t(s)(E) representing an effective medium. Define the impurity-embedded scattering path operator 
+
+τ (s) 
+
+> i
+
+(E) = 
+
+h
+
+(t(s) 
+
+> i
+
+)−1 − (˜ t(s))−1 + ( T (s))−1i−1
+
+, (3) where t(s) 
+
+> i
+
+(E) is the single-site t-matrix of element i at site s. The coherent t-matrix is determined by the CPA self-consistency condition 
+
+X
+
+> i
+
+x(s) 
+
+> i
+
+τ (s) 
+
+> i
+
+(E) = T (s)(E), (4) which holds independently on each inequivalent site s and defines ˜ t(s) implicitly as a function of x. Because the condition is smooth in ˜ t(s) and enters x(s) 
+
+> i
+
+linearly, the implicit function theorem ensures that ˜ t(s) depends smoothly on x; the Green’s func-tion and any observable derived from it inherit this smoothness. In particular, the spin-resolved charge density is 
+
+ρσ (r; x) = − 1
+
+π ℑ
+
+Z EF
+
+> −∞
+
+dE G σ (r, r; E; x), (5) where σ labels the spin channel. The two observables optimized in this work fol-low directly from these quantities. The total magnetic moment is the integrated spin density, 
+
+μtot (x) = 
+
+Z
+
+[ρ↑(r; x) − ρ↓(r; x)] dr, (6) 13 and the spin-resolved density of states is 
+
+nσ (E; x) = − 1
+
+π ℑ
+
+Z
+
+Gσ (r, r; E; x) dr, (7) with both integrals taken over the unit cell. Our calculations are scalar-relativistic and use the spin-polarized local-density exchange-correlation functional in the Moruzzi– Janak–Williams parametrization [60]. 
+
+## 3.2 Automatic Differentiation 
+
+Automatic differentiation evaluates derivatives by decomposing a function into ele-mentary operations, each with a known local derivative, and combining them through the chain rule [8, 9]. We use its reverse mode. A forward pass evaluates the function while recording the computational graph and the intermediate values it produces. A backward pass then propagates the derivative of the scalar output with respect to each intermediate quantity, the adjoint, from the output back to the inputs, multiplying by the local derivative at each elementary operation. For a scalar output, a single back-ward pass therefore yields the gradient with respect to all input parameters at once, at a cost that is a small constant multiple of one function evaluation and independent of the number of parameters. Because it requires only the chain rule over the compu-tational graph, this approach applies to almost any numerical procedure, as long as the computation contains no non-differentiable or stochastic steps and its operations form a connected differentiable graph. Reverse-mode AD of this kind is now provided by mature software libraries such as PyTorch [61], Zygote [62], and JAX [63]; we implement our differentiable KKR-CPA in Python using JAX. 
+
+## 3.3 Gradient-Based Inverse Materials Design Framework 
+
+We build the framework by re-implementing the KKR-CPA method of AkaiKKR [28] in JAX [63], which makes the calculation automatically differentiable. Reverse-mode AD then returns the gradient of any objective O with respect to the composition, 
+
+∇xO, which drives the gradient-based inverse-design loop of Fig. 1. Several implementation choices make this practical. To take advantage of the fast AkaiKKR implementation, the gradient is computed in two stages that com-bine the original Fortran code with a JAX re-implementation. The Fortran code first iterates the SCF cycle to convergence and exports the converged radial potentials, the CPA coherent t-matrix, and the energy and Brillouin-zone meshes. A JAX re-implementation then rebuilds the single-site phase shifts and the CPA Green’s function from this fixed-point state in a single pass and applies reverse-mode AD to the com-position to obtain ∇xO. This avoids differentiating through the SCF loop itself: at the converged fixed point, the implicit function theorem guarantees that total derivatives of observables with respect to composition are well defined without unrolling the itera-tive history [64–66]. The JAX evaluator reuses the converged self-consistent potentials and the geometry-dependent structure constants from the Fortran fixed point, holding them fixed and not backpropagating through them. The resulting gradients therefore 14 differ slightly from those of a calculation differentiated end to end; a comparison with finite differences confirms that this difference is small in practice. Here, we treat the composition ratios as the parameters to be optimized. The composition for inequivalent sites is defined as x = ( x(1) , . . . , x(S)), where S is the number of inequivalent sites, and each site carries x(s) = ( x(s)1 , . . . , x (s) 
+
+> ns
+
+) with P 
+
+> i
+
+x(s) 
+
+> i
+
+=1 and x(s) 
+
+> i
+
+≥ 0. Here, i is the element index and s is the site index. To satisfy the constraints, we reparametrize it by a softmax, 
+
+x(s) 
+
+> i
+
+= exp( θ(s) 
+
+> i
+
+)
+
+P 
+
+> j
+
+exp( θ(s) 
+
+> j
+
+) , (8) with unconstrained parameters θ(s), and update them using the gradient. As a simple example, gradient descent (ascent) gives 
+
+θ[k+1] = θ[k] ∓ αk ∇θ O(x(θ[k])) , (9) where αk > 0 is the step size and − (+) applies for minimization (maximization). 
+
+## 3.4 Computational Details 
+
+KKR-CPA parameters: The partial-wave expansion was truncated at lmax = 2 for FeCoNi and 30-element bcc systems and lmax = 3 for LnT 5 systems. Lanthanide 4 f
+
+electrons were treated in open core, which is sufficient because the localized 4 f moment is essentially atomic and enters only as a fixed, composition-independent contribution. Brillouin-zone integration used a uniform k-point mesh, reduced to the irreducible zone by point-group and time-reversal symmetries. Mesh density was 10 divisions per reciprocal lattice vector for bcc systems and 4 divisions for hexagonal systems. 
+
+Self-consistency: The main SCF loop used Broyden mixing with an initial mixing parameter pmix = 0 .01 and up to 300 iterations; convergence of each SCF run was judged from the stability of the total energy and charge neutrality over the final iterations, together with the self-consistency measure reported by AkaiKKR. For non-converging runs, our wrapper applied a nested fallback, each step allowing up to 300 iterations: the Broyden mixing parameter was reduced to pmix = 0 .005 and then 0 .001, and finally Chebyshev acceleration was applied at pmix = 0 .001; the energy-contour width was also swept across small offsets ( ±0.05, ±0.1 Ry). 
+
+Optimization parameters: We used the RMSprop optimizer [67] provided by 
+
+optax [68]. RMSprop was run with decay rate 0.5 and numerical stability constant 10 −8. A piecewise-constant learning-rate schedule was used with initial learning rate 0.1, reduced by a factor of 10 at iterations 50, 100, 150 (FeCoNi) and 100, 200 (30-element and LnT 5); the Heusler demonstration used a constant learning rate of 0.1. 
+
+Convergence and verification: An optimization run was judged converged if the standard deviation of μtot over its last 10 iterations was below 1% of its mean. After convergence, concentrations x(s) 
+
+> i
+
+< 0.01 were discarded and the remaining concen-trations renormalized. Each resulting composition was then verified by progressively 15 denser Brillouin-zone sampling until convergence thresholds were met: the total-energy difference per atom between consecutive mesh densities was required to fall below 10 −6 Ry/atom. 
+
+Crystal structures: FeCoNi and 30-element alloys were modeled with the bcc struc-ture. LnT 5 systems were modeled with the hexagonal CaCu 5-type structure ( a = 9 .388 Bohr, c/a = 0 .798). For the bcc systems, lattice parameters were updated at each optimization step by a Vegard-like rule applied to atomic volumes: the lattice constant was computed from the composition-weighted average of the elements’ experimental atomic volumes. In contrast, for LnT 5, the lattice parameters were held fixed at the values above. 
+
+Magnetic properties: Spin-polarized calculations were performed to obtain total magnetic moments. For LnT 5, the lanthanide 4 f electrons were treated in open core (above), which avoids the numerical instability of treating the localized 4 f states as valence; their fixed 4 f moment was therefore excluded from the differentiable objective and added to μtot post hoc, after optimization. 
+
+Computational time: Calculations were run on three systems with AMD EPYC 7702, Intel Xeon Silver 4310, and Apple M4 Pro processors. Median per-iteration wall-clock times were: the three FeCoNi runs, 30 s; the 30-element equiatomic run, 83 s; the 30-element random-start runs, 4.7 min; the LnT 5 equiatomic run, 13 min; the LnT 5 random-start runs, 17 min; and the half-metal, 7.4 min. Note that the random-start runs are slower than the equiatomic runs because each step requires more SCF sub-iterations to converge. 
+
+Use of large language models: Claude (Anthropic) was used to assist in the preparation of this manuscript, including drafting and editing of text. All scientific content, data, and conclusions were generated and verified by the authors, who take full responsibility for the integrity of this work. 
+
+Acknowledgements. This work was financially supported by Toyota Motor Cor-poration. The authors thank the Supercomputer Center, the Institute for Solid State Physics (ISSP), the University of Tokyo for the use of the facilities (ISSP-kyodo-SC-2025-D-0006, 2026-Ea-0016). We thank Y. Konishi and M. Noda of Academeia Inc. for their help in rewriting the Fortran code into Python using JAX. We also thank T. Ozaki, N. Kawashima, T. Misawa, K. Yoshimi, and K. Ido (ISSP); and T. Miyake (National Institute of Advanced Industrial Science and Technology); and N. Sakuma, M. Saito, and T. Shoji (Toyota Motor Corporation) for helpful discussions. 
+
+# Declarations 
+
+Competing interests : K.I. (Inui) is a director of Calmarion Inc. H.A. is affiliated with Academeia Inc. The other authors declare no competing interests. 
+
+Data availability : The processed data (optimization trajectories, converged com-positions, and derived magnetic properties) used to produce the figures and tables, and the raw Fortran KKR-CPA outputs, are available from the corresponding authors upon reasonable request. 16 Code availability : The base KKR-CPA code (AkaiKKR) is publicly distributed [28]. The code developed for this work is available from the corresponding authors upon reasonable request. 
+
+Author contributions : K.I. (Inui) conceived of the study, designed the framework, and supervised the work. K.I. (Ishii) developed the framework and performed the calculations. H.A. and T.F. contributed methodology. H.S. provided the reference data. K.I. (Ishii) and K.I. (Inui) wrote the manuscript; all authors reviewed and revised it. 17 Extended Data 0 50 100 150 200 250 300 
+
+Iteration 
+
+10 −6 
+
+10 −4 
+
+10 −2 
+
+10 0
+
+> Concentration
+
+a Ln(1a) La 
+
+Ce 
+
+Pr 
+
+Nd 
+
+Pm 
+
+Sm 
+
+Eu 
+
+Gd 
+
+Tb 
+
+Dy 
+
+Ho 
+
+Er 
+
+Tm 
+
+Yb 
+
+Lu 
+
+0 50 100 150 200 250 300 
+
+Iteration 
+
+10 −6 
+
+10 −4 
+
+10 −2 
+
+10 0
+
+b T(2c) Ti 
+
+V
+
+Cr 
+
+Mn 
+
+Fe 
+
+Co 
+
+Ni 
+
+Zr 
+
+Nb 
+
+Mo 
+
+Tc 
+
+Ru 
+
+Rh 
+
+Pd 
+
+0 50 100 150 200 250 300 
+
+Iteration 
+
+10 −6 
+
+10 −4 
+
+10 −2 
+
+10 0
+
+> Concentration
+
+c T(3g) Ti 
+
+V
+
+Cr 
+
+Mn 
+
+Fe 
+
+Co 
+
+Ni 
+
+Zr 
+
+Nb 
+
+Mo 
+
+Tc 
+
+Ru 
+
+Rh 
+
+Pd 
+
+0 50 100 150 200 250 300 
+
+Iteration 
+
+4
+
+6
+
+8
+
+10 
+
+12 
+
+14 
+
+> μ (μ /f.u.)
+
+d
+
+Iter Composition μtot (μB/f.u.) 0 SmCo 5 6.79 50 (Lu 0.32 Pr 0.30 Tm 0.17 Sm 0.10 Er 0.06 Ce 0.03 Ho 0.02 )(Co 0.75 Mn 0.13 Fe 0.12 )2Co 3 6.58 75 (Pr 0.94 Lu 0.06 )(Fe 0.88 Mn 0.07 Co 0.05 )2(Co 0.53 Fe 0.47 )3 11.86 100 PrFe 5 12.36 
+
+Fig. 1 Extended Data Figure 1: Optimization trajectory starting from SmCo 5. a , Com-position evolution at each crystallographic site and total magnetic moment μtot (with 4 f open-core correction). The grey horizontal line indicates the SmCo 5 reference value (computed with the same method). The gradient progressively substitutes Sm → Pr on the Ln site and Co → Fe on the T sites. 
+
+b, Summary of key intermediate compositions. Only elements with concentration > 1% are shown. All values, including the SmCo 5 reference, are computed at the optimization k-point sampling; their 
+
+k-point-converged counterparts (SmCo 5 and PrFe 5) are given in Table 1. 
+
+18 Table 1 Extended Data Table 1: Converged compositions from 30-element alloy optimization (144 random initializations). Each run started from a random composition of 30 bcc elements (B through Te). Of 144 runs, 13 failed at the initial SCF step and 21 did not satisfy the convergence criterion (coefficient of variation < 1% over the last 10 iterations). N gives the number of converged runs reaching each composition. Sorted by μtot descending. 
+
+N Composition μtot (μB/atom) 58 Fe 0.86 Co 0.14 2.34 49 Co 0.66 Mn 0.34 1.94 2 Co 1.71 1 Mn 0.93 Rh 0.07 1.12 21 (unconverged) –13 (SCF failure) –
+
+Table 2 Extended Data Table 2: Optimization trajectory starting from SmCo 5 with 4 f open-core correction included in the objective function. Same setup as Extended Data Fig. 1 but with the f-core magnetic moment correction added to the optimization target. Only elements with concentration above 1% are shown. The intermediate compositions differ from the uncorrected trajectory (Extended Data Fig. 1): Pr and Nd are selected earlier due to their large 4 f moments, whereas the uncorrected run initially favours Lu and Tm. Both trajectories converge to PrFe 5. All values, including the SmCo 5 reference, are computed at the optimization k-point sampling; their k-point-converged counterparts (SmCo 5 and PrFe 5) are given in Table 1.            
+
+> Iter Composition μtot (μB/f.u.) 0SmCo 56.79 50 (Sm 0.28 Pr 0.27 Nd 0.26 Pm 0.19 )(Co 0.75 Mn 0.13 Fe 0.12 )2Co 39.40 75 (Pr 0.91 Nd 0.09 )(Fe 0.63 Mn 0.33 Co 0.04 )2(Fe 0.58 Co 0.42 )311.65 100 PrFe 2(Fe 0.99 Co 0.01 )312.38
+
+19 References 
+
+[1] Curtarolo, S. et al. The high-throughput highway to computational materials design. Nat. Mater. 12 , 191–201 (2013). [2] Lookman, T., Balachandran, P. V., Xue, D. & Yuan, R. Active learning in mate-rials science with emphasis on adaptive sampling using uncertainties for targeted design. npj Comput. Mater. 5, 21 (2019). [3] S´ anchez-Lengeling, B. & Aspuru-Guzik, A. Inverse molecular design using machine learning: Generative models for matter engineering. Science 361 ,360–365 (2018). [4] Schmidt, J., Marques, M. R. G., Botti, S. & Marques, M. A. L. Recent advances and applications of machine learning in solid-state materials science. npj Comput. Mater. 5, 83 (2019). [5] Himanen, L., Geurts, A., Foster, A. S. & Rinke, P. Data-driven materials science: Status, challenges, and perspectives. Adv. Sci. 6, 1900808 (2019). [6] Zunger, A. Inverse design in search of materials with target functionalities. Nat. Rev. Chem. 2, 0121 (2018). [7] Tahmassebpur, J. et al. Effective atom theory: Gradient-driven ab initio materials design (2025). arXiv:2509.07180. [8] Baydin, A. G., Pearlmutter, B. A., Radul, A. A. & Siskind, J. M. Automatic differentiation in machine learning: a survey. J. Mach. Learn. Res. 18 , 1–43 (2018). URL https://jmlr.org/papers/v18/17-468.html. [9] Griewank, A. & Walther, A. Evaluating Derivatives: Principles and Techniques of Algorithmic Differentiation 2nd edn (SIAM, Philadelphia, 2008). [10] Molesky, S. et al. Inverse design in nanophotonics. Nat. Photonics 12 , 659–670 (2018). [11] Inui, K. & Motome, Y. Inverse Hamiltonian design by automatic differentiation. 
+
+Commun. Phys. 6, 37 (2023). [12] Inui, K. & Motome, Y. Inverse Hamiltonian design of highly entangled quantum systems. Phys. Rev. Res. 6, 033080 (2024). [13] Hirasaki, Y., Inui, K. & Saitoh, E. Inverse magnetoconductance design by automatic differentiation. Phys. Rev. B 110 , 214201 (2024). [14] Liu, H. et al. End-to-end differentiability and tensor processing unit computing to accelerate materials’ inverse design. npj Comput. Mater. 9, 121 (2023). 20 [15] Tamayo-Mendoza, T., Kreisbeck, C., Lindh, R. & Aspuru-Guzik, A. Auto-matic differentiation in quantum chemistry with applications to fully variational Hartree–Fock. ACS Cent. Sci. 4, 559–566 (2018). [16] Kasim, M. F., Lehtola, S. & Vinko, S. M. DQC: A Python program package for differentiable quantum chemistry. J. Chem. Phys. 156 , 084801 (2022). [17] Kasim, M. F. & Vinko, S. M. Learning the exchange-correlation functional from nature with fully differentiable density functional theory. Phys. Rev. Lett. 127 ,126403 (2021). [18] Schmitz, N. F., Ploumhans, B. & Herbst, M. F. Algorithmic differentiation for plane-wave DFT: materials design, error control and learning model parameters. 
+
+npj Comput. Mater. 12 , 6 (2026). [19] Schoenholz, S. S. & Cubuk, E. D. JAX, M.D. a framework for differentiable physics. J. Stat. Mech. Theory Exp. 2021 , 124016 (2021). [20] Zunger, A., Wei, S.-H., Ferreira, L. G. & Bernard, J. E. Special quasirandom structures. Phys. Rev. Lett. 65 , 353–356 (1990). [21] Nordheim, L. Zur Elektronentheorie der Metalle. I. Ann. Phys. 401 , 607–640 (1931). [22] Bellaiche, L. & Vanderbilt, D. Virtual crystal approximation revisited: Applica-tion to dielectric and piezoelectric properties of perovskites. Phys. Rev. B 61 ,7877–7882 (2000). [23] Korringa, J. On the calculation of the energy of a Bloch wave in a metal. Physica 
+
+13 , 392–400 (1947). [24] Kohn, W. & Rostoker, N. Solution of the Schr¨ odinger equation in periodic lattices with an application to metallic Lithium. Phys. Rev. 94 , 1111–1120 (1954). [25] Soven, P. Coherent-potential model of substitutional disordered alloys. Phys. Rev. 156 , 809–813 (1967). [26] Veliˇ ck´ y, B., Kirkpatrick, S. & Ehrenreich, H. Single-site approximations in the electronic theory of simple binary alloys. Phys. Rev. 175 , 747–766 (1968). [27] Gyorffy, B. L. Coherent-potential approximation for a nonoverlapping-muffin-tin-potential model of random substitutional alloys. Phys. Rev. B 5, 2382–2384 (1972). [28] Akai, H. Fast Korringa-Kohn-Rostoker coherent potential approximation and its application to FCC Ni-Fe systems. J. Phys. Condens. Matter 1, 8045–8064 (1989). 21 [29] Ebert, H., K¨ odderitzsch, D. & Min´ ar, J. Calculating condensed matter properties using the KKR-Green’s function method—recent developments and applications. 
+
+Rep. Prog. Phys. 74 , 096501 (2011). [30] Faulkner, J. S., Stocks, G. M. & Wang, Y. Multiple Scattering Theory: Electronic Structure of Solids (IOP Publishing, Bristol, 2018). [31] Stocks, G. M., Temmerman, W. M. & Gyorffy, B. L. Complete solution of the Korringa-Kohn-Rostoker Coherent-Potential-Approximation equations: Cu-Ni alloys. Phys. Rev. Lett. 41 , 339–343 (1978). [32] Takahashi, C., Ogura, M. & Akai, H. First-principles calculation of the Curie temperature Slater–Pauling curve. J. Phys. Condens. Matter 19 , 365233 (2007). [33] Kudrnovsk´ y, J., Drchal, V., Maˇ ca, F., Turek, I. & Khmelevskyi, S. Large anoma-lous Hall angle in the Fe 60 Al 40 alloy induced by substitutional atomic disorder. 
+
+Phys. Rev. B 101 , 054437 (2020). [34] Gutfleisch, O. et al. Magnetic materials and devices for the 21st century: Stronger, lighter, and more energy efficient. Adv. Mater. 23 , 821–842 (2011). [35] Miyake, T., Harashima, Y., Fukazawa, T. & Akai, H. Understanding and opti-mization of hard magnetic compounds from first principles. Sci. Technol. Adv. Mater. 22 , 543–556 (2021). [36] Strnat, K., Hoffer, G., Olson, J., Ostertag, W. & Becker, J. J. A family of new cobalt-base permanent magnet materials. J. Appl. Phys. 38 , 1001–1002 (1967). [37] Sagawa, M., Fujimura, S., Togawa, N., Yamamoto, H. & Matsuura, Y. New material for permanent magnets on a base of Nd and Fe. J. Appl. Phys. 55 ,2083–2087 (1984). [38] Herbst, J. F. R 2Fe 14 B materials: Intrinsic properties and technological aspects. 
+
+Rev. Mod. Phys. 63 , 819–898 (1991). [39] Momma, K. & Izumi, F. VESTA 3 for three-dimensional visualization of crystal, volumetric and morphology data. J. Appl. Crystallogr. 44 , 1272–1276 (2011). [40] Slater, J. C. Electronic structure of alloys. J. Appl. Phys. 8, 385–390 (1937). [41] Pauling, L. The nature of the interatomic forces in metals. Phys. Rev. 54 , 899–904 (1938). [42] Kunimatsu, K. et al. Structure and magnetism in metastable bcc Co 1−xMn x
+
+epitaxial films. J. Magn. Magn. Mater. 548 , 168841 (2022). [43] Patrick, C. E. & Staunton, J. B. Temperature-dependent magnetocrystalline anisotropy of rare earth/transition metal permanent magnets from first principles: 22 the light RCo 5 (r = Y, La–Gd) intermetallics. Phys. Rev. Mater. 3, 101401 (2019). [44] Daalderop, G. H. O., Kelly, P. J. & Schuurmans, M. F. H. Magnetocrystalline anisotropy of YCo 5 and related RECo 5 compounds. Phys. Rev. B 53 , 14415– 14433 (1996). [45] Okumura, H., Fukushima, T., Akai, H. & Ogura, M. First-principles calculation of magnetocrystalline anisotropy of Y(Co,Fe,Ni,Cu) 5 based on full-potential KKR Green’s function method. Solid State Commun. 373–374 , 115257 (2023). [46] Saito, T. & Nishio-Hamane, D. Synthesis of SmFe 5 intermetallic compound. AIP Adv. 10 , 015311 (2020). [47] Buschow, K. H. J. Intermetallic compounds of rare-earth and 3d transition metals. 
+
+Rep. Prog. Phys. 40 , 1179–1256 (1977). [48] Galanakis, I., Dederichs, P. H. & Papanikolaou, N. Origin and properties of the gap in the half-ferromagnetic Heusler alloys. Phys. Rev. B 66 , 134428 (2002). [49] Katsnelson, M. I., Irkhin, V. Y., Chioncel, L., Lichtenstein, A. I. & de Groot, R. A. Half-metallic ferromagnets: From band structure to many-body effects. 
+
+Rev. Mod. Phys. 80 , 315–378 (2008). [50] de Groot, R. A., Mueller, F. M., van Engen, P. G. & Buschow, K. H. J. New class of materials: Half-metallic ferromagnets. Phys. Rev. Lett. 50 , 2024–2027 (1983). [51] ¨Ozdemir, E. G. & Merdan, Z. Theoretical calculations on half-metallic results properties of FeZr x (x = P, As, Sb and Bi) half-Heusler compounds: density functional theory. Mater. Res. Express 6, 086102 (2019). [52] Friede, M., H¨ olzer, C., Ehlert, S. & Grimme, S. dxtb—An efficient and fully differentiable framework for extended tight-binding. J. Chem. Phys. 161 , 062501 (2024). [53] Johnson, D. D., Nicholson, D. M., Pinski, F. J., Gyorffy, B. L. & Stocks, G. M. Density-functional theory for random alloys: Total energy within the Coherent-Potential Approximation. Phys. Rev. Lett. 56 , 2088–2091 (1986). [54] Liechtenstein, A. I., Katsnelson, M. I., Antropov, V. P. & Gubanov, V. A. Local spin density functional approach to the theory of exchange interactions in ferromagnetic metals and alloys. J. Magn. Magn. Mater. 67 , 65–74 (1987). [55] Gyorffy, B. L., Pindor, A. J., Staunton, J., Stocks, G. M. & Winter, H. A first-principles theory of ferromagnetic phase transitions in metals. J. Phys. F: Met. Phys. 15 , 1337–1386 (1985). [56] Hohenberg, P. & Kohn, W. Inhomogeneous electron gas. Phys. Rev. 136 , B864– B871 (1964). 23 [57] Kohn, W. & Sham, L. J. Self-consistent equations including exchange and correlation effects. Phys. Rev. 140 , A1133–A1138 (1965). [58] Andersen, O. K. Linear methods in band theory. Phys. Rev. B 12 , 3060–3083 (1975). [59] Faulkner, J. S. & Stocks, G. M. Calculating properties with the coherent-potential approximation. Phys. Rev. B 21 , 3222–3244 (1980). [60] Moruzzi, V. L., Janak, J. F. & Williams, A. R. Calculated Electronic Properties of Metals (Pergamon Press, New York, 1978). [61] Paszke, A. et al. PyTorch: An imperative style, high-performance deep learning library (2019). Advances in Neural Information Processing Systems 32. [62] Innes, M. Don’t unroll adjoint: Differentiating SSA-form programs (2018). ArXiv:1810.07951. [63] Bradbury, J. et al. JAX: composable transformations of Python+NumPy programs (2018). URL https://github.com/jax-ml/jax. [64] Christianson, B. Reverse accumulation and implicit functions. Optim. Methods Softw. 9, 307–322 (1998). [65] Bai, S., Kolter, J. Z. & Koltun, V. Wallach, H. et al. (eds) Deep equilibrium models . (eds Wallach, H. et al. ) Adv. Neural Inf. Process. Syst. , Vol. 32 (Curran Associates, Inc., 2019). URL https://proceedings.neurips.cc/paper/2019/hash/ 01386bd6d8e091c2ab4c7c7de644d37b-Abstract.html. [66] Maliyov, I., Grigorev, P. & Swinburne, T. D. Exploring parameter dependence of atomic minima with implicit differentiation. npj Comput. Mater. 11 , 22 (2025). [67] Bottou, L., Curtis, F. E. & Nocedal, J. Optimization methods for large-scale machine learning. SIAM Rev. 60 , 223–311 (2018). [68] Hessel, M. et al. Optax: composable gradient transformation and optimisation, in JAX (2020). URL https://github.com/google-deepmind/optax. 24

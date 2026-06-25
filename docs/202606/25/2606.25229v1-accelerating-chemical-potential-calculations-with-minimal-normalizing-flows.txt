@@ -1,0 +1,1042 @@
+Title: Accelerating Chemical Potential Calculations with Minimal Normalizing Flows
+
+URL Source: https://arxiv.org/pdf/2606.25229v1
+
+Published Time: Thu, 25 Jun 2026 00:22:13 GMT
+
+Number of Pages: 51
+
+Markdown Content:
+# Accelerating Chemical Potential Calculations with Minimal Normalizing Flows 
+
+# Philippe B. Baron and Athanassios Z. Panagiotopoulos ∗
+
+Department of Chemical and Biological Engineering, Princeton University, Princeton, NJ, 08540 
+
+E-mail: azp@princeton.edu 
+
+Abstract 
+
+Chemical potentials are among the most important properties that can be obtained from a molecular simulation since they define many technologically relevant collective properties such as solubilities and activity coefficients. The chemical potential of a species in solution is typically obtained by computing the free energy change of adding that species into a bulk system, a calculation typically very expensive for systems of technological interest such as electrolytes, due to the lack of phase space overlap between “not-inserted” and “inserted” states. Recently, normalizing flows have been introduced as a way to accelerate free energy computations by learning a bijective function to map the configuration space of one Boltzmann distribution onto another. Currently, these trainable mappings are constructed to be as expressive as possible, theoretically having the ability to create a perfect mapping between states. This ex-pressivity makes them difficult to train, limiting their ability to be generated “on-the-fly” for any new free energy estimation challenge, and in practice these mappings have shown only modest performance improvements for liquid systems. We address these issues by introducing the concept of a “minimal” normalizing flow (MNF). This is a 
+
+1
+
+> arXiv:2606.25229v1 [cond-mat.stat-mech] 23 Jun 2026
+
+trainable bijective mapping that is intentionally limited in expressivity, and instead applies low-dimensional, physically-informed transformations. Useful MNFs can be trained in approximately 1 minute of GPU time due to their simplicity and our intro-duction of a novel loss function based on the Bhattacharyya distance as an alternative to the Kullback-Leibler Divergence. We show how calculations of chemical potentials of pure and binary Lennard-Jones particle systems can be accelerated by at least an order of magnitude with a simple radial mapping. For a more complex illustration of the approach, we apply a two-dimensional (radial and orientational) mapping to the solvation of sodium and chloride ions in water, showing that MNFs can increase the effective sample size by as much as 3 times for charging free energy calculations and as much as 8 times for calculating free energy changes due to force field perturbations. This provides the foundation for the development of physically-informed normalizing flows that can accelerate complex free energy calculations while retaining low training costs. 
+
+# 1 Introduction 
+
+The free energy is a quantity that determines the stability of a microscopic system, thus making its accurate and efficient theoretical prediction important to the computational design of new drugs and materials. 1–3 Given a suitable force field (FF) for a system, Monte Carlo (MC) and Molecular Dynamics (MD) simulations are powerful tools that can provide free energy estimates for a wide variety of thermodynamic conditions by generating inde-pendent samples from equilibrium Boltzmann distributions. Free energy calculations from simulations provide access to rich thermodynamic information such as the phase diagrams of complex, multi-component systems, connecting microscopic interactions to macroscopic behavior relevant to technological applications. 4,5 
+
+Force field functions typically have empirically tunable parameters that need to be ad-justed to obtain thermodynamic property predictions that align with experimental data. The 2chemical potential is defined as the free energy change for inserting an additional molecule of a species into an existing system. Computing this property has been established as the computational bottleneck in obtaining phase diagrams for complex, technologically relevant systems such as electrolyte solutions. 6,7 In addition, since this property determines solution phase behavior, and other key properties such as activity coefficients, it has been established as one of the most stringent tests of FF performance. 8–11 
+
+These considerations suggest that it is important to be able to accurately and efficiently 
+
+estimate the free energy difference between two states (which we label states 0 and 1) from simulation. This problem was first approached by Zwanzig in 1954, when he introduced what is now commonly referred to as the Free Energy Perturbation (FEP) estimator. 12 This is an importance sampling estimate of the free energy difference when we only have access to samples from one of the states. If all samples from state 0 are very unlikely to be seen in state 1, the importance weights of these samples are negligible, which makes the FEP esti-mator susceptible to high variance and bias. Alternatively, if we are able to obtain samples from both states in question, the Bennett Acceptance Ratio (BAR) provides the provable lowest-variance estimate of the free energy difference. 13 The Multi-state Bennett Acceptance Ratio (MBAR) extends this approach when we want to obtain the mutual free energy differ-ences between M states. 14 These methods are the standard for the estimation of free energy differences from a set of discrete states, but as we discuss later, the error in these estimates is inversely proportional to the configuration space overlap between the Boltzmann distri-butions. Thus, the methods fail when our two target states are very dissimilar. This raises the question — what do we do when our two states are essentially disjoint in configuration space and we would like to estimate their free energy difference? The classical approach to this challenge involves defining a path through phase space, controlled by a coupling parameter λ, that connects state 0 ( λ = 0) and state 1 ( λ = 1). The definition of this path allows for the sampling of a series of states {λ0 = 0 , . . . , λ k, . . . , λ M −1 =1} and the total free energy difference between states 0 and 1 can be computed as a sum over 3the free energy differences of adjacent states k and k+1 determined by FEP, BAR, or MBAR, or by applying thermodynamic integration (TI). 15 This approach is called windowing , and can be used to obtain low-error estimates of the free energy when the direct configuration space overlap between states 0 and 1 is essentially zero, since the configuration space overlap between states k and k + 1 can be made much higher with a rational choice of the parametric path. This approach comes with two disadvantages, the first of which is the additional computational cost of sampling the intermediate states. Another issue is that, given only samples from the path endpoints (states 0 and 1), it is not clear what the best choice of parametric path is. Efficiently determining effective paths in phase space, and their connection to non-equilibrium methods based on the Jarzynski equality, 16,17 is an active area of ongoing research. 18,19 
+
+A partial resolution to these issues was proposed by Jarzynski, 20 who showed that a differentiable, bijective mapping ( M) between the configuration spaces of states 0 and 1 can be used to greatly reduce the number of samples needed to achieve a target accuracy in a one-step free energy estimate using standard estimators (FEP or BAR). Jarzynski referred to this approach as Targeted Free Energy Perturbation (TFEP), and this method provides a way to overcome the challenge of obtaining accurate and precise free energy estimates between states that are disjoint in phase space. While very powerful in theory, this approach has provided limited utility in practice, because finding a mapping between the configuration spaces of two high-dimensional Boltzmann distributions that effectively increases phase space overlap is far from trivial. The typical approaches to finding M can be divided into two main categories — (a) derivation of analytical mapping functions from physical intuition, and (b) casting the mapping search as a machine-learning problem, with the mapping being represented by a highly expressive function with trainable parameters. 21 
+
+The construction of analytical mappings from physical intuition is advantageous as such mappings can accelerate free energy calculations with little additional computational cost. Successful applications of TFEP using such an approach have been limited to free 4energy estimation problems where the useful transformations happen to be quite intuitive — for example, estimating the free energy between crystals at different temperatures, 22,23 
+
+the free energy differences between different rigid water models, 24 or the free energy change of expanding a solute in a solvent. 20 A particularly informative application of this approach was provided by Hahn & Then, where they proposed accelerating “particle-insertion” based chemical potential calculations by applying a 1D mapping that modifies solute-solvent dis-tances. 25 Their heuristic approach was to use the solute-solvent mapping that led to mapped configurations from state 0 (non-interacting inserted solute) having the same solute-solvent radial distribution function as state 1 (interacting inserted solute). While intuitively such a mapping should improve overlap, their approach turned out to offer only modest reductions in standard error (we later provide a mechanistic explanation for this failing in Sec. 2.4). This emphasizes the major problem with analytical mapping functions based on intuition — there is no guarantee that such mappings meaningfully increase phase space overlap given the complex, many-body nature of Boltzmann distributions (especially in the liquid phase), which can lead to counterintuitive mappings being the most effective. Casting mapping construction as a machine-learning problem alleviates the limited util-ity observed with intuitive, analytical mappings. 21 A general transformation between two probability distributions of arbitrary complexity can be represented by a type of generative machine-learning model known as a normalizing flow (NF). 26 These are neural networks that are differentiable and invertible by construction, and designed so that they can be trained to transform samples from one probability distribution to resemble samples from another. Theoretically, these mapping functions can be expressive enough such that they establish a perfect transformation between distributions, where mapped samples from state 0 are indis-tinguishable from samples from state 1. NFs that can reliably generate samples of a target Boltzmann distribution are commonly referred to as Boltzmann Generators (BGs). 27 By training a NF to minimize the Kullback-Leibler Divergence (KLD) between a transformed and target Boltzmann distribution, NFs have been used to find complex transformations 5that accelerate the calculation of free energies from simulation between systems at different thermodynamic conditions ( T, P )28 or with different descriptions of their interatomic inter-actions. 29 While effectively accelerating the sampling of crystals 30–33 and biomolecules, 34–37 
+
+NFs have struggled to realize substantial gains for even simple liquid systems. 38,39 NFs are difficult and costly to train, and are typically only applicable to the specific systems the model was trained on, making such approaches outperform direct MD/MC sampling only in some select cases. Extensions have attempted to increase the transferability and scaling of these methods with system size, but these typically involve either more intensive train-ing procedures or inference-time corrections, with arbitrarily large and diverse systems still being out of reach for any given trained model. 28,35,40 
+
+Considering the limited effectiveness of the intuition-based mappings, and the transfer-ability and efficiency issues of NFs/BGs, we propose here a novel combination of the two approaches called a “Minimal” Normalizing Flow (MNF). This involves constructing a NF that is low-dimensional but transforms the system in a way that is likely to increase phase space overlap while being purposefully non-expressive (incapable of achieving a perfect map-ping). This limits the number of training parameters by orders of magnitude, and allows for the construction of NF architectures that can be trained in seconds to minutes on a single GPU, and are transferable across system sizes. Previous work has considered alternative losses to the KLD and raised concerns about its effectiveness, especially for unidirectional training of NFs. 36,41 Here, we rigorously show why the KLD fails as an optimization target for non-expressive flows between two Boltzmann distributions and propose a novel train-ing scheme that resolves this issue. Together, these theoretical advances provide a simple methodology to obtain useful targeted free energy estimates at negligible additional com-putational cost. We demonstrate the utility of our method by applying it to accelerate the calculation of free energy differences in several complex solvation scenarios, specifically the thermodynamics of a pure Lennard-Jones (LJ) fluid, the phase behavior of a binary LJ mixture, and the hydration of sodium and chloride ions in water. 6The remainder of this paper is organized as follows. In Sec. 2, the relevant theoretical background and derivations relevant to training MNFs are presented. In Sec. 3, we elaborate on the details of the model systems we examine including how MD simulations are run and how MNFs are trained. In Sec. 4, free energy calculations for the pure LJ fluid, binary LJ mixture, and ion hydration test systems are presented. We show how our novel training strategy outperforms the identity mapping, training using the KLD, and the heuristic-based mappings of Hahn & Then in accelerating chemical potential calculations for LJ systems, all at negligible computational cost. We also present, what is to the best of our knowledge, the first application of targeted free energy estimation to electrolyte systems. In Sec. 5, we analyze the performance of our method, discussing possible weaknesses and future extensions, and conclusions from these results are drawn. 
+
+# 2 Theory 
+
+# 2.1 Free Energy Estimation 
+
+Let us begin by assuming that we are attempting to estimate the free energy difference between two states at NVT conditions. We shall refer to these two ensembles as state 0 and state 1, assuming that they only differ in the definition of their potential energy functions ( U0 and U1). The configuration space densities of these two states are given by 
+
+ρ0(x) = e−βU 0(x)/Z 0 and ρ1(y) = e−βU 1(y)/Z 1, where we have that — 
+
+Zi =
+
+Z
+
+· · · 
+
+Z
+
+e−βU i(r1,..., rN )dr1 . . . d rN (1) is the partition function of ensemble i, using the shorthand notation of x or y referring to a specific configuration of particles {r1, . . . , rN }, and β = 1 /(kB T ) is the inverse temperature. 42 
+
+The free energy difference between these states is given by ∆F 0→1 = −kB T ln ( Z1/Z 0). Our 7goal is to obtain an estimate of the free energy difference ( ∆ ˆF 0→1) given that we collected independent samples of one or both of our states from a MC or MD simulation. This estimate is entirely determined by the work of infinitely fast switching between ensembles in either direction, given by — W (F )(x) = U1(x) − U0(x) and W (R)(y) = U0(y) −
+
+U1(y), where x ∈ { xi}Nind  
+
+> i=1
+
+are samples from state 0 and y ∈ { yi}Nind  
+
+> i=1
+
+are samples from state 1, and Nind is the number of independent samples. These work terms can be interpreted as the infinitely fast limit of the work done by a non-equilibrium process that starts in one ensemble and transforms it into the other. Thus, each state generates a probability distribution of possible values of this work ( P0
+
+ W (F ) for state 0 and P1
+
+ −W (R) for state 1, where the argument is negated so that we are considering the “work done on the system” in both cases). The equilibrium version of the Crooks Fluctuation Theorem (CFT) 43 provides us with an important relationship between these probabilities — 
+
+P0 (W )
+
+P1 (−W ) = eβ(W −∆F 0→1) (2) The CFT tells us that forward and reverse work distributions have to intersect at W =
+
+∆F 0→1. This expression allows us to construct free energy estimates from sets of simulated samples of work values. For example, rearranging Eq. 2 and integrating both sides gives us the Free Energy Perturbation (FEP) or Zwanzig estimator 12 —
+
+∆ ˆF 0→1 = −kB T ln 
+
+D
+
+e−βW (F )(x)
+
+E
+
+> 0
+
+= kB T ln 
+
+D
+
+e−βW (R)(y)
+
+E
+
+> 1
+
+(3) which provides a free energy estimate when we have sampled only one of our states. However, this estimate is prone to high bias and variance if the distributions P0 (W ) and P1 (−W ) don’t sufficiently overlap. Our free energy estimate can be significantly improved if we instead collect samples from both state 0 and state 1. Shirts et al. showed that this allows Eq. 2 to be interpreted as a 8logistic regression problem with a free parameter ∆F 0→1.44 In this framing, the maximum-likelihood estimate of ∆F 0→1 is given by the Bennett Acceptance Ratio (BAR) 13 —
+
+*
+
+11 + exp 
+
+
+
+β
+
+h
+
+W (F )(x) − ∆ ˆF 0→1
+
+i +
+
+> 0
+
+=
+
+*
+
+11 + exp 
+
+
+
+β
+
+h
+
+W (R)(y) + ∆ ˆF 0→1
+
+i +
+
+> 1
+
+(4) where we have assumed that the same number of samples was collected from both states. The equation above is self-consistently solved for ∆ ˆF 0→1. This is the provably lowest variance estimate of ∆F 0→1, with the asymptotic per-sample variance (from the Cramer-Rao lower bound) given by — 
+
+σ2
+
+
+
+β∆ ˆF 0→1
+
+
+
+= 2
+
+Nind 
+
+ 1
+
+H0,1
+
+− 1
+
+
+
+(5) where we assume that Nind samples are collected from each state and H0,1 is the harmonic overlap metric between states 0 and 1 — 
+
+H0,1 =
+
+Z
+
+· · · 
+
+Z 2ρ0(rN )ρ1(rN )
+
+ρ0(rN ) + ρ1(rN )dr1 . . . d rN
+
+=
+
+Z 2P0 (W ) P1 (−W )
+
+P0 (W ) + P1 (−W )dW 
+
+(6) We can see that this expression measures the degree of configuration space overlap between our Boltzmann distributions, and for a given number of samples Nind the (asymptotic) vari-ance in our free energy estimate is inversely proportional to H0,1. This identifies a general problem — if H0,1 ≈ 0 (states 0 and 1 barely overlap in phase space), then the number of samples N ∗ 
+
+> ind
+
+=  2/σ 2goal 
+
+  H−10,1 − 1 required to achieve a target accuracy σ2goal may be computationally infeasible to generate from simulation. A typical approach to this problem is windowing — inserting intermediate states between 0 and 1 that are likely to increase mutual configuration space overlap, but the optimal choice of windows cannot be known apriori . An alternative resolution to this challenge is targeted free energy estimation. 92.2 Targeted Free Energy Estimation (TFEE) 
+
+Jarzynski showed that the configuration space overlap between the Boltzmann distri-butions of states 0 and 1 can be enhanced by a bijective, differentiable mapping between the configuration spaces of our two systems. 20 This mapping, M : x → ϕ(x) = y attempts to change the coordinates of configurations x sampled from ρ0(x) such that they resemble likely coordinates y sampled from ρ1(y). Since bijectivity ensures invertability, the inverse mapping can be applied to configurations y as well. The mapping “warps” the phase space densities, giving the following mapped versions — ˜ ρ1(y) = ρ0(x)/|det J (x)| (0 mapped to 1) and ˜ ρ0(x) = ρ1(y)/|det J −1(y)| (1 mapped to 0). Thus, the mapping also “warps” the forward and reverse work values, giving the following definition of “mapped works” — ˜W (F )(x) = U1 (ϕ(x)) − U0(x) − kB T ln |det J (x)| (7) ˜W (R)(y) = U0
+
+ ϕ−1(y) − U1(y) − kB T ln det J −1(y) (8) where J = ∂ϕ (r1, . . . , rN )/∂ (r1, . . . , rN ) is the Jacobian of our transformation. Hahn and Then showed that the probabilities of observing these “mapped works” follow a generalized version of the CFT in Eq. 2 — P0( ˜W ) = P1(− ˜W )eβ( ˜W −∆F 0→1), where the mapped work distributions can also be written as P0( ˜W ) = P0(W |M ). 25 This generates “targeted” analogues of our FEP (Eq. 3) and BAR (Eq. 4) estimators, where the standard forward and reverse works are replaced with Eqs. 7 and 8, respectively. The “mapped” overlap between our Boltzmann distributions can then be computed as — ˜H0,1 =
+
+Z 2P0(W |M )P1(−W |M )
+
+P0(W |M ) + P1(−W |M )dW (9) 10 where a useful mapping is one such that ˜H0,1 > H0,1. This allows us to define the following metric of improvement that a targeted free enery estimate provides — ˜n =
+
+ σid 
+
+σtarg 
+
+2
+
+(10) This definition comes from applying a re-arranged form of the asymptotic per-sample vari-ance bound in Eq. 5, where σid is the standard error in the unmapped free energy estimate, and σtarg is the standard error in the targeted free energy estimate. The quantity ˜ n gives a measure of how many times fewer samples need to be collected for the targeted estimate to achieve the same error as the standard one. A surprising result is that if we can find a mapping that perfectly maps one ensemble onto the other, our mapped work distributions become Dirac delta functions centered at 
+
+∆F 0→1, and thus our free energy estimate can be determined exactly from a single sample. However, this is all complicated by the fact that finding useful mappings is very difficult. 
+
+# 2.3 Learned Mappings 
+
+Determining a useful mapping ϕ(x) is often cast as a machine learning problem, where the mapping is represented by a maximally expressive NF. 21 Thus, our mapping becomes 
+
+ϕ(x, θ) where θ is some vector of trainable parameters. To train our mapping, we need a metric of how close the “mapped” version of an ensemble is to the true distribution it is attempting to match. The general form of such a metric is called the f -divergence, which measures the differences between probability distributions. An f -divergence is defined as — 
+
+Df (g|| h) = 
+
+Z
+
+g(x)f
+
+h(x)
+
+g(x)
+
+
+
+dx (11) where f is a convex function satisfying f (1) = 0. The state-of-the-art choice of f -divergence is the Kullback-Leibler Divergence (KLD). For our purposes, the KLD is taken between the 11 mapped ensemble 0 density, and the true ensemble 0 density (forward direction, f (t) = − ln t)—
+
+D(F )KL (ρ0|| ˜ρ0) = 
+
+Z
+
+ρ0(x) ln 
+
+ρ0(x)˜ρ0(x)
+
+
+
+dx 
+
+= β
+
+D ˜W (F )(x)
+
+E
+
+> 0
+
+− β∆F 0→1
+
+(12) It is worth noting that we call this the “forward” direction due to the involvement of the thermodynamic work of the forward process, while the machine learning community often refers to this as the “reverse” direction, based on the direction the mapping is acting. We proceed similarly for ensemble 1 (what we call the reverse direction) we obtain — 
+
+D(R)KL (ρ1|| ˜ρ1) = β∆F 0→1 + β
+
+D ˜W (R)(y)
+
+E
+
+> 1
+
+(13) If we notice that ∆F 0→1 is independent of θ, then Eqs. 12 and 13 can be minimized with respect to θ without knowledge of ∆F 0→1 in unidirectional training. The KLD is also commonly employed in bidirectional training, where the KLDs in each direction are added and the value of ∆F cancels producing the loss function — 
+
+LKL (θ) = D(F )KL (ρ0|| ˜ρ0) + D(R)KL (ρ1|| ˜ρ1)= β
+
+D ˜W (F )(x, θ)
+
+E
+
+> 0
+
++ β
+
+D ˜W (R)(y, θ)
+
+E
+
+> 1
+
+(14) This loss is typically minimized using stochastic optimization techniques where the ensemble averages in Eq. 14 are taken directly over gathered simulation samples at each training step. The minimization of this loss produces the optimal set of mapping parameters θ∗, which generate a useful mapping. Applying Jensen’s inequality to the mapped forward and reverse Zwanzig estimators, we get the following inequality — 
+
+−
+
+D ˜W (R)(y, θ)
+
+E
+
+> 1
+
+≤ ∆F 0→1 ≤
+
+D ˜W (F )(x, θ)
+
+E
+
+> 0
+
+(15) 12 This means that minimizing Eq. 14 amounts to finding the set of mapping parameters that minimizes the differences in the means of the mapped forward ( P0(W |M )) and mapped reverse ( P1(−W |M )) work distributions, where the entire distributions are modified as to push the reverse distribution mean towards ∆F 0→1 from below and the forward distribution mean towards ∆F 0→1 from above. This describes the standard approach to training normalizing flows in chemical physics, where ϕ(x, θ) is designed to be maximally expressive, i.e. capable of perfectly mapping from one ensemble to the other ( ρi = ˜ ρi), and the KLD training aims at achieving this perfect mapping by satisfying the equality — 
+
+D
+
+− ˜W (R)(y, θ)
+
+E
+
+> 1
+
+= ∆F 0→1 =
+
+D ˜W (F )(x, θ)
+
+E
+
+> 0
+
+. Due to the complexity of the optimization problem, this is rarely achieved in practice, but useful mappings are still typically found. 
+
+# 2.4 “Minimal” Normalizing Flows 
+
+The present work diverges from much of the previous literature by still casting mapping determination as a machine-learning problem, while relaxing the constraint that ϕ(x, θ)needs to be maximally expressive. Instead, we propose the following — flows can be built that are intentionally non-expressive, but operate on low-dimensional, physically informed coordinates that are most likely to increase phase space overlap between states 0 and 1. We refer to such a flow as a “Minimal” Normalizing Flow (MNF). The central utility of MNFs is that their simplicity allows for training “on-the-fly” at negligible computational cost, while still enhancing phase space overlap between our systems of interest. In this work we particularly consider TFEE applied to particle-insertion free energy calculations. In such calculations, the interactions of a non-interacting species in a fluid are turned on, and the free energy of this process is computed. This free energy is a finite 13 Figure 1: Demonstration of 1D and 2D Minimal Normalizing Flows . (a) A one-dimensional MNF, applied uniformly to every solvent particle a distance r from the inserted solute. The solvent particle is mapped to a new radial distance r′ = ψ(r) = r + ∆r. (b) A two-dimensional MNF, where every oxygen at distance r away from the inserted ion is mapped to a distance r′ = ψ(r) = r + ∆r while the water molecule is rotated as to modify the angle between its H-O-H bisector and the ion-O vector to be γ′ = g(γ|r). The grey grid in the bottom panel represents a uniform spacing in ( r, cos γ) space, and the red grid shows how our 2D MNF would deform this 2D plane obtaining new points ( r′, cos γ′). difference approximation of the chemical potential of the “inserted” species — 
+
+μi =
+
+ ∂G ∂N i
+
+ 
+
+> Nj̸=i,P,T
+
+≈ GNi − GNi−1
+
+Ni − (Ni − 1) = ∆GNi−1→Ni
+
+(16) where Ni is the number of species i in the system, P is the pressure, G is the Gibbs free energy, and μi is the chemical potential of species i.In such “particle insertion” scenarios, the natural, low-dimensional coordinate differen-tiating the “non-inserted” and “inserted” states is the radial distance of all solvent atoms from the solute. Thus, we can propose a MNF that is a 1-dimensional radial map, defined 14 as ϕ(rins , r1, . . . , rN −1) = {rins , f (r1, rins ), . . . , f (rN −1, rins )}, where -
+
+f (ri, rins ) = ri − rins 
+
+∥ri − rins ∥ψ (∥ri − rins ∥) (17) where rins is the position of the inserted particle, and ψ : R → R is a bijective, differentiable, radial mapping function, that modifies the distance of each solvent atom from the solute. An example of such a function and a schematic of its behavior are shown in the left panel of Fig. 1. The log of the Jacobian determinant of this transformation takes the following simple analytical form — ln |det J (x)| = X
+
+> i̸=ins
+
+ln 
+
+ψ(ri, ins )2ψ′(ri, ins )
+
+r2
+
+> i, ins
+
+
+
+(18) where ri, ins = ∥ri − rins ∥.Such a mapping was first studied by Hahn and Then, where they defined ψ such that the mapped solute-solvent radial distribution function (RDF) of state 0 matched the state 1 solute-solvent RDF. 25 They showed that this choice was somewhat effective for accelerating chemical potential calculations of a pure LJ fluid modeling Argon. While this is an intuitive and efficient scheme, we can see why this is far from optimal by examining the theoretical form of the KLD for a radial mapping (Eq. 17) applied to a pure fluid with a single “inserted” particle — 
+
+D(F )KL (ρ0|| ˜ρ0) ∝ ⟨ βU 1(ϕ(x)) − ln |det J (x)|⟩ 0
+
+= 4 πρ 
+
+Z 
+
+βu 1(ψ(r)) − ln 
+
+ψ(r)2ψ′(r)
+
+r2
+
+ 
+
+g(2) 0 (r)r2dr 
+
++ 4 π2ρ2β
+
+Z Z Z
+
+u1
+
+p ψ(r)2 + ψ(r′)2 − 2ψ(r)ψ(r′) cos θ
+
+
+
+g(3) 0 (r, r ′, θ )r2r′2 sin( θ)dθdrdr ′
+
+(19) where our “inserted” particle is centered at the origin, ρ = N/V is the fluid number density, 
+
+ui(r) is the pair potential of state i, and g(n) 
+
+> i
+
+is the n-body correlation function in ensemble 15 i between the “inserted” particle, and n − 1 solvent particles. A derivation of the above expression can be found in Sec. 2 of the supplementary information (SI), with the reverse KLD treated analogously. In the above expression we have discarded the − ⟨ U0(x)⟩0 − ∆F
+
+terms from D(F )KL (ρ0|| ˜ρ0) since they are independent of ψ. It is clear from the second term of Eq. 19 that the RDF-matching definition of ψ does not optimally maximize the phase space overlap between our states — this heuristic does not consider the induced three-body effect (on solvent-solvent distances) caused by the radial mapping. Even though simple heuris-tics such as RDF-matching carry intuitive force for low-dimensional, physically informed mappings (MNFs), we argue that the minimization of a statistical distance metric between mapped and true ensembles is a more reliable way to obtain useful MNFs. The re-written KLD in Eq. 19 prompts us to ask two questions — does this form provide us with an alternative optimization approach? If so, is the KLD the right loss function for a MNF? 
+
+2.4.1 Correlation Function Decompositions 
+
+As mentioned before, typical determination of the optimal set of mapping parameters is done through stochastic optimization. However, Eq. 19 offers us a route to deterministic training. If g(2) and g(3) are pre-computed for states 0 and 1 prior to training, Eq. 19 can be evaluated as a deterministic integral expression at each training step. Due to the elimination of ensemble averaging and energy evaluations over entire configurations, this has the potential to be more efficient than stochastic optimization. We can see that a general f -divergence (as defined by Eq. 11) between true and mapped ensembles takes the form (taking the forward direction as an example) -
+
+Df (ρ0|| ˜ρ0) = 
+
+Z
+
+ρ0(x)f
+
+ ˜ρ0(x)
+
+ρ0(x)
+
+
+
+dx 
+
+=
+
+D
+
+f
+
+
+
+eβ[∆F −W (F )(x)]E 
+
+> 0
+
+= f  eW 
+
+> 0
+
+(20) 16 where for shorthand we have defined W = β [∆F − W (x)]. We now note two general facts —
+
+• Proposition 1: If F (W) = f  eW  is a polynomial function of W of degree k, and we are applying a 1D radial map (as defined in Eq. 17), then we need to pre-compute correlation functions up to (2 k + 1)-body correlations in order to resolve an integral representation of Df analogous to Eq. 19. If F (W) = f  eW  is a non-polynomial function of W, all N -body correlations are required. 
+
+• Proposition 2: The KLD is the only f -divergence that for Boltzmann distributions results in an ensemble average of a function that is linear ( k = 1) in W.Proposition 1 can be proven by examining the derivation of Eq. 19 in Sec. 2 of the SI. Evaluating Wk 
+
+> 0
+
+will involve averages of the product of k different solvent-solvent energy pairs, influenced by the 1D map, which involves 2 k distinct particles plus the inserted so-lute, requiring g(2 k+1) to evaluate the ensemble average. Non-polynomial expressions can be viewed in polynomial form as a Taylor series, and thus require all N -body correlations. Proposition 2 is immediately clear from Eq. 20. The above propositions make it clear that while the correlation function-based approach is theoretically rich, it is only feasible as a training strategy when optimizing the KLD for a 1D radial mapping. In this context, we only need to precompute correlation functions up to three-body correlations. In any more complex scenario, higher order correlations are needed, and these are very expensive to obtain from simulation. This begs the question — is the KLD an effective loss for training intentionally non-expressive mappings? 
+
+2.4.2 Is the KLD an effective loss function for MNFs? 
+
+We argue that the KLD is the incorrect optimization target for MNF training. The reason for this is as follows — in Sec. 2.3, we showed that the minimization of the KLD amounts to minimizing the distance between the means of the forward and reverse mapped 17 work distributions. For a fully expressive mapping, this objective typically coincides with increasing the phase space overlap between our two systems. This is because the perfect mapping results in ˜H0,1 = 1 and P0(W |M ) = P1(−W |M ) = δ(W − ∆F ) as per the mapped CFT. However, we propose MNFs as intentionally non-expressive maps, that means that these mappings are incapable of pushing the means of the mapped work distributions arbi-trarily close together. If we determine our MNF parameters as θ∗ = argmin θLKL (θ), then our MNF will push the work distribution means as close as possible to each other. However, there is no constraint on how this mapping affects ˜H0,1 and thus how significantly overlap is enhanced, since the KLD depends only on the 1st moment of our mapped work distributions. Given a highly non-expressive map, this means that we can achieve a KLD minimum without enhancing phase space overlap at all . Therefore, we argue that the KLD is the wrong optimization target for MNF training, as it does not target phase space overlap directly. Combined with the claims of Sec. 2.4.1 (propositions 1 and 2), this allows us to construct a cohesive argument for how MNF training should be approached — 
+
+• Any loss that explicitly targets overlap is not the KLD. 
+
+• Any loss that explicitly targets overlap is thus nonlinear in W.
+
+• In order to employ correlation function-based optimization on an analogue of Eq. 19 for this overlap-targeting loss, we would require the calculation of at least five-body correlation functions. 
+
+• Therefore, correlation function-based optimization is intractable for any overlap metric, and we must employ direct stochastic optimization to train useful MNFs. The remaining design question is — which overlap targeting loss function should we optimize? 18 2.5 A New Loss Function 
+
+As we have noted before, the asymptotic variance in our free energy calculations is proportional to ˜H−10,1, so we seek the parameters θ∗ that maximize ˜H0,1 and thus minimize our variance. It is worth noting that 1 − ˜H0,1 is an f -divergence, and minimizing this is an equivalent optimization problem to minimizing what we will refer to as the “harmonic distance” (HD) — 
+
+DHD = − ln ˜H0,1
+
+= − ln 
+
+ 21 + e−W 
+
+
+
+> 0
+
+= − ln 
+
+ 21 + eW
+
+
+
+> 1
+
+(21) The advantage of using this as a loss function to train our mapping is that we are directly maximizing the phase space overlap relevant to the quality of our free energy estimate, as per Eq. 5. However, the major disadvantage of using the HD as a loss is that its behavior depends on ∆F 0→1, the very quantity we are attempting to estimate. If our initial estimate of ∆F 0→1 is very biased (which is especially relevant when we are doing one-sided estimation with FEP), then the optimality condition of our optimization is seriously polluted and we will not find the optimal map. This point is elaborated on in Sec. 3.1 of the SI. To alleviate this problem, we propose to use a new loss function — the Bhattacharyya Distance (BD) between our mapped work distributions — 
+
+DBD = − ln B0,1
+
+= − ln 
+
+Z q
+
+P0( ˜W )P1(− ˜W )d ˜W
+
+
+
+= − ln 
+
+D
+
+eW
+
+> 2
+
+E
+
+> 0
+
+= − ln 
+
+D
+
+e− W
+
+> 2
+
+E
+
+> 1
+
+(22) where B0,1 is referred to as the Bhattacharyya Coefficient (BC). 45 The BD is simply a different overlap metric (based on the geometric distribution mean) that approaches 0 in the limit of perfect overlap, just as the HD. We can see that the BC serves as an upper bound to ˜H0,1, where we always have that ˜H0,1 ≤ B0,1 and thus DBD ≤ DHD . While this 19 loss has the disadvantage of not controlling ˜H0,1 directly, we can see that its behavior is actually independent of our estimate of the free energy. Considering the forward direction as an example, we have — 
+
+DBD = − ln 
+
+D
+
+eβ 
+
+> 2
+
+(∆F −W (F )(x))E
+
+> 0
+
+= −12β∆F − ln 
+
+D
+
+e− β   
+
+> 2W(F)(x)
+
+E
+
+> 0
+
+∝ − ln 
+
+D
+
+e− β   
+
+> 2W(F)(x)
+
+E
+
+> 0
+
+(23) thus, the free energy is simply an additive factor, and the optimal mapping parameters that minimize DBD do not depend on it. Another interesting property is that the gradients of DHD become very noisy in the limit of negligible overlap (where the work distributions essentially have disjoint support), while this occurs to a lesser degree for DBD . In practice, both losses tend to have non-negligible gradients that tend towards the proper minimum in our numerical experiments, but this theoretical claim supports DBD having generally more robust gradient behavior. A theoretical demonstration of this claim is presented in Sec. 3.2 of the SI. Lastly, it is worth noting that the functional form of the BD resembles the Jarzynski equality expression — β∆F = − ln 
+
+D
+
+e−βW (F )(x)
+
+E
+
+> 0
+
+.16 In the BD case, the loss is non-constant due to the factor of 1 /2 in the exponential. The typical Jarzynski exponential average is very noisy, however the factor of 1/2 in the BD effectively increases the temperature in the Boltzmann factor, decreasing the variance in the ensemble average. Based on this “effective temperature” rationale, decreasing the value of the fraction in the exponential (which we refer to as α) for this type of loss can help control the variance in estimating the exponential average from one of the states. This points to the existence of a generalized Bhattacharyya 20 distance, which we refer to as a skewed Bhattacharyya distance (SBD), defined as — 
+
+D(α)BD = − ln 
+
+Z h
+
+P0( ˜W )
+
+i1−α h
+
+P1(− ˜W )
+
+iα
+
+d ˜W
+
+
+
+= − ln eαW 
+
+> 0
+
+= − ln e−(1 −α)W
+
+> 1
+
+(24) However, the lower bound D(α)BD ≤ DHD is only valid for all possible work distributions if 
+
+α = 1 /2, which motivates the choice of the standard Bhattacharyya distance 
+
+
+
+D(1 /2) BD 
+
+
+
+as our new loss function. We expand on this fact in the SI. For this reason, along with the variance damping effects of α = 1 /2, we favor the BD to alternative losses considered in the literature related to higher-α members of the SBD family. 36,41 
+
+We can construct practical losses from DBD and DHD by adding the ensemble average expressions from each state — 
+
+LBD (θ) = − ln 
+
+D
+
+e− β   
+
+> 2W(F)(x, θ)
+
+E
+
+> 0
+
+− ln 
+
+D
+
+eβ  
+
+> 2W(R)(y, θ)
+
+E
+
+> 1
+
+(25) 
+
+LHD 
+
+
+
+θ, ∆ ˆF 0→1
+
+
+
+= − ln 
+
+ 21 + e−W (x, θ,∆ ˆF 0→1)
+
+
+
+> 0
+
+− ln 
+
+ 21 + eW(y, θ,∆ ˆF 0→1)
+
+
+
+> 1
+
+(26) even though the two terms in each expression are formally equal, they allow us to use all collected samples from states 0 and 1 for training. Thus, when we refer to using the KLD, BD, or HD losses, we refer to the implementation of Eqs. 14, 25, and 26 respectively. The theoretical considerations above motivate the following simple optimization strategy for any general flow where expressivity is not guaranteed, and samples are collected from both states —1. Train for nepochs, BD using LBD (θ) (Eq. 25) to obtain θ∗
+
+> BD
+
+2. Compute a targeted free energy estimate ∆ ˆF 0→1targ using the mapping with parameters 
+
+θ∗ 
+
+> BD
+
+using BAR (Eq. 4) 21 3. Train for nepochs, HD using LHD (θ, ∆ ˆF 0→1targ ) (Eq. 26) to obtain final mapping parameters 
+
+θ∗.This procedure takes advantage of the theoretically favorable behavior of the BD loss at very low overlap, before switching to the HD loss which is directly related to the BAR variance. In this work we use nepochs, BD = nepochs, HD = nepochs /2. We refer to this as the BD-HD training strategy for MNFs. 
+
+# 3 Models and Numerical Methodology 
+
+# General Mapping Evaluation Methodology 
+
+Generating training and evaluation data for our mappings is comprised of three main steps — simulate states 0 and 1 in the LAMMPS simulation package 46 to form the training set (collecting Nind independent configurations from each state), create Nrep sets of independent replicates of the training simulations of states 0 and 1 to form the evaluation set, and finally create a set of simulations applying a windowing method between states 0 and 1 to get a high accuracy ground truth free energy difference. All free energy calculations (applying the BAR estimator) are conducted using the PyM-BAR Python package. 14 Independence between simulated configurations is determined by examining the energy autocorrelation function. 47 Our evaluation sets provide access to Nrep 
+
+independent targeted free energy estimates, and we consolidate this information by reporting a “typical” targeted free energy estimate for the number of samples considered. This is given by the average free energy prediction over the evaluation set 
+
+
+
+∆ ˆF 0→1 =
+
+D
+
+∆ ˆF 0→1
+
+> i
+
+E
+
+> i∈rep
+
+
+
+,with the uncertainty given as the square root of the average variance over the replicates 
+
+
+
+σ(∆ ˆF 0→1) = 
+
+rD
+
+σ2(∆ ˆF 0→1)
+
+E
+
+> i∈rep
+
+
+
+. It should be noted that while Eq. 5 is only formally valid asymptotically ( Nind → ∞ ), and thus we compute errors in free energies for each eval-uation replicate using the bootstrapping method provided by the PyMBAR package, with 22 100 bootstraps. 14 We corroborate our variance calculation approach by ensuring the agree-ment of our computed accelerations with those calculated by taking the standard deviation of the free energy over the evaluation set replicas. In order to report accelerations from our method conservatively, for large accelerations at lower overlap (where BAR finite sample error estimates can be noisy), we report ˜ n in approximate orders of magnitude rather than providing exact numbers. It is important to note that evaluating trained mappings on an independent evaluation set has been shown to be important in dealing with pathologies such as bias that appear when targeted free energies are only evaluated on the training set. 29,48 
+
+In all test cases considered, the potential energy between a pair of atoms can be described as a sum of non-coulombic (Lennard-Jones) and coulombic (point charge) interactions — 
+
+ujk (rjk ) = 4 ϵjk 
+
+"σjk 
+
+rjk 
+
+12 
+
+−
+
+σjk 
+
+rjk 
+
+6#| {z }
+
+> uLJ
+> jk
+
++ qj qk
+
+4πϵ 0rjk 
+
+| {z }
+
+> ucoul
+> jk
+
+(27) where rjk is the distance between atoms, ϵjk and σjk are pair LJ parameters, qj is the charge of atom j (qj = 0 for all j in the LJ test cases), and ϵ0 is the permittivity of free space. The total potential energy of our systems can be expressed as — 
+
+Ui,j (λi, ϕ j ) = X 
+
+> k̸=ins
+
+X
+
+> t>k
+
+uLJ  
+
+> kt
+
++ ucoul 
+
+> kt
+
+ + X 
+
+> k̸=ins
+
+λiuLJ  
+
+> k, ins
+
++ ϕj ucoul 
+
+> k, ins
+
+ (28) where λi ∈ [0 , 1] and ϕj ∈ [0 , 1] are coupling parameters that control the interaction of our inserted particle with the remainder of the system. For our free energy estimation challenges of interest states 0 and 1 are typically taken to be two pairs of coupling parameter values. 
+
+# Pure LJ Fluid 
+
+The first test case of the effectiveness of our methodology is a pure LJ fluid under NVT 
+
+conditions. The interaction between two particles (indexed j and k) is given by the first term 23 in Eq. 27, since our particles are uncharged. Since we consider a pure fluid, our parameters 
+
+ϵjk = ϵ and σjk = σ are the same for all pairs. We set our ϵ and σ parameters to those of pure Argon ( ϵ/k B = 93 .3 K, σ = 3 .542 ˚ A), and specify our system conditions by setting the values of the reduced density ( ρ∗ = σ3ρ) and reduced temperature ( T ∗ = kB T /ϵ ). 25 
+
+We estimate the free energy difference of inserting an extra Argon particle (given index 1) into a system. Our system potential energy is given by Eq. 28, with q = 0 and thus 
+
+ucoul = 0. State 0 is our “not inserted” state ( λ0 = 0 .0) and state 1 is our “inserted” state ( λ1 = 1 .0). This is exactly the system Hahn and Then considered, where we are attempting to accelerate the estimation of the chemical potential ( μ0→1). 25 Here we train a radial mapping that moves solvent particles uniformly towards/away from the inserted solute, as defined by Eq. 17. The systems we consider have 215 solvent particles and a single solute ( N = 216). To train the 1D MNF for this system, we run MD simulations of states 0 and 1 in the LAMMPS simulation package, 46 and train our mapping by minimizing our losses represented as ensem-ble averages over independent configurations generated from these simulations. Detailed simulation procedures are provided in the SI. The effectiveness of our mapping trained with a given loss is evaluated as described previously, with all simulations comprising the training and evaluation sets providing Nind = 3334 independent samples from each state. 
+
+# Binary LJ Mixture 
+
+To test the applicability of our radial mapping scheme to multi-component systems, we also examine a binary LJ mixture that exhibits solid-solution phase behavior. This solution is made up of “A” (solute) and “B” (solvent) LJ beads ( q = 0 for all beads and thus the pair energy is given by the first term of Eq. 27), where we are attempting to accelerate the calculation of the solute chemical potential ( μA). The LJ parameters used in this system are those examined by Espinosa et al. 49 and are provided in the SI. 24 As a generalization of the pure fluid case, we now train different 1D radial mappings for each species present. If our system has NA solute beads, NB solvent beads, and a single “inserted” solute particle ( N = NA + NB + 1), a configuration can be represented as 
+
+n
+
+rins , r(A)1 , . . . , r(A) 
+
+> NA
+
+, r(B)1 , . . . , r(B)
+
+> NB
+
+o
+
+. Thus, we transform our configurations according to the expression -
+
+ϕ
+
+
+
+rins , r(A)1 , . . . , r(A) 
+
+> NA
+
+, r(B)1 , . . . , r(B)
+
+> NB
+
+
+
+=
+
+n
+
+rins , f (A)
+
+
+
+r(A)1 , rins 
+
+
+
+, . . . , f (B)
+
+
+
+r(B) 
+
+> NB
+
+, rins 
+
+o (29) where f (i) is defined analogously to Eq. 17, but has a radial mapping function ψ(i) with different parameters trained for each possible kind of bead of type i ∈ { A, B } that the inserted solute particle can interact with. The specific system we consider is comprised of NB = 500 solvent particles and NA = 15 solute particles along with the single solute (“A”) particle we are inserting ( N = 516). This corresponds to a solute mole fraction of xA ≈ 0.03 which is just below the solubility limit for this system reported by Espinosa et al .49 We again consider state 0 as the inserted solute behaving as an ideal gas ( λ0 = 0 .0 in Eq. 28) and state 1 as the solute fully interacting (λ1 = 1 .0 in Eq. 28). Exact simulation specifications are given in Sec. 1 of the SI. Similar to the pure case, we train our mapping using configurations from one set of simulations of states 0 and 1, with Nind = 3334 configurations from each state. However, our evaluation procedure is slightly different — we again have 5 independent evaluation sets, however each set has 4 different sets of simulations of states 0 and 1, each run for a different number of simulation steps ( nsteps /10 6 = {20 , 50 , 100 , 500 }). This allows us to gauge mapping performance as a function of the number of independent samples collected. 
+
+# Dilute Electrolyte Solution 
+
+The last test case we consider is a technologically relevant system — the hydration behavior of an ion in a system of water molecules. In this case, we examine a single Na + or 25 Cl − ion (described by the Joung-Cheatham (JC) force field) 50 in a box of Nw = 216 water molecules described by the SPC/E force field (a rigid, 3-site water model). 51 Uniform charge backgrounds are present in the systems as needed to maintain overall charge neutrality at all instances. The interaction between two atoms is given by the pair potential as defined in Eq. 27. FF parameters for these systems are provided in the SI. We test the ability of our method to accelerate free energy calculations in two distinct ion hydration scenarios — 
+
+• Free Energy of Charging (for both Na + and Cl −): State 0 corresponds to λ0 = 1 .0, ϕ 0 =0.0 and state 1 corresponds to λ1 = 1 .0, ϕ 1 = 1 .0, as defined in Eq. 28. 
+
+• FF Parameter Perturbation for Na +: State 0 corresponds to λ0 = 1 .0, ϕ 0 = 1 .0 and state 1 corresponds to λ1 = 1 .0, ϕ 1 = 1 .0, as defined in Eq. 28, except in state 1 we now have ϵNa + = 0 .4297 kcal/mol (the epsilon parameter of K + in the JC FF 50 ), 
+
+σNa + = 2 .5 ˚ A (a substantial increase in ion size), and qNa + = 0 .85 e (a common charge value employed in scaled-charge electrolyte FFs 52 ), compared to the unmodified sodium ion FF parameters given in the SI, with the typical mixing rules maintained. In these systems, we also apply a radial mapping as defined in Eq. 17 to the ion-O distances, however this case differs from the LJ systems in that our solvent is now anisotropic. Thus, in addition to ion-O distances being significantly affected by the insertion, another difference is the orientation of water molecules as a function of their radial distance from the ion. As the charge of the inserted ion increases, water molecules reorient to point towards/away from the ion, depending on the sign of the ion charge. This motivates the use of a two-dimensional MNF for the electrolyte test case, and a schematic of such a mapping and its behavior is provided in the right panel of Fig. 1. We construct our 2D MNF to consist of two steps. First, the mapping rigidly pushes water molecules away from the inserted ion while maintaining their orientation — this is essentially an application of our 1D MNF construction to the ion-oxygen distance. Second, it rotates the water molecule 26 as to modify the angle between the ion-oxygen vector and the H-O-H bisector of the water molecule — we refer to this angle as γ. The magnitude of this rotation depends on the radial position of the water molecule being mapped. In practice, this 2D mapping is summarized by the operation ( r, cos γ) → (r′, cos γ′), and this is shown visually in the right panel of Fig. 1. This transformation has a simple analytical expression for its Jacobian that can be computed efficiently and is provided in the SI. 
+
+# MNF Training 
+
+Training our MNFs with any f -divergence requires recalculating the forward and reverse mapped works (given by Eqs. 7 and 8) and their gradients at each training step, as these are the quantities modified by our mapping parameters. This is by far the largest computational bottleneck in the training process. To accelerate this, we introduce a physically informed assumption — that our radial mappings only need to deviate from identity up to some short-range cutoff radius, which we refer to as a “fitting limit” rf . Thus, our radial and orientational mapping functions are now defined as — 
+
+ψ(SR )(r) = 
+
+
+
+ψ(r) if r < r f
+
+r if r ≥ rf
+
+(30) 
+
+g(SR )(γ|r) = 
+
+
+
+g(γ|r) if r < r f
+
+γ if r ≥ rf
+
+(31) Here we enforce that  ψ(SR )′ (rf ) = 1. This means that for our 1D or 2D mappings, only atoms/molecules within a sphere of radius rf from the inserted solute have their positions modified. This assumption allows us to accelerate our MNF training, because as mentioned before, the biggest computational challenge is calculating a quantity such as U1(ϕ(x, θ)) at every 27 training step. But, given our “short-range” mapping formulation, we can re-write the above quantity as — 
+
+U1(ϕ(x, θ)) = X
+
+> i∈I
+
+X
+
+> j>i
+
+u(1)  
+
+> ij
+
+(ϕ(ri, rj , rins , θ)) + X
+
+> i∈E
+
+X
+
+> j∈E, j>i
+
+u(1)  
+
+> ij
+
+(rij ) (32) here indices refer individual atoms or molecules, and I refers to the group of atoms/molecules within the fitting limit rf from the inserted particle (“Interior” group, assume they have the first NI indices), E refers to the group of molecules outside of this inner sphere (“Exterior” group), and u(1)  
+
+> ij
+
+refers to the interaction energy in state 1 (where x is sampled from state 0). The key observation here is that only the first sum depends on our mapping parameters 
+
+θ, and thus, we can pre-compute U1(x) (and equivalently U0(y)), and then only compute the quantity ∆U (t)1 = U1(ϕ(x, θt)) − U1(x) at each training step t, where the second term in Eq. 32 cancels upon evaluating this difference. This calculation has algorithmic complexity 
+
+O(NI · N ) for short-range interactions and O(NI · Nk) for long-range interactions (Ewald sums), where NI is the number of atoms inside the fitting limit, Nk is the number of k-vectors used in the Ewald sum, and N is the total number of atoms in the system. Explicit expressions for ∆U (t)1 for the pair potentials we consider are given in the SI. It should be noted that rf is a tunable parameter, and it needs to be large enough such that the trained mapping is not truncated artificially in a region where it would otherwise be not equal to the identity map. A simple way to determine rf is to start with a large value and find at what radial distance the trained mapping relaxes to the identity map. We find conservative values of rf to be between 6 −7 ˚ A and demonstrate in the SI (through examples of trained mappings) that our trained mappings relax to the identity map well within this radius. All automatic differentiation and vectorization operations needed to efficiently imple-ment our MNF training procedures in Python are provided by the JAX package. 53 To im-plement our mapping functions ψ and g, we use rational quadratic splines as proposed by 28 Durkan et al .54 This framework ensures that all mapping functions are differentiable and bijective, and we construct our MNFs such that all symmetries present in a molecular sim-ulation box are obeyed. The details of our implementation of such splines are provided in Sec. 6 of the SI. 
+
+# 4 Results 
+
+# Chemical Potential of Pure LJ Fluid 
+
+We first examine the ability of our method to find 1D radial maps that accelerate the calculation of the chemical potential of a pure LJ fluid. We consider such a fluid (with specifications given in Sec. 3 and the SI) at conditions ρ∗ = 0 .9 and T ∗ = 1 .2, as this was the test system considered by Hahn & Then. 25 This system showcases the effectiveness of our approach, as our mapping trained with the BD-HD training strategy provides a ˜n ∼ 10 1 − 10 2 (approximately two orders of magnitude) times acceleration of the chemical potential calculation relative to the identity mapping, and a ˜ n ∼ 10 1 (approximately one order of magnitude) times acceleration relative to the KLD-trained mapping. From our results, it is clear how the choice of loss function affects the performance of our resulting 1D MNF. Fig. 2 shows the resulting work distributions after training our MNF with a KLD loss function (top panel), and after training with our BD-HD strategy (bottom panel). The shown work distributions adhere to the behavior of the CFT where the probabilities of mapped and unmapped work distributions are equal exactly at the chemical potential of our pure fluid. As we theorized, training with the KLD minimizes the distance between the means of the mapped work distributions. In this case this is accomplished by sacrificing the proximity of −
+
+D ˜W (R)(y, θ)
+
+E
+
+> 1
+
+to ∆F , while largely minimizing the distance of 
+
+D ˜W (F )(x, θ)
+
+E
+
+> 0
+
+to ∆F , settling at a Pareto optimal solution for such a restricted mapping. The pathology we noted in Sec. 2.4.2 is explicitly shown in the inset of the top panel of 29 Figure 2: Mapped Work Distributions for the Chemical Potential of a Pure LJ Fluid . Both panels show the forward (blue) and reverse (orange) work distributions under the identity mapping, the ground truth chemical potential value ( βμ , vertical dotted line), and an inset magnifying the overlap region ( βW = βμ ±5) with overlap shaded in yellow. (a) Forward (blue line) and Reverse (red line) mapped work distributions after nepochs = 1000 epochs of training with the KLD loss given in Eq. 14 (b) Forward (blue line) and Reverse (red line) mapped work distributions after nepochs = 1000 epochs of training with the BD-HD training procedure (500 epochs per stage). Fig. 2 — even though the distances between the means are minimized, the relevant overlap in region W ≈ ∆F is not meaningfully enhanced, as shown by the modest reduction in the standard error of our targeted chemical potential estimate ( β ˆμ0→1KL = 1 ± 1) relative to the identity mapping ( β ˆμ0→1 = 3 ± 3). On the other hand, training with the BD-HD loss (shown in the lower panel of Fig. 2) targets overlap and achieves the maximum increase in overlap possible within our restricted mapping class (overlap is shown as the shaded yellow region under the probability histograms). This is expressed in the approximately ten times lower standard error in our targeted chemical potential ( β ˆμ0→1BD-HD = 2 .3 ± 0.3) relative to the 30 identity mapping. It should also be noted that this targeted chemical potential estimate is within statistical uncertainty of the ground truth value, as we computed the ground truth chemical potential (using 10, equally spaced λ windows) to be βμ 0→1 = 2 .56 ± 0.04. We compare our method of mapping construction to the RDF-matching heuristic of Hahn & Then. 25 The best performing mapping constructed from their intuitive / “heuristic-based” approaches had a converged Harmonic overlap value of ˜H0,1 = 1 .9 × 10 −3, while our BD-HD trained mapping achieves a converged Harmonic overlap value of ˜H0,1 = 7 .0×10 −3.25 
+
+This corresponds to a ∼ 3.7 times increase in the Harmonic overlap using our methodology which, according to Eq. 5, corresponds to about a 50% reduction in standard error of our chemical potential estimate. We are confident that we have arrived at the (essentially) optimal 1D radial mapping for this system. It is also important to note the computational expense of mapping generation. In this case, we achieve a training speed of 0.03 s/epoch on a single GPU, which amounts to about 30 seconds of GPU time to achieve the accelerations we see above. All training is conducted on a NVIDIA A100 GPU, with 80 GB of GPU memory. 
+
+# Chemical Potential of Binary LJ Mixture 
+
+We next examine the ability of our 1D mapping scheme to handle multi-component systems. As described in Sec. 3 we compute (and accelerate) the calculation of the solute (A) chemical potential in a binary LJ mixture (of A and B particles), where here we define different radial mappings acting on the distance between the inserted solute and particles of type A or B. Fig. 3 shows our results for applying the identity mapping and mappings trained with the KLD and BD-HD loss functions to this system, and the scaling of these results with the number of independent samples collected. We see that the effectiveness of the BD-HD training strategy extends to multi-component systems, providing about a ten-31 Figure 3: Acceleration of the Chemical Potential Calculation for a Binary LJ System . (a) Targeted free energy estimates ( β ˆμ) as a function of the number of independent samples collected from each state ( Nind ) for the identity mapping (grey), and mappings trained with the KLD (red) and BD-HD (purple) training approaches. (b) Standard error in the targeted free energy estimates ( βσ (ˆ μ)) as a function of the number of independent samples collected from each state ( Nind ) for the identity mapping (grey), and mappings trained with the KLD (red) and BD-HD (purple) training approaches. Dashed lines represent 
+
+βσ (ˆ μ) = K · N −1/2ind , where K is a constant such that the guideline intersects the final point of each data series. fold acceleration of the calculation of the solute chemical potential relative to the identity map. Interestingly, we can see that on the evaluation set for this system, the KLD-trained MNF provides worse performance than both the identity mapping and the BD-HD trained MNF. This provides an even more extreme example of the KLD pathology identified in Sec. 2.4.2, where training with the KLD loss motivates the sacrifice of existing probability mass in the W ≈ ∆F region in order to minimize the distance between the means of the 32 forward and reverse mapped work distributions. The upper panel of Fig. 3 shows how the BD-HD estimate (purple point) retains low bias (relative to the ground truth value of 
+
+β∆F = −6.65 ± 0.06) and error even in very low data regimes where Nind < 10 3. On the other hand, this free energy estimation problem is entirely intractable for the identity map in such low-data regimes, as can be seen by the huge error bars on its chemical potential estimate. The lower panel of Fig. 3 shows the dependence of the standard error in the (targeted) chemical potential estimate as a function of the number of independent samples collected for the identity mapping, as well as our two differently-trained MNFs. The points and error bars (68 % confidence intervals) are generated by taking the square root of the average variance over the 5 evaluation replicates and the standard error of the standard errors of the 5 evaluation replicates for each simulation length. The dashed lines show the regime of 
+
+σ(ˆ μ) ∝ N −1/2, with each line anchored to the last point of each data series. This regime is approximately achieved for all estimators for Nind > 5×10 3, but we can see that the targeted estimate from the BD-HD trained MNF achieves this regime for all numbers of independent samples collected. As Nind → ∞ , we can see that the BD-HD trained estimate achieves an asymptotic acceleration of about ˜ n ≈ 10 relative to the identity map, with this acceleration of course being greater in low-data regimes ( Nind < 3 × 10 3). These results, along with the fact that mapping training for this system is approximately as fast as the pure LJ case, confirm that the 1D MNFs we propose (together with our novel training strategy), can effectively accelerate chemical potential calculations in both single, and multi-component systems. 
+
+# Hydration of Single Ions 
+
+Finally, we test our approach on a challenging, technologically relevant system that has not previously been treated by targeted free energy estimates — the hydration of alkali/halide ions in water. We specifically focus on the insertion of a single sodium ion (Na +) or a single 33 chloride ion (Cl −) into a box of pure water as described in Sec. 3. The most challenging part of chemical potential calculations involving ions is the charging step — where ionic charges are slowly turned on. This is equivalent to varying the coupling parameter ϕ from 0 to 1, with the system potential energy defined by Eq. 28. We focus specifically on accelerating the calculation of this charging free energy ( ∆Gcoul ) by training and applying our 2D MNF. Since this calculation cannot practically be done in 1 step, we examine the performance of our mapping as function of the number of windows (intermediate two-state free energy calculations) used to compute ∆Gcoul , where Nwin = 1 .0/∆ϕ and ∆ϕ is the window spacing (e.g. ∆ϕ = 0 .5 would correspond to 2 windows, where we first compute the free energy between states ϕ = 0 .0 and ϕ = 0 .5 and then ϕ = 0 .5 and ϕ = 1 .0). Thus, we compute the total free charging free energy and its corresponding standard error as — 
+
+∆Gcoul = PNwin  
+
+> i=1
+
+∆Gcoul  
+
+> i,i +1
+
+and σ  ∆Gcoul  =
+
+qPNwin  
+
+> i=1
+
+σ2
+
+> i,i +1
+
+, where ∆Gcoul  
+
+> i,i +1
+
+is the free energy difference between the state i with coupling parameter value ϕi and i + 1 with coupling parameter value ϕi+1 , and σ2 
+
+> i,i +1
+
+is the corresponding per-sample variance in the estimate. Fig. 4 shows our results for applying our 2D MNF trained using the BD-HD strategy to the charging of Na +. The top panel shows absolute charging free energy estimates using the identity mapping (blue) and our trained MNF (orange) as a function of the coupling parameter window width. The targeted estimate achieves consistently lower standard error on the evaluation dataset as compared to the identity mapping. The bottom panel quantifies exactly how much of an acceleration our targeted estimate provides. We can see that the greatest acceleration is seen for the coarsest windowing ( ∆ϕ = 1 /3, ˜ n ≈ 3), while only slight gains are seen for the highest windowing resolution ( ∆ϕ = 1 /10, ˜ n ≈ 1.4). An equivalent plot showing results for the charging free energy of Cl − is provided in Sec. 10 of the SI. Generally, our 2D MNF still provides lower error at each window width, but provides a smaller acceleration of the calculation relative to the Na + case. For the Cl − case, we see an acceleration of ˜ n ≈ 1.6 at ∆ϕ = 1 /3 and ˜ n ≈ 1.2 at ∆ϕ = 1 /10. 34 Figure 4: Acceleration of the Charging Free Energy Calculation for Na +. (a) Charging free energy ( ∆Gcoul ) versus window size ( ∆ϕ) for the identity mapping (blue) and the targeted estimate (orange) trained using the BD-HD procedure. (b) Effective sample size increase (˜ n) versus window size ( ∆ϕ) for the BD-HD mapping compared to the identity mapping. The dashed line represents a power law fit to the data to guide the eye. It is important to note that calculating the chemical potential of single ions is subject to significant finite size effects. 55 This is due to the uniform, neutralizing background charge density, introduced to non-neutral simulation boxes to maintain charge neutrality, that the system interacts with. It has been previously reported that this system size effect can be removed by computing the chemical potential at a given concentration for various system sizes and extrapolating the single-ion chemical potential to the thermodynamic limit. 55,56 
+
+Thus, we show that our 2D MNFs trained to accelerate the insertion of Na + into 216 waters, can be applied to a larger system at the same concentration (648 waters and 1 ion pair) without re-training. For ∆ϕ = 1 /4, the mapping trained on the 216 water molecule system 35 provided an equivalent ˜ n ≈ 2 acceleration on the charging free energy calculation for the 648 water system, showing that acceleration results are transferable to larger system sizes without retraining, and a figure showing these results is provided in Sec. 11 of the SI. 
+
+Figure 5: Mapped Work Distributions for the Free Energy Change of Adjusting the Na + FF . Forward (light blue) and reverse (light orange) work distributions under the identity mapping are shown. The ground truth chemical potential value ( βμ ) is given by the vertical dotted line, and an inset magnifying the overlap region ( βW = βμ ± 5) is displayed with overlap shaded in yellow. The forward and reverse mapped work distributions after 
+
+nepochs = 1000 epochs of training with the BD-HD training strategy are shown by the solid blue and solid red lines respectively. The free energy change of inserting a single ion into a pure water box is used to assess hydration free energy predictions of different force fields. Thus, it is useful to accelerate cal-culations of free energy differences between systems with different sets of ion FF parameters. As described in Sec. 3, we start with a fully interacting sodium ion in solution using the SPC/E+JC FF (with the exact FF parameters provided in Sec. 1 of the SI), and we perturb the ion parameters to ϵNa + = 0 .4297 kcal/mol, σNa + = 2 .5 ˚ A , and qNa + = 0 .85 e. We then train the same 2D MNF architecture as the charging case, using the BD-HD procedure, to accelerate the calculation of the free energy difference between these states. Fig. 5 shows this targeted free energy estimate, where our mapping significantly increases configuration space overlap, leading to a ˜ n ≈ 8 acceleration in the free energy estimate relative to the iden-tity mapping. This significant acceleration suggests the 2D MNF is particularly well-suited 36 to capturing the structural changes associated with this FF parameter perturbation. Our identity and mapped estimates agree with our high accuracy ground truth value (computed with 10 windows) of βμ = 57 .39 ± 0.02. Finally, we note that all 2D MNFs for electrolyte systems are trained at a speed of about 0 .06 − 0.07 s/epoch, which amounts to about a minute for 1000 epochs of training on a single GPU, about twice as slow as the LJ cases. 
+
+# 5 Discussion and Conclusions 
+
+In this work, we have shown that training 1D and 2D MNFs with the BD-HD strategy can accelerate free energy calculations in diverse solvation scenarios while requiring at most minutes of GPU time for training. Below we discuss the strengths, weaknesses, and remaining questions regarding our approach. A significant advantage of our method is its low computational cost compared to the actual MD simulations used to generate independent samples from states 0 and 1. Training for all cases examined takes 0.5–1.5 minutes on a single GPU, while simulations typically take tens of CPU hours (especially for electrolyte systems). Current BGs with many parameters can take days to train on multiple GPUs, so our training costs are 3-4 orders of magnitude lower. 33 Of course, these more expressive architectures provide greater accelerations of free energy calculations, but, in our opinion, the speed of our method mitigates any limitations in its performance. MNFs can be trained and immediately applied at negligible cost for any new chemical potential calculation in any new system. Due to its efficiency, our approach can be viewed as a way to go beyond the provably minimum variance a BAR estimate provides, as the training cost is negligible compared to the cost of simulating states 0 and 1. Despite the negligible cost, we were able to accelerate free energy calculations involving the solvation of single ions in water, a system that, to our knowledge, has not yet been accelerated with generative modeling methods due to its complexity as a molecular liquid 37 with long-range coulombic interactions. Our framework is also trivially transferable between system sizes with no additional training cost, possessing a feature that is not present in typical BGs without significant additional architectural complexity. 35,40 This shows the advantage that the simple, physically-informed nature of MNFs provides. In our theoretical discussions, we consider three potential losses for MNF training — KLD, BD, and HD. Based on our theoretical arguments about how BD is independent of 
+
+∆F 0→1 and has more robust gradient behavior at low overlap, while HD is directly related to the BAR variance, we settled on our hybrid BD-HD strategy for training MNFs. While we have showed the failure of the KLD as a training loss, what about simply training on just BD or HD? A detailed comparison of the behavior of all 4 training strategies is presented in Sec. 8 of the SI. There, we examine a slightly more challenging pure LJ fluid at conditions ρ∗ = 1 .1and T ∗ = 2 .5. We use this test case to confirm our theoretical results that the HD loss has very few samples determining its gradient at low overlap (potentially exacerbating overfitting to noise in the training set), and that its minimum can be affected by a biased initial estimate of ∆ ˆF 0→1. However, it is worth noting that for the MNFs considered in this work, with very low numbers of parameters ( ∼ 10 2 − 10 3), training with BD, HD, and BD-HD losses provides very similar results for almost all cases. Even in pathological cases such as the one presented in the SI, BD-HD training gives similar results to simply training with BD and only provides a small standard error reduction on the training set compared to training with only HD, and free energy estimates on the evaluation set are essentially identical. Similarly, in the SI we numerically show the more robust gradient behavior of the BD loss (compared to the HD loss) at low overlap, but this does not lead to significant differences in optimization results. We believe that this is due to the simplicity of the optimization landscape for these simple test cases, and these issues will likely be exaggerated if more complex MNFs are considered, but this is beyond the scope of this work. We also examined a second test case for our loss comparisons — the charging of Na + in water from ϕ = 0 .0 to ϕ = 0 .5. Training strategy comparisons on the training and evaluation sets mirror the LJ results discussed above, but in 38 this case, it turns out that all four losses do equally well — the KLD training does not give significantly worse results in this case. For charging free energy calculations, the forward and reverse work distributions are often symmetrical (similar to each other in shape, with different means), which is different from the stark forward-reverse asymmetry of particle insertion scenarios. The KLD turns out to still be effective in this case, as minimizing the distance between the work distribution means happens to align with maximizing overlap. Despite the KLD training being non-pathological here, in general it is not possible to know 
+
+a priori when minimizing the distance between the mapped work distribution means will reliably increase phase space overlap between essentially disjoint distributions mapped using a non-expressive flow. Given these empirical results, and the fact that training with all four loss strategies is of equivalent expense (apart from the added cost of a single BAR evaluation in the middle of training for BD-HD, ∼ 5−10 s), we believe that our recommendation practically collapses to training MNFs with either the BD loss or the BD-HD hybrid strategy, as this approach will reliably find the (approximately) most effective mapping achievable for a given MNF archi-tecture. Also, the KLD training strategy should be avoided when training MNFs, especially for particle insertion free energy calculations, as we have demonstrated its poor performance for such systems. While theoretically sound, the practical effects of our distinctions between the BD and HD losses are largely conjectural, and should be explored in future work with potentially more complex MNFs. It is rather interesting to see the variability in performance of our mappings for dif-ferent systems. Our 1D MNF significantly accelerated chemical potential calculations in the pure LJ system and the binary LJ mixture. Our 2D MNF significantly accelerated our calculation of the free energy change upon FF parameter perturbation, but provided only modest gains for the charging of Na + in water, and hardly accelerated the calculation of the charging free energy of Cl − at all. This reveals the main limitation of our methodology — the structure of the transformation the MNF applies is still intuition-based, and thus it is 39 impossible to know how effective the free energy acceleration will be a priori . The major difference between MNFs and previous, intuition-based approaches is that here, for a given intuitive transformation, we are confident that we are finding the (approximately) most ef-fective transformation of that type. For example, we showed that we were able to achieve a 3.7-fold overlap improvement for the case of the pure LJ chemical potential compared to the heuristic approach of Hahn & Then. 25 Despite this deficiency, we argue that the low com-putational cost of our approach justifies its application, as we have not observed our MNFs under-performing the identity mapping for any of the cases tested, while adding negligible computational cost. However, this begs the question — how can MNFs be extended? Where do we derive more complex, and potentially more effective, low dimensional transformations, perhaps even for situations beyond solvation? One option, at least for solvation scenarios is to climb the Kirkwood hierarchy — while our current 1D MNF affects pair coordinates relative to the solute, we also can design MNFs that modify triplet coordinates ( r, r ′, θ ) relative to the solute. 15 In addition, it may be interesting to apply dimensionality reduction techniques such as autoencoders to find dominant features of liquid state configurations, 57 perhaps motivating new generalized directions for MNFs to act on. However, we believe that our ideas apply to any non-fully expressive NF. Perhaps it would be interesting to start with a maximally expressive flow, begin taking away coupling layers, and examine to what extent our training strategy can still produce meaningful accelerations. Overall, we believe that the MNF framework provides future avenues to fully take advantage of Jarzynski’s seminal result by better balancing the training cost and transferability of mappings with their effectiveness in enhancing free energy estimates, all simply by modifying our training strategy and baking in physical intuition. In summary, we have presented a novel approach to efficiently constructing bijective mappings that can be used for targeted free energy estimation. Our “minimal” normal-izing flows are low-dimensional, physically informed mappings that are non-expressive by 40 construction. However, they can be trained in about one minute on a single GPU to mean-ingfully enhance the phase space overlap between two states. This is compared to the typical GPU days it takes to train typical, fully expressive flows. Our method is built upon our ob-servation that the KLD fails as a loss function for non-expressive flows, and we propose an alternative loss strategy that directly targets the enhancement of phase space overlap. This loss strategy (the BD-HD approach) is based on the combination of the Bhattacharyya distance with the harmonic overlap metric, which mitigates theoretical issues with training directly on the harmonic overlap metric when the configuration spaces of the two Boltzmann distributions in question have negligible overlap. We show how our mappings can provide accelerations to the calculations of the chemical potential in pure (˜ n ∼ 10 1 − 10 2) and binary (asymptotic ˜ n ∼ 10 1) LJ systems, as well as calculations of the free energy change upon ion charging in water (˜ n ≈ 3 at ∆ϕ = 0 .33) and FF perturbation of Na + in water (˜ n ≈ 8), all while retaining training speeds of less than 0.1 seconds/epoch. In addition, due to how our MNFs are constructed, they are immediately transferable across system sizes, enabling rapid training in small systems and applications to larger ones, as we demonstrate for the case of the charging free energy of Na +. This is very important as calculations of both single-ion and ion pair chemical potentials depend significantly on system size, and thus require extrapola-tions to the thermodynamic limit. 55,56 Our method has the limitation that it is impossible to know a priori to what degree the physically-informed transformations our MNFs act on can increase the phase space overlap between our states of interest. This is seen in how variable the accelerations we obtain are for the various systems we test — for some test cases, our MNFs act on the dominant variance-reducing channels, while in others they seem to largely miss them. Thus, future work should focus on finding low-dimensional transformations that better guarantee the enhancement of phase space overlap while not being fully expressive and thus retaining low training cost. This will likely lead to an increase in MNF complexity, but walking the tightrope of training efficiency vs. acceleration in the convergence of free energy estimates in industrially relevant systems is an exciting direction for future work. We believe 41 this work lays the foundation for developing physically-informed, generative-model-assisted free energy estimates that can efficiently enhance our ability to assess phase behavior in complex systems. 42 Supplementary Material 
+
+The supplementary material accompanying this article contains LAMMPS simulation details for all simulation data we generated (Sec. 1), a detailed derivation of the correlation function expression in Eq. 19 (Sec. 2), derivations showing the pathologies of the HD loss (Sec. 3), mathematical considerations for neglecting SBDs (Sec. 4), a derivation of the ana-lytically expressible Jacobian of our 2D MNF (Sec. 5), details of the spline implementations for our 1D and 2D MNFs and a description of the optimization hyper-parameters we use during training (Sec. 6), detailed expressions for how we accelerate MNF training using the fitting limit assumption (Sec. 7), numerical comparisons between all possible loss strategies we consider (Sec. 8), examples of what our trained 1D and 2D MNFs look like (Sec. 9), results for the acceleration of the charging free energy of Cl − (Sec. 10), and finally, results for the system size transferability of our 2D MNFs (Sec. 11). 
+
+# Acknowledgments 
+
+Financial support for this work was provided by the Office of Basic Energy Sciences, U.S. Department of Energy, under Award DESC0002128. P.B.B. acknowledges support from the National Science Foundation Graduate Research Fellowship Program under Grant No. DGE-2039656. Any opinions, findings, and conclusions or recommendations expressed in this material are those of the authors and do not necessarily reflect the views of the National Science Foundation. We would like to thank Ryan Szukalo for useful discussions and feedback on the manuscript. 43 Author Declarations 
+
+# Conflict of Interest 
+
+The authors have no conflicts to declare. 
+
+# Data Availability 
+
+Computer codes used in this work, including scripts to set up and run MD simulations for the pure LJ, binary LJ, and ion hydration test cases, and to implement the methods described in Secs. 2 & 3 to efficiently train both 1D and 2D MNFs for all of the test systems described are freely available for download from the Princeton Data Commons repository at https://doi.org/10.34770/nrpq-qk33. 
+
+# References 
+
+(1) Sadybekov, A. V.; Katritch, V. Computational approaches streamlining drug discovery. 
+
+Nature 2023 , 616 , 673–685, DOI: 10.1038/s41586-023-05905-z .(2) Ghidini, A.; Serra, E.; Cavalli, A. On Free Energy Calculations in Drug Discovery. Acc. Chem. Res. 2025 , 58 , 3137–3145, DOI: 10.1021/acs.accounts.5c00465 .(3) Aykol, M.; Kim, S.; Hegde, V. I.; Snydacker, D.; Lu, Z.; Hao, S. Q.; Kirklin, S.; Morgan, D.; Wolverton, C. High-throughput computational design of cathode coatings for Li-ion batteries. Nat. Commun. 2016 , 7, DOI: 10.1038/ncomms13779 .(4) Panagiotopoulos, A. Z. Monte Carlo methods for phase equilibria of fluids. J. Phys. Condens. Matter 2000 , 12 , R25–R52, DOI: 10.1088/0953-8984/12/3/201 .44 (5) Vega, C.; Sanz, E.; Abascal, J. L. F.; Noya, E. G. Determination of phase diagrams via computer simulation: methodology and applications to water, electrolytes and proteins. 
+
+J. Phys. Condens. Matter 2008 , 20 , DOI: 10.1088/0953-8984/20/15/153101 .(6) Benavides, A. L.; Aragones, J. L.; Vega, C. Consensus on the solubility of NaCl in water from computer simulations using the chemical potential route. J. Chem. Phys. 
+
+2016 , 144 , DOI: 10.1063/1.4943780 .(7) Baron, P. B.; Panagiotopoulos, A. Z. Efficient calculation of crystal-solution coexistence lines for aqueous electrolytes. J. Chem. Phys. 2025 , 163 , DOI: 10.1063/5.0304180 .(8) Dockal, J.; Lisal, M.; Moucka, F. Molecular Force Field Development for Aqueous Elec-trolytes: 2. Polarizable Models Incorporating Crystalline Chemical Potential and Their Accurate Simulations of Halite, Hydrohalite, Aqueous Solutions of NaCl, and Solubility. 
+
+J. Chem. Theory Comput. 2020 , 16 , 3677–3688, DOI: 10.1021/acs.jctc.0c00161 .(9) Panagiotopoulos, A. Z. Simulations of activities, solubilities, transport properties, and nucleation rates for aqueous electrolyte solutions. J. Chem. Phys. 2020 , 153 , DOI: 
+
+10.1063/5.0012102 .(10) Yagasaki, T.; Matsumoto, M.; Tanaka, H. Lennard-Jones Parameters Determined to Reproduce the Solubility of NaCl and KCl in SPC/E, TIP3P, and TIP4P/2005 Water. 
+
+J. Chem. Theory Comput. 2020 , 16 , 2460–2473, DOI: 10.1021/acs.jctc.9b00941 .(11) Baron, P. B.; Panagiotopoulos, A. Z. Top-down optimization of aqueous electrolyte force fields to model chemical potentials and solubilities. J. Chem. Phys. 2025 , 162 ,DOI: 10.1063/5.0272640 .(12) Zwanzig, R. W. High-temperature equation of state by a perturbation method. I. Non-polar gases. J. Chem. Phys. 1954 , 22 , 1420–1426, DOI: 10.1063/1.1740409 .45 (13) Bennett, C. H. Efficient estimation of free energy differences from Monte Carlo data. 
+
+J. Comput. Phys. 1976 , 22 , 245–268, DOI: 10.1016/0021-9991(76)90078-4 .(14) Shirts, M. R.; Chodera, J. D. Statistically optimal analysis of samples from multiple equilibrium states. J. Chem. Phys. 2008 , 129 , DOI: 10.1063/1.2978177 .(15) Kirkwood, J. G. Statistical mechanics of fluid mixtures. J. Chem. Phys. 1935 , 3, 300– 313. (16) Jarzynski, C. Nonequilibrium equality for free energy differences. Phys. Rev. Lett. 1997 ,
+
+78 , 2690–2693, DOI: 10.1103/PhysRevLett.78.2690 .(17) Dellago, C.; Hummer, G. Computing Equilibrium Free Energies Using Non-Equilibrium Molecular Dynamics. Entropy 2014 , 16 , 41–61, DOI: 10.3390/e16010041 .(18) Pham, T. T.; Shirts, M. R. Optimal pairwise and non-pairwise alchemical pathways for free energy calculations of molecular transformation in solution phase. J. Chem. Phys. 
+
+2012 , 136 , DOI: 10.1063/1.3697833 .(19) Zhong, A.; Kuznets-Speck, B.; DeWeese, M. R. Time-asymmetric fluctuation theorem and efficient free-energy estimation. Phys. Rev. E 2024 , 110 , DOI: 
+
+10.1103/PhysRevE.110.034121 .(20) Jarzynski, C. Targeted free energy perturbation. Phys. Rev. E 2002 , 65 , DOI: 
+
+10.1103/PhysRevE.65.046122 .(21) Wirnsberger, P.; Ballard, A. J.; Papamakarios, G.; Abercrombie, S.; Racani` ere, S.; Pritzel, A.; Rezende, D. J.; Blundell, C. Targeted free energy estimation via learned mappings. J. Chem. Phys. 2020 , 153 , DOI: 10.1063/5.0018903 .(22) Tan, T. B.; Schultz, A. J.; Kofke, D. A. Efficient calculation of temperature dependence of solid-phase free energies by overlap sampling coupled with harmonically targeted perturbation. J. Chem. Phys. 2010 , 133 , DOI: 10.1063/1.3483899 .46 (23) Schieber, N. P.; Shirts, M. R. Configurational mapping significantly increases the effi-ciency of solid-solid phase coexistence calculations via molecular dynamics: Determin-ing the FCC-HCP coexistence line of Lennard-Jones particles. J. Chem. Phys. 2019 ,
+
+150 , DOI: 10.1063/1.5080431 .(24) Paliwal, H.; Shirts, M. R. Multistate reweighting and configuration mapping together accelerate the efficiency of thermodynamic calculations as a function of molecular ge-ometry by orders of magnitude. J. Chem. Phys. 2013 , 138 , DOI: 10.1063/1.4801332 .(25) Hahn, A. M.; Then, H. Using bijective maps to improve free-energy estimates. Phys. Rev. E 2009 , 79 , DOI: 10.1103/PhysRevE.79.011113 .(26) Papamakarios, G.; Nalisnick, E.; Rezende, D. J.; Mohamed, S.; Lakshminarayanan, B. Normalizing Flows for Probabilistic Modeling and Inference. J. Mach. Learn. Res. 2021 ,
+
+22 .(27) No´ e, F.; Olsson, S.; K¨ ohler, J.; Wu, H. Boltzmann generators: Sampling equilibrium states of many-body systems with deep learning. Science 2019 , 365 , eaaw1147, DOI: 
+
+10.1126/science.aaw1147 .(28) Schebek, M.; Invernizzi, M.; No´ e, F.; Rogal, J. Efficient mapping of phase diagrams with conditional Boltzmann Generators. Mach. Learn.: Sci. Technol. 2024 , 5, DOI: 
+
+10.1088/2632-2153/ad849d .(29) Rizzi, A.; Carloni, P.; Parrinello, M. Targeted Free Energy Perturbation Revisited: Accurate Free Energies from Mapped Reference Potentials. J. Phys. Chem. Lett. 2021 ,
+
+12 , 9449–9454, DOI: 10.1021/acs.jpclett.1c02135 .(30) Wirnsberger, P.; Papamakarios, G.; Ibarz, B.; Racani` ere, S.; Ballard, A. J.; Pritzel, A.; Blundell, C. Normalizing flows for atomic solids. Mach. Learn.: Sci. Technol. 2022 , 3,DOI: 10.1088/2632-2153/ac6b16 .47 (31) Ahmad, R.; Cai, W. Free energy calculation of crystalline solids using normalizing flows. 
+
+Modell. Simul. Mater. Sci. Eng. 2022 , 30 , DOI: 10.1088/1361-651X/ac7f4b .(32) Olehnovics, E.; Liu, Y. M.; Mehio, N.; Sheikh, A. Y.; Shirts, M. R.; Salvalaglio, M. Ac-curate Lattice Free Energies of Packing Polymorphs from Probabilistic Generative Mod-els. J. Chem. Theory Comput. 2025 , 21 , 2244–2255, DOI: 10.1021/acs.jctc.4c01612 .(33) Schebek, M.; He, J. J.; Hoffmann, E.; Du, Y. Q.; No´ e, F.; Rogal, J. Assessing generative modeling approaches for free energy estimates in condensed matter. J. Chem. Phys. 
+
+2026 , 164 , DOI: 10.1063/5.0320214 .(34) Willow, S. Y.; Kang, L. L.; Minh, D. D. L. Learned mappings for targeted free en-ergy perturbation between peptide conformations. J. Chem. Phys. 2023 , 159 , DOI: 
+
+10.1063/5.0164662 .(35) Tan, C. B.; Bose, A. J.; Lin, C.; Klein, L.; Bronstein, M. M.; Tong, A. Scalable Equi-librium Sampling with Sequential Boltzmann Generators. Proceedings of the 42nd In-ternational Conference on Machine Learning. 2025; pp 58467–58498. (36) Midgley, L. I.; Stimper, V.; Simm, G. N. C.; Sch¨ olkopf, B.; Hern´ andez-Lobato, J. M. Flow Annealed Importance Sampling Bootstrap. Proceedings of the 11th International Conference on Learning Representations. 2023. (37) Klein, L.; Kr¨ amer, A.; No´ e, F. Equivariant Flow Matching. Advances in Neural Infor-mation Processing Systems. 2023. (38) Schebek, M.; Frob¨ ose, N. M.; Keller, B. G.; Rogal, J. Estimating solvation free energies with Boltzmann generators. https://arxiv.org/abs/2512.18147 .(39) Coretti, A.; Falkner, S.; Geissler, P. L.; Dellago, C. Learning mappings between equi-librium states of liquid systems using normalizing flows. J. Chem. Phys. 2025 , 162 ,DOI: 10.1063/5.0253034 .48 (40) Schebek, M.; No´ e, F.; Rogal, J. Scalable Boltzmann generators for equilibrium sampling of large-scale materials. https://arxiv.org/abs/2509.25486 .(41) Felardos, L.; H´ enin, J.; Charpiat, G. Designing losses for data-free training of normal-izing flows on Boltzmann distributions. https://arxiv.org/abs/2301.05475 .(42) McQuarrie, D. A. Statistical Mechanics ; University Science Books: Sausalito, CA, 2000. (43) Crooks, G. E. Path-ensemble averages in systems driven far from equilibrium. Phys. Rev. E 2000 , 61 , 2361–2366, DOI: 10.1103/PhysRevE.61.2361 .(44) Shirts, M.; Bair, E.; Hooker, G.; Pande, V. Equilibrium free energies from nonequi-librium measurements using maximum-likelihood methods. Phys. Rev. Lett. 2003 , 91 ,DOI: 10.1103/PhysRevLett.91.140601 .(45) Bhattacharyya, A. On a measure of divergence between two statistical populations defined by their probability distributions. Bull. Calcutta Math. Soc. 1943 , 35 , 99–109. (46) Thompson, A. P.; Aktulga, H. M.; Berger, R.; Bolintineanu, D. S.; Brown, W. M.; Crozier, P. S.; Veld, P. J. I.; Kohlmeyer, A.; Moore, S. G.; Nguyen, T. D.; Shan, R.; Stevens, M. J.; Tranchida, J.; Trott, C.; Plimpton, S. J. LAMMPS-a flexible simulation tool for particle-based materials modeling at the atomic, meso, and continuum scales. 
+
+Comput. Phys. Commun. 2022 , 271 , DOI: 10.1016/j.cpc.2021.108171 .(47) Chodera, J. D.; Swope, W. C.; Pitera, J. W.; Seok, C.; Dill, K. A. Use of the weighted histogram analysis method for the analysis of simulated and parallel tempering simu-lations. J. Chem. Theory Comput. 2007 , 3, 26–41, DOI: 10.1021/ct0502864 .(48) Olehnovics, E.; Liu, Y. M.; Mehio, N.; Sheikh, A. Y.; Shirts, M. R.; Salvalaglio, M. Assessing the Accuracy and Efficiency of Free Energy Differences Obtained from Reweighted Flow-Based Probabilistic Generative Models. J. Chem. Theory Comput. 
+
+2024 , 20 , 5913–5922, DOI: 10.1021/acs.jctc.4c00520 .49 (49) Espinosa, J. R.; Young, J. M.; Jiang, H.; Gupta, D.; Vega, C.; Sanz, E.; Debenedetti, P. G.; Panagiotopoulos, A. Z. On the calculation of solubilities via direct coexistence simulations: Investigation of NaCl aqueous solutions and Lennard-Jones binary mixtures. J. Chem. Phys. 2016 , 145 , DOI: 10.1063/1.4964725 .(50) Joung, I. S.; Cheatham, T. E. Determination of alkali and halide monovalent ion param-eters for use in explicitly solvated biomolecular simulations. J. Phys. Chem. B 2008 ,
+
+112 , 9020–9041, DOI: 10.1021/jp8001614 .(51) Berendsen, H. J. C.; Grigera, J. R.; Straatsma, T. P. The missing term in effective pair potentials. J. Phys. Chem. 1987 , 91 , 6269–6271, DOI: 10.1021/j100308a038 .(52) Benavides, A. L.; Portillo, M. A.; Chamorro, V. C.; Espinosa, J. R.; Abascal, J. L. F.; Vega, C. A potential model for sodium chloride solutions based on the TIP4P/2005 water model. J. Chem. Phys. 2017 , 147 , DOI: 10.1063/1.5001190 .(53) Bradbury, J.; Frostig, R.; Hawkins, P.; Johnson, M. J.; Katariya, Y.; Leary, C.; Maclau-rin, D.; Necula, G.; Paszke, A.; VanderPlas, J.; Wanderman-Milne, S.; Zhang, Q. JAX: composable transformations of Python+NumPy programs. 2018; http://github.com/ jax-ml/jax .(54) Durkan, C.; Bekasov, A.; Murray, I.; Papamakarios, G. Neural Spline Flows. Advances in Neural Information Processing Systems. 2019; pp 7511–7522. (55) Saravi, S. H.; Panagiotopoulos, A. Z. Individual Ion Activity Coefficients in Aqueous Electrolytes from Explicit-Water Molecular Dynamics Simulations. J. Phys. Chem. B 
+
+2021 , 125 , 8511–8521, DOI: 10.1021/acs.jpcb.1c04019 .(56) Young, J. M.; Panagiotopoulos, A. Z. System-Size Dependence of Electrolyte Activity Coefficients in Molecular Simulations. J. Phys. Chem. B 2018 , 122 , 3330–3338, DOI: 
+
+10.1021/acs.jpcb.7b09861 .50 (57) Chen, W.; Ferguson, A. Molecular Enhanced Sampling with Autoencoders: On-The-Fly Collective Variable Discovery and Accelerated Free Energy Landscape Exploration. 
+
+J. Comput. Chem. 2018 , 39 , 2079–2102, DOI: 10.1002/jcc.25520 .51

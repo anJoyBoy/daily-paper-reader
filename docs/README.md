@@ -6,70 +6,49 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-06-24
-- 运行时间：2026-06-24 21:42:03 UTC
+- 最新运行日期：2026-06-25
+- 运行时间：2026-06-25 20:55:09 UTC
 - 运行状态：成功
-- 本次总论文数：16
-- 精读区：6
-- 速读区：10
+- 本次总论文数：9
+- 精读区：4
+- 速读区：5
 
 ### 今日简报（AI）
-今日精选16篇论文，聚焦化学与AI交叉领域。  
-最值得关注的是化学工厂脱碳与可再生能源系统的去中心化运营，以及化学语言模型对分子知识的深度解析。  
-建议优先精读这两篇9分论文，快速把握化学工业和AI在分子理解上的前沿趋势。
-- 详情：[/202606/24/README](/202606/24/README)
+1) 今日9篇论文聚焦AI辅助化学与材料设计，精读两篇高分工作分别提升化学语言模型可靠性与化学势计算效率。
+2) 最值得看“不确定性感知强化学习化学语言模型”与“最小化归一化流加速化学势计算”，两者均获9.0分，为前沿方法突破。
+3) 普通读者可关注这些可微框架与条件化模型工具，它们有望简化实验前筛选与计算流程。
+- 详情：[/202606/25/README](/202606/25/README)
 
 ### 精读区论文标签
-1. [Decentralized Operations of Decarbonized Chemical Plants with Renewable-driven Transmission Systems](/202606/24/2606.22973v1-decentralized-operations-of-decarbonized-chemical-plants-with-renewable-driven-transmission-systems)  
+1. [Uncertainty-aware reinforcement learning for chemical language models](/202606/25/2606.24990v1-uncertainty-aware-reinforcement-learning-for-chemical-language-models)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：化工过程优化
-2. [What Does a Chemical Language Model Know About Molecules?](/202606/24/2606.23443v1-what-does-a-chemical-language-model-know-about-molecules)  
+   evidence：化学语言模型的不确定性感知强化学习用于分子设计
+2. [Accelerating Chemical Potential Calculations with Minimal Normalizing Flows](/202606/25/2606.25229v1-accelerating-chemical-potential-calculations-with-minimal-normalizing-flows)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：研究化学语言模型中的分子表示，直接与大语言模型相关
-3. [Synergizing Physically Constrained MCMC and Chemical-Informed Gaussian Processes for Reaction Network Discovery](/202606/24/2606.23757v1-synergizing-physically-constrained-mcmc-and-chemical-informed-gaussian-processes-for-reaction-network-discovery)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：使用物理约束MCMC和高斯过程进行化学工程反应网络发现
-4. [Breaking Bottlenecks in Solid Electrolyte Discovery with Large Artificial Intelligence Models](/202606/24/2606.24480v1-breaking-bottlenecks-in-solid-electrolyte-discovery-with-large-artificial-intelligence-models)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：利用大语言模型进行化学工程
-5. [DecoSearch: Complexity-Aware Routing and Plan-Level Repair for Text-to-SQL](/202606/24/2606.17821v1-decosearch-complexity-aware-routing-and-plan-level-repair-for-text-to-sql)  
+   evidence：使用归一化流加速化学势计算
+3. [AutoSpec: Safety Rule Evolution for LLM Agents via Inductive Logic Programming](/202606/25/2606.24245v2-autospec-safety-rule-evolution-for-llm-agents-via-inductive-logic-programming)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：用于文本到SQL查询分解与修复的大型语言模型
-6. [GRIMIP: A General Framework for Instance-Specific Configuration of MIP Solvers Using LLMs](/202606/24/2606.23299v1-grimip-a-general-framework-for-instance-specific-configuration-of-mip-solvers-using-llms)  
+   evidence：为LLM代理自动演化安全规则
+4. [MiniOpt: Reasoning to Model and Solve General Optimization Problems with Limited Resources](/202606/25/2606.25832v1-miniopt-reasoning-to-model-and-solve-general-optimization-problems-with-limited-resources)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：大语言模型框架用于配置混合整数规划求解器，可应用于化学工程过程优化
+   evidence：大语言模型通过推理-建模-求解范式处理优化问题
 
 ### 速读区论文标签
-1. [INCARBench: A Benchmark for Scientific Configuration in VASP INCAR by Large Language Models](/202606/24/2606.23571v1-incarbench-a-benchmark-for-scientific-configuration-in-vasp-incar-by-large-language-models)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：用于评估大语言模型科学配置能力的基准，直接与大语言模型相关
-2. [INCARBench: A Benchmark for Scientific Configuration in VASP INCAR by Large Language Models](/202606/24/2606.23571v2-incarbench-a-benchmark-for-scientific-configuration-in-vasp-incar-by-large-language-models)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：用于评估大语言模型科学配置能力的基准，直接与大语言模型相关
-3. [AutoSpec: Safety Rule Evolution for LLM Agents via Inductive Logic Programming](/202606/24/2606.24245v1-autospec-safety-rule-evolution-for-llm-agents-via-inductive-logic-programming)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：大语言模型
-4. [Scaling Laws for Task-Specific LLM Distillation](/202606/24/2606.24747v1-scaling-laws-for-task-specific-llm-distillation)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：大语言模型
-5. [MMGNN: Multi-level, multi-color graph neural networks for molecular property prediction](/202606/24/2606.20906v1-mmgnn-multi-level-multi-color-graph-neural-networks-for-molecular-property-prediction)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：化学工程中的人工智能
-6. [Sub-Billion, Super-Frontier: Small Language Models Rival Zero-Shot Frontier LLMs on General and Literary Relation Extraction](/202606/24/2606.22606v1-sub-billion-super-frontier-small-language-models-rival-zero-shot-frontier-llms-on-general-and-literary-relation-extraction)  
+1. [Project Auto-World: Towards Automated Benchmarking of Neural Relational Reasoners](/202606/25/2606.24965v1-project-auto-world-towards-automated-benchmarking-of-neural-relational-reasoners)  
    标签：评分：7.0/10、query:llm-dm
-   evidence：基于大语言模型的关系抽取用于文本挖掘
-7. [Reaction-Network-Level Discovery of Ammonia Synthesis Catalysts via Ten-Million-Scale Generative Exploration](/202606/24/2606.22926v1-reaction-network-level-discovery-of-ammonia-synthesis-catalysts-via-ten-million-scale-generative-exploration)  
+   evidence：大语言模型驱动的自动化基准生成用于关系推理
+2. [ConSolv: Solvent-Conditional Machine Learning Implicit Solvent Potential](/202606/25/2606.24983v1-consolv-solvent-conditional-machine-learning-implicit-solvent-potential)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：氨合成催化剂发现，核心化学工程问题
-8. [Machine learning metallic glass critical cooling rates through elemental and molecular simulation based featurization](/202606/24/2606.21467v1-machine-learning-metallic-glass-critical-cooling-rates-through-elemental-and-molecular-simulation-based-featurization)  
+   evidence：有机溶剂机器学习势
+3. [A Differentiable DFT-Based Framework for Inverse Materials Design](/202606/25/2606.25502v1-a-differentiable-dft-based-framework-for-inverse-materials-design)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：可微DFT框架用于逆材料设计
+4. [Sub-Billion, Super-Frontier: Small Language Models Rival Zero-Shot Frontier LLMs on General and Literary Relation Extraction](/202606/25/2606.22606v1-sub-billion-super-frontier-small-language-models-rival-zero-shot-frontier-llms-on-general-and-literary-relation-extraction)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：机器学习在化学工程材料中的应用
-9. [TACO: Task-Aware Column Description Generation Using LLMs](/202606/24/2606.21685v1-taco-task-aware-column-description-generation-using-llms)  
+   evidence：小语言模型在关系抽取上媲美大模型
+5. [An LLM-based Two-Stage Transformer Framework for Cross-Domain Bearing Fault Diagnosis with Limited Data](/202606/25/2606.24459v1-an-llm-based-two-stage-transformer-framework-for-cross-domain-bearing-fault-diagnosis-with-limited-data)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：利用大语言模型生成列描述，辅助数据挖掘任务
-10. [Substitution-Based Analysis of Structural Novelty for Generative Models of Materials](/202606/24/2606.23166v1-substitution-based-analysis-of-structural-novelty-for-generative-models-of-materials)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：人工智能在化工材料中的应用
+   evidence：基于大语言模型的轴承故障诊断框架，面向少数据场景
 
 
 <div class="dpr-home-promo-card">
