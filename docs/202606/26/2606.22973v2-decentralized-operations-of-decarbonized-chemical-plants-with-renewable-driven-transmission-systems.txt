@@ -1,0 +1,982 @@
+Title: Decentralized Operations of Decarbonized Chemical Plants with Renewable-driven Transmission Systems
+
+URL Source: https://arxiv.org/pdf/2606.22973v2
+
+Published Time: Fri, 26 Jun 2026 00:25:14 GMT
+
+Number of Pages: 11
+
+Markdown Content:
+> 1
+
+# Decentralized Operations of Decarbonized Chemical Plants with Renewable-driven Transmission Systems 
+
+Richard Reed 1∗
+
+, Kazi Arman Ahmed 1∗
+
+, Saba Ghasemi 2, Zheyu Jiang 2, Paritosh Ramanan 11School of Industrial Engineering and Management, 2School of Chemical Engineering Oklahoma State University, Stillwater, OK 74078 USA Email: {ricky.reed, kazi.ahmed, saba.ghasemi naraghi, zheyu.jiang, paritosh.ramanan }@okstate.edu 
+
+Abstract —Electrification of ethane cracking offers a promising pathway to industrial decarbonization, provided that the elec-tricity is sourced from renewable energy. However, integrating electrified chemical plant microgrids with a decarbonized power grid requires joint operations planning between Independent System Operators and chemical plants, which is hindered by the highly confidential nature of plant operational data. In this paper, we propose a privacy-friendly decentralized framework based on data isolation that jointly optimizes the Unit Commitment problem in the power system and microgrid scheduling in electrified ethane cracker plants. The framework employs the Alternating Direction Method of Multipliers, augmented with an auxiliary system-level penalty that accelerates convergence, allowing each subsystem to solve its local subproblem and share only minimal coordination signals. To reflect real-world condi-tions, numerical experiments are conducted on the ACTIVSg2000 test case, a synthetic model of the Texas transmission network, with 26 chemical plants identified from Texas mapped to their nearest grid connection points. In doing so, we characterize the cost of privacy-friendly decomposition on joint power and chemical system decisions, showing that data isolation results in consistently small optimality gaps, and that its emissions consequences are load-dependent and non-monotone. 
+
+Index Terms —Decentralized optimization, unit commitment, ADMM, privacy-friendly computation, industrial electrification, renewable energy integration. 
+
+I. I NTRODUCTION 
+
+The U.S. manufacturing sector accounts for approximately 20% of the nation’s total primary energy consumption and greenhouse gas (GHG) emissions [1]. With the shift in the U.S. energy landscape towards renewables, chemical process heating is also actively seeking electrification [2]. Therefore, it is estimated that for large-scale electrification of chemical process heating, a robust renewable-driven power grid inte-gration framework would be imperative [3]. The viability of such integrations depends on a privacy-friendly data sharing framework between Independent System Operators (ISOs) and chemical plants, which can be used to drive joint chemical and power system planning and operations in real-time. Unfortu-nately, the highly confidential nature of plant operation data can serve as the pivotal roadblock for data sharing between chemical and power system stakeholders which can derail successful grid integration efforts geared towards large-scale decarbonization [4]. Therefore, in this paper, we develop a decentralized optimization formulation that is privacy-friendly, supports data isolation paving the way for joint chemical and  
+
+> ∗
+
+These authors contributed equally to this work. 
+
+power system planning decisions. Successfully integrating chemical and power system stake-holder operations must must consider two distinct operational aspects. First, process heating units in chemical plants are re-quired to operate at a steady state [5]. As a result, their energy demand needs must be met by a rapidly evolving power system comprising a growing share of variable renewable energy, which is intermittent and volatile in nature [6]. Second, due to the high energy demand of electrified chemical process heat-ing, power system stakeholders, such as Independent System Operators (ISO) and chemical plants, must jointly optimize their operations on a near real-time basis. In order to do so, chemical plants must relinquish ownership of their localized operational constraints and datasets to enable joint planning [5], [7]. Therefore, a robust, real-time framework to facilitate 
+
+information sharing between power system stakeholders and chemical plants is an essential pre-cursor for joint integrated planning framework. However, enabling a robust information sharing paradigm is hampered by the lack of privacy-friendly alternatives for joint operations that are capable of high solution quality while enabling stakeholders to retain full ownership of their local data. Additionally, from a planning perspective, there is limited research in modeling electrified process heating demand interdependencies across multiple plants in tandem with renewable electricity generation from power systems. These gaps are particularly evident in regions like Texas, which hosts a disproportionate share of the nation’s ethane cracking capacity [8] and is interconnected through the Texas transmission network, one of the largest and most renewable-rich grids in the country. As a result, in this paper, we develop decentralized mechanisms for integrating transmission system production scheduling with chemical plant operations so as to alleviate privacy concerns among stakeholders. Conventionally, the optimal production scheduling for large scale transmission network is carried out using the Unit Com-mitment (UC) optimization problem to meet varying electricity demands. The UC problem solution decides when to turn gen-erators on or off to balance operational costs, system reliability, and demand requirements. Historically, UC formulations have been designed to address conventional grids dominated by thermal generators. However, as the energy landscape evolves with a growing emphasis on decarbonization, the integration of renewable energy resources introduces new challenges and opportunities for UC optimization. 
+
+> arXiv:2606.22973v2 [cs.DC] 25 Jun 2026 2
+
+On the other hand, industrial chemical plants, particularly those involving chemical process heating, remain significant contributors to global carbon emissions. Ethylene crackers, which require substantial energy to heat chemicals for pro-duction, account for approximately 2.5% of total energy con-sumption in the U.S. [9], [10], leading to high levels of CO 2
+
+emissions. Electrifying these processes represents a promising pathway to decarbonization, provided that the electricity used is sourced from renewable energy [2], [11]–[13]. However, realizing an electrified future for ethylene crack-ing requires overcoming the privacy and information sharing bottleneck between centralized grid planning and distributed industrial cracking operations. As a result, in this paper, we de-velop a decentralized optimization formulation for joint crack-ing and transmission system planning to resolve privacy bot-tlenecks. Our decentralization strategy allows chemical plants to interact with power grids without disclosing proprietary or sensitive information, while still enabling effective integration with renewable energy resources. By leveraging decentralized, consensus-based optimization paradigms [9], such as the Al-ternating Direction Method of Multipliers (ADMM), stake-holders can achieve a balance between operational privacy and system-wide optimization. Consequently, our approach relies on the ADMM framework to decouple transmission systema nd chemical plant operations at the bus level. Instead of centraized aggregation of cracker constraints, our decen-tralized approach enables joint planning solely through the iterative ADMM driven balancing of cracker demand estimates between the transmission system and chemical plants. In order to demonstrate the efficacy of our proposed approach, we curate a large scale transmission system and chemical plant experimental case study. We demonstrate using rigorous com-putational results, that our decentralized methodology delivers similar solution qualities as centralized planning approaches without the need to move localized cracker constraints and data. Additionally, using a post-plan analysis we show that a decentralized mechanism delivers very similar emissions estimates relative to the centralized method under varying transmission demand. We summarize our key contributions as follows:  
+
+> •
+
+A novel formulation of the UC problem that incorporates the unique energy demands of chemical plants alongside renewable energy resources.  
+
+> •
+
+A decentralized joint optimization approach using ADMM to ensure privacy while achieving efficient co-ordination between chemical plants and power grids.  
+
+> •
+
+A geographically grounded case study coupling 26 ethane cracker plants identified from Texas with the ACTIVSg2000 synthetic Texas transmission network, through which we show that data isolation results in consistently small optimality gaps while its emissions consequences are load-dependent and non-monotone.  
+
+> •
+
+An empirical study of CO 2 emission implications as a consequence of decentralized formulation choices for varying demand cases. Through these contributions, this work demonstrates aconcrete, regionally grounded pathway for integrating ethane cracker plants into a renewable-driven power grid, offering a replicable framework for industrial and energy sector decar-bonization more broadly. The remainder of this paper is orga-nized as follows. Section II reviews prior work on decentral-ized unit commitment and the ADMM framework. Section III formulates the joint operation of transmission networks and electrified chemical microgrids. Section IV details the two-phase ADMM solution strategy and inter-agent communica-tion protocol. Section V presents a comparative case study characterizing the privacy-optimality tradeoff, computational scaling, and CO 2 emission impacts across varying load and electrification scenarios. Finally, Section VI summarizes the key findings and suggests directions for future research. II. R ELATED WORKS 
+
+The Unit Commitment (UC) problem has been a critical area of research in power systems, with a focus on optimizing generator schedules to meet demand while minimizing costs and ensuring system reliability. Early works, such as the com-prehensive survey by Padhy [14], established the foundational methodologies for solving UC problems. As power systems have evolved to incorporate renewable energy sources, the complexity of UC models has increased, particularly in ad-dressing the stochastic nature of renewable generation. Wang et al. [15] and Yang et al. [16] developed security-constrained UC models that account for the variability of wind and solar power, providing robust frameworks for modern grids. Decentralized optimization techniques have emerged as powerful tools for addressing the computational challenges of large-scale UC problems. Kargarian et al. [9] introduced a distributed framework for security-constrained UC, demon-strating the scalability and efficiency of decentralized methods in managing complex power systems. Similarly, Ramanan et al. [17] proposed a decentralized solution framework for UC, leveraging distributed optimization to handle large-scale systems effectively. The Alternating Direction Method of Multipliers (ADMM) has played a pivotal role in decentralized optimization, provid-ing strong convergence guarantees and flexibility in problem decomposition. Boyd et al. [18] laid the theoretical ground-work for ADMM, while Wei and Ozdaglar [19] extended its applicability to constrained optimization in distributed systems. These works have enabled the application of ADMM to power system problems, including unit commitment and optimal power flow. Recent advancements by Biswas et al. [20] and Erseghe [21] demonstrated the potential of ADMM for handling decentralized power system operations, including systems with high penetration of renewable energy. The integration of renewable energy into power grids has further necessitated the development of advanced UC models that account for increased variability and uncertainty. Yang et al. [16] highlighted the importance of incorporating renewable generation constraints into UC models, while Wang et al. [15] provided a framework for managing the operational challenges introduced by wind power generation. These contributions underline the growing need for robust and scalable solutions to manage the transition toward decarbonized power grids. While these works establish strong foundations for decen-3
+
+tralized UC, none explicitly characterize the cost of the decom-position choice on solution quality and emissions outcomes in coupled power-chemical systems. This paper addresses that gap by building upon these foundational works to character-ize the privacy-optimality tradeoff that arises when chemical plant microgrids are integrated with decarbonized power grids through data-isolating ADMM decomposition. In doing so, we provide the first systematic empirical characterization of how decomposition-induced data isolation affects both economic and environmental outcomes in this coupled industrial setting. III. D ECENTRALIZED OPERATIONS 
+
+In this section, we present the decentralized problem for-mulation for two distinct systems, derived from the ADMM framework for optimization problems proposed by Wei and Ozdaglar [19] as well as Biswas et al. [20]. This approach aims to integrate chemical plants into the power system by distributing each plant and connecting to the network at the bus level. The power system acts as the main process and exchanges a consensus variable with each plant iteratively. A new iteration occurs once the main process receives each consensus variable from the plants and continues until global optimization is reached. This decentralized formulation provides a framework that enables the integration of two separate processes and offers applicability in real-world situations that would otherwise be infeasible. We present the decentralized UC formulation in Problem (1), with constraints described below. 
+
+A. Power System Formulation 
+
+The fundamental UC problem formulation is represented by Problem (1). 
+
+Lr (¯ζ, λ ) = X
+
+> t∈T
+
+X
+
+> g∈G
+
+dg ygt + cg xgt (1) Problem (1) specifically pertains to a transmission system where the set of all buses is denoted by B, and T represents the operational planning horizon. Each bus b ∈ B may have associated generators and chemical plants, belonging to the sets G and P , respectively. The set Bu ⊆ B contains all buses connected to a given bus b. For each generator 
+
+g ∈ G, ygt denotes its electricity dispatch, xgt ∈ {0, 1}
+
+indicates its commitment state, and ηgt denotes renewable power generation. The variables πgU t and πgDt represent up and down reserve deployment, while θbt is the phase angle at bus 
+
+b, and λbt is the Lagrangian multiplier enforcing nodal power balance, considering power system demand and chemical plant consumption. Power flow from bus u to b is represented by f bu t . The parameters cg and dg denote commitment and dispatch costs for generator g, while P g 
+
+> min
+
+and P g 
+
+> max
+
+specify its generation limits. The minimum up and down times are 
+
+M gU and M gD , and the ramping limit is Rg . The demand at bus b is given by δbt while transmission line capacity is given by F bu  
+
+> max
+
+with Γbu denoting the phase-angle-to-power-flow conversion constant for bu . For integrated chemical processing and electricity operations, we let, ζbt denotes cracker-related electrical demand at bus b, while ˜ζpt is the electricity demand of chemical plant p ∈ P . The term ˙ζpt represents a penalty associated with plant p, and ¯ζbt denotes the average cracker demand at bus b. The term λbt also appears as the Lagrangian penalty associated with cracker-demand constraints. Finally, we incorporate operational constraints (2)-(8) for production scheduling at the power system stakeholder. Con-straint (2) ensures that production at each generator is bounded by its minimum and maximum capacity. 
+
+P gmin xgt ≤ ygt ≤ P gmax xgt ∀t ∈ T, ∀g ∈ G (2) Constraints (3a)-(3c) enforce the minimum up and down time for each generator. 
+
+−πgDt ≤ xgt − xgt−1 ≤ πgU t , ∀t ∈ [2 , T ], ∀g ∈ G (3a) 
+
+X
+
+> ∀i∈Ut
+
+πgU i ≤ xgt ≤ 1 − X
+
+> ∀i∈Dt
+
+πgDt , ∀t ∈ T, ∀g ∈ G (3b) 
+
+Ut = [ t − M gU + 1 , t ], D t = [ t − M gD + 1 , t ] (3c) Constraint (4) ensures generators adhere to respective ramping limitations. 
+
+−Rg ≤ ygt − ygt−1 ≤ Rg , ∀t ∈ [2 , T ], ∀g ∈ G (4) Equation (5) ensures that flow across links is a function of the respective phase angles. 
+
+Γbu (θbt − θut ) = f bu t ∀b ∈ B, ∀u ∈ Bu, ∀t ∈ T (5) Constraint (6) ensures that at each bus the demand is met by either power generated by attached generators or with flow into the bus. 
+
+X
+
+> g∈G
+
+(ygt + ηgt ) − X
+
+> b∈B
+
+(δbt − ζbt ) = X
+
+> b∈B
+
+Γbu (θbt − θut )
+
+∀u ∈ Bu, ∀t ∈ T
+
+(6) Equations (7)–(8) enforce global network flow constraints. 
+
+−F bu max ≤ Γbu (θbt − θut ) ≤ F bu max , ∀b ∈ B, 
+
+∀u ∈ Bu, ∀t ∈ T (7) 
+
+ψt =
+
+X
+
+> g∈G
+
+(ygt + ηgt )
+
+ −
+
+X
+
+> b∈B
+
+δbt + X
+
+> p∈P
+
+ζpt
+
+ ∀t ∈ T (8) We now discuss the chemical plant operations optimization formulation with active power system integrations. 
+
+B. Chemical Plant Formulation 
+
+The chemical plant formulation consists of a mixed-integer formulation that determines the optimal operation of a micro-grid associated with a chemical plant with a particular focus on electrifying the ethane cracking process [5]. Ethane cracking is an energy-intensive operation that significantly contributes to industrial CO 2 emissions, and its electrification represents a pathway toward industrial decarbonization, provided that the electricity used is sourced from renewable energy. As a result, our proposed model jointly optimizes the microgrid’s scheduling decisions and the degree of electrification for the cracking process. It captures the interplay between electric-ity generation, storage, and process demand to enable cost-effective and emission-conscious operational planning. We present the microgrid scheduling formulation as depicted in 4
+
+Problem (9), subject to constraints (10a)-(18). 
+
+min X
+
+> t∈T
+
+ρ
+
+"
+
+cFuel NG · F NG CC, t+
+
+X
+
+> g∈G
+
+X
+
+> i∈Ig
+
+
+
+cFuel  
+
+> g
+
+F Di,t + cD 
+
+> g
+
+P Di,t + cD 
+
+> SU ,g
+
+max {0, x Di,t − xDi,t −1}
+
++ cD 
+
+> SD ,g
+
+max {0, x Di,t −1 − xDi,t }
+
+
+
++ cG 
+
+> t
+
+P G 
+
+> t
+
++ cFC  
+
+> t
+
+P FC  
+
+> t
+
++ cEL  
+
+> t
+
+F H2 
+
+> EL,t
+
++ cHS  
+
+> t
+
+M H2
+
+> HS,t
+
+#
+
+(9) Constraint (10a) ensures that the conventional cracker (CC) units are powered through a mixture of natural gas, methane and hydrogen recovered from separation processes, and hy-drogen supplied either from electrolyzers or from hydrogen storage units. Constraint (10b) specifies that electrified crack-ers (EC) satisfy their power demand using contributions from dispatchable units, non-dispatchable renewable resources, grid imports, energy storage, and fuel cell systems. 
+
+PCC = ˙QNG F NG CC, t + ˙QCH 4 F CH 4
+
+> sep, CC, t
+
++ ˙QH2
+
+
+
+F H2 
+
+> sep, CC, t
+
++ F H2 
+
+> EL,CC, t
+
++ F H2
+
+> HS,CC, t
+
+
+
+, ∀t ∈ T
+
+(10a) 
+
+PEC = X
+
+> g∈G
+
+P DEC, g,t + P ND EC, t + P GEC, t + P ESS EC, t + P FC EC, t, ∀t ∈ T
+
+(10b) Constraint set (11) governs post-cracking separation processes, ensuring proper allocation of methane and hydrogen byprod-ucts across multiple pathways. 
+
+F CH 4 
+
+> sep,CC, t
+
+=rCH 4,sep fCH 4
+
+
+
+F CH 4/H 2 
+
+> CC
+
++ F CH 4/H 2
+
+> EC
+
+
+
+(11a) 
+
+F H2
+
+> sep,CC, t
+
++F H2 
+
+> sep,HS, t
+
++ F H2
+
+> sep,FC, t
+
+= rH2,sep 
+
+
+
+1 − fCH 4
+
+ 
+
+F CH 4/H 2 
+
+> CC
+
++ F CH 4/H 2
+
+> EC
+
+
+
+, ∀t ∈ T (11b) The hydrogen mass balance and state evolution within the storage units are enforced through (12). 
+
+M H2 
+
+> HS ,t −1
+
++
+
+
+
+F H2 
+
+> sep,HS ,t
+
++ F H2
+
+> EL,HS ,t
+
+− F H2 
+
+> HS,FC ,t
+
+− F H2
+
+> HS,CC ,t
+
+
+
+∆t = M H2
+
+> HS ,t
+
+, (12a) 
+
+F H2 
+
+> EL,FC ,t
+
++ F H2 
+
+> EL,HS ,t
+
++ F H2 
+
+> EL,CC ,t
+
+= F H2
+
+> EL ,t
+
+, (12b) 
+
+0 ≤ M H2 
+
+> HS ,t
+
+≤ HSC , M H2 
+
+> HS ,0
+
+= M H2
+
+> HS,start
+
+, ∀t ∈ T
+
+(12c) Hydrogen production via PEM electrolyzers, powered by electricity sourced from dispatchable, nondispatchable, grid, and energy storage resources, is modeled in (13). 
+
+F H2 
+
+> EL, t
+
+= ηEL 
+
+PH2
+
+X
+
+> g∈G
+
+P DEL, g,t + P ND EL, t + P GEL, t + P ESS EL, t
+
+!
+
+(13a) 
+
+0 ≤F H2 
+
+> EL, t
+
+≤ ELC , ∀t ∈ T (13b) Constraint (14) determines the operation of fuel cells, estab-lishing the relationship between hydrogen inflows and electri-cal energy output. 
+
+P FC  
+
+> t
+
+= ηFC ˙QH2
+
+
+
+F H2 
+
+> HS,FC, t
+
++ F H2 
+
+> EL,FC, t
+
++ F H2
+
+> sep,FC, t
+
+
+
+(14a) 
+
+P FC  
+
+> t
+
+xF C tw ≤ P FC  
+
+> t
+
+≤ P FC  
+
+> t
+
+xF C tw (14b) 
+
+P FC  
+
+> t
+
+= P FC EC, t + P FC ESS, t, ∀t ∈ T (14c) Power distribution between grid-supplied and locally gener-ated electricity is governed jointly by (15) and (16). 
+
+P G 
+
+> t
+
+= P GESS, t + P GEC, t + P GEL, t, 0 ≤ P G 
+
+> t
+
+≤ P G, ∀t ∈ T. (15) 
+
+P ND ESS, t + P ND EC, t + P ND EL, t = P WT  
+
+> t
+
++ P PV  
+
+> t
+
+, ∀t ∈ T. (16) Constraint set (17) models fuel-based dispatchable generation units, capturing power balance relations, generation limits, ramping restrictions, and minimum up/down time require-ments, paralleling the classical unit commitment constraints in (1). 
+
+P D 
+
+> i,t
+
+= ˙Qg F D
+
+> i,t
+
+, ∀i ∈ Ig (17a) 
+
+P D,min  
+
+> g,t
+
+≤ P D 
+
+> i,t
+
+≤ P D 
+
+> g
+
+, ∀i ∈ Ig (17b) 
+
+P D 
+
+> g,t
+
+= X
+
+> i∈Ig
+
+P D
+
+> i,t
+
+, (17c) 
+
+P D 
+
+> g,t
+
+= P DESS, g,t + P DEC, g,t + P DEL, g,t (17d) 
+
+P D 
+
+> i,t
+
+− P D 
+
+> i,t −1
+
+≤ RU D 
+
+> g
+
+, ∀i ∈ Ig (17e) 
+
+P D 
+
+> i,t −1
+
+− P D 
+
+> i,t
+
+≤ RD D 
+
+> g
+
+, ∀i ∈ Ig (17f) 
+
+xD 
+
+> i,t
+
+− xD 
+
+> i,t −1
+
+≥ 0, (17g) 
+
+1 − xD 
+
+> i,t −1
+
++ xD 
+
+> i,t
+
+≥ 0, ∀g ∈ G, t ∈ T (17h) Finally, constraint set (18) defines the dynamics of the energy storage system (ESS), including power balance across charg-ing and discharging modes and state-of-charge evolution. 
+
+P ESS  
+
+> C,t
+
+= P ND ESS, t + X
+
+> g∈G
+
+P DESS, g,t + P FC ESS, t, (18a) 
+
+EESS  
+
+> t
+
+= EESS  
+
+> t−1
+
+−
+
+
+
+P ESS  
+
+> C,t
+
+− P ESS 
+
+> DC,t
+
+
+
+∆t, (18b) 
+
+0 ≤ EESS  
+
+> t
+
+≤ ESC , EESS  
+
+> 0
+
+= EESS start , ∀t ∈ T (18c) With the power system and chemical plant stakeholder mod-els in place, we now present the ADMM based decentralized solution methodology for joint operations scheduling with data and constraint isolation. IV. D ECENTRALIZED SOLUTION METHODOLOGY 
+
+Our joint decentralized operations optimization methodol-ogy is specifically geared towards addressing the optimization coupling challenges posed by the power-system unit commit-ment problem in (1) and the chemical-plant microgrid problem in (9). These represent two distinct but physically coupled systems (the transmission grid and the electrified chemical plants) that must coordinate under shared demand and resource constraints. As a result, our goal is to achieve high-quality so-lutions despite the coupling, while simultaneously preserving each plant’s operational privacy and minimizing the exchange of sensitive or proprietary information. Our decentralized strategy is driven by ADMM, in which each model is augmented with a penalty term and Lagrangian multipliers that enforce coordination through iterative updates. 5
+
+To further enhance robustness and improve solution quality, a second auxiliary system-level penalty is introduced that sub-sidizes the primary objective. The additional penalty structure helps guide convergence and strengthen model feasibility. 
+
+A. Decentralized Power System Scheduling 
+
+To coordinate the optimization of coupled chemical pro-duction systems while preserving operational data isolation, this section employs the Alternating Direction Method of Multipliers (ADMM). ADMM enables the decomposition of the global optimization problem into subproblems, which are solved iteratively and locally at each chemical plant and power system component. This decentralized approach allows each plant to make operational decisions independently, with coordination achieved through iterative communication and dual variable updates. The essence of the ADMM framework lies in augmenting the objective function of each subproblem with a penalty term and a Lagrangian multiplier that penalizes discrepancies between shared variables, which, in this case, are the power demand at each bus. By iteratively updating local solutions and exchanging limited information, a global consensus can be achieved while maintaining data privacy. We begin with the conventional standard form ADMM-driven power system optimization objective as given by equa-tion (19). 
+
+min  
+
+> ζ,f,θ,x,y
+
+Lr (ζ, λ g ) = Lr (¯ζ, λ g ) + X
+
+> b∈B
+
+X
+
+> t∈T
+
+
+
+λgt,b 
+
+
+
+ζbt − ζbt
+
+
+
++ ρ
+
+2
+
+
+
+ζbt − ζbt
+
+2 
+
+(19) In equation (19), Lr (¯ζ, λ g ) represents the original power system objective function where ζbt represents the chemical plant demand estimate at the power system stakeholder. The variable λgt,b is the Lagrangian multiplier associated with the nodal power balance constraint at bus b during time step t.As a result, variable ζbt denotes the consensus estimate across the set of chemical plants connected to bus b represented by Pb. The parameter ρ > 0 is the penalty coefficient that controls the weight of the consensus violation in the augmented Lagrangian. In order to derive the consensus estimate ζbt at bus b, we begin by denoting the chemical plant demand estimate from plant p as ˜ζpt . Meanwhile the aggregated demand from all plants connected to bus b denoted by ˆζbt can be computed through equation (20). 
+
+ˆζbt = X
+
+> p∈Pb
+
+˜ζpt , ∀t ∈ T, ∀b ∈ B (20) Equation (20) ensures that the aggregated plant-level demands are accurately reflected at the bus level, forming a foundation for subsequent calculations. Next, equation (21) computes the new penalized plant demand value by considering the ratio of the plant’s demand at a bus to the total bus demand. 
+
+˙ζpt = ˜ζpt
+
+ˆζbt
+
+· ζbt , ∀t ∈ T, ∀b ∈ B, ∀p ∈ P (21) By scaling this ratio using the updated power system cracker demand value, equation (21) ensures that the plant’s contribu-tion to the bus demand is proportionately adjusted. Equation (22) averages the plant demand and the power system demand values for a given bus. 
+
+¯ζbt = ζbt + ˆζbt
+
+2 , ∀t ∈ T, ∀b ∈ B (22) The averaging step is critical in aiding the convergence of the ADMM framework, as it smoothens discrepancies between the plant and system-level demand values. Equation (23) updates the Lagrangian multiplier λgt,b at each bus and time step. 
+
+λgt,b ← λgt,b + ρ ·  ζbt − ¯ζbt
+
+ , ∀t ∈ T, ∀b ∈ B (23) The lagrangian adjustment penalizes any deviation between the power system demand and the averaged demand, enforcing consistency across iterations and driving convergence to a feasible solution. Equations (20)-(23) collectively govern the iterative updates in the ADMM framework, ensuring a balance between plant-level operations and bus-level demands while promoting effi-cient convergence through penalty and averaging mechanisms. However, to enhance the convergence speed and computational efficiency of the decentralized ADMM framework, a second auxiliary power system level penalty term is introduced. The power system penalty leverages the global power balance relationship to provide an estimate of system-wide unmet demand, which is used to influence the penalty applied to each chemical plant’s load coordination. By doing so, the optimization formulation prioritizes demand fulfillment from the power system and enables more targeted penalization for imbalances, accelerating convergence. The system-wide penalty term is driven by an estimation of unmet demand, defined at each time period t ∈ T as detailed in Equation (24). 
+
+¯pt = ψt −
+
+X
+
+> g∈G
+
+(ygt + ηgt )
+
+ + X
+
+> b∈B
+
+δbt ∀t ∈ T. (24) In Equation (24), ¯pt represents the net unmet power after considering contributions from conventional generation ygt ,renewable generation ηgr t , and system-wide load δbt . The term 
+
+ψt captures the total system demand that should ideally be met. Next, we define the share of unmet power attributable to each chemical plant p ∈ P through a normalized ratio as detailed in Equation (25). 
+
+X
+
+> p∈P
+
+rpt = 1 , where, rpt = ˜ζpt
+
+¯pt
+
+∀t ∈ T, ∀p ∈ P. (25) This ratio rpt expresses plant p’s demand as a fraction of the residual system demand, providing a basis to assign a portion of the imbalance penalty back to the plant in a proportional way. Using rpt , a modified penalty quantity qpt is constructed, which incorporates both the plant’s own demand and its attributed share of system-level unmet demand as presented in Equation (26). 
+
+qpt = rpt · ψt + ˜ζpt ∀t ∈ T, ∀p ∈ P. (26) 6
+
+This term qpt acts as a refined penalty signal for plant p, consid-ering not only its local demand but also its contribution to the broader system imbalance. Finally, we calculate the Lagrange multiplier ϕt and update it at each iteration analogously to the dual update in (23). This update penalizes the system-wide imbalance ψt defined in (26). 
+
+ϕgt ← ϕgt + ρ · ψt (27) To incorporate these new formulations into the optimization process, we extend the augmented Lagrangian with the addi-tional penalty term over the system-wide unmet demand as detailed in Equation (28). 
+
+min 
+
+> ζ,f,θ,x,y
+
+Lr (ζ, λ g , ϕ g ) = Lr (¯ζ, λ g ) + X
+
+> t∈T
+
+h
+
+ϕgt ψt + ρ
+
+2 ∥ψt∥2i
+
++ X
+
+> b∈B
+
+X
+
+> t∈T
+
+
+
+λgt,b 
+
+
+
+ζbt − ζbt
+
+
+
++ ρ
+
+2
+
+
+
+ζbt − ζbt
+
+2 
+
+(28) The unmet demand penalty serves to discourage persistent imbalances in ψt, pushing the system toward more coordinated and feasible dispatch schedules. The total residual demand 
+
+ψt,p , defined in (8), is recomputed at each iteration using the updated plant demand values ζt,p and the current generation profile. In this expression, the left-hand side captures the total available supply from both conventional and renewable generators, while the right-hand side accounts for aggregate demand, including both bus-level loads and plant-specific electricity consumption. By incorporating this auxiliary system-level penalty into the model structure, the optimization formulation gains an additional mechanism to penalize global infeasibility and accelerate convergence. The added structure also helps guide each plant’s local solver with more meaningful system-level information, all without violating data isolation since only consensus values are shared in the coordination process. 
+
+B. Decentralized Chemical Plant Coordination 
+
+To enable decentralized coordination between the power system and individual chemical plants, we employ ADMM at the plant level as well. ADMM facilitates the convergence of local plant-level decisions to a globally consistent solution by iteratively updating primal variables and dual variables. In this context, the coupling variable of interest is the cracker demand, denoted by ζt, which is determined independently by each plant and reconciled at the system level through consensus updates. At each iteration, the Lagrange multiplier λpt is updated ac-cording to the difference between the plant-generated demand 
+
+˜ζt and the coordinated demand ˙ζt, as denoted in equation (29). 
+
+λpt ← λpt + ρ ·
+
+˜ζt − ˙ζt
+
+
+
+, ∀t ∈ T. (29) This update penalizes deviations between the independently computed plant demand and the centralized consensus de-mand. The parameter ρ is a positive scalar that controls the strength of the penalty and, consequently, the rate of convergence. As the iterations progress, this dual update helps align the decentralized decisions with the centralized reference values. To directly incorporate this coordination mechanism into the chemical plant optimization model, the Lagrangian penalty in (30) is appended to the original microgrid objective in (9). 
+
+min 
+
+> {P,F,x,M, ˜ζ}
+
+Lρ( ˙ζ, λ p) + X
+
+> t∈T
+
+
+
+λpt ( ˙ζt − ˜ζt) + ρ
+
+2 ( ˙ζt − ˜ζt)2
+
+
+
+(30) The integration of this auxiliary system-level penalty into the chemical plant’s local optimization follows a similar structure to the original ADMM-based coordination approach. However, with the introduction of this auxiliary penalty, Equations (21a)–(21b), each chemical plant now receives an updated target demand ϕpt that reflects its share of the system-wide imbalance. This adjustment provides the plant with a more informed signal of where demand shortfalls exist and how its local decisions can help correct them. To incorporate this information into the decentralized opti-mization process, the Lagrange multiplier ϕpt is now updated such that it accounts for the difference between local and consensus demand, alongside the relationship between the system-level coordination target qpt and the plant’s proposed demand ˜ζt, as given in equation (31). 
+
+ϕpt ← ϕpt + ρ ·
+
+
+
+qpt − ˜ζt
+
+
+
+, ∀t ∈ T (31) This dual update mechanism encourages each plant to align with both the system-wide consensus and its proportional responsibility in meeting total grid demand. The term qpt
+
+effectively serves as a corrective guidance signal, nudging the plant toward load levels that improve global feasibility. The corresponding optimization problem solved by each chemical plant at every ADMM iteration is extended to include both penalty terms, as depicted in equation (32). 
+
+min 
+
+> {P,F,x,M, ˜ζ}
+
+Lρ( ˙ζ, λ p, ϕ p) + X
+
+> t∈T
+
+h
+
+λpt ( ˙ζt − ˜ζt) + ρ
+
+2 ( ˙ζt − ˜ζt)2i
+
++ X
+
+> t∈T
+
+h
+
+ϕpt (qpt − ˜ζt) + ρ
+
+2 (qpt − ˜ζt)2i
+
+(32) Together, these terms enhance the coordination between chem-ical plants and the power grid. By embedding both global and local perspectives into the plant’s decision-making process, the model achieves faster convergence and greater robustness without violating the principle of decentralized privacy. The additional structure encourages each plant not only to match average expectations but also to contribute proportionally to system-wide demand satisfaction based on real-time imbal-ances. 
+
+C. Joint Decentralized Operations Optimization Algorithm 
+
+The following algorithm presents a decentralized coordina-tion scheme in which each agent p ∈ P independently solves a subproblem while iteratively exchanging consensus variables with others. The objective is to coordinate local optimization steps until global convergence is achieved. Algorithm 1 presents the decentralized coordination frame-work utilizing the Alternating Direction Method of Multipliers (ADMM) to reconcile chemical production constraints with power distribution dynamics. By enabling agents to resolve local subproblems independently while exchanging boundary 7
+
+Algorithm 1: Two-Phase Decentralized ADMM 
+
+Input: λ0, ζ 0, ϕ 0, x 0, y 0, ρ ; ϵ0
+
+Output: x∗, y ∗, θ ∗, f ∗
+
+π ← LP // PS LP Relaxation Phase 
+
+for k = 1 , 2, 3, . . . do 
+
+▷ CP Subproblem Solve 
+
+for p ∈ P do 
+
+Solve Problem (32) subject to (10)-(18) Update local demand ˙ζkp via (21) Update local penalty qkp via (26) Send demand estimate to PS: MPI.Send ({ζkp , q kp })
+
+end 
+
+▷ PS Subproblem Solve 
+
+Receive CP demand: MPI.Recv ({ζkp , q kp }) ∀p ∈ P 
+
+Aggregate plant demands to bus level ˆζb,k t via (20) Solve Problem (28) subject to (2)-(8) Calculate consensus variables {˜ζkp , ˜qkp } via (22) Compute demand residual norm βk ← || ζk − ˜ζk|| 2
+
+Broadcast MPI.Bcast ({˜ζkp , ˜qkp , β k}), ∀p ∈ P 
+
+▷ Phase Transition and Convergence 
+
+if βk < ϵ 0 and π = LP then 
+
+π ← MIP // Integer Phase Change 
+
+end if βk < ϵ 0 and π = MIP then break // Global Convergence 
+
+end 
+
+▷ Dual Variable Updates at CP 
+
+for p ∈ P do 
+
+Update λpk+1 via (29) Update ϕpk+1 via (31) 
+
+end 
+
+▷ Dual Variable Updates at PS 
+
+Update λgk+1 via (23) Update ϕgk+1 via (27) 
+
+end 
+
+information, the system achieves a unified equilibrium. The methodology incorporates a specialized two-phase relaxation protocol with computation beginning with the Linear Program-ming (LP) mode which efficiently converges on a continuous trajectory. Since UC relaxations are tight [14], the LP phase is applied only towards the power system formulation as a means to efficiently trace a continuous trajectory while effectively serving as a warm start for binary decisions. The algorithm automatically switches to a Mixed-Integer Programming (MIP) mode once a baseline tolerance is met to rigorously enforce discrete operational states. The iterative coordination cycle proceeds through paralleliz-ing chemical plant and transmission system ADMM updates. At each iteration, chemical plants minimize their respective augmented Lagrangians to determine energy needs, subject to internal physical limits, and transmit forecasts to a central aggregator via Message Passing Interface (MPI). The power system then aggregates these inputs to resolve the transmission dispatch problem, calculating system-wide consensus targets. These optimized targets are broadcast back to the individual plants, accompanied by an error metric βk that tracks align-ment with the aggregate load. The process is sustained by a dual update mechanism that systematically adjusts Lagrangian multipliers based on the mismatch between decentralized decisions and global requirements. The algorithm persists through this cycle until the MIP-mode residuals fall below a specified threshold, yielding the optimal dispatch configuration and guaranteeing global optimality. Using the decentralized joint operations optimization formu-lation, we now present our experimental results for large-scale integrated cracker demand and power systems operations. V. E XPERIMENTAL RESULTS 
+
+To characterize the cost of privacy-friendly decomposition on joint power and chemical system decisions, we design a comparative experimental setup in which both a centralized integrated formulation and the proposed decentralized frame-work are applied to a curated test case comprising 26 ethane cracker plants from Texas coupled with the ACTIVSg2000 synthetic Texas transmission network. We meticulously sur-veyed these ethylene plants and gathered their locations, feedstock compositions, and ethylene production capacities from various news sources. The centralized model [22], which assumes full information sharing between the grid operator and all chemical plants, serves as the reference point against which the consequences of data isolation are measured. Our experiments were conducted using a 24-hour operational plan-ning horizon. Chemical plants were mapped to their nearest buses based on geographic proximity using latitudinal and longitudinal coordinates. 
+
+A. Centralized Case 
+
+In the centralized experiment the chemical plant demand is treated as an exogenous parameter within the power sys-tem optimization model. The coordination between the grid and the plants is inherently embedded in a single integrated optimization problem, meaning that the system operator has full visibility into both power system operations and plant electricity demand. Our centralized model is solved using Gurobi 10.0.3, and serves as the baseline for both objective value and computational time. The centralized framework assumes no information barriers and reflects an ideal scenario in terms of global optimality and coordination. However, it does not capture the reality of operational privacy or modular decision-making present in large-scale decentralized systems. The results from this setup are used to quantify the impact of decentralization on optimality and runtime. 
+
+B. Decentralized Case 
+
+The decentralized setup implements the distributed coordi-nation architecture proposed in this paper, in which the power system and each chemical plant are modeled as independent agents that solve their respective subproblems and coordinate via an ADMM-based iterative scheme. Communication be-tween agents is handled using the Message Passing Interface (MPI) [23], with the Python interface mpi4py used to fa-cilitate inter-process communication. This design allows for 8
+
+a scalable, modular execution of the decentralized algorithm across a high-performance computing (HPC) cluster. Each of the 26 chemical plants and the centralized power grid operator are treated as separate processes, resulting in 27 total compute nodes. These experiments were conducted on an HPC environment consisting of Intel Skylake compute nodes, ensuring sufficient memory and parallel processing capability to simulate real-world large-scale systems. In each ADMM iteration, plants solve their local optimiza-tion problems and communicate cracker demand information to the grid process. The power grid process aggregates this information, solves its own subproblem, and updates consen-sus values and dual variables, which are then sent back to the plants for the next iteration. ADMM iterations continue until convergence criteria based on primal and dual residuals are satisfied. The decentralized experiments use the same data, parameters, and initial conditions as the centralized case to ensure comparability. Results are analyzed in terms of solu-tion optimality, computational time, and convergence behavior enabling a clear understanding of the trade-offs between global coordination and modular, privacy-friendly optimization. 
+
+C. Centralized vs. Decentralized Results 
+
+We evaluate the performance of the decentralized opti-mization framework by comparing it against the centralized benchmark across a range of power system demand levels. Three demand scenarios, Low, Medium, and High, were considered, each evaluated under two levels of electrification from the chemical plants (10% and 50%). The centralized model represents an idealized case with complete visibility and control over all system components, while the decentralized model reflects a more realistic architecture where chemical plants and the power grid operate as separate agents, coordi-nated through the proposed ADMM-based method. Tables I and II summarize the comparison between centralized and decentralized results in terms of total cost at 10% and 50% electrification, respectively, broken down into Unit Commit-ment cost (UC), Dispatch cost (DC), Demand Curtailment cost (DCC), and Chemical Plant cost (CPC). Each table also reports the decentralized accuracy metrics: 2-norm consensus error and optimality gap. Across all test cases, the largest observed optimality gap is under 1.8%, directly quantifying the cost of data isolation on joint power and chemical system decisions. Notably, de-mand curtailment is observed in the decentralized cases, as a direct consequence of plants operating without full visibility into the grid’s state, forcing demand coordination through consensus signals alone rather than direct observation. These results characterize the privacy-optimality tradeoff inherent to decomposition-based coordination in coupled power-chemical energy systems. 
+
+D. Analysing Convergence Trends 
+
+An important aspect of evaluating the performance of the decentralized optimization framework is its convergence be-havior across different coordination strategies. In this section, we examine how each method converges over successive iterations by tracking the change in demand coordination throughout the ADMM process using 2-norm residual errors. A notable distinction emerges between the convergence pro-files at 10% and 50% electrification. At 50% electrification presented in Figures 1(d)– 1(f), the 2-norm error exhibits a smooth, monotonic decline across all demand scenarios, reaching consensus within approximately 6-7 LP iterations before the final MIP solve. In contrast, the 10% electrification cases represented in Figures 1(a)– 1(c) display a characteristic oscillation where the 2-norm error decreases sharply during the first two iterations, then spikes upward around iteration 3 before resuming its downward trajectory. This non-monotone behavior is a direct consequence of the asymmetric binary treatment in the two-phase ADMM heuristic. During Phase 1, only the power system commitment variables ( xg,t ) are relaxed to continuous [0 , 1] , while the chemical plant binaries (dispatchable unit commitments ( xDi,t ), fuel cell status ( xF C t ), and battery charge/discharge states ( xESS C,t , xESS DC,t )) remain strictly integer throughout. As the ADMM penalty signals update between iterations, these plant-side binaries can flip discretely such as a generator switching from off to on, or a battery transitioning from charging to discharging. Conse-quently, these binary flips can cause discontinuous jumps in the plant’s grid power demand ( P Gt ) and resulting in sudden in-creases in the 2-norm error. At 10% electrification, the electric cracker demand is relatively small, leaving the plant’s internal dispatch with greater scheduling flexibility, the local solver has more room to toggle binaries between feasible configura-tions across iterations. At 50% electrification, the substantially larger fixed electric cracker demand ( PEC ) constrains the plant’s internal degrees of freedom, effectively anchoring most internal generators and storage systems into committed states, which suppresses binary oscillation and yields the smoother convergence profile observed. Despite the transient oscillation at 10%, the framework ultimately converges to tight consensus in all cases, with the final 2-norm errors and optimality gaps remaining comparable across both electrification levels. 
+
+E. Computational Performance of the Two Phase Approach 
+
+Figure 2 presents the wall-clock timing breakdown across all six experimental configurations, decomposed into Phase 1 (LP relaxation) and Phase 2 (MIP solve) contributions. Across both electrification levels, Phase 1 exhibits relatively stable com-putation times, ranging from 12.8 to 23.3 minutes regardless of demand scenario. This consistency arises because the LP-relaxed subproblems have similar computational complexity once the integer constraints are removed; the primary variation stems from the number of ADMM iterations required to reach the convergence threshold of ϵ = 10 . At 10% electrification, all three demand scenarios require 11 iterations to converge, while at 50% electrification, convergence is achieved in 9 iterations. The faster convergence at higher electrification is attributable to the larger coupling demands providing a stronger signal for the ADMM consensus mechanism, enabling the power system and chemical plant subproblems to reach agreement more rapidly. In contrast, Phase 2 exhibits substantially greater variability. The single MIP iteration, which restores all binary commit-ment variables and solves the full mixed-integer program, ac-counts for the majority of solve time in four of the six cases. At 9
+
+TABLE I NORMALIZED COST COMPARISON ($ × 1 E6 ) AND DECENTRALIZED ACCURACY METRICS — 10% E LECTRIFICATION 
+
+Demand Profile UC DC DCC CPC Total 2-norm Err. Opt. Gap Cent. Decent. Cent. Decent. Cent. Decent. Cent. Decent. Cent. Decent. Low 0.144 1.126 7.547 6.553 0 0.043 3.882 3.920 11.575 11.599 7.54 0.224% 
+
+Medium 1.534 2.547 14.559 13.229 0 0.015 3.907 4.309 20.000 20.099 4.94 0.493% 
+
+High 2.962 3.918 19.408 18.191 0 0.013 3.967 4.253 26.336 26.375 4.83 0.144% 
+
+TABLE II NORMALIZED COST COMPARISON ($ × 1 E6 ) AND DECENTRALIZED ACCURACY METRICS — 50% E LECTRIFICATION 
+
+Demand Profile UC DC DCC CPC Total 2-norm Err. Opt. Gap Cent. Decent. Cent. Decent. Cent. Decent. Cent. Decent. Cent. Decent. Low 0.202 1.167 7.902 7.097 0 0.004 6.703 6.813 14.808 14.837 7.89 1.791% 
+
+Medium 1.611 2.677 14.917 13.846 0 0.006 6.727 6.806 23.245 23.335 3.20 0.386% 
+
+High 3.067 4.068 19.761 18.705 0 0.008 6.779 6.806 29.607 29.618 3.19 0.037% 
+
+(a) Low demand, 10% electrification (b) Medium demand, 10% electrification (c) High demand, 10% electrification 
+
+(d) Low demand, 50% electrification (e) Medium demand, 50% electrification (f) High demand, 50% electrification Fig. 1. ADMM convergence, measured by 2-norm difference versus iteration, under low, medium, and high power system demand scenarios. The top row represents 10% electrification, while the bottom row represents 50% electrification. 
+
+(a) Timing Breakdown for 10% Electrification (b) Timing Breakdown for 50% Electrification Fig. 2. Phase timing breakdown across power system demand scenarios for 10% and 50% electrification levels, showing Phase 1 (LP relaxation) and Phase 2 (MIP solve) contributions. 10       
+
+> TABLE III COMPARISON OF SYSTEM -LEVEL EMISSIONS (TONS CO 2)FOR THE CENTRALIZED AND DECENTRALIZED MODELS UNDER VARYING ELECTRIFICATION AND PS DEMAND .
+
+High Demand Low Demand Electrification Centralized Decentralized Difference Centralized Decentralized Difference 
+
+10% 607,340 612,137 0.784% 234,871 236,166 0.548% 50% 626,141 626,339 0.032% 256,743 255,575 (0.457)% 10% electrification, Phase 2 ranges from 16.3 minutes (High demand) to 36.9 minutes (Low demand). At 50% electrifica-tion, this disparity is more pronounced with the High demand scenario completing in 14.4 minutes, while the Low demand scenario requires 50.4 minutes, which happens to be 3.5 ×
+
+longer. This behavior reflects the combinatorial difficulty of the unit commitment problem under low-demand conditions, where fewer generators are needed but the selection among candidate units creates a harder branch-and-bound landscape for the solver. Total wall-clock times range from 27.2 minutes (50%, High demand) to 66.6 minutes (50%, Low demand), with most configurations completing in under one hour. Notably, all chemical plant subproblems solve in under 2 seconds per iteration across every configuration, confirming that the com-putational bottleneck resides entirely in the power system MIP solve rather than in the plant-level optimization. These results demonstrate that the two-phase LP-MIP strategy effectively limits the number of expensive integer solves to a single final iteration, keeping total runtimes practical for day-ahead operational planning. 
+
+F. Decarbonized Grid Results 
+
+As the transition toward low-carbon energy systems accel-erates, it is critical to evaluate not only economic performance but also environmental impact. This section presents a carbon accounting framework that quantifies CO 2 emissions across the centralized and decentralized configurations, using power-system dispatch results, generator fuel types, and emission intensity factors. We report emissions at the system level ,which captures the total carbon footprint of serving all grid demand, including both normal consumer bus load and the electrified chemical-plant load. The primary objective of this analysis is to assess how varying levels of chemical-plant electrification influence carbon emissions on the transmission system side under a decentralized solution paradigm. As a result, we compute the total emissions estimates based on the share of generation fuel on the transmission side and derive a generation mix ratio for calculating effective electrified cracker-based emissions as a consequence of grid integration. 
+
+Emissions Calculation : Emissions on the transmission side arise only from the coal and natural-gas generators; nuclear and renewable generation are carbon-free [24]. Using the fuel-specific emission factors αcoal and αng derived from the EIA [6], the emissions from each fossil source can be represented by Equations (33) and (34). CO 2coal = X
+
+> ∀g∈Gcoal
+
+αcoal · Pg (33) CO 2ng = X
+
+> ∀g∈Gng
+
+αng · Pg (34) In equations (33) and (34) Pg is the dispatched power of generator g. The system-wide emission is their sum is con-sequently denoted by equation (35) which captures the total carbon footprint of the grid under a given dispatch. CO 2sys = CO 2coal + CO 2ng . (35) 
+
+Generation Mix Ratios : We know that the total power gener-ated on the transmission side is the sum of coal, natural-gas, and renewable contributions: as detailed in equation (36). 
+
+P total grid = P coal grid + P NG grid + P RW grid . (36) The share of coal and natural gas as a fraction of total generation on the transmission side are given by equation (37) where γFF grid is the fossil-fuel share of generation, a compact indicator of dispatch emissions. 
+
+γcoal grid = P coal grid 
+
+P total grid 
+
+, γNG grid = P NG grid 
+
+P total grid 
+
+, γFF grid = P coal grid + P NG grid 
+
+P total grid 
+
+, (37) The carbon accounting in (33)–(37) lets us compare the two architectures on environmental grounds. Because the chemical-plant load is served from the same grid, changes in plant electrification shift the dispatch mix and are reflected directly in CO 2sys .Table III reports system-level CO 2 for both architectures. Across every case, the decentralized framework reproduces the centralized emissions to within approximately 0.8%, and to within 0.03% at 50% electrification under high demand. This close agreement demonstrates that decentralized coordination, despite sharing only limited information between the power system and the chemical plants, attains essentially the same generation mix and therefore the same carbon footprint as the fully observable centralized benchmark. Emissions scale primarily with power-system demand, and increase modestly with electrification as additional grid power is drawn to serve the larger electrified cracker load. Crucially, the persistence of near-identical centralized and decentralized emissions across all demand and electrification levels indicates that privacy-preserving decentralization does not come at an environmental cost: the data-isolation mechanism that makes industrial inte-gration acceptable to plant stakeholders carries no measurable carbon penalty relative to a fully centralized solution. This result directly advances the decarbonization objective of this work, by coordinating their microgrids with the grid through minimal, privacy-respecting signals, electrified chemical plants can draw on an increasingly renewable power supply and inherit its emissions reductions directly, without disclosing 11 
+
+proprietary operational data. As the grid continues to decar-bonize, our framework offers a practical pathway for industrial decarbonization that remains compatible with real-world data-governance constraints. VI. C ONCLUSION 
+
+In this paper, we characterize the cost of privacy-friendly decomposition on joint Unit Commitment and chemical plant microgrid decisions, contributing one of the first systematic analyses of the privacy-optimality tradeoff in coupled power transmission and chemical plant systems in the context of electrification for decarbonization. Unlike a fully centralized approach that requires extensive information exchange, our method isolates the data of each system by sharing only minimal coordination signals. We achieve this through the Alternating Direction Method of Multipliers (ADMM), where each subsystem solves its own local subproblem and itera-tively updates a global consensus via penalty functions and Lagrangian multipliers. To further strengthen convergence and reduce computational overhead, we introduce auxiliary system-level penalties that refine local coordination. Through numerical experiments on a geographically grounded Texas grid case study comprising 26 ethane cracker plants coupled with the ACTIVSg2000 synthetic transmis-sion network, we demonstrate that data isolation incurs a modest optimality penalty, with gaps remaining below 1.8% across all tested configurations, while introducing demand curtailment as a direct consequence of limited grid visibility. Computationally, the proposed two-phase LP-to-MIP strategy limits expensive integer solves to a single final iteration demonstrating robustness of the two phase approach. We also identify a mechanistic link between electrification level and convergence behavior where plant-side binary commitment variables exhibit inter-iteration flipping that produces oscilla-tory convergence profiles at lower electrification (10%). On the other hand, higher electrification (50%), larger fixed electric-cracker loads anchor these binaries and yield smooth, mono-tonic convergence. On the environmental front, the decen-tralized framework reproduces centralized system-level CO 2
+
+emissions to within approximately 0.8% across all scenarios, demonstrating that privacy-preserving decentralization carries no measurable carbon penalty relative to a fully observable benchmark. These findings underscore the real-world viability of privacy-friendly decomposition for industrial energy systems that demand both operational confidentiality and high-quality optimization outcomes. While our results rely on a synthetic transmission network and a deterministic 24-hour planning horizon, the framework offers a replicable foundation for future work incorporating stochastic renewable uncertainty, dynamic locational marginal pricing signals, and validation on real-world grid data. As chemical process electrification accelerates, such decomposed coordination mechanisms will be essential for enabling industrial decarbonization pathways that remain compatible with real-world data-governance con-straints. REFERENCES [1] U.S. DOE, “Manufacturing energy and carbon footprints,” 2021. [2] D. S. Mallapragada, Y. Dvorkin, M. A. Modestino, D. V. Esposito, and W. A. S. et al., “Decarbonization of the chemical industry through electrification: Barriers and opportunities,” Joule , vol. 7, no. 1, pp. 23– 41, 2023. [3] R. Agrawal and J. Siirola, “Decarbonization of chemical process in-dustries via electrification,” The Bridge: The National Academy of Engineering , vol. 53, pp. 32–40, 2023. [4] O. Inderwildi, C. Zhang, X. Wang, and M. Kraft, “The impact of intelligent cyber-physical systems on the decarbonization of energy,” 
+
+Energy Environ. Sci. , vol. 13, pp. 744–771, 2020. [5] S. G. Naraghi, T. Kareck, L. Xiao, R. Reed, P. Ramanan, and Z. Jiang, 
+
+Decarbonization of Steam Cracking for Clean Olefins Production: Microgrid Planning and Operation , ch. 10. John Wiley & Sons, Inc., 2026. [6] U.S. EIA, “Annual energy outlook 2023,” March 2023. [7] S. Ghasemi Naraghi, T. Kareck, and Z. Jiang, “Multi-objective optimiza-tion of steam cracking microgrid for clean olefins production,” Systems & Control Transactions , vol. 4, pp. 837–843, 2025. [8] N. P. Johnson, M. L. Bell, N. Perez, R. Dubrow, and N. C. Deziel, “Steam cracker facilities in the united states: operations, emissions, and sociodemographic patterns of surrounding populations,” Environmental Research: Health , vol. 1, p. 035003, jul 2023. [9] A. Kargarian, Y. Fu, and Z. Li, “Distributed security-constrained unit commitment for large-scale power systems,” IEEE Transactions on Power Systems , vol. 30, pp. 1925–1936, July 2015. [10] Z. Xu, G. Taylor, H. Li, M. Figueiredo, X. Yuan, and T. Gold-stein, “Adaptive consensus admm for distributed optimization.” https: //proceedings.mlr.press/v70/xu17c/xu17c.pdf, 2017. Accessed: Nov. 12, 2024. [11] M. E. H. Tijani, H. Zondag, and Y. Van Delft, “Review of electric cracking of hydrocarbons,” ACS Sustainable Chemistry & Engineering ,vol. 10, no. 49, pp. 16070–16089, 2022. [12] V. Balakotaiah and R. R. Ratnakar, “Modular reactors with electrical resistance heating for hydrocarbon cracking and other endothermic reactions,” AIChE Journal , vol. 68, no. 2, p. e17542, 2022. [13] E. A. Rodriguez-Gil and R. Agrawal, “Electric reaction-towers for flex-ible operation of endothermic reactions under variable power and feed supply rates,” Cell Reports Physical Science , vol. 6, no. 8, p. 102771, 2025. [14] N. P. Padhy, “Unit commitment-a bibliographical survey,” IEEE Trans-actions on Power Systems , vol. 19, pp. 1196–1205, May 2004. [15] J. Wang, M. Shahidehpour, and Z. Li, “Security-constrained unit com-mitment with volatile wind power generation,” IEEE Transactions on Power Systems , vol. 23, pp. 1319–1327, Aug. 2008. [16] N. Yang et al. , “A comprehensive review of security-constrained unit commitment,” Journal of Modern Power Systems and Clean Energy ,vol. 10, pp. 562–576, May 2022. [17] P. Ramanan, M. Yildirim, E. Chow, and N. Gebraeel, “An asynchronous, decentralized solution framework for the large scale unit commitment problem,” IEEE Transactions on Power Systems , vol. 34, pp. 3677–3686, Sept. 2019. [18] S. Boyd, N. Parikh, E. Chu, B. Peleato, and J. Eckstein, “Distributed optimization and statistical learning via the alternating direction method of multipliers,” Foundations and Trends in Machine Learning , vol. 3, no. 1, pp. 1–122, 2011. [19] E. Wei and A. Ozdaglar, “Distributed alternating direction method of multipliers,” in 51st IEEE Conference on Decision and Control (CDC) ,pp. 5445–5450, 2012. [20] B. D. Biswas, M. S. Hasan, and S. Kamalasadan, “Decentralized distributed convex optimal power flow model for power distribution system based on alternating direction method of multipliers,” IEEE Transactions on Industry Applications , vol. 59, no. 1, pp. 627–640, 2023. [21] T. Erseghe, “Distributed optimal power flow using admm,” IEEE Trans-actions on Power Systems , vol. 29, no. 5, pp. 2370–2380, 2014. [22] S. Ghasemi Naraghi, R. Reed, T. Kareck, P. Ramanan, and Z. Jiang, “Toward decarbonization of chemical manufacturing: Joint optimization of unit commitment and microgrid operations,” 2026. In preparation. [23] L. Dalcin, R. Paz, M. Storti, and J. D’Elia, “Mpi for python: Perfor-mance improvements and mpi-2 extensions,” Journal of Parallel and Distributed Computing , vol. 68, no. 5, pp. 655–662, 2008. [24] “Electric grid test case: Activsg2000.” https://electricgrids.engr.tamu. edu/electric-grid-test-cases/activsg2000/. Accessed: Nov. 12, 2024.
