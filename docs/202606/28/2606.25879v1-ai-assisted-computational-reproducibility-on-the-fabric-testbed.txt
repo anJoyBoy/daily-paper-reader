@@ -1,0 +1,290 @@
+Title: AI-Assisted Computational Reproducibility on the FABRIC Testbed
+
+URL Source: https://arxiv.org/pdf/2606.25879v1
+
+Published Time: Thu, 25 Jun 2026 01:15:02 GMT
+
+Number of Pages: 10
+
+Markdown Content:
+# AI-Assisted Computational Reproducibility on the FABRIC Testbed 
+
+Komal Thareja ∗, Paul Ruth ∗, Berent Aldikacti †, Michael Zink †∗RENCI, University of North Carolina at Chapel Hill, NC, USA 
+
+> †
+
+University of Massachusetts Amherst, MA, USA 
+
+Abstract —Computational reproducibility remains difficult de-spite being central to scientific research. In this paper, we show how the international FABRIC testbed, combined with large language model (LLM) coding assistants through LoomAI, can simplify reproducing published experiments across multiple domains. We reproduced three case studies on FABRIC, covering BBR-family congestion-control evaluations, LAMMPS molecular dynamics scaling benchmarks on a CPU-only MPI cluster, and stress protein homeostasis genomics pipelines. Rather than focusing only on matching numerical outputs, we evaluate whether the reproduced experiments support the same scientific conclusions as the original studies. The AI assistant was effective in setting up the environment, adapting code, and debugging, but struggled with the analysis stages that lacked clearly defined workflows, which required human guidance to establish execution order and data dependencies. Across the case studies, the AI-assisted workflow reduced reproduction effort by roughly 4–6 ×. We conclude with practical recommendations for improving AI-assisted reproducibility on research testbeds. 
+
+Index Terms —reproducibility, international FABRIC testbed, LoomAI, large language models, AI-assisted research, BBR, BBRv2, BBRv3, genomics, bioinformatics, LAMMPS, molecular dynamics, research infrastructure 
+
+I. I NTRODUCTION 
+
+Reproducibility is a foundational principle of science, yet computational experiments remain difficult to reproduce [1], [2]. Common obstacles include incomplete environment spec-ifications, implicit hardware assumptions, and dependency decay [3]. Most reproduction efforts also focus on match-ing numerical outputs, leaving open the more fundamental question of whether the reproduced results support the same 
+
+scientific conclusions .Research testbeds such as Chameleon [4], CloudLab [5], and FABRIC [6] offer controlled, reconfigurable infrastructure on demand, but they cannot read a paper and figure out what to run. LLM coding assistants [7], [8] can do that (read papers, generate code, debug failures), yet they have no infrastructure to execute on and cannot judge whether results are scientifi-cally valid. Reproduction stalls when someone must translate a paper’s methodology into testbed-native code, provision the right resources, and iterate through failures. Combining a programmable testbed (isolated slices, Software Development Kit (SDK)-defined topologies, GPU and FPGA access) with an AI coding assistant (code generation, environment debugging, cross-format translation) addresses this gap, with a human researcher providing domain oversight and final validation. We investigate their combination using LoomAI [9], FAB-RIC’s AI-augmented experiment interface, to reproduce ex-periments from three domains. These are (1) BBR-family congestion control (Section IV), (2) LAMMPS [10] molecular dynamics scaling (Section V), and (3) stress protein home-ostasis genomics pipelines [11] (Section VI). An AI coding assistant (Anthropic’s Claude via Claude Code [12]) drove the reproduction workflow within LoomAI, while a human researcher provided domain guidance and validated results. The paper makes four contributions. (a) A four-phase methodology that distinguishes result-level 
+
+reproduction (do the numbers match?) from conclusion-level reproduction (do the scientific claims still hold?), with a rubric for rating each conclusion as supported, partially supported, or not supported (Section III). (b) Three cross-domain case studies in networking, molec-ular dynamics, and genomics, each with quantitative result comparisons and conclusion verification tables showing which original claims are independently con-firmed on FABRIC (Sections IV to VI). (c) A quantitative analysis of AI strengths and limita-tions, identifying which reproducibility tasks (environ-ment setup, code adaptation, debugging) the AI accel-erated and which (domain validation, result interpre-tation, workflow assembly) required human expertise (Section VII). (d) Actionable guidelines for researchers, testbed operators, and AI-tool developers to improve reproducibility out-comes (Section VIII). II. B ACKGROUND AND RELATED WORK 
+
+A. Computational Reproducibility 
+
+The Association for Computing Machinery (ACM) distin-guishes between repeatability (same team, same setup), re-producibility (different team, same artifacts), and replicability 
+
+(different team, different artifacts) [13]. Our work targets reproducibility because we use the same code and data but execute on different infrastructure. Previous large-scale reproducibility studies have focused on single domains. Christian et al. [3] surveyed computer-systems papers, while Bhandari Neupane et al. [14] examined bioinformatic pipelines. 
+
+> arXiv:2606.25879v1 [cs.DC] 24 Jun 2026
+
+B. Research Testbeds 
+
+FABRIC [6] is an international programmable testbed span-ning 35 sites, with 31 in the United States, three in Europe, and one in Japan. Resources include virtual machines (VMs) with GPUs (NVIDIA RTX6000, A30, A40), Non-Volatile Memory express (NVMe) storage, 100 Gbps links, programmable P4 switches, and Field-Programmable Gate Array (FPGA) accel-erators. Experiments are defined as slices , isolated allocations of compute, storage, and network resources, managed through a Python SDK. 
+
+LoomAI [9] is FABRIC’s open-source, browser-based AI-augmented experiment interface. It provides a visual topol-ogy editor, an embedded JupyterLab, integrated AI coding tools (including Claude Code, Aider, and open-weight models hosted on FABRIC GPUs), and Weaves , which are packaged experiments that can be autonomously executed and shared via FABRIC’s Artifact Manager. LoomAI was the primary environment used for all experiments in this paper. 
+
+Chameleon [4] offers bare-metal reconfigurable cloud in-frastructure for computer-science research. CloudLab [5] pro-vides similar capabilities with a focus on networking and distributed-systems experiments. 
+
+C. Domain Background 
+
+BBR [15] is a model-based TCP congestion-control family whose variants (BBRv1, BBRv2, and BBRv3 [16]) require controlled network topologies with configurable bandwidth, delay, loss, queueing, and kernel support for evaluation. LAMMPS [17] is a molecular dynamics simulator whose per-formance benchmarking across hardware platforms [10] tests whether scaling conclusions generalize. Modern genomics pipelines [18], [19] process raw sequencing reads through multi-step workflows requiring matched software environ-ments and sufficient compute resources. 
+
+D. LLM Coding Assistants for Research 
+
+LLMs trained on code [7], [8], [20], [21] can generate, de-bug, and explain code across languages and scientific domains. Recent work has explored their use for experiment design [22], scientific prediction [23], and autonomous algorithm discov-ery [24]. However, LLM-generated summaries overgeneralize findings nearly five times more often than human authors [25], which highlights the need for human oversight. Adashchik 
+
+et al. [26] survey agentic LLM pipelines for reproducible scientific software but note open challenges in environment replication. Our study differs in that we pair an LLM assistant with FABRIC, report quantitatively on what the AI could and could not do, and evaluate reproduction at the conclusion level rather than the result level. III. M ETHODOLOGY 
+
+We adopt a four-phase methodology (Figure 1) applied to all three domains. All development and execution was conducted within LoomAI [9], FABRIC’s open-source AI-augmented experiment interface, using Anthropic’s Claude via the Claude Code command-line interface (CLI) [12] as the primary AI assistant. The methodology is not specific to Claude. Any capable LLM with access to a paper’s artifacts, testbed API documentation, and an execution environment could follow the same workflow (Section VII). 
+
+A. Case Study Selection 
+
+We selected three case studies that form a deliberate gradient of reproducibility difficulty. BBR-family networking experiments were already published on FABRIC but required integrating several papers, upstream artifacts, and kernel-specific protocol variants. LAMMPS was not originally con-ducted on FABRIC, but its publicly available input files and build instructions allowed a full reproduction on FABRIC infrastructure, and the original conclusions held on entirely different hardware. The genomics study was neither conducted on FABRIC nor fully deposited. Missing data and the absence of a unifying workflow definition meant that reproduction was incomplete and not all conclusions could be independently verified. This progression, from FABRIC-native networking studies through an external HPC benchmark to an external study with incomplete deposits, tests the methodology under in-creasingly difficult conditions. Each domain also exercises different FABRIC capabilities. Networking (BBR) requires programmable topology and kernel-level protocol changes, HPC (LAMMPS) requires multi-node MPI clusters with con-trolled interconnects, and bioinformatics (genomics) requires large-disk storage, multiple conflicting software environments, and domain-specific workflow engines. 
+
+B. Phases 
+
+The workflow follows a spec-driven development pattern (see Fig. 1) in which the AI first produces a design document for human review before any code is written. Separating spec-ification from implementation lets the researcher validate the reproduction strategy without reading code, identifies domain errors ( e.g. , wrong statistical test, missing data dependencies) before they propagate into artifacts, and produces an auditable record that other teams can follow independently. In Phase 1 (Artifact Assessment and Specification), the AI reads the target paper, public artifacts, and FABRIC-specific context (supplied via LoomAI’s Retrieval-Augmented Generation (RAG) pipeline and skill plugins [9]) to produce a 
+
+reproduction specification . This structured design describes the FABRIC topology, software environment, execution steps, data dependencies, and expected outputs. The researcher reviews and refines this specification, resolving ambiguities, correcting domain-specific details, and choosing experimental parame-ters, before authorizing the AI to proceed. In Phase 2 (AI-Driven Adaptation), the AI implements the approved specification as concrete artifacts including Jupyter notebooks that provision FABRIC slices, setup scripts, and experiment drivers. It reuses original artifacts where avail-able ( e.g. , LAMMPS input files, Snakemake workflows) and translates unavailable components from the paper’s prose Phase 1: Artifact Assessment AI Human        
+
+> Phase 2: AI-Driven Adaptation AI Human
+> Phase 3: Execution on FABRIC AI Human
+> Phase 4: Quantitative Comparison AI Human
+> AI Assistant Human Researcher
+
+Fig. 1: Four-phase AI-assisted reproducibility methodology. All phases involve both AI and human collaboration. 
+
+descriptions. The researcher reviews generated code before execution and provides corrections. In Phase 3 (Execution on FABRIC), the AI executes notebooks on FABRIC nodes via Secure Shell (SSH), installs dependencies, runs experiments, and collects results, typically 5–15 tool calls per prompt. The AI monitors for failures and iteratively fixes issues. The researcher provides oversight when domain judgment is required, and no AI output is accepted without human review. In Phase 4 (Comparison and Conclusion Verification), we perform a two-level assessment. At the result level , we compare reproduced outputs against paper baselines using domain-appropriate metrics ( e.g. , speedup curves, gene counts, throughput). At the conclusion level , we evaluate whether each scientific conclusion drawn by the original authors is sup-ported (reproduced evidence independently confirms the con-clusion, even if numerical values differ), partially supported 
+
+(evidence direction is consistent but key data are missing or the conclusion depends on non-computational evidence), or 
+
+not supported (reproduced evidence contradicts the conclusion after accounting for expected variation). The verification pro-cess varied by case study. For genomics, the original paper’s authors reviewed our reproduced results and provided direct feedback on whether each conclusion was supported. For BBR and LAMMPS, conclusions were extracted from the published papers by our team. Numerical values often differ due to hardware changes even when the scientific narrative remains intact, which is why we assess conclusions rather than requiring exact numerical matches. Each case study presents a conclusion verification table. IV. C ASE STUDY 1. BBR N ETWORK TRANSPORT 
+
+A. Original Experiments 
+
+This case study was our first attempt to use AI coding agents to reproduce experiments that had already run on FABRIC. Rather than reproduce one BBRv3 paper, we selected four FABRIC-published studies of BBRv1, BBRv2, and BBRv3. Several provided GitHub artifacts that could be rerun and updated for current tools and kernels. The initial goal was practical. We wanted to test whether a coding agent could read the papers, locate any public artifacts, and turn them into executable FABRIC workflows with enough structure for later researchers to rerun. Table I summarizes the papers, artifact sources, and outcomes. 
+
+B. FABRIC Setup 
+
+The four papers also exercised different kinds of reproduc-tion work. Paper A tested whether the agent could reconstruct a complete experiment from prose and figures alone. Paper B tested artifact adaptation across FABRIC sites, kernels, and congestion-control variants. Paper C was closest to a con-ventional artifact rerun because the repository included the notebooks and data needed to compare against the prior Cao 
+
+et al. study [33]. Paper D tested whether a newer shared-bottleneck modeling study could be rerun at scale and sep-arated into the parts that were fully reproduced and the parts that still depended on unfinished BBRv2 and BBRv3 sweeps. The agent was given the four PDFs, Internet access, and FABRIC context from FABlib, the portal, and public docu-mentation. It searched the FABRIC Artifact Manager first, but found no paper-specific artifacts for bbr or congestion .Reusable materials came from GitHub, except for Paper A, which was rebuilt from the PDF. The restartable LoomAI Weave includes the PDFs, referenced artifacts, FABlib topol-ogy builders, iperf3 outputs, parsers, and generated reports. The human researcher selected the claims to prioritize, re-solved unclear experiment parameters, and reviewed whether differences from the papers were expected variation or repro-duction failures. The four templates followed the original studies. Paper A used a single-site 4-node line topology, Paper B used cross-site WAN topologies, Paper C used a 3-node line topology, and Paper D used single-bottleneck plus multi-sender topologies. 
+
+netem and Linux tc shaped RTT, bottleneck rate, and queue size. BDP means bandwidth-delay product, the bottleneck bandwidth multiplied by round-trip time. CUBIC, Reno, H-TCP, and BBRv1 were available in standard images; newer BBR variants required special kernel support. In Paper B, data stored under bbr2 came from a Linux 6.4 BBR-capable kernel and are treated as a BBRv3-kernel proxy, not direct BBRv2 measurements. 
+
+C. Evaluation 
+
+We evaluate at the claim level rather than requiring numer-ical identity, since the reruns used current FABRIC images, current package versions, and new slices. The primary result is therefore not whether every throughput value matched, but whether the reproduced data changed the scientific interpreta-tion of each paper. Paper A reproduced the BBRv1-dominance result across 490 runs. In the 100 Mbps, 40 ms RTT, 2 BDP case, one BBRv1 flow competing with nine CUBIC flows received about 37 to 39 Mbps while each CUBIC flow received about 7 Mbps. The broader sweep matched the paper’s pattern. Higher-BDP TABLE I: Selected FABRIC BBR papers, artifact sources, and reproduction outcomes. No reproduced artifact came from the FABRIC Artifact Manager.                   
+
+> Paper BBR Focus Artifact Source Original FABRIC Experiment Reproduction Result Summary A. Srivastava
+> et al. [27] BBRv1 vs. CUBIC PDF only Shared-bottleneck dominance and Nash-equilibrium sweeps over flow mix, RTT, bottleneck rate, and buffer size. Supported. The 490-run rerun reproduced the BBRv1 dominance trend, with low-RTT cases still more dominant than a simple buffer-size rule predicts.
+> B. Gomez et al. [28] BBRv2 GitHub [29], [30] Cross-site WAN throughput, RTT unfairness, queue occupancy, loss, and AQM comparisons against BBRv1, CUBIC, Reno, and H-TCP. Partly supported. The WAN workflow and measurement matrices ran, but bbr2 data are BBRv3-kernel proxy results, not direct BBRv2 evidence.
+> C. Datta and Fund [31] BBRv1, plus BBRv2 extension GitHub [32] Goodput comparison across bandwidth, RTT, and buffer grids, replicating and extending the Cao et al. BBR study [33]. Supported with larger magnitude. The 1,273-run rerun preserved the shallow-buffer BBRv1 advantage, with stronger high bandwidth-delay-product (BDP) gains than the original data.
+> D. Sarpkaya
+> et al. [34] BBRv1, BBRv2, BBRv3 GitHub [35] BBR sharing models against CUBIC and Reno using single-bottleneck and multi-sender topologies. Partly supported. The 609 BBRv1 runs reproduced regime-dependent model fit, but BBRv2 and BBRv3 sweeps were not completed.
+
+cases often followed the predicted majority-BBRv1 equilib-rium, while low-RTT, low-BDP cases showed stronger BBRv1 dominance. This was also the case where the agent had the least help from artifacts, since the workflow had to be reconstructed from the paper text and figures. Paper B produced 490 runs across throughput, RTT-unfairness, and queue-occupancy experiments. The topology and measurement matrices were reproduced, and BBRv1 again sustained multi-Gbps WAN goodput while CUBIC stayed below roughly 1.3 Gbps under small loss. The main limitation is version fidelity because runs labeled BBRv2 are BBRv3-kernel proxy data. The reproduction is therefore useful as a rerun of the FABRIC WAN workflow and a comparison among the protocols that were available, but it should not be cited as a direct confirmation of BBRv2 behavior. Paper C produced 1,273 CUBIC and BBRv1 runs. With shallow 100 KB buffers, BBRv1 outperformed CUBIC in 37 of 64 comparable scenarios and reached a 10.1 × maximum good-put advantage in high-BDP cells. With deep 10 MB buffers, the median BBRv1/CUBIC ratio was 0.99 ×. The direction of the result matched the original study, but the magnitude was larger in several high-BDP cells. This supports Datta and Fund’s conclusion that BBRv1 helps most when buffers are shallow relative to path BDP, while also showing that exact goodput ratios remain sensitive to current FABRIC conditions and host configuration. Because this paper included the strongest public artifact, it also gave the clearest comparison between an artifact-assisted rerun and a reconstructed rerun. Paper D produced 609 BBRv1 runs, including 504 single-loss-flow and 105 multi-flow fairness runs reported with Jain’s fairness index (JFI) [36]. The reproduced data support the conclusion that model accuracy depends on regime, with shallow-to-moderate buffers easier to explain than deep-buffer and many-flow settings. The multi-flow experiments were especially useful for checking whether the modeling claims held beyond a single bottleneck flow. This case also showed where automation stops being enough. The BBRv1 portion could be run and checked, but finishing the newer variants required kernel work and longer reservations. It was the clearest reminder that an AI tool can organize and execute a reproduction, but cannot remove protocol-version require-ments from the underlying system. BBRv2 and BBRv3 sweeps were not completed, so those claims remain only partially reproduced. V. C ASE STUDY 2. M OLECULAR DYNAMICS 
+
+A. Original Experiments 
+
+Lawrence et al. [10] compared the Kokkos and GPU ac-celeration packages of LAMMPS [17] (Large-scale Atom-ic/Molecular Massively Parallel Simulator) using NVIDIA H100 and Intel Data Center GPU Max 1100 (Ponte Vecchio) accelerators on the composable ACES cluster at Texas A&M University. Three molecular dynamics benchmarks were used: Lennard-Jones (LJ), Embedded Atom Model (EAM), and Rhodopsin, with problem sizes of 32 million atoms (LJ/EAM) and 4 million atoms (Rhodopsin). Strong scaling was measured by increasing the number of GPUs from 1 to 10 on a Liqid composable fabric node. The paper makes four central conclusions. (1) data move-ment strategy determines scalability , meaning communication bandwidth, not raw compute power, is the limiting factor. (2) The Kokkos package (all computation on GPU) outscales the GPU package (partial offload) because it minimizes host-to-GPU data transfer. (3) The GPU package has a strong CPU core dependency and does not scale well beyond 3 GPUs on a single node. (4) Communication dominates wall time for simple potentials (LJ, EAM), while the more compute-intensive Rhodopsin benchmark is less affected. Input files and build instructions are publicly available [37]. 
+
+B. FABRIC Setup 
+
+We reproduced the same LAMMPS benchmarks as a CPU-only MPI scaling study on FABRIC, using the exact input files from the paper’s supplement [37]. The experiment was 10 1            
+
+> 10 2
+> Timesteps/s
+> multi-node
+> LJ (Lennard-Jones)
+> Ideal scaling
+> FABRIC
+> 10 1
+> 10 2
+> Timesteps/s
+> multi-node
+> EAM (Copper)
+> Ideal scaling
+> FABRIC
+> 20212223242526
+> Number of Cores
+> 10 1
+> 10 2
+> Timesteps/s
+> multi-node
+> Rhodopsin
+> Ideal scaling
+> FABRIC
+> 20212223242526
+> Number of Cores
+> 10 1
+> 10 2
+> Timesteps/s
+> multi-node
+> SPC/E Water
+> Ideal scaling
+> FABRIC
+> LAMMPS Strong Scaling on FABRIC (5-node cluster, 96 cores)
+
+Fig. 2: LAMMPS strong scaling on FABRIC. Short-range potentials (LJ, EAM) track ideal scaling through 32 cores. Long-range poten-tials (Rhodopsin, SPC/E) plateau at the multi-node boundary. Dashed line = ideal linear scaling. 
+
+configured on a 5-node cluster provisioned at TACC with one head node (32 cores, 128 GB RAM) and four workers (16 cores, 64 GB RAM each), totaling 96 cores and 384 GB RAM connected via L2Bridge (192.168.1.0/24). FABRIC was essential here because provisioning a composable multi-node MPI cluster with controlled L2 networking on demand is not straightforward on commodity cloud, and the SDK-defined topology ensures any FABRIC user can recreate the identical cluster from the same notebook. The cluster ran Rocky Linux 8 with system OpenMPI and LAMMPS patch 7Feb2024 built from source (CPU-only, MPI + OpenMP). Four benchmarks were tested, namely LJ (Lennard-Jones melt, 256K atoms), EAM (bulk copper, 256K atoms), Rhodopsin (protein in membrane, 32K atoms), and SPC/E Water (water box, 36K atoms). Both strong scaling (fixed prob-lem size, 1–96 cores) and weak scaling (constant atoms/core, 1–96 cores) experiments were conducted with 3 repeats per configuration. The complete reproduction notebooks, scripts, and results are available at [38]. 
+
+C. Evaluation 1) Strong Scaling: Figure 2 and Table II summarize the strong scaling results. Short-range potentials (LJ, EAM) scaled well to 96 cores, achieving 41.4 × and 51.5 × speedup respec-tively. Long-range potentials (Rhodopsin, SPC/E) saturated beyond 32 cores, with performance actually decreasing at the single-to-multi-node transition (32 to 48 cores). 
+
+2) Communication Overhead: Timing breakdowns reveal the scaling bottlenecks. Table III shows the fraction of wall time spent on MPI communication, Kspace (fast Fourier transform (FFT)-based long-range solver), and pair-force com-putation at representative core counts. TABLE II: LAMMPS strong scaling with speedup and parallel efficiency. 
+
+Benchmark 32-core 32-core 96-core 96-core Speedup Eff. Speedup Eff. 
+
+LJ 24.7 × 77.1% 41.4 × 43.1% EAM 26.2 × 81.7% 51.5 × 53.7% Rhodopsin 21.6 × 67.7% 21.1 × 22.0% SPC/E 20.2 × 63.2% 21.3 × 22.2% 
+
+TABLE III: LAMMPS wall-time breakdown (%) at selected core counts. 
+
+Benchmark Cores Comm Kspace Pair 
+
+LJ 1 0.7 — 85.0 LJ 32 24.9 — 64.0 LJ 96 56.9 — 36.4 Rhodopsin 1 0.1 4.4 77.2 Rhodopsin 32 12.7 14.2 52.1 Rhodopsin 96 12.0 47.2 17.2 SPC/E 1 0.2 6.4 79.8 SPC/E 32 13.3 19.0 51.1 SPC/E 96 13.6 53.4 18.0 
+
+For short-range benchmarks (LJ, EAM), MPI communica-tion grows with core count. LJ reaches 56.9% communication at 96 cores, directly limiting further speedup. For long-range benchmarks (Rhodopsin, SPC/E), MPI communication stays moderate (12–14% at 96 cores), but the particle–particle particle–mesh (PPPM) Kspace solver becomes the dominant cost. Rhodopsin’s Kspace fraction grows from 4.4% to 47.2%, and SPC/E’s from 6.4% to 53.4%. 
+
+3) Weak Scaling: Weak scaling experiments held the atoms-per-core ratio approximately constant while increasing total cores from 1 to 96. LJ retained 68.9% efficiency at 96 cores, EAM 73.1%, while Rhodopsin dropped to 41.2% and SPC/E to 30.3%, directly proportional to their communication and Kspace overhead fractions. 
+
+4) Conclusion Verification: Table IV compares the paper’s conclusions against our CPU-only MPI results. Despite the entirely different hardware (CPU VMs vs. GPU accelerators) and communication mechanism (MPI network vs. host–GPU Peripheral Component Interconnect Express (PCIe) transfer), the paper’s central thesis is confirmed. Data movement strategy determines scalability. Simple potentials (LJ, EAM) with mini-mal computation per atom are most communication-sensitive, while the compute-intensive Rhodopsin benchmark tolerates communication overhead better. Our experiment additionally reveals two findings not present in the original paper. First, the PPPM Kspace solver is a distinct scaling bottleneck for long-range potentials, growing to over 50% of wall time at 96 cores independent of the MPI communication overhead. Second, the single-to-multi-node transition (32 to 48 cores) produces a sharp performance cliff for long-range potentials, with Rhodopsin and SPC/E actually losing throughput when crossing the node boundary. The GPU-focused conclusions about communication-limited scaling generalize to CPU-only MPI on FABRIC, TABLE IV: Lawrence et al. [10] paper conclusions vs. FAB-RIC CPU-MPI reproduction. 
+
+Paper Conclusion Supported? 
+
+Data movement limits scalability Yes Simple potentials most comm-sensitive Yes Rhodopsin less affected by comm over-head Yes Kokkos outscales GPU package N/A (CPU-only) GPU package needs many CPU cores Consistent 
+
+strengthening the original results. The publicly available input files and build instructions made this case study the smoothest of the three. The AI generated all 7 notebooks and 5 scripts, provisioned the multi-node cluster via the FABRIC SDK, automated MPI job submission across core counts, parsed LAMMPS log files to extract timing breakdowns, and pro-duced all comparison figures and tables. Human intervention was needed for choosing problem sizes (256K atoms for LJ/EAM, 32K–36K for long-range potentials), validating that the communication overhead patterns were physically mean-ingful, and judging whether the GPU-based scaling conclu-sions transferred to a CPU-only regime. VI. C ASE STUDY 3. G ENOMICS PIPELINES 
+
+A. Original Experiments 
+
+We reproduce the computational analyses from Aldikacti 
+
+et al. [11], which studies protein homeostasis in Caulobac-ter crescentus by integrating Tn-seq fitness profiling with RNA-seq expression analysis. The pipeline spans 10 analy-sis stages, including Tn-seq preprocessing, ComBat-seq [39] batch correction, Generalized Linear Model (GLM) fitness classification, Model-X knockoff [40] predictor selection, Earth Mover’s Distance (EMD) [41], GaP-HDP [42] Bayesian clustering, RNA-seq quantification, DESeq2 [43] differential expression, multi-omic integration, and gene network recon-struction, using code from [44] and data from the Gene Expression Omnibus (GEO; GSE244581, GSE312471). 
+
+B. FABRIC Setup 
+
+The reproduction ran on a single FABRIC VM (24 cores, 500 GB disk) with three isolated environments for Snake-make (Tn-seq), Nextflow (RNA-seq), and R/Python (statistical analyses). FABRIC’s large-disk VM (500 GB) was necessary to stage the raw sequencing data, and slice-based isolation ensured the three conflicting environments (Snakemake conda, Nextflow, R) could coexist without contamination. The entire setup is captured as a reproducible LoomAI notebook. Raw data were downloaded from GEO/Sequence Read Archive (SRA) directly to the node. All artifacts are available at [45]. 
+
+C. Evaluation 
+
+The AI assistant generated all 27 scripts, configured the three isolated environments, and automated execution of the 10-stage pipeline. All 10 analysis stages executed successfully WT ..CLPA ..LON dnaKJ−NI    
+
+> CN:L CN:M CN:H HT:L HT:M HT:H OS:L OS:M OS:H
+> CN:L CN:M CN:H HT:L HT:M HT:H OS:L OS:M OS:H
+> CN:L CN:M CN:H HT:L HT:M HT:H OS:L OS:M OS:H
+> CN:L CN:M CN:H HT:L HT:M HT:H OS:L OS:M OS:H
+> 050 100
+> 0100 200 300 400 500
+> 0510 15 20 25
+> 0200 400 600
+> Stress Condition
+> Number of Genes
+> Gene Classification Conditionally Essential Conditionally Detrimental Conditionally Beneficial
+> Gene Classification by Strain and Stress Condition
+
+Fig. 3: Reproduced gene classification across four strains and nine stress conditions. Heat stress (HT:H) produces the most non-neutral genes in WT and ∆lon, consistent with the paper. 
+
+on FABRIC, and the reproduction was assessed as substan-tially reproduced (i.e., ≥75% of conclusion-level claims sup-ported or partially supported). Table V summarizes the quan-titative comparison and Figure 3 shows the reproduced gene classification. Four deviations reduced quantitative confidence. These were (a) the ∆clpB Tn-seq strain was missing from the public repository (4 of 5 strains available), (b) knockoff predictor counts deviated 16–33% (expected for this stochastic method), (c) the EMD strain ranking contradicted the paper (∆lon highest vs. ∆clpA), attributable to missing strain data, and (d) only 14 of 18 RNA-seq samples were available. Despite these gaps, all qualitative findings were reproduced, including the compensatory ∆clpB response (2,092 vs. 1,592 differentially expressed (DE) genes), the ClpB → RecA →
+
+PolA pathway (35 edges), and the four-quadrant integration with ClpB correctly in Q2. 
+
+Reproducibility barriers. The most significant barrier was incomplete data deposition. Workflow-managed stages were generally easier to reproduce and required much less man-ual intervention. The AI assistant could only autonomously 
+
+reproduce the workflow-managed pipelines. The remaining stages relied on ad-hoc scripts without a unifying workflow definition, and the AI could not independently determine execution order or data dependencies. A domain biologist provided the computational schema (which inputs feed which scripts), while the AI handled mechanical adaptation (envi-ronment setup, dependency resolution, output formatting). We conclude that, when a paper’s contribution is a mathematical or biological framework rather than a software tool, the workflow is rarely organized for reproducibility, and AI assistants cannot compensate for that absence. 
+
+1) Conclusion Verification: Table VI evaluates whether the reproduced results support the paper’s eight key conclusions. Six of eight are fully supported. The ClpB pathway, compen-satory ∆clpB response, four-quadrant gene distribution, and functional redundancy findings all emerge from re-executed analyses. The EMD-based conclusion is not supported (strain ranking contradicts the paper, attributable to missing ∆clpB data), and the stress toxicity conclusion is partially supported (computational evidence is consistent, but the full argument TABLE V: Genomics reproduction comparing paper and FAB-RIC results.                             
+
+> Stage Paper Reprod. Match
+> Tn-seq counts 4,097 genes, 5strains 4,097 genes, 4 strains Partial Batch correction 694,280 rows 694,280 rows Yes GLM classif. 3 categories 1,113 CD, 718 CB, 160,684 N Yes Knockoffs 20– 39/strain 16–33% dev. Partial EMD ∆clpA highest
+> ∆lon highest No GaP-HDP 121 comp. 121 comp. Yes RNA-seq 18 samples 14 samples Partial DESeq2 ∆clpB >
+> WT 2,092 vs 1,592 Yes Integration 4 quadrants ClpB in Q2 Yes Gene network ClpB– RecA–PolA 35 edges Yes
+
+TABLE VI: Aldikacti et al. [11] paper conclusions vs. repro-duced results.           
+
+> Paper Conclusion Supported?
+> Functional redundancy masks gene im-portance Yes Heat stress most impactful; WT and
+> ∆lon most affected Yes Knockoffs identify strain-specific pre-dictors Yes
+> ∆clpA has highest EMD divergence No
+> ∆clpB compensatory transcriptional re-sponse Yes Upregulation ̸=functional necessity Yes ClpB in Q2; ClpB →RecA →PolA pathway Yes Stress toxicity from specific protein loss Partial
+
+requires wet-lab experiments). Which conclusions can be verified depends on how complete the deposited data are. Conclusions relying on fully available RNA-seq data were all confirmed, while those depending on the missing ∆clpB Tn-seq strain cannot be independently verified. VII. T HE ROLE OF AI A SSISTANTS 
+
+Table VII summarizes where the AI assistant was effective and where human expertise remained necessary, based on our experience across all three case studies. 
+
+A. AI Configuration 
+
+All sessions used Claude Opus 4.6 via Claude Code [12] integrated into LoomAI [9], with default API parameters (tem-perature 1.0, no system-prompt overrides). Lightweight sub-tasks (file search, exploration) were delegated to Haiku 4.5. The human–AI interaction protocol and context injection mechanism are described in Section III. 
+
+B. What AI Accelerated 
+
+The AI was particularly effective at generating a detailed specification document that describes how to reproduce a given TABLE VII: AI assistant effectiveness by task category. Rat-ings reflect observed performance of Claude (Opus) across all case studies.                        
+
+> Task AI Human Effective? Needed?
+> Read paper & draft reproduction spec High Review Parse README / install instructions High Minimal Generate FABRIC provisioning code High Review Translate / reuse original artifacts High Debug Generate experiment scripts from spec Medium Validate Debug build / dependency failures Medium Guide Interpret domain-specific results Low Essential Validate biological/physical correctness Low Essential Refine spec & choose parameters Low Essential Assess whether results “reproduce” Medium Final call
+
+paper. This specification included information on FABRIC topology, the environment, execution steps, and expected out-puts. Researchers could review and refine the document in collaboration with the AI before requesting code generation, which proved more efficient than repeatedly troubleshooting incomplete or faulty scripts. For implementation, the AI typically produced correct FAB-RIC provisioning code, SSH configurations, and data transfer scripts on the first attempt. When installation issues arose, it analyzed log outputs and suggested fixes more quickly than manual troubleshooting, especially for cross ecosystem conflicts involving conda environments, container images, and VM packages. It also largely automated figure and table generation, reducing the manual effort required during the comparison phase. 
+
+C. Where Human Expertise Remained Essential 
+
+The AI’s limitations clustered around domain judgment. In the genomics case, it initially ran analyses on reduced datasets that produced statistically meaningless results. A domain ex-pert had to identify which analyses require the full dataset [11]. It also mischaracterized gene functional categories and chose inappropriate statistical tests until corrected by the domain biologist (Section VI). More broadly, the AI could compute metrics but could not judge whether a 15% deviation indicated hardware differences or a genuine reproduction failure. While it drafted useful reproduction specifications, the researcher still had to choose problem sizes, topology parameters, and statistical methods. The clearest limitation appeared in the genomics pipeline. Without a workflow engine defining execution order and data flow, the AI could not determine which scripts to run in what sequence. A domain expert had to supply the computational schema before the AI could proceed (Section VI). 
+
+D. Generalizability to Other AI Assistants 
+
+Our workflow requires long-context understanding ( >100K tokens), code generation across languages, iterative debug-ging, and tool use. These capabilities are available in GPT-4, Gemini, and open-source models. LoomAI [9] supports this directly by including four open-source AI coding tools (Aider, TABLE VIII: AI-assisted reproduction effort and LLM usage.                                        
+
+> Metric BBR Mol. Dyn. Genomics
+> AI-generated artifacts
+> Notebooks 172Scripts 13 527 Analysis stages 5410
+> Effort estimates
+> AI-assisted (hrs) ∼12 ∼6∼10 Manual (hrs) ∼70 ∼25 ∼60 Speedup ∼6×∼4×∼6×
+> LLM usage (Claude Opus 4.6)
+> Sessions 334User prompts ∼810 15 Tool calls ∼90 ∼80 ∼117 Input tokens (K) ∼280 ∼500 ∼870 Output tokens (K) ∼50 ∼40 ∼63 Est. cost (USD) ∼$8 ∼$10 ∼$16
+
+OpenCode, Crush, Deep Agents) alongside Claude Code, all with FABRIC-specific context via RAG. Switching backends requires a single configuration change. 
+
+E. Effort and LLM Usage 
+
+Table VIII summarizes the AI-generated artifacts, effort estimates, and LLM resource consumption per case study. The AI-assisted interaction time was approximately 12 hours for BBR (1 analysis notebook, 13 Python scripts), 6 hours for LAMMPS (7 notebooks, 5 scripts), and 10 hours for genomics (2 notebooks, 27 scripts spanning R, Python, and Bash across 3 isolated environments). We estimate manual reproduction would require ∼70 person-hours for BBR, ∼25 person-hours for LAMMPS, and ∼60 person-hours for genomics, a 4–6 ×
+
+speedup. These estimates are based on the authors’ prior expe-rience reproducing similar experiments without AI assistance and should be treated as order-of-magnitude approximations rather than controlled measurements. The total API cost across all three case studies was approximately $34 USD. VIII. R EPRODUCIBILITY GUIDELINES 
+
+Based on our experience, we offer recommendations for researchers publishing computational results, operators of re-search testbeds, and developers of AI coding assistants. 
+
+A. For Researchers 
+
+The most impactful practices were as follows. (a) Deposit all data and code. Missing strains and unchecked intermediate files were the primary genomics barriers. (b) Automate the full pipeline. Whether via workflow managers, Makefiles, or end-to-end scripts, automated stages reproduced most faithfully and were most amenable to AI adaptation. (c) Pin every dependency via lock files or containers. (d) Document hard-ware assumptions. The LAMMPS case showed conclusions generalize across platforms only when original context is clear. (e) Provide test datasets and expected outputs for rapid debugging before full-scale runs. 
+
+B. For Testbed Operators 
+
+Curated base images with common scientific software would reduce the environment setup that dominates reproduc-tion time. Testbeds should support extended reservations or checkpoint/restart for long-running computations and publish machine-readable API documentation. 
+
+C. For AI-Tool Developers 
+
+Reproducibility demands long-context reasoning ( >100K tokens) and iterative execution on remote infrastructure. Domain-specific knowledge injected via RAG improved code quality in our experiments. AI assistants should flag uncer-tainty when evaluating whether deviations indicate reproduc-tion failures or expected variation. IX. C ONCLUSION 
+
+We showed that FABRIC combined with LLM coding assistants operating within LoomAI [9] can serve as a general-purpose reproducibility platform across domains, reducing reproduction effort by 4–6 × at ∼$34 USD in API cost. The three case studies form a progression that reveals where AI-assisted reproduction succeeds and where it breaks down. The BBR-family case study, selected from publications known to use FABRIC, was the most direct test of AI-driven reproduction on FABRIC-native networking research. LAMMPS was not originally conducted on FABRIC and used GPU hardware we could not match, yet the publicly available input files allowed a complete reproduction on a CPU-only MPI cluster, and the original scaling conclusions held on entirely different hardware. The genomics study was the hardest because it was neither conducted on FABRIC nor fully deposited, and missing data meant that not all conclu-sions could be independently verified. Across this gradient, the pattern is consistent. Numerical values differed due to hardware changes, but scientific conclusions remained intact when the artifacts were complete. Had we evaluated success solely by numerical proximity, faithful reproductions would have been judged as failures, which is why conclusion-level assessment matters. The genomics case also revealed that AI autonomy is bounded by workflow organization. The assistant could inde-pendently reproduce only stages managed by formal workflow engines, while ad-hoc scripts required a domain expert to provide the computational schema. Better-structured artifacts would have helped the AI more than a more capable model. The BBR case points to the same lesson from the opposite direction. When papers and GitHub artifacts exposed enough experimental structure, the AI could rebuild complex FABRIC networking workflows and leave behind runnable notebooks rather than a one-time rerun. We plan to extend the study to additional domains, build automated artifact-assessment tooling, and package completed reproductions as LoomAI Weaves so that others can re-execute them without repeating our effort. REFERENCES [1] M. Baker, “1,500 scientists lift the lid on reproducibility,” Nature , vol. 533, no. 7604, pp. 452–454, 2016. [2] V. Stodden, J. Seiler, and Z. Ma, “An empirical analysis of journal policy effectiveness for computational reproducibility,” Proceedings of the National Academy of Sciences , vol. 115, no. 11, pp. 2584–2589, 2018. [3] C. Collberg and T. A. Proebsting, “Repeatability in computer systems research,” Communications of the ACM , vol. 59, no. 3, pp. 62–69, 2016. [4] K. Keahey, J. Anderson, Z. Zhen, P. Riteau, P. Ruth, D. Stanzione, M. Cevik, J. Colleran, H. S. Gunawi, C. Hammock, J. Mambretti, A. Barnes, F. Halbach, A. Roez, and J. Tracey, “Lessons learned from the Chameleon testbed,” in Proceedings of the 2020 USENIX Annual Technical Conference (USENIX ATC’20) , 2020, pp. 219–233. [5] D. Duplyakin, R. Ricci, A. Maricq, G. Wong, J. Duerig, E. Eide, L. Stoller, M. Hibler, D. Johnson, K. Webb, A. Naber, N. Ezzelle, and J. Stutzman, “The design and operation of CloudLab,” in Proceedings of the 2019 USENIX Annual Technical Conference (USENIX ATC’19) ,2019, pp. 1–14. [6] I. Baldin, A. Mandal, P. Ruth, R. McGeer, J. Chase, and T. Nyczyk, “FABRIC: A national-scale programmable experimental network infras-tructure,” in IEEE Internet Computing , vol. 23, no. 6, 2019, pp. 38–47. [7] M. Chen, J. Tworek, H. Jun, Q. Yuan, H. P. d. O. Pinto, J. Kaplan, H. Edwards, Y. Burda, N. Joseph, G. Brockman et al. , “Evaluating large language models trained on code,” arXiv preprint arXiv:2107.03374 ,2021. [8] Anthropic, “Claude: AI assistant by Anthropic,” https://www.anthropic. com/claude, 2024, accessed: 2026-04-01. [9] P. Ruth and K. Thareja, “LoomAI: An AI-augmented interface for designing, deploying, and automating experiments on FABRIC,” in 
+
+Practice and Experience in Advanced Research Computing (PEARC ’26) . ACM, 2026, to appear. [10] R. Lawrence, D. K. Chakravorty, F. Dang, L. M. Perez, W. Brashear, Z. He, H. Liu, J. X. Mao, and C.-Y. Lu, “Performance of molecular dynamics acceleration strategies on composable cyberinfrastructure,” in 
+
+Practice and Experience in Advanced Research Computing (PEARC ’24) . ACM, 2024, pp. 1–5. [11] B. Aldikacti et al. , “Stress testing reveals selective vulnerabilities in protein homeostasis,” Cell Reports , 2026, in press. [12] Anthropic, “Claude code: AI-powered coding assistant CLI,” https: //docs.anthropic.com/en/docs/claude-code, 2025, accessed: 2026-04-01. [13] ACM, “Artifact review and badging, version 1.1,” https://www.acm. org/publications/policies/artifact-review-and-badging-current, 2020, ac-cessed: 2026-04-01. [14] J. Bhandari Neupane, R. P. Neupane, Y. Luo, W. Y. Yoshida, R. Sun, and P. G. Williams, “Characterization of leptazolines A–D, polar non-ribosomal peptides of the associated cyanobacterium,” Molecules ,vol. 27, no. 7, p. 2233, 2022, placeholder – replace with actual bioinformatics reproducibility citation. [15] N. Cardwell, Y. Cheng, C. S. Gunn, S. H. Yeganeh, and V. Jacobson, “BBR: Congestion-based congestion control,” in Communications of the ACM , vol. 60, no. 2, 2017, pp. 58–66. [16] N. Cardwell, Y. Cheng, S. H. Yeganeh, I. Swett, and V. Jacobson, “BBRv3: Algorithm bug fixes and public internet deployment,” IETF 115 Presentation, 2022, replace with the specific BBRv3 paper(s) being reproduced. [17] A. P. Thompson, H. M. Aktulga, R. Berger, D. S. Bolintineanu, W. M. Brown, P. S. Crozier, P. J. in ’t Veld, A. Kohlmeyer, S. G. Moore, T. D. Nguyen, R. Shan, M. J. Stevens, J. Tranchida, C. Trott, and S. J. Plimpton, “LAMMPS — a flexible simulation tool for particle-based materials modeling at the atomic, meso, and continuum scales,” 
+
+Computer Physics Communications , vol. 271, p. 108171, 2022. [18] F. M¨ older, K. P. Jablonski, B. Letcher, M. B. Hall, C. H. Tomkins-Tinch, V. Sochat, J. Forster, S. Lee, S. O. Twardziok, A. Kanitz, A. Wilm, M. Holtgrewe, S. Rahmann, A. Narechania, and J. K¨ oster, “Sustainable data analysis with Snakemake,” F1000Research , vol. 10, p. 33, 2021. [19] P. Di Tommaso, M. Chatzou, E. W. Floden, P. P. Barja, E. Palumbo, and C. Notredame, “Nextflow enables reproducible computational work-flows,” Nature Biotechnology , vol. 35, no. 4, pp. 316–319, 2017. [20] OpenAI, “GPT-4 technical report,” arXiv preprint arXiv:2303.08774, 2023. [21] Google DeepMind, “Gemini: A family of highly capable multimodal models,” arXiv preprint arXiv:2312.11805, 2024. [22] D. A. Boiko, R. MacKnight, B. Kline, and G. Gomes, “Autonomous chemical research with large language models,” Nature , vol. 624, pp. 570–578, 2023. [23] U. M. Sehwag, E. Lau, H. Ehsani Oskouie, S. Shabihi, E. Liang, A. Toledo, G. Mangialardi, S. Fonrouge, E.-Y. Hernandez Cardona, P. Vergara, U. Tyagi, C. B. C. Zhang, P. Bhatter, N. Johnson, F. Huang, E. G. Hernandez Montoya, and B. Liu, “SciPredict: Can LLMs predict the outcomes of scientific experiments in natural sciences?” arXiv preprint arXiv:2604.10718 , 2026. [24] A. Cheng, S. Liu, M. Pan, Z. Li, B. Wang, A. Krentsel, T. Xia, M. Cemri, J. Park, S. Yang, J. Chen, L. Agrawal, A. Desai, J. Xing, K. Sen, M. Zaharia, and I. Stoica, “Barbarians at the gate: How AI is upending systems research,” arXiv preprint arXiv:2510.06189 , 2025. [25] U. Peters and B. Chin-Yee, “Generalization bias in large language model summarization of scientific research,” Royal Society Open Science ,vol. 12, no. 4, p. 241776, 2025. [26] A. Adashchik, A. Huraira, Z. Kholmatova, A. Mikriukov, A. Ravveduto, M. Snigireva, G. Succi, A. Tormasov, and E. A. Trofimova, “Agentic LLM pipelines for reproducible scientific software: Opportunities and challenges,” in Proceedings of the 9th International Conference on Computer Science and Artificial Intelligence (CSAI ’25) . ACM, 2025, pp. 38–46. [27] A. Srivastava, F. Fund, and S. S. Panwar, “Some of the internet may be heading towards BBR dominance: An experimental study,” in IEEE INFOCOM 2023 - IEEE Conference on Computer Communications Workshops (INFOCOM WKSHPS) , 2023, pp. 1–7. [28] J. Gomez, E. Kfoury, J. Crichigno, and G. Srivastava, “Understanding the performance of TCP BBRv2 using FABRIC,” in 2023 IEEE In-ternational Black Sea Conference on Communications and Networking (BlackSeaCom) , 2023, pp. 259–264. [29] J. Gomez Gaona, “bbr2: Scripts for an emulation-based evaluation of TCP BBRv2 alpha,” https://github.com/gomezgaona/bbr2, 2023, ac-cessed: 2026-05-27. [30] ——, “bbr3: Resources for BBRv3 performance evaluation,” https: //github.com/gomezgaona/bbr3, 2024, accessed: 2026-05-27. [31] S. Datta and F. Fund, “Replication: “when to use and when not to use BBR”,” in Proceedings of the 2023 ACM Internet Measurement Conference , 2023, pp. 29–34. [32] ——, “imcbbrrepro: Artifacts for replication: “when to use and when not to use BBR”,” https://github.com/sdatta97/imcbbrrepro, 2023, accessed: 2026-05-27. [33] Y. Cao, A. Jain, K. Sharma, A. Balasubramanian, and A. Gandhi, “When to use and when not to use BBR: An empirical analysis and evaluation study,” in Proceedings of the 2019 Internet Measurement Conference ,2019, pp. 130–136. [34] F. B. Sarpkaya, A. Srivastava, F. Fund, and S. Panwar, “BBR’s sharing behavior with CUBIC and Reno,” arXiv preprint arXiv:2505.07741 ,2025. [35] ——, “TCP BBR behavior over a shared bottleneck: experiment arti-facts,” https://github.com/fatihsarpkaya/bbr-shared-bottleneck, 2025, ac-cessed: 2026-05-27. [36] R. K. Jain, D.-M. W. Chiu, and W. R. Hawe, “A quantitative measure of fairness and discrimination for resource allocation in shared computer systems,” DEC Research Report TR-301 , 1984, widely cited as Jain’s fairness index. [37] R. Lawrence, “Supplemental documents for PEARC24: Performance of molecular dynamics acceleration strategies on composable cyberinfras-tructure,” https://github.com/rarensu/pearc24-LAMMPS-supplement, 2024. [38] K. Thareja, “lammps-reproducibility: AI-assisted reproduction of LAMMPS MPI scaling benchmarks on FABRIC,” https://github.com/ kthare10/lammps-reproducibility, 2026, accessed: 2026-05-11. [39] Y. Zhang, G. Parmigiani, and W. E. Johnson, “ComBat-seq: batch effect adjustment for RNA-seq count data,” NAR Genomics and Bioinformatics ,vol. 2, no. 3, p. lqaa078, 2020. [40] E. Cand` es, Y. Fan, L. Janson, and J. Lv, “Panning for gold: ‘model-X’ knockoffs for high dimensional controlled variable selection,” Journal of the Royal Statistical Society: Series B , vol. 80, no. 3, pp. 551–577, 2018. [41] Y. Rubner, C. Tomasi, and L. J. Guibas, “The earth mover’s distance as a metric for image retrieval,” International Journal of Computer Vision ,vol. 40, no. 2, pp. 99–121, 2000. [42] A. Schein, S. He, V. Sarsani, and P. Flaherty, “A Bayesian nonpara-metric model for inferring subclonal populations from structured DNA sequencing data,” Annals of Applied Statistics , vol. 15, no. 2, 2021. [43] M. I. Love, W. Huber, and S. Anders, “Moderated estimation of fold change and dispersion for RNA-seq data with DESeq2,” Genome Biology , vol. 15, no. 12, p. 550, 2014. [44] P. Flaherty, “tnseq-homeostasis: Multilevel Tn-seq analysis,” https:// github.com/flahertylab/tnseq-homeostasis, 2024. [45] K. Kthare, “stress-protein-homeostasis: AI-assisted reproduction of stress protein homeostasis analysis on FABRIC,” https://github.com/ kthare10/stress-protein-homeostasis, 2026, accessed: 2026-05-10.
