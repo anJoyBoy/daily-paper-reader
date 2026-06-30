@@ -1,0 +1,3453 @@
+Title: Reduction of Probabilistic Chemical Reaction Networks
+
+URL Source: https://arxiv.org/pdf/2606.27737v1
+
+Published Time: Mon, 29 Jun 2026 00:26:12 GMT
+
+Number of Pages: 35
+
+Markdown Content:
+# Reduction of Probabilistic Chemical Reaction Networks 
+
+Mauricio Montes * 1 2 Gregoire Sergeant-Perthuis * 2 
+
+## Abstract 
+
+Programming adaptive behaviors at the cellular level is a long-standing goal that raises the ques-tion of how probabilistic computation can be im-plemented in biochemical systems. Chemical re-action networks (CRNs) provide such a substrate and have been shown to realize probabilistic mod-els, including hidden Markov models and fac-tor graphs, with dynamics reproducing Bayesian inference and belief propagation. However, en-coding these algorithms typically requires pro-hibitively large reaction networks, and classical CRN reduction techniques do not directly ap-ply. By recovering the factor graph structure encoded in Napp–Adams-compiled CRNs, we transport recent factor-graph reduction results to their chemical implementations, obtaining signifi-cantly smaller CRNs while preserving the belief-propagation fixed points on surviving variables. 
+
+## 1. Introduction 
+
+Models of agency in biological organisms, such as the Bayesian brain hypothesis (Knill & Pouget, 2004) and ac-tive inference (Friston, 2010; Parr et al., 2022), posit that decision making relies on maintaining and updating internal beliefs about the environment. Underlying these frame-works is the assumption that biological agents operate under incomplete information, which they acquire only indirectly through noisy and partial observations. As a consequence, adaptive behavior requires continuous inference about latent environmental states. 
+
+Modeling agency in silico . Incomplete information is also central to optimal control and, more broadly, to reinforce-ment learning, where belief updates are formalized through probabilistic inference algorithms such as filtering and be-lief propagation. These same inference mechanisms also 
+
+> 1
+
+COSAM, Auburn University, Auburn, AL, USA 2CQSB, Sor-bonne Universite, Paris, France. Correspondence to: Mauricio Montes <mauricio.montes@auburn.edu >.
+
+Proceedings of the 43 rd International Conference on Machine Learning , Seoul, South Korea. PMLR 306, 2026. Copyright 2026 by the author(s). 
+
+play a central role in active inference (Pezzulo et al., 2024). Translating these algorithms into biological substrates there-fore appears as a necessary step toward cellular decision making design. A natural choice for achieving this goal is using chemical reaction networks (CRNs), denoted Γ, which are a list of reactions whose mass-action kinetics define an ordinary differential equation (ODE) for concentrations of its species, providing a continuous-time substrate for com-putation. Recent work has shown that CRNs can implement a range of probabilistic inference tasks: Bayesian poste-rior computation in algal phototaxis (Colliaux et al., 2017), filtering (Nakamura & Kobayashi, 2022; 2021), belief prop-agation (Napp & Adams, 2013), inference (Poole et al., 2017), learning hidden Markov models (Wiuf et al., 2023), and classification (Moghimianavval et al., 2024; van der Linden et al., 2022). Information processing via chemi-cal regulation is imperative to the creation of composable biochemical systems that can generalize to different tasks (Cardelli et al., 2018; Brijder, 2018; Tschantz et al., 2019; Vasic et al., 2021; Viswa Virinchi et al., 2018). However, implementing these tasks with CRNs scales poorly as the number of distinct chemical species (and associated reac-tions/ODEs) increase, that is, as decision-making problems become more complex (Napp & Adams, 2013; Hjelmfelt et al., 1991; Viswa Virinchi et al., 2018; Wiuf et al., 2023; Poole et al., 2017). 
+
+Inference with CRNs. In this article, we focus on infer-ence in factor graphs, denoted by F, which subsume main ingredients of the methods and models discussed above (Anderson et al., 2021; Napp & Adams, 2013; Anderson et al., 2021; Vasic et al., 2021; Lakin, 2023). Engineering biological systems to scale up to large sizes is an essential task at the intersection of these fields. Just as users do not need detailed knowledge of the intermediate steps of the internal calculations being done by a computer, being able to simplify and interpret designed biochemical systems to the inputs and outputs of interest is necessary to reduce the burden of control in the design of programmable cells (Tschantz et al., 2019). Limitations to these approaches arise because such implementations typically rely on the control of the stoichiometry of a synthetic CRN. To that end, we leverage recent factor graph reduction techniques based on deformation retractions of topological spaces associated to factor graphs (Sergeant-Perthuis & Boitel, 2025) and 1
+
+> arXiv:2606.27737v1 [cs.LG] 26 Jun 2026 Reduction of Probabilistic Chemical Reaction Networks
+
+transport these reductions to their chemical implementation. 
+
+Contributions We develop a theory for recognizing and reducing CRNs that implement belief propagation via the Napp–Adams construction (Napp & Adams, 2013). The key insight is that these CRNs contain catalytic dependen-cies that are not visible from stoichiometry alone: messages are represented by species bundles, factor tables appear as rate parameters, and BP fixed points are encoded by bundle-normalized steady states. We make four contributions: (1) structural conditions (W1–W6) under which a mass-action CRN encodes a factor graph, together with a constructive reconstruction procedure (Theorem 4.7); (2) a proof that positive steady states correspond bijectively to BP fixed points under an additional recycling condition R1 (Theo-rem 5.4); (3) a functorial transport of SP–B factor-graph retractions to CRN reductions that delete entire message bundles while preserving BP fixed points on surviving vari-ables (Proposition 6.2, Lemma 6.3) — to our knowledge the first semantics-preserving reduction for BP-compiled CRNs; and (4) empirical validation across several graph families (Section 7). The scope of (1–3) is intentional: W1–W6 characterize the Napp–Adams compiled subclass, not generic biochemical networks, and the pipeline is closed under reduction by Proposition 6.2. Table 2 (Appendix A) summarizes the correspondence between graphical and chemical concepts that (W1–W6) formalize. We recom-mend consulting it while reading Sections 4–6. The invariant preserved here differs from classical CRN reductions. Stoichiometric and Laplacian-based reductions preserve structural or steady-state properties visible from reaction stoichiometry. In Napp–Adams compiled CRNs, however, the BP message passing algorithm is carried by cat-alytic dependencies and bundle-normalized concentration ratios. These dependencies are not captured by stoichiome-try alone, which is why we reduce at the factor-graph level and then transport the reduction to the CRN. 
+
+## 2. Main Results 
+
+We study a class of probabilistic CRNs: mass-action net-works whose positive steady states encode belief propaga-tion (BP) fixed points, which give approximate marginals for an associated factor graph, reconstructed from the CRN’s message-bundle structure. Our results formalize a pipeline that (1) compiles a factor graph into a probabilistic CRN, (2) recognizes and reconstructs the underlying factor graph from a given CRN, and (3) transports factor-graph reduc-tions to the chemical setting in a way that preserves BP solutions. 
+
+Compilation (Factor graphs → CRNs). Napp and Adams (Napp & Adams, 2013) show how to implement 
+
+F F′
+
+Γ Γ′        
+
+> r
+> NN
+> N(r)
+> Figure 1. An SP–B retraction rat the factor-graph level induces a CRN reduction N(r)that preserves BP fixed points on surviving variables (Proposition 6.2, Lemma 6.3).
+
+message-passing inference in a CRN by introducing, for each message vector, a bundle of species whose relative con-centrations represent that vector. Reactions are chosen so that the resulting mass-action ODE performs a continuous-time analogue of damped asynchronous message updates, converging to the same fixed points. In our paper we treat this construction as a compilation map from a factor graph 
+
+F to a CRN Γ (formal definitions appear in Section 6 and Appendix D). 
+
+Recognition and reconstruction (CRNs → Factor graphs). We give conditions (W1)–(W6) under which a CRN encodes a factor graph together with its factor tables, and we provide an explicit reconstruction procedure FG(Γ) 
+
+(Theorem 4.7). 
+
+Steady states and BP fixed points. With one additional condition (R1) ensuring the correct normalization/recycling behavior, we prove that positive steady states of Γ corre-spond to BP fixed points on FG(Γ) (Theorem 5.4). 
+
+Reduction commutes with compilation. Sergeant– Perthuis and Boitel (SP–B) (Sergeant-Perthuis & Boitel, 2025) introduce a notion of retraction for factor graphs, ob-tained by deleting certain variable/factor nodes and updating the neighboring factor tables in a way that preserves the set of BP fixed points on the remaining variables. We package these SP–B retractions as morphisms in our factor-graph category (Section 6). We then show that the Napp–Adams compilation is functorial: an SP–B retraction F → F ′ in-duces a corresponding CRN reduction Γ → Γ′ that removes entire message bundles and updates only the rate parameters in the affected local subnetworks (Proposition 6.2). Conse-quently, compiling after reducing yields the same reduced CRN (up to relabeling) as reducing after compiling, and BP fixed points are preserved under this transport (Lemma 6.3). 
+
+Empirical gains. Across our benchmark suite, SP–B re-tractions translate into large chemical savings after Napp– Adams compilation, and these savings show up directly as faster ODE integration. Figure 2 illustrates the typi-2Reduction of Probabilistic Chemical Reaction Networks      
+
+> Figure 2. Simulation Improvements SP–B reductions substan-tially shrink compiled CRNs and yield large compilation and simulation-time speedups on our benchmark suite while preserving inferred marginals on surviving variables. Here we have an 80%
+> reduction the size of the CRN (3-chain) and a 56% speed up in convergence to the correct marginal (Section 7).
+
+cal behavior: retracting reducible substructure substantially shrinks the compiled CRN and accelerates convergence of the concentration-derived marginals. Table 1 summarizes results by graph family. Tree- and chain-structured instances exhibit near-complete collapse to a small core (about 95% 
+
+fewer variables and 97% fewer chemical species at the me-dian), yielding dramatic simulation speedups (median 270 ×
+
+on chains and 886 × on trees). Loopy-core instances with reducible tendrils see partial but still substantial compres-sion (median 79% variable and 73% species reduction) and corresponding speedups (median 22 ×), reflecting that the irreducible loopy core must remain. By contrast, grid graphs are essentially irreducible under these moves and show no change in size or runtime, serving as a control. Finally, random planted-core graphs admit only modest reduction (median 20% variables and 10% species) and therefore mod-est speedups (median 1.5×), consistent with having fewer retractable tendrils. In all cases, we additionally monitor marginal agreement on the surviving variables (Section 7); the observed runtime gains coincide with preserved inferred marginals rather than a change in the underlying beliefs. Section 7 also reports Erd ˝os–R ´enyi stress tests over sparse, near-threshold, and dense regimes, showing that reduction tracks the amount of graph lying outside the irreducible loopy core rather than depending on a planted construction. 
+
+## 3. Background 
+
+Factor graphs. We consider discrete probabilistic models whose joint distribution is a product of local functions. A 
+
+factor graph makes this factorization explicit and provides a convenient interface for message-passing inference. 
+
+Definition 3.1 (Factor graph (Yedidia et al., 2000)) . A factor graph F = ( H, E, f ) consists of a hypergraph H = ( I, J )                            
+
+> Table 1. Median compression and simulation speedup of a struc-tured benchmark suite. FAMILY nVAR ↓(%) SPECIES ↓(%) SIM ×
+> • C HAIN 595.0 97.0 270.3 • T REE 495.1 97.5 885.5 • L OOPY 12 79.2 73.2 21.6 • G RID 40.0 0.0 1.0 • R ANDOM 320.0 10.3 1.5
+
+with variable indices I and factor indices J, a collection of finite state spaces (Ei)i∈I , and nonnegative factors ψj :Q 
+
+> i∈j
+
+Ei → R≥0 for each j ∈ J.The factors define a global probability distribution by 
+
+p(x) = 1
+
+Z
+
+Y
+
+> j∈J
+
+ψj (xj ), xj := ( xi)i∈j ,
+
+where Z is the normalizing constant. We depict F as a bipartite graph with variable nodes i ∈ I and factor nodes 
+
+j ∈ J, with an edge between j and i whenever i ∈ j.
+
+Belief propagation. Belief propagation (BP) is a message-passing dynamic program that computes exact marginals on tree-structured factor graphs and is widely used as an approximation on graphs with cycles (loopy BP) (Yedidia et al., 2000). BP maintains messages along edges: variable-to-factor messages P (i→j) ∈ REi 
+
+> ≥0
+
+and factor-to-variable messages S(j→i) ∈ REi
+
+> ≥0
+
+. For k ∈ Ei,
+
+S(j→i) 
+
+> k
+
+= X
+
+> xj\i
+
+fj (xj ) Y
+
+> i′∈j\i
+
+P (i′→j) 
+
+> xi′
+
+,P (i→j) 
+
+> k
+
+= Y
+
+> j′∈ne( i)\j
+
+S(j′→i) 
+
+> k
+
+.
+
+An (unnormalized) belief at variable i is 
+
+˜p(xi = k) = Q 
+
+> j∈ne( i)
+
+S(j→i) 
+
+> k
+
+.
+
+Chemical reaction networks. A CRN is a finite set of species and reactions equipped with rate constants. 
+
+Definition 3.2 (CRN) . A CRN is a triple Γ = ( X, R, κ )
+
+where X is a finite set of species, R is a finite set of reactions, and κ : R → R>0 assigns a positive rate to each reaction. Under mass-action kinetics, concentrations x(t) ∈ RX
+
+> ≥0
+
+evolve according to an ODE determined by (X, R, κ ). In this work, CRNs serve as a dynamical substrate for imple-menting and reducing probabilistic inference. 
+
+## 4. Recognition Conditions and Reconstruction 
+
+We introduce six local conditions on the CRN, (W1)–(W6), that can be checked directly in terms of stoichiometry and 3Reduction of Probabilistic Chemical Reaction Networks 
+
+rate polynomials. Together they guarantee that a factor-graph structure exists and can be reconstructed. Before stating the recognition conditions, we briefly indicate their role. They abstract the bundle-and-rate pattern of the Napp–Adams compilation: messages become species bun-dles, factor tables become catalyzed production rates, and recycling supplies the normalization needed to recover BP fixed points at steady state. A fully worked three-variable chain example appears in Appendix E.1. 
+
+4.1. Stoichiometric conditions (W1–W3) 
+
+Let Γ = ( X, R, κ ) be a CRN. A reaction Rk ∈ R is ex-pressed as Rk : PNi=1 rik Xi −→ PNi=1 pik Xi with coeffi-cients rik , p ik ∈ N. The stoichiometric matrix of Γ is the 
+
+N × K matrix S = ( xik ) with entries xik = pik − rik , so that column k encodes the net change of species in reaction 
+
+Rk.
+
+(W1) Stoichiometric block decomposition. There exists a finite index set B and a partition of the set of species into disjoint pieces SB
+
+X = G
+
+> B∈B
+
+SB
+
+such that, for each reaction Rk with net stoichiometric col-umn (xik )Ni=1 , the support 
+
+{ i : xik ̸ = 0 }
+
+is contained in a single block SB . In other words, every reaction has nonzero net stoichiometry in at most one block. 
+
+(W2) Distinguished zero species in each block. For each block SB in the partition of (W1) there exists a distinguished species XB, 0 ∈ SB , called the zero species of SB . We require that SB \ { XB, 0} be nonempty and call its elements the coordinate species of SB .
+
+(W3) Star–shaped internal stoichiometry. For each block SB and each reaction Rk whose net stoichiometry is supported in SB , the restriction of the column (xik ) to 
+
+SB is either 
+
+−XB, 0 + XB,k or XB, 0 − XB,k .
+
+Under (W1)–(W3), the species of Γ split into disjoint blocks 
+
+SB , each with a unique zero species and several coordinate species, and all reaction columns are intra-block and of zero ↔coordinate form. 
+
+Remark 4.1 . If (W1)–(W3) hold, we refer to each block SB
+
+as a bundle and write 
+
+B = {XB, 0} ⊔ { XB,k }k∈EB ,
+
+where EB is the index set for the coordinate species of B.Condition (W3) then says that, within a bundle B, every reaction column k has nonzero entries only in B and its restriction to B is either 
+
+−XB, 0 + XB,k or XB, 0 − XB,k ,
+
+for a unique coordinate XB,k ∈ B \ { XB, 0}.
+
+Definition 4.2 (Catalytic neighbors and assignments) . Let 
+
+Γ = ( X, R, κ ) be a CRN with stoichiometric matrix S
+
+satisfying (W1-W3). 1. For a bundle B, the catalytic neighbor set Cat (B) is the set of bundles Q̸ = B such that there exists a reaction r ∈ R whose net stoichiometry is supported in B and in which species of Q appear with zero net stoichiometry. 2. For each B, write EQ for the coordinate index set of a bundle Q ∈ Cat (B), and define the assignment set 
+
+AB := Y
+
+> Q∈Cat (B)
+
+EQ.
+
+An element a ∈ A B is a choice a(Q) ∈ EQ of one coordinate for each catalytic neighbor Q ∈ Cat (B).
+
+4.2. Rate Conditions (W4–W6) 
+
+Let B be a bundle with zero species XB, 0 and coordinate species {XB,k }k∈EB , and let Cat (B) and AB be as in Defi-nition 4.2. For each k ∈ EB , let ddt [XB,k ]+ denote the total 
+
+positive contribution to ddt [XB,k ] coming from reactions whose net stoichiometry restricted to B is XB, 0 → XB,k .
+
+(W4) Separability of production rates. We say that Γ
+
+satisfies (W4) if for every bundle B and every k ∈ EB ,the function ddt [XB,k ]+ is a polynomial in the concentra-tions of the catalytic neighbor coordinates, with at most one coordinate species from each catalytic neighbor bundle appearing in any monomial. That is, there exist coefficients 
+
+CB (k; a) ≥ 0 indexed by k ∈ EB and assignments a ∈ A B
+
+such that 
+
+ddt [XB,k ]+ = [ XB, 0] X
+
+> a∈A B
+
+CB (k; a) Y
+
+> Q∈Cat (B)
+
+[XQ,a (Q)].
+
+Definition 4.3 (Sum-like vs product-like production) . As-sume (W1)–(W4) and let CB (k; a) be the assignment table of bundle B.1. We say B is weakly product-like if for every k ∈ EB
+
+there exists at most one assignment a(k) ∈ A B such that CB (k; a(k)) > 0, and CB (k; a) = 0 for all a̸ =
+
+a(k).4Reduction of Probabilistic Chemical Reaction Networks 
+
+2. We say B is sum-like if there exists some k ∈ EB
+
+and two distinct assignments a̸ = a′ in AB such that 
+
+CB (k; a) > 0 and CB (k; a′) > 0.
+
+Definition 4.4 (Assignment table) . Suppose Γ is a CRN sat-isfying (W1)–(W4). For each bundle B and k ∈ EB , write the positive production part ddt [XB,k ]+ as a polynomial in the catalytic coordinates {[XQ,i ]}Q∈Cat (B), i ∈EQ . For each assignment a ∈ A B let CB (k; a) be the coefficient of the monomial [XB, 0] Q
+
+> Q∈Cat (B)
+
+[XQ,a (Q)].
+
+(W5) Coherent production for product-like bundles Let 
+
+P be a bundle with Cat (P )̸ = ∅ and assignment table 
+
+CP (k; a) from (W4). We say that P is product-like if the following conditions hold: 1. (Unique supporting assignment) For each k ∈ EP ,there exists exactly one assignment a(k) ∈ A P such that CP (k; a(k)) > 0, and CP (k; a) = 0 for all a̸ =
+
+a(k).2. (Diagonal structure via bijections) For each catalytic neighbor Q ∈ Cat (P ), there exists a bijection θP,Q :
+
+EP → EQ such that for all k ∈ EP :
+
+a(k)(Q) = θP,Q (k).
+
+(W6) Factor structure for sum-like bundles Assume there exists a CRN satisfying (W1)–(W5). Condition (W6) requires that the sum-like bundles of Γ can be partitioned into factor classes , each equipped with auxiliary data satis-fying the following properties. There exists a partition of the set of sum-like bundles into disjoint classes {J1, J 2, . . . }. For each factor class J, the 
+
+factor-class data consists of: • a finite set VJ of product-like bundles (the incident product bundles ), • for each Q ∈ VJ , a bijection ιJ→Q : EQ
+
+> ∼=
+
+−→ EBJ→Q
+
+(the state-space identification ), • a strictly positive function ψJ : Q 
+
+> Q∈VJ
+
+EQ → (0 , ∞)
+
+(the factor table ), • positive scalars {κJ→Q > 0}Q∈VJ ,such that the following conditions hold: 
+
+(W6.1) (Missing-one-neighbor pattern and targets) 
+
+We have |J| = |VJ |, and for each Q ∈ VJ there exists a unique bundle BJ→Q ∈ J with Cat (BJ→Q) = VJ \ { Q}.
+
+This establishes a bijection between J and VJ . We define the target of BJ→Q to be Tgt (BJ→Q) := Q, 
+
+and refer to Q as the target bundle of BJ→Q.
+
+(W6.2) (Target-compatible state spaces) 
+
+For each Q ∈ VJ , the bijection ιJ→Q : EQ → EBJ→Q
+
+witnesses that |EQ| = |EBJ→Q |. Note that different 
+
+Q, Q ′ ∈ VJ may have |EQ|̸ = |EQ′ |, corresponding to variables of different cardinalities. 
+
+(W6.3) (Clamped common table) 
+
+For each Q ∈ VJ , each k ∈ EQ, and each assignment 
+
+a ∈ Q  
+
+> Q′∈VJ\{ Q}
+
+EQ′ , the assignment table of B = BJ→Q
+
+satisfies 
+
+CB
+
+ ιJ→Q(k); a =
+
+κJ→Q · ψJ
+
+ xQ = k, x Q′ = a(Q′) for Q′̸ = Q.
+
+Here k ∈ EQ is a state of the target product bundle, 
+
+ιJ→Q(k) ∈ EB is the corresponding state in the sum bun-dle, and a assigns states to the remaining product bundles in VJ \ { Q}.
+
+Definition 4.5 (Sum bundles and product bundles) . Assume 
+
+Γ satisfies (W1)–(W6). 1. A sum bundle is any sum-like bundle, i.e., a bundle 
+
+BJ→Q appearing in some factor class (J, V J ).2. A product bundle is any bundle P that lies in VJ for some factor class (J, V J )—equivalently, P is a cat-alytic neighbor of some sum bundle. 
+
+Remark 4.6 (Bundle extraction from W1–W3) . Under (W1)– (W3) the species set X decomposes into disjoint bundles SB
+
+with distinguished zero and coordinate species, and every internal reaction has the form XB, 0 → XB,k plus catalytic species from other bundles. In particular, the bundle struc-ture and the classification into sum vs. product bundles can be recovered purely from stoichiometry and conserved quantities. 
+
+Theorem 4.7 (CRN → Factor Graph Reconstruction) . Let 
+
+Γ = ( X, R, κ ) be a mass-action CRN satisfying (W1)– (W6) . Then one can reconstruct a factor graph FG(Γ) = (V, E, H ) as follows: 
+
+• The factor nodes are the factor classes J from (W6) .
+
+• The variable nodes are the variable classes [P ] under 
+
+∼v (Definition 5.1) .
+
+• A variable class [P ] is incident to a factor class J if and only if [P ] ∩ VJ̸ = ∅.
+
+5Reduction of Probabilistic Chemical Reaction Networks 
+
+• The state space of variable class [P ] is E[P ] := EP
+
+for any representative P ∈ [P ].
+
+• The factor table ψJ : Q 
+
+> Q∈VJ
+
+EQ → (0 , ∞) from 
+
+(W6) serves as the potential for factor node J.Moreover, the incidence relation is well-defined: distinct elements of VJ belong to distinct variable classes, estab-lishing a bijection between VJ and the variable classes incident to J. Each factor table ψJ is determined by Γ up to multiplication by a positive constant. 
+
+## 5. Reconstruction of the Belief Propagation Algorithm 
+
+5.1. Equivalence relations for factors and variables Definition 5.1 (Variable equivalence on product bundles) .
+
+Assume (W1)–(W6). Let P be the set of product bundles and S be the set of sum bundles. Define a binary relation ∼ on P by: for P, P ′ ∈ P ,
+
+P ∼ P ′ if and only if: 
+
+∃ B ∈ S such that: 
+
+h
+
+Tgt (B) = P and B ∈ Cat (P ′)
+
+i
+
+or 
+
+h
+
+Tgt (B) = P ′ and B ∈ Cat (P )
+
+i
+
+.
+
+Let ∼v be the equivalence relation on P generated by ∼
+
+(the reflexive, symmetric and transitive closure). The equivalence classes of P under ∼v are called variable classes .
+
+Lemma 5.2. The relation ∼v of Definition 5.1 is an equiva-lence relation on P.
+
+Lemma 5.3. If P ∼v P ′, then |EP | = |EP ′ |.
+
+Conditions (W1)–(W6) characterize when a CRN encodes a factor graph and its factor tables. To realize the Belief Propagation dynamics on the reconstructed factor graph, we impose one additional condition on the CRN: 
+
+(R1) Bundlewise recycling and uniform product pro-duction. For each bundle B with zero species XB, 0 and coordinates {XB,k }k∈EB there exists a constant ρB > 0
+
+such that, for every k ∈ EB , the CRN contains an internal (non-catalyzed) recycling reaction 
+
+XB,k ρB
+
+−−−→ XB, 0,
+
+and these are the only internal reactions whose net stoi-chiometry is XB,k → XB, 0.Moreover, for each product bundle P , there exists a constant 
+
+κP > 0 such that for every k ∈ EP ,
+
+CP (k; a(k)) = κP ,
+
+where a(k) is the unique assignment supporting production of Pk given by (W5). Equivalently, every producing reaction with internal net stoichiometry P0 → Pk has rate constant 
+
+κP , independent of k ∈ EP .
+
+Theorem 5.4 (BP Implementation) . Let Γ = ( X, R, κ ) be a mass-action CRN satisfying (W1)–(W6) and (R1) , and let 
+
+FG(Γ) be the factor graph with factor tables {ψJ } recon-structed by Theorem 4.7. Then the positive steady states of 
+
+Γ correspond bijectively to BP fixed points on FG(Γ) .More precisely, at any positive steady state. For each factor class J and target Q ∈ VJ , write AQ = Q  
+
+> Q′∈VJ\{ Q}
+
+EQ′
+
+for the set of state assignments to the remaining vari-ables, and write ψJ (k, a ) := ψJ
+
+ xQ = k, x Q′ =
+
+a(Q′) for all Q′ ∈ VJ \ { Q} for the corresponding factor-table entry. 1. For each sum bundle B = BJ→Q associated to factor class J and target product bundle Q ∈ VJ , the steady-state concentrations satisfy 
+
+ρB
+
+[B0] [Bk] = κJ→Q
+
+X
+
+> a∈AQ
+
+ψJ (k, a ) Y 
+
+> Q′∈VJ\{ Q}
+
+[Q′
+
+> a(Q′)
+
+]
+
+(1) 
+
+for all k ∈ EQ.2. For each product bundle P , the steady-state concentra-tions satisfy 
+
+ρP
+
+κP [P0] [Pk] = Y 
+
+> B∈Cat (P)
+
+[Bk] (2) 
+
+for all k ∈ EP .3. These equations are precisely the sum-product BP fixed-point equations on FG(Γ) , with the factors ρB /[B0]
+
+and ρP /(κP [P0]) serving as the per-message normal-ization constants. 
+
+## 6. Categories and the Compilation Functor 
+
+6.1. Source Category FGraphRet 
+
+Objects are pairs (A, H ), where A is the poset associated to a factor graph and H is the family of factor Hamiltoni-ans. Morphisms are finite composites of admissible linear and colinear retractions in the sense of Sergeant–Perthuis– Boitel: these are order-preserving deformation retractions of A which act on H by: • Deleting a variable i and updating its incident factor by marginalizing out the corresponding coordinate in 
+
+H (linear point); • Deleting a factor j and incorporating its potential into neighboring factors (colinear point). 6Reduction of Probabilistic Chemical Reaction Networks 
+
+For the explicit formulas on H, see Propositions 5 and 6 of (Sergeant-Perthuis & Boitel, 2025). The explicit factor table updates (i.e. CRN coefficients) are provided in the Appendix D.1 
+
+6.2. Target Category CRN 
+
+Objects of CRN are mass-action reaction networks Γ = (X, R, κ ) satisfying the recognition conditions (W1)–(W6), where X is the finite species set (partitioned into bundles), 
+
+R is the finite set of reactions, and κ ∈ (0 , ∞)R is the vector of rate constants. Morphisms in CRN are finite composites of elementary CRN reductions. An elementary reduction is a triple 
+
+(φ0, φ 1, ψ ) : ( X, R, κ ) −→ (X′, R ′, κ ′)
+
+with: • φ0 : X → X′ obtained by deleting a union of whole bundles, so that X′ = X \ S 
+
+> B∈B del
+
+SB ;• φ1 : R → R′ the induced map on reactions, removing exactly those reactions that involve deleted species; • ψ : (0 , ∞)R → (0 , ∞)R′
+
+a map on rate vectors, pro-ducing κ′ = ψ(κ) for the reduced network (X′, R ′).A general morphism is a finite composite of such reductions, with composition defined componentwise: 
+
+(φ′
+
+> 0
+
+, φ ′
+
+> 1
+
+, ψ ′) ◦ (φ0, φ 1, ψ ) := ( φ′ 
+
+> 0
+
+◦ φ0, φ ′ 
+
+> 1
+
+◦ φ1, ψ ′ ◦ ψ),
+
+and identity morphisms given by (id X , id R, id) .
+
+6.3. The Compilation Functor N
+
+We now package the Napp compilation into a functor 
+
+N : FGraphRet −→ CRN .
+
+Action on objects. Let (A, H ) be a factor graph in the sense of Sergeant–Perthuis–Boitel, with Hamiltonians Hc
+
+and factor tables ψc ∝ e−Hc . The compiled CRN is 
+
+N (A, H ) = ( X, R, κ ),
+
+constructed exactly as in Definition D.1. 
+
+Action on morphisms. Let 
+
+r : ( A, H ) −→ (A′, H ′)
+
+be a morphism in FGraphRet , i.e., a finite composite of linear and colinear retractions in the sense of Sergeant– Perthuis–Boitel. Write ψc ∝ e−Hc and ψ′ 
+
+> c
+
+∝ e−H′ 
+
+> c
+
+for the initial and updated factor tables. On CRNs, we define 
+
+N (r) = ( φ0, φ 1, ψ ) : N (A, H ) → N (A′, H ′),
+
+as follows: • φ0 : X → X′ deletes exactly the bundles correspond-ing to edges and variables removed by r (linear or colinear point), and is the identity on all remaining species. At the level of bundles, φ0 is just restriction of the Napp compilation to the surviving part of the factor graph. • φ1 : R → R′ deletes all reactions whose reactants or products contain a deleted bundle; it is the identity on all other reactions (recycling, product, marginal, and surviving sum reactions). • ψ : κ 7 → κ′ acts only on the rate constants of surviving sum-bundle reactions. For each surviving factor node 
+
+j and edge j → n, we keep the same scalar cj→n > 0
+
+and set 
+
+λ′
+
+> j→n
+
+(kj ) = cj→n · ψ′ 
+
+> j
+
+(kj ),
+
+where ψ′ 
+
+> j
+
+is the updated factor from the SP–B retrac-tion. Recycling and product rates are left unchanged: 
+
+κ′ 
+
+> r
+
+= κr , κ′ 
+
+> prod
+
+= κprod .
+
+By construction, (φ0, φ 1, ψ ) is a morphism in CRN : it removes entire bundles and their reactions, and only rescales rate parameters on the surviving sum bundles, leaving the long-time behavior of the surviving species compatible with the factor-table update. 
+
+Lemma 6.1 (Recycling structure of N (A, H )). For any fac-tor graph (A, H ), the compiled CRN N (A, H ) = ( X, R, κ )
+
+satisfies (R1) :
+
+• each bundle B (sum, product, or marginal) contains a zero species B0 and coordinate species {Bk}k∈EB ;
+
+• there is a single constant ρB > 0 such that, for every 
+
+k ∈ EB , the only internal reactions with net flow 
+
+Bk → B0 are the recycling reactions 
+
+BkρB
+
+−−−→ B0,
+
+which involve no catalysts from other bundles. In particular, the image of N lies in the full subcategory of CRNs satisfying (W1)–(W6) and (R1) .Proof of Lemma 6.1. By construction of N (A, H ), each bundle B is equipped with recycling reactions 
+
+Bkκr
+
+−−→ B0 or Bkκprod 
+
+−−−−→ B0,
+
+7Reduction of Probabilistic Chemical Reaction Networks 
+
+depending on whether B is a message, belief, or marginal bundle, and no other reactions in R have net stoichiometry supported in {B0, B k}. Setting ρB equal to the appropri-ate global recycling constant yields exactly the structure required by (R1). 
+
+Proposition 6.2 (Functoriality) . The assignment 
+
+(A, H ) 7 −→ N (A, H ), r 7 −→ N (r)
+
+defines a functor N : FGraphRet → CRN . Moreover, by Lemma 6.1 and the description of N (r), the image of N
+
+lies in the full subcategory of CRNs satisfying (W1)–(W6) 
+
+and (R1) .
+
+Lemma 6.3 (Functoriality at BP Fixed Points) . Let 
+
+r : ( A, H ) −→ (A′, H ′)
+
+be a morphism in FGraphRet , and let 
+
+Γ = N (A, H ), Γ′ = N (A′, H ′)
+
+be the associated CRNs. Then: 1. Γ and Γ′ satisfy (W1)–(W6) and (R1) , and hence their positive steady states implement BP on (A, H ) and 
+
+(A′, H ′), respectively, by Theorem 5.4. 2. The CRN morphism 
+
+N (r) = ( φ0, φ 1, ψ ) : Γ → Γ′
+
+deletes exactly the bundles corresponding to sites/regions removed by r, leaves all recycling rates 
+
+ρB for surviving bundles unchanged, and updates sum-bundle production coefficients by 
+
+λj→n(kj ) = cj→nψj (kj ) 7 −→ λ′
+
+> j→n
+
+(kj ) = cj→nψ′ 
+
+> j
+
+(kj )
+
+where ψj 7 → ψ′ 
+
+> j
+
+is the factor-table update induced by 
+
+r in the sense of Sergeant–Perthuis–Boitel. 3. If π is a BP fixed point on (A, H ), then its restriction 
+
+π′ to the surviving variables of (A′, H ′) is a BP fixed point there, and any positive steady states x∗ of Γ
+
+and x′∗ of Γ′ whose bundle-normalized concentrations correspond to π and π′ are related by N (r) on the surviving bundles. 
+
+## 7. Simulations and Experiments 
+
+We benchmark the computational impact of SP–B retrac-tions on CRNs obtained via the Napp–Adams compilation. For each factor-graph instance F, we compare compile-first 
+
+(compile F into N (F)) against reduce-then-compile (apply the SP–B retraction to obtain r(F), then compile N (r(F)) ). We report reductions in factor-graph size, compiled CRN       
+
+> Figure 3. Variable reduction on G(n, p )as a function of edge probability p. Dashed verticals mark p∗= ln( n)/n . Reduction peaks below the connectivity threshold, where graphs contain small loopy cores with retractable tendrils, and falls to zero once the irreducible core dominates.
+
+size, wall-clock simulation time for integrating the induced mass-action ODEs, and marginal agreement on the surviv-ing variables. Unless otherwise stated, the experiments in the main text use binary state spaces, |Ei| = 2 , in order to isolate the effect of graph topology on reduction. This is the relevant structural variable for SP–B retractions: reducibility depends on the poset structure of the factor graph, not on the cardinalities of the variable state spaces. Larger state spaces increase the absolute number of compiled species and reactions, but do not change which variables or factors are removed by the retraction. Appendix B reports cardinality sweeps and mixed-cardinality examples confirming this behavior. 
+
+Tree-structured factor graphs (exact BP regime). We generate binary-tree factor graphs with depths d ∈{3, 4, 5, 6}, giving |I| ∈ { 7, 15 , 31 , 63 } variables. On trees, BP computes exact marginals and SP–B reductions retract away essentially all non-core acyclic structure, collapsing each instance to a trivial core. Median variable reduction is 
+
+≈ 95% and median species reduction is ≈ 97 .5% (Table 1), yielding dramatic simulation speedups (median ∼ 885 ×). Trees are faster than chains in our benchmarks (chains: 
+
+∼ 270 ×) not because they reduce more, but because unre-duced tree instances are substantially more expensive: com-piled CRN size grows more aggressively with depth for trees than for chains, so the speedup ratio is larger. 
+
+Loopy BP: loopy cores with reducible tendrils. We gen-erate loopy-core instances with core size c ∈ { 3, 4, 5} and attached tendrils of length t ∈ { 1, 3, 5, 10 }. SP–B reduc-tions remove the acyclic tendrils while preserving the irre-ducible loopy core, yielding partial but substantial compres-sion (median ≈ 79% variable and ≈ 73% species reduction) and corresponding speedups (median ∼ 22 ×) (Table 1). 8Reduction of Probabilistic Chemical Reaction Networks    
+
+> Figure 4. Median CRN species reduction on G(n, p )instances. Species reduction is concentrated in the sparse/subcritical wedge and vanishes in the dense regime, where the irreducible loopy core dominates.
+
+Erd ˝os–R ´enyi random graphs. To test whether the method depends on planted reducible structure, we also benchmark Erd ˝os–R ´enyi graphs G(n, p ) with n ∈ [20 , 100] 
+
+and edge probabilities spanning sparse, near-threshold, and dense regimes. The relevant structural scale is the connectiv-ity threshold p∗ = ln( n)/n . Below and near this threshold, graphs contain many tree-like components and tendrils at-tached to small loopy cores; above it, the irreducible core occupies an increasing fraction of the graph. Figure 3 shows that variable reduction follows this core/tendril transition. Reduction is small near p = 0 , rises in the sparse regime, peaks below p∗, and then falls to zero as the graph becomes dense. Species reduction shows the same pattern (Figure 4), exceeding 60% in representative subcritical regimes and reaching about 69% in the best me-dian cells. Median simulation speedups peak around 16 ×
+
+(Figure 5), with larger individual gains, but runtime is more variable because it also depends on ODE stiffness and solver behavior. The ER benchmark therefore supports the same interpre-tation as the structured families: SP–B reductions remove graph regions outside the irreducible loopy core. In dense ER graphs, where the core dominates, the method correctly halts with little or no reduction rather than altering the infer-ential structure. All wall-clock ER timings were measured on Auburn Uni-versity’s Easley high-performance computing cluster. Each job used one node, one task, one CPU per task, 8GB mem-ory, a 12-hour wall-time limit; each array task evaluated one 
+
+(n, p ) cell with 10 random seeds. 
+
+Correctness diagnostics. BP converged in all 440 ER runs on both the original and the reduced networks. We additionally track three marginal-agreement diagnostics: BP(original) vs. BP(reduced) on surviving variables (the SP–B preservation test), CRN-derived marginals vs. BP    
+
+> Figure 5. Median simulation speedup on G(n, p )instances. Speedup is largest in the sparse/subcritical regime where reduc-tions remove many species.
+
+marginals on each network (end-to-end validation of the compiled chemical implementation), and CRN(original) vs. CRN(reduced) on surviving species. For tree instances, BP is exact and the BP(orig) vs. BP(reduced) comparison is a stringent correctness test; ob-served differences are dominated by numerical precision . For loopy and ER instances, we interpret the comparison as a core fixed-point preservation diagnostic. The median BP(original) vs. BP(reduced) discrepancy on ER instances is 4 × 10 −8. A small fraction of near-critical runs ( ∼ 1% 
+
+above 0.1) show larger discrepancies; these correspond to graphs near the connectivity threshold where loopy BP can have multiple fixed points and the original and reduced systems converge to different basins. These gains reflect computational savings from retraction rather than changes in the inferred beliefs, with the caveat that loopy BP non-uniqueness can select different fixed points across the two systems in the near-critical regime. 
+
+## Future Work 
+
+A natural next step is physical realization via DNA strand displacement, which by the universality result of (Solove-ichik et al., 2010) can implement any mass-action CRN. Our reduction pipeline therefore provides a direct path to smaller, more experimentally feasible DNA implementa-tions of BP inference: reduce the factor graph, compile via Napp-Adams, then implement the reduced CRN in DNA. The species counts reported here suggest this could bring moderately complex inference tasks within reach of cur-rent DNA nanotechnology. A longer-horizon question is whether gene regulatory networks that perform approximate inference can be cast in Napp-Adams form, which would make them amenable to the same reduction pipeline; this depends on whether their ODE structure can be shown to satisfy conditions (W1)–(W6), and we leave this as an open problem. 9Reduction of Probabilistic Chemical Reaction Networks 
+
+## Impact Statement 
+
+We are not aware of any immediate negative societal im-pacts arising from this work. Methods that make molecular computation more physically realizable could contribute to the design of programmable cells and synthetic biologi-cal systems. The ethical implications of such downstream applications would need to be assessed as the technology matures. 
+
+## Acknowledgments 
+
+This material is based upon research supported by the Chateaubriand Fellowship of the Office for Science & Tech-nology of the Embassy of France in the United States as well as by NSF Grant DMS-2246127-PSC and DOE Grant DE-SC0025649 
+
+## References 
+
+Anderson, D. F., Joshi, B., and Deshpande, A. On reaction network implementations of neural networks. Journal of The Royal Society Interface , 18(177):20210031, 04 2021. ISSN 1742-5689. doi: 10.1098/rsif.2021.0031. URL https://doi.org/10.1098/rsif.2021. 0031 .Brijder, R. Computing with chemical reaction networks: A tutorial, 2018. URL https://arxiv.org/abs/ 1811.10361 .Cardelli, L., Kwiatkowska, M., and Laurenti, L. Pro-gramming discrete distributions with chemical reaction networks, 2018. URL https://arxiv.org/abs/ 1601.02578 .Colliaux, D., Bessi `ere, P., and Droulez, J. Cell signal-ing as a probabilistic computer. International Journal of Approximate Reasoning , 83:385–399, 2017. ISSN 0888-613X. doi: https://doi.org/10.1016/j.ijar.2016.10. 012. URL https://www.sciencedirect.com/ science/article/pii/S0888613X16302110 .Friston, K. The free-energy principle: a unified brain theory? 
+
+Nature Reviews Neuroscience , 11(2):127–138, Feb 2010. ISSN 1471-0048. doi: 10.1038/nrn2787. URL https: //doi.org/10.1038/nrn2787 .Gasparyan, M., Bhalla, U. S., Radulescu, O., and Rao, S. Laplacian dynamics and kron reduction in species-reaction graphs of chemical reaction networks. 
+
+bioRxiv , 2025. doi: 10.1101/2025.10.15.682662. URL https://www.biorxiv.org/content/ early/2025/10/16/2025.10.15.682662 .Hirono, Y., Okada, T., Miyazaki, H., and Hi-daka, Y. Structural reduction of chemical re-action networks based on topology, Nov 2021. URL https://link.aps.org/doi/10.1103/ PhysRevResearch.3.043123 .Hjelmfelt, A., Weinberger, E. D., and Ross, J. Chemi-cal implementation of neural networks and turing ma-chines. Proceedings of the National Academy of Sci-ences of the United States of America , 88(24):10983– 10987, 1991. ISSN 00278424, 10916490. URL http: //www.jstor.org/stable/2359167 .Knill, D. C. and Pouget, A. The bayesian brain: the role of uncertainty in neural coding and computation. 
+
+Trends in Neurosciences , 27(12):712–719, 2004. ISSN 0166-2236. doi: https://doi.org/10.1016/j.tins.2004.10. 007. URL https://www.sciencedirect.com/ science/article/pii/S0166223604003352 .10 Reduction of Probabilistic Chemical Reaction Networks 
+
+Lakin, M. R. Design and simulation of a multilayer chemical neural network that learns via backpropagation. Artificial Life , 29(3):308–335, 08 2023. ISSN 1064-5462. doi: 10.1162/artl a 00405. URL https://doi.org/10. 1162/artl_a_00405 .Moghimianavval, H., Gispert, I., Castillo, S. R., Corning, O. B. W. H., Liu, A. P., and Cuba Samaniego, C. En-gineering sequestration-based biomolecular classifiers with shared resources. ACS Synthetic Biology , 13(10): 3231–3245, Oct 2024. doi: 10.1021/acssynbio.4c00270. URL https://doi.org/10.1021/acssynbio. 4c00270 .Nakamura, K. and Kobayashi, T. J. Connection be-tween the bacterial chemotactic network and op-timal filtering. Phys. Rev. Lett. , 126:128102, Mar 2021. doi: 10.1103/PhysRevLett.126.128102. URL https://link.aps.org/doi/10.1103/ PhysRevLett.126.128102 .Nakamura, K. and Kobayashi, T. J. Optimal sensing and control of run-and-tumble chemotaxis. Phys. Rev. Res. ,4:013120, Feb 2022. doi: 10.1103/PhysRevResearch.4. 013120. URL https://link.aps.org/doi/10. 1103/PhysRevResearch.4.013120 .Napp, N. E. and Adams, R. P. Message passing infer-ence with chemical reaction networks. In Burges, C., Bottou, L., Welling, M., Ghahramani, Z., and Weinberger, K. (eds.), Advances in Neural Information Processing Systems , volume 26. Curran Associates, Inc., 2013. URL https://proceedings.neurips. cc/paper_files/paper/2013/file/ e5e63da79fcd2bebbd7cb8bf1c1d0274-Paper. pdf .Parr, T., Pezzulo, G., and Friston, K. J. Active Inference: The Free Energy Principle in Mind, Brain, and Behavior .The MIT Press, 03 2022. ISBN 9780262369978. doi: 10. 7551/mitpress/12441.001.0001. URL https://doi. org/10.7551/mitpress/12441.001.0001 .Pezzulo, G., Parr, T., and Friston, K. Active infer-ence as a theory of sentient behavior. Biological Psychology , 186:108741, 2024. ISSN 0301-0511. doi: https://doi.org/10.1016/j.biopsycho.2023.108741. URL https://www.sciencedirect.com/ science/article/pii/S0301051123002612 .Poole, W., Ortiz-Mu ˜noz, A., Behera, A., Jones, N. S., Ouldridge, T. E., Winfree, E., and Gopalkrishnan, M. Chemical boltzmann machines. In Brijder, R. and Qian, L. (eds.), DNA Computing and Molecular Programming ,pp. 210–231, Cham, 2017. Springer International Pub-lishing. ISBN 978-3-319-66799-7. Rao, S., van der Schaft, A., and Jayawardhana, B. Agraph-theoretical approach for the analysis and model reduction of complex-balanced chemical reaction net-works. Journal of Mathematical Chemistry , 51(9):2401– 2422, Oct 2013. ISSN 1572-8897. doi: 10.1007/ s10910-013-0218-8. URL https://doi.org/10. 1007/s10910-013-0218-8 .Sergeant-Perthuis, G. and Boitel, L. Minima and criti-cal points of the bethe free energy are invariant under deformation retractions of factor graphs, 2025. URL 
+
+https://arxiv.org/abs/2510.05380 .Snowden, T. J., van der Graaf, P. H., and Tindall, M. J. Methods of model reduction for large-scale bi-ological systems: A survey of current methods and trends. Bulletin of Mathematical Biology , 79(7):1449– 1486, Jul 2017. ISSN 1522-9602. doi: 10.1007/ s11538-017-0277-2. URL https://doi.org/10. 1007/s11538-017-0277-2 .Soloveichik, D., Seelig, G., and Winfree, E. Dna as a universal substrate for chemical kinetics. Pro-ceedings of the National Academy of Sciences ,107(12):5393–5398, 2010. doi: 10.1073/pnas. 0909380107. URL https://www.pnas.org/doi/ abs/10.1073/pnas.0909380107 .Stong, R. E. Finite topological spaces. Transactions of the American Mathematical Society , 123(2):325–340, 1966. doi: 10.1090/S0002-9947-1966-0195042-2. URL https://doi.org/10.1090/ S0002-9947-1966-0195042-2 .Tang, R., Sergeant-Perthuis, G., and Colliaux, D. Imple-mentation of reinforcement learning in chemical reaction networks: application to phototaxis as curiosity-driven exploration. working paper or preprint, April 2026. URL 
+
+https://hal.science/hal-05576927 .Tschantz, A., Seth, A. K., and Buckley, C. L. Learning action-oriented models through active inference. bioRxiv , 2019. doi: 10.1101/764969. URL https://www.biorxiv.org/content/ early/2019/09/11/764969 .van der Linden, A. J., Pieters, P. A., Bartelds, M. W., Nathalia, B. L., Yin, P., Huck, W. T. S., Kim, J., and de Greef, T. F. A. Dna input classification by a riboregulator-based cell-free perceptron. ACS Synthetic Biology , 11(4):1510–1520, Apr 2022. doi: 10.1021/ acssynbio.1c00596. URL https://doi.org/10. 1021/acssynbio.1c00596 .Vasic, M., Chalk, C. T., Luchsinger, A., Khurshid, S., and Soloveichik, D. Programming and training rate-independent chemical reaction networks. CoRR ,11 Reduction of Probabilistic Chemical Reaction Networks 
+
+abs/2109.11422, 2021. URL https://arxiv.org/ abs/2109.11422 .Viswa Virinchi, M., Behera, A., and Gopalkrishnan, M. A reaction network scheme which implements the em algorithm. In Doty, D. and Dietz, H. (eds.), DNA Com-puting and Molecular Programming , pp. 189–207, Cham, 2018. Springer International Publishing. ISBN 978-3-030-00030-1. Wiuf, C., Behera, A., Singh, A., and Gopalkrishnan, M. A reaction network scheme for hidden markov model parameter learning. Journal of The Royal Society Inter-face , 20(203):20220877, 06 2023. ISSN 1742-5689. doi: 10.1098/rsif.2022.0877. URL https://doi.org/ 10.1098/rsif.2022.0877 .Yedidia, J. S., Freeman, W., and Weiss, Y. Gener-alized belief propagation. In Leen, T., Dietterich, T., and Tresp, V. (eds.), Advances in Neural Infor-mation Processing Systems , volume 13. MIT Press, 2000. URL https://proceedings.neurips. cc/paper_files/paper/2000/file/ 61b1fb3f59e28c67f3925f3c79be81a1-Paper. pdf .12 Reduction of Probabilistic Chemical Reaction Networks 
+
+## Reduction of CRNs 
+
+A common class of exact reduction methods exploits stoichiometric structure to eliminate subnetworks while preserving steady-state behavior of the unreduced portion. In particular, Hirono et al. (Hirono et al., 2021) identify output-complete subnetworks γ and compute an influence index λ(γ), an integer determined by its topology, χ(γ) = |Vγ | − | Eγ | together with stoichiometric cycle and conservation subspaces. When λ(γ) = 0 , they prove a localization principle: steady-state sensitivities outside γ are unaffected by perturbations internal to γ, which justifies eliminating γ via a Schur complement reduction on the stoichiometry. Related reduction strategies apply Schur complements to weighted graph Laplacians derived from CRNs. For complex-balanced mass-action systems, Rao et al. (Rao et al., 2013) use the weighted Laplacian on the graph of complexes to delete complexes while retaining equilibrium structure, and later work (Gasparyan et al., 2025) proposes a Schur complement on species–reaction graphs with an emphasis on approximation error in dynamical trajectories. Broader families of model simplification and reduction such as conservation analysis, decomposition, timescale separation, and sensitivity-based methods are surveyed in (Snowden et al., 2017). However, these methods do not apply directly to CRNs arising from hidden Markov models, graphical models, and factor graphs (Wiuf et al., 2023; Napp & Adams, 2013; Colliaux et al., 2017). In these networks, key reactions are catalyzed, and the stoichiometric matrix alone fails to capture the underlying message-passing structure. We therefore exploit reduction techniques developed for graphical models that preserve collections of distributions corresponding to fixed points of the belief propagation algorithm (Sergeant-Perthuis & Boitel, 2025; Yedidia et al., 2000). To this end, we propose a dictionary that maps CRNs to graphical models in a structure-preserving manner. 
+
+## A. Conceptual Overview and Scope 
+
+This section makes explicit the dictionary used throughout Sections 4–6. Table 2 summarizes the correspondence between factor-graph concepts and their chemical realizations in a Napp–Adams compiled CRN; conditions (W1)–(W6) formalize the right column, and (R1) ensures the resulting steady states are precisely the BP fixed-point equations after bundle normalization. Table 3 clarifies which classes of CRNs fall within and outside this framework.                  
+
+> Table 2. Factor-graph/CRN correspondence in a Napp–Adams compiled CRN.
+> Concept Factor graph CRN
+> Variable Variable node, state space
+> Ei
+> Equivalence class of product bundles (Defini-tion 5.1) Factor Factor node j, potential
+> ψj
+> Factor class of sum bun-dles (W6) Message P(i→j),S(j→i)Bundle-normalized con-centration vector (Theo-rem 5.4) Factor update Summation over neigh-boring variables Catalyzed production into sum bundle (W4, W6) Product update Product of incoming mes-sages Catalyzed production into product bundle (W5) Retraction SP–B deletion and table update Bundle deletion plus rate-table update (Proposi-tion 6.2)
+
+13 Reduction of Probabilistic Chemical Reaction Networks                               
+
+> Table 3. Scope of the recognition and reduction framework.
+> CRN class W1– W6 R1 Pipeline Interpretation
+> Napp–Adams com-piled BP CRNs (Napp & Adams, 2013)
+> ✓✓✓BP present by construction. CRNs after SP–B re-duction
+> ✓✓✓Closed under reduction by Proposition 6.2. Reduced CRN remains a compiled BP implementation. Baum–Welch HMM CRNs (Wiuf et al., 2023) outside outside outside Futile-cycle architecture implements EM/Baum– Welch learning rather than Napp–Adams sum-product BP. General biochemical CRNs outside outside outside Not expected to have message bundles, factor-table rate structure, or BP-normalizing recycling.
+
+Entries marked “outside” indicate only that the relevant semantics differ from the BP message-bundle structure captured by (W1)–(W6) and (R1), not that such CRNs are unreducible by other means. 
+
+## B. State-Cardinality Sweeps 
+
+The main experiments use binary variables in order to isolate the role of graph topology in SP–B reduction. Here we report additional experiments showing that the same reduction behavior persists for larger state spaces. The reason is structural: SP–B reducibility is determined by the factor-graph poset, not by the cardinality of the variable state spaces. Increasing the alphabet size changes the absolute number of compiled CRN species and reactions, but it does not change which variables or factors are linear or colinear points. We tested cardinalities K ∈ { 2, 3, 4, 5} on chains, depth-4 trees, and loopy-core graphs with tendrils. We also tested a mixed-cardinality chain. For each instance, we apply the same reduce-then-compile pipeline as in Section 7, and we report variable reduction, species reduction, and maximum BP marginal discrepancy on the surviving variables.                                                                  
+
+> Table 4. State-cardinality sweeps. Reduction percentages remain stable across cardinalities because SP–B reducibility depends on graph topology rather than alphabet size. Here Kdenotes the common state-space cardinality of each variable, except in the mixed-cardinality row.
+> Family Cardinalities Variables Species Max BP discrepancy
+> Chain K= 2 ,3,4,510 →1(150 ,200 ,250 ,300) →(9 ,12 ,15 ,18) 7.93 ×10 −10 to 5.55 ×10 −17
+> Tree K= 2 ,3,4,515 →196 .6% reduction near numerical precision Loopy+tendril K= 2 ,3,4,516 →468 .2% reduction near numerical precision for K= 4 ,5
+> Mixed chain [2 ,3,4,5,4,3,2] 7→194 .0% reduction 5.79 ×10 −13
+
+For the 10-variable chains, the compiled CRN sizes grow linearly with K in this family: the unreduced networks have 
+
+150 , 200 , 250 , and 300 species for K = 2 , 3, 4, 5, respectively, while the reduced networks have 9, 12 , 15 , and 18 species. Thus the variable reduction is 90 .0% and the species reduction is 94 .0% in every case. The BP discrepancy on the surviving variable remains negligible, decreasing from 7.93 × 10 −10 for K = 2 to 5.55 × 10 −17 for K = 5 .The tree and loopy-core families show the same qualitative behavior. Depth-4 trees reduce from 15 variables to 1 variable, with 96 .6% species reduction across all tested cardinalities. Loopy-core graphs with tendrils reduce from 16 variables to 4
+
+variables, with 68 .2% species reduction across all tested cardinalities. In the loopy case, the reduction removes the tendrils while preserving the irreducible core, so increasing the state-space cardinality changes the size of the compiled CRN but not the graph-theoretic core. 14 Reduction of Probabilistic Chemical Reaction Networks 
+
+Finally, the mixed-cardinality chain [2 , 3, 4, 5, 4, 3, 2] reduces from 7 variables to 1 variable, with 94 .0% species reduction and BP discrepancy 5.79 × 10 −13 . This confirms that the reduction does not require all variables to have the same alphabet size. The state spaces affect the sizes of the species bundles and factor tables, while reducibility is controlled by the underlying factor-graph topology. 
+
+## C. Topological Background 
+
+Definition C.1 (Alexandrov topology) . Let (X, ≤) be a poset. The Alexandrov topology on X is the topology whose open sets are the up-sets :
+
+U ⊆ X is open ⇐⇒ (∀x ∈ U )( ∀y ∈ X) ( x ≤ y ⇒ y ∈ U ).
+
+Equivalently, the closed sets are exactly the down-sets :
+
+C ⊆ X is closed ⇐⇒ (∀x ∈ C)( ∀y ∈ X) ( y ≤ x ⇒ y ∈ C).
+
+We write XA for the topological space obtained from a poset A equipped with its Alexandrov topology. 
+
+Remark C.2 . A map between Alexandrov spaces is continuous precisely when it is order-preserving on the underlying posets. 
+
+Homotopy for finite posets 
+
+We adopt the notion of homotopy for finite posets used in (Sergeant-Perthuis & Boitel, 2025). Informally, one views a finite poset A as an Alexandrov space XA and uses continuous (equivalently, order-preserving) maps to the target poset 
+
+XA × [0 , 1] → XB .
+
+Definition C.3 (Deformation retracts of posets) . Let B ⊆ A be a subposet and let i : B ,→ A be the inclusion. A 
+
+deformation retract of A onto B consists of an order-preserving map r : A → B such that 
+
+r ◦ i = id B and i ◦ r ≃ id A,
+
+where ≃ denotes homotopy in the sense of (Sergeant-Perthuis & Boitel, 2025). It is a strong deformation retract if, moreover, the homotopy from i ◦ r to id A fixes B pointwise. 
+
+Remark C.4 . Two finite posets A and B are homotopy equivalent if there exist order-preserving maps ϕ : A → B and 
+
+ψ : B → A with ψ ◦ ϕ ≃ id A and ϕ ◦ ψ ≃ id B (in the same sense as above). 
+
+Linear/colinear points and cores 
+
+The reductions we use are based on deleting elements of a finite poset without changing its homotopy type. The relevant notions are the following. 
+
+Definition C.5 (Linear and colinear points) . Let A be a finite poset and let a ∈ A .
+
+(Linear). We say a is linear if there exists an element a↑ ∈ A with a < a ↑ such that every element above a is also above 
+
+a↑, i.e. 
+
+(∀b ∈ A )  b ≥ a ⇒ b ≥ a↑. (L) 
+
+(Colinear). Dually, we say a is colinear if there exists a↓ ∈ A with a↓ < a such that every element below a is also below 
+
+a↓, i.e. 
+
+(∀b ∈ A )  b ≤ a ⇒ b ≤ a↓. (coL) 
+
+Remark C.6 . Condition (L) says that a↑ is a least element among those strictly above a (up to comparability): once you pass above a, you have automatically passed above a↑. The colinear condition is the order-dual statement. These are exactly the points that can be removed by an elementary up- or down-retraction without changing homotopy type (Stong, 1966; Sergeant-Perthuis & Boitel, 2025). 
+
+Definition C.7 (Core of a finite poset (Stong, 1966)) . The core of a finite poset A is a subposet B ⊆ A such that: 1. B has no linear or colinear points (computed within B), and 15 Reduction of Probabilistic Chemical Reaction Networks 
+
+2. B is a strong deformation retract of A (Definition C.3). We denote a core of A by co A.
+
+Proposition C.8. Every finite poset A admits a core co A. Moreover, one can obtain a strong deformation retract A → co A
+
+by iteratively applying up- and down-retractions that remove linear and colinear points. Finally, two finite posets are homotopy equivalent if and only if their cores are isomorphic. Proof. This is Theorem 2 of (Stong, 1966). 
+
+## D. Proofs of propositions, lemmas, and theorems 
+
+Proof of Theorem 4.7. The factor classes J from (W6) and variable classes [P ] from Definition 5.1 immediately provide the node sets. By Lemma 5.3, if P ∼v P ′ then |EP | = |EP ′ |, so the state space E[P ] is well-defined up to the canonical bijections induced by (W5) and (W6). We wish to show that the incidence relation is well defined, which amounts to showing that for each factor class J and distinct Q, Q ′ ∈ VJ , the variable classes [Q] and [Q′] are distinct. Suppose for contradiction that Q ∼v Q′ for some Q̸ = Q′ in VJ . Then there exists a chain Q = P0 ∼ P1 ∼ · · · ∼ Pm = Q′
+
+of direct cross-links. Consider the first link: Q ∼ P1 means there exists a sum bundle B with either Tgt (B) = Q and 
+
+B ∈ Cat (P1), or Tgt (B) = P1 and B ∈ Cat (Q).In the first case, let J′ be the factor class containing B, so B = BJ′→Q and hence Q ∈ VJ′ . Since B ∈ Cat (P1) and P1 is product-like, condition (W5) tells us that B catalyzes production of P1. By the structure of (W6), the sum bundle B targets 
+
+Q and has Cat (B) = VJ′ \ { Q}. For B to appear in Cat (P1), the product bundle P1 must be receiving messages from the same variable as Q but through a different factor than J′. In particular, P1 /∈ VJ′ .The second case is symmetric: if Tgt (B) = P1 and B ∈ Cat (Q), then P1 is the target of some sum bundle while Q is catalyzed by that bundle, again placing Q and P1 as product bundles for the same variable going to different factors. In either case, each cross-link Pi ∼ Pi+1 in the chain connects product bundles that represent the same variable but are incident to different factor classes. The key observation is that the relation ∼ cannot connect two product bundles that are both in the same VJ : if Q, Q ′ ∈ VJ with Q̸ = Q′, then Q and Q′ are targets of distinct sum bundles in J, namely BJ→Q
+
+and BJ→Q′ . By (W6.1), Cat (BJ→Q) = VJ \ { Q} and Cat (BJ→Q′ ) = VJ \ { Q′}.For Q ∼ Q′ directly, we would need a sum bundle B with Tgt (B) = Q and B ∈ Cat (Q′) (or vice versa). If B ∈ J,then B = BJ→Q, and B ∈ Cat (Q′) would require Q′ to be a product bundle catalyzed by this sum bundle. But Cat (BJ→Q) = VJ \ { Q} consists of product bundles in VJ , not the catalytic neighbors of those bundles. The set Cat (Q′)
+
+consists of sum bundles that catalyze Q′, which by the Napp–Adams structure are sum bundles targeting the same variable as Q′ from other factors. Since BJ→Q targets Q (a different element of VJ , hence a different variable), we have 
+
+BJ→Q /∈ Cat (Q′).If instead B / ∈ J, say B ∈ J′ for some other factor class, then Tgt (B) = Q implies Q ∈ VJ′ . For B ∈ Cat (Q′), the sum bundle B must be one of the catalytic inputs to Q′. These are sum bundles for the variable corresponding to Q′, coming from factors other than the one Q′ points to. Since B targets Q and Q ∈ VJ , the variable of B is the variable of Q. For 
+
+B ∈ Cat (Q′), the variable of Q′ must equal the variable of Q. But Q and Q′ are distinct elements of VJ , which by (W6.1) correspond to distinct targets of sum bundles in J—hence to distinct variables incident to factor J. This is a contradiction. Therefore Q̸ ∼ Q′ for distinct Q, Q ′ ∈ VJ , and since ∼v is generated by ∼, we have Q̸ ∼v Q′. This shows [Q]̸ = [ Q′], and moreover [Q] ∩ VJ = {Q} (any other element of [Q] in VJ would have to equal Q by the above). Consequently, the map Q 7 → [Q] is a bijection from VJ to the set of variable classes incident to J. The incidence relation is well-defined, and the factor table ψJ : Q 
+
+> Q∈VJ
+
+EQ → (0 , ∞) from (W6.3) can be viewed as a function on Q 
+
+> [Q]: Q∈VJ
+
+E[Q]
+
+via the canonical identifications EQ ∼= E[Q].Finally, uniqueness of ψJ up to positive scalar follows from (W6.3): the coefficient arrays CBJ→Q are determined by Γ,and any two tables ψJ , ψ ′ 
+
+> J
+
+satisfying (W6.3) must have constant ratio ψ′ 
+
+> J
+
+/ψ J = λ for some λ > 0, with the scalars κJ→Q
+
+adjusting accordingly. 16 Reduction of Probabilistic Chemical Reaction Networks 
+
+Proof of Lemma 5.2. The reflexive-symmetric-transitive closure of any binary relation is an equivalence relation. 
+
+Proof of Lemma 5.3. It suffices to show P ∼ P ′ implies |EP | = |EP ′ |; the general case follows by induction along 
+
+∼-chains. Suppose P ∼ P ′ via sum bundle B with Tgt (B) = P and B ∈ Cat (P ′). Let J be the factor class containing B, so 
+
+B = BJ→P and P ∈ VJ .• By (W6.2), ιJ→P : EP
+
+> ∼=
+
+−→ EB , so |EP | = |EB |.• Since B ∈ Cat (P ′) and P ′ is product-like, (W5.2) gives a bijection θP ′,B : EP ′ → EB , so |EP ′ | = |EB |.Hence |EP | = |EB | = |EP ′ |.
+
+Proof of Theorem 5.4. Fix a factor class (J, V J ) and a product bundle Q ∈ VJ . Consider the associated sum bundle 
+
+B := BJ→Q ∈ J from (W6). By conditions (W1)–(W3), every reaction with nonzero net stoichiometry in B has internal net stoichiometry of the form B0 ↔ Bk for a unique k ∈ EB , and no other bundle has nonzero net stoichiometry in that reaction. For each k ∈ EB , let ddt [Bk]+ denote the total positive contribution to ddt [Bk] coming from reactions whose internal net stoichiometry is B0 → Bk. By (W4), we may expand: 
+
+ddt [Bk]+ = [ B0] X
+
+> a∈A B
+
+CB (k; a) Y
+
+> Q′∈Cat (B)
+
+[XQ′,a (Q′)].
+
+By the missing-one-neighbor property of (W6.1), we have Cat (B) = VJ \ { Q}. Hence each assignment j ∈ JB =Q  
+
+> Q′∈VJ\{ Q}
+
+EQ′ is equivalently a choice of states (xQ′ )Q′̸ =Q for all other product bundles in VJ .Now apply the clamped-table property (W6.3): there exists a strictly positive table ψJ : Q 
+
+> Q′∈VJ
+
+EQ′ → (0 , ∞) and a scalar κJ→Q > 0 such that for every k ∈ EQ (identified with EB via the bijection ιJ→Q) and every assignment 
+
+a ∈ Q  
+
+> Q′∈VJ\{ Q}
+
+EQ′ :
+
+CB (ιJ→Q(k); a) = κJ→Q · ψJ
+
+ xQ = k, x Q′ = a(Q′) for Q′̸ = Q.
+
+Substituting this identity into the expansion for ddt [Bk]+:
+
+ddt [Bk]+ = [ B0]κJ→Q
+
+X  
+
+> a∈Q
+> Q′∈VJ\{ Q}EQ′
+
+ψJ
+
+ xQ = k, x Q′ = a(Q′) Y 
+
+> Q′∈VJ\{ Q}
+
+[Q′
+
+> a(Q′)
+
+].
+
+Next, we identify the negative contribution to the ODE. By (R1), the only internal reactions with net stoichiometry Bk → B0
+
+are the recycling reactions BkρB
+
+−−→ B0, with no catalysts and a bundlewise constant rate ρB = ρBJ→Q . Hence the mass-action dynamics for coordinate Bk are: 
+
+ddt [Bk] = ddt [Bk]+ − ρB [Bk].
+
+At a positive steady state, ddt [Bk] = 0 . Rearranging: 
+
+ρB
+
+[B0] [Bk] = κJ→Q
+
+X  
+
+> a∈Q
+> Q′∈VJ\{ Q}EQ′
+
+ψJ
+
+ xQ = k, x Q′ = a(Q′) Y 
+
+> Q′∈VJ\{ Q}
+
+[Q′
+
+> a(Q′)
+
+]. (3) This establishes equation (1). Let P be a product bundle. By (W5), P is product-like: for each k ∈ EP there is a unique assignment a(k) ∈ A P supporting production of Pk, and along each catalytic neighbor the induced map on state labels is a bijection. 17 Reduction of Probabilistic Chemical Reaction Networks 
+
+By the structure of the Napp–Adams construction (which our recognition conditions capture), the producing reactions for 
+
+Pk have the schematic form: 
+
+P0 + X 
+
+> B∈Cat (P)
+
+Bk −→ Pk + X 
+
+> B∈Cat (P)
+
+Bk,
+
+where one coordinate labeled k from each incident sum bundle catalyzes production of the coordinate labeled k in P . (Here we use the bijections from (W5) to identify state labels across bundles.) Under (R1), every such producing reaction has rate constant κP independent of k. Thus the total production rate into Pk is: 
+
+ddt [Pk]+ = κP [P0] Y 
+
+> B∈Cat (P)
+
+[Bk].
+
+Here Cat (P ) denotes the set of sum bundles incident to P —equivalently, for each factor class J containing P in its variable set VJ , we include the sum bundle BJ→P .Again by (R1), the only internal reactions with net stoichiometry Pk → P0 are the recycling reactions PkρP
+
+−−→ P0. Hence: 
+
+ddt [Pk] = κP [P0] Y 
+
+> B∈Cat (P)
+
+[Bk] − ρP [Pk].
+
+At a positive steady state: ρP
+
+κP [P0] [Pk] = Y 
+
+> B∈Cat (P)
+
+[Bk]. (4) This establishes equation (2). We now show that equations (3) and (4) are precisely the sum-product BP fixed-point equations on the reconstructed factor graph FG(Γ) .Recall from Theorem 4.7 that FG(Γ) has: • Factor nodes corresponding to factor classes J;• Variable nodes corresponding to variable classes [P ] (equivalence classes of product bundles under ∼v ); • An edge between factor J and variable [P ] whenever [P ] ∩ VJ̸ = ∅;• Factor table ψJ : Q 
+
+> Q∈VJ
+
+EQ → (0 , ∞) for each factor J.In the standard BP notation on this factor graph: • S(j→n) 
+
+> k
+
+denotes the k-th component of the sum message from factor j to variable n;• P (n→j) 
+
+> k
+
+denotes the k-th component of the product message from variable n to factor j.The BP sum-product fixed-point equations are (cf. (Napp & Adams, 2013)): 
+
+S(j→n) 
+
+> k
+
+∝ X 
+
+> kj:kjn=k
+
+ψj (kj ) Y
+
+> n′∈ne( j)\n
+
+P (n′→j)
+
+> kjn′
+
+, (5) 
+
+P (n→j) 
+
+> k
+
+∝ Y
+
+> j′∈ne( n)\j
+
+S(j′→n) 
+
+> k
+
+. (6) We establish the correspondence by setting: 
+
+S(J→[Q])  
+
+> k
+
+:= [ BJ→Q,k ],P ([ Q]→J) 
+
+> k
+
+:= [ PQ,k ],
+
+18 Reduction of Probabilistic Chemical Reaction Networks 
+
+where Q is the unique representative of [Q] in VJ .
+
+Sum messages: In our CRN, the sum bundle BJ→Q corresponds to the message from factor J to variable [Q]. Equation (3) states: ρB
+
+[B0] [Bk] = κJ→Q
+
+X
+
+> a
+
+ψJ (xQ = k, x Q′ = a(Q′)) Y 
+
+> Q′∈VJ\{ Q}
+
+[Q′
+
+> a(Q′)
+
+].
+
+Since product bundles Q′ ∈ VJ \ { Q} correspond to the other variables incident to factor J, and [Q′
+
+> a(Q′)
+
+] is the concentration of the product-message species, we have: 
+
+[Bk] ∝ X 
+
+> kJ:kJQ=k
+
+ψJ (kJ ) Y 
+
+> Q′∈VJ\{ Q}
+
+[Q′
+
+> kJQ′
+
+],
+
+which matches equation (5) under our identification. 
+
+Product messages: For a product bundle P corresponding to variable [P ] sending to factor J, equation (4) states: 
+
+ρP
+
+κP [P0] [Pk] = Y 
+
+> B∈Cat (P)
+
+[Bk].
+
+The catalytic neighbors Cat (P ) are exactly the sum bundles from factors J′̸ = J incident to variable [P ]. Hence: 
+
+[Pk] ∝ Y 
+
+> J′∈ne([ P]) \J
+
+[BJ′→P,k ],
+
+which matches equation (6) under our identification. 
+
+Normalization: The proportionality constants ρB /[B0] and ρP /(κP [P0]) serve as the per-message normalization factors. In standard BP, messages are defined only up to positive rescaling, and these normalization factors are precisely what allow the concentrations to be interpreted as (unnormalized) message components. Since the sum of concentrations within each bundle is conserved (a consequence of the stoichiometric structure), normaliza-tion is automatically maintained by the reaction dynamics. This completes the identification of CRN steady states with BP fixed points. 
+
+Definition D.1 (Napp Compilation) . Given a factor graph (A, H ) with factor tables ψj ∝ e−Hj , the Napp compilation is the mass-action CRN 
+
+N (A, H )
+
+constructed as follows: 1. For every directed edge j → n in the factor graph, introduce a sum bundle Sj→n and a product bundle Pn→j . Each bundle B consists of a zero species B0 and one coordinate species Bk for every symbol k of the underlying variable. 2. For each bundle B, add recycling reactions: 
+
+Bkκr
+
+−→ B0, k ≥ 1,
+
+with a single global recycling rate κr > 0.3. For each edge j → n and each assignment kj ∈ Kj with (kj )n = k, add a sum-bundle production reaction: 
+
+Sj→n 
+
+> 0
+
++ X
+
+> n′∈ne( j)\n
+
+Pn′→j   
+
+> (kj)n′
+> ψj(kj)
+
+−−−−→ Sj→nk + X
+
+> n′∈ne( j)\n
+
+Pn′→j  
+
+> (kj)n′
+
+.
+
+4. For each variable n and each state k, add product-bundle reactions: 
+
+Pn→j 
+
+> 0
+
++ X
+
+> j′∈ne( n)\j
+
+Sj′→nkκprod 
+
+−−−→ Pn→jk + X
+
+> j′∈ne( n)\j
+
+Sj′→nk ,
+
+with a single global production rate κprod > 0.19 Reduction of Probabilistic Chemical Reaction Networks 
+
+We write N (A, H ) (or simply N (FG) ) for this CRN and refer to the map N : FGraph → CRN as the Napp compilation. 
+
+Corollary D.2 (BP ↔ CRN) . Let Γ = ( X, R, κ ) be a mass–action CRN satisfying (W1)–(W6) and (R1) , and let FG(Γ) be the factor graph with factor tables {ψJ } reconstructed by Theorem 4.7 . Let 
+
+ΓN := N  FG(Γ) 
+
+be the BP–CRN obtained by applying the Napp–Adams compilation to FG(Γ) , with any fixed choice of recycling and production constants. Then there exist positive scalars {sB > 0}, one for each bundle B, and a choice of rate constants for ΓN such that the following hold. 1. The species of Γ and ΓN can be put into bijection bundlewise, preserving zero versus coordinate species, the distinction between sum and product bundles, and catalytic neighbor sets, and under this bijection the change of variables 
+
+[XB,k ]N = sB [XB,k ]
+
+conjugates the mass–action vector field of Γ to that of ΓN.2. In particular, positive steady states of Γ correspond bijectively, via the same bundlewise rescaling, to positive steady states of ΓN.3. From the main result of Napp–Adams applied to ΓN, any positive steady state of Γ therefore determines a collection of BP messages (defined up to the usual per–message positive rescaling) on FG(Γ) that satisfy the sum–product fixed–point equations for the recovered factor tables {ψJ }.Proof of D.2. Let FG(Γ) be reconstructed from Γ under (W1)–(W6), with factor classes (J, V J ) and factor tables ψJ from (W6). Consider the Napp compilation ΓN := N (FG(Γ)) , in which each directed incidence (J, Q ) with Q ∈ VJ produces a sum bundle SJ→Q and each directed incidence (Q, J ) produces a product bundle PQ→J .By the construction of FG(Γ) in Theorem 4.7, the bundles of Γ decompose into: 1. Sum bundles BJ→Q indexed by pairs (J, Q ) with Q ∈ VJ ;2. Product bundles P indexed by directed incidences (Q, J ).The Napp compilation produces exactly one bundle of each type for each such directed incidence. Hence there is a canonical bundlewise bijection between the species sets of Γ and ΓN , preserving bundle type (sum vs. product), zero vs. coordinate species, and state labels. Moreover, by (W4) and (W5), the reaction monomials of Γ match the Napp monomials: • Sum-bundle production terms are multilinear monomials with one coordinate from each catalytic neighbor; • Product-bundle production terms are diagonal in the state label k.Fix a factor class (J, V J ) and Q ∈ VJ . By (W6.3), the production coefficients of the corresponding sum bundle BJ→Q
+
+satisfy: 
+
+CBJ→Q (k; a) = κJ→Q · ψJ (xQ = k, x Q′ = a(Q′) for Q′̸ = Q).
+
+In the Napp compilation, the analogous producing reactions for SJ→Qk have rate constants proportional to the same clamped table entries of ψJ , with a user-chosen proportionality constant. Choose these Napp proportionality constants so that, after a bundlewise rescaling 
+
+[XB,k ]N = sB [XB,k ],
+
+the coefficients of every monomial in the sum-bundle production polynomials agree term-by-term between Γ and ΓN .20 Reduction of Probabilistic Chemical Reaction Networks 
+
+Similarly, by (R1) we may choose Napp recycling and product-production constants to match the internal k-uniform recycling and k-uniform product production in Γ (again after the same bundlewise rescaling). Because mass-action vector fields are polynomial and determined by the reaction monomials and their coefficients, the term-by-term agreement implies that the change of variables [XB,k ]N = sB [XB,k ] conjugates the ODE of Γ to that of 
+
+ΓN . Since the vector fields are conjugate under a linear (diagonal, positive) change of coordinates, positive steady states correspond bijectively under this rescaling. A point x∗ ∈ RM>0 is a steady state of Γ if and only if the rescaled point (sB x∗
+
+> B,k
+
+)
+
+is a steady state of ΓN . Theorem 5.4 establishes that positive steady states of any CRN satisfying (W1)–(W6) and (R1) correspond to BP fixed points on the reconstructed factor graph. Applying this to both Γ and ΓN :• Any positive steady state x∗ of Γ corresponds to a BP fixed point on FG(Γ) ;• The rescaled steady state (sB x∗
+
+> B,k
+
+) of ΓN corresponds to the same BP fixed point (since rescaling messages by positive constants does not change BP fixed-point status). Thus steady states of Γ determine BP fixed points on FG(Γ) , with factor tables {ψJ } recovered from the reaction coefficients. 
+
+D.1. SP–B retractions in the space of factor tables 
+
+We briefly recall the SP–B update rules in the space of factor tables. Write ψc ∝ e−Hc .• Linear retraction. The Hamiltonians on survivors are unchanged (restriction), hence ψ′ 
+
+> c
+
+= ψc for all surviving c.• Colinear retraction. Let a be maximal colinear with lower neighbor a↓. Let B = A \ { a}. Let b↑ be the unique upper cover of a↓ in B. Define bHa↓ (x) = ln X  
+
+> z∈Ea:za↓=x
+
+exp {− Ha(z) + Ha↓ (x)}.
+
+Then eHc = Hc for c̸ = b↑ and eHb↑ = Hb↑ − bHa↓ ◦ πb↑a↓ . Exponentiating gives the two standard factor–table forms: (Unary → higher parity) ψ′ 
+
+> b↑
+
+(k) = ψb↑ (k) ψa(ka↓ ),
+
+(Higher parity → unary on a↓) ψ′ 
+
+> a↓
+
+(x) = X  
+
+> z:za↓=x
+
+ψa(z).
+
+Lemma D.3 (Factor version of S–P Eq. 4.29: colinear, survivor linear) . Let a ∈ A be colinear and maximal, let B = A\{ a},and let b = a↓ ∈ B be linear in B with unique upper cover b↑ ∈ B. Write factor tables ψc ∝ e−Hc on B. For x ∈ Eb and any k ∈ Eb↑ with k|b = x,
+
+ψ′ 
+
+> b↑
+
+(k) ∝ ψb↑ (k) ·
+
+X 
+
+> z∈Ea:zb=x
+
+ψa(z)
+
+ψb(x)
+
+and ψ′ 
+
+> c
+
+= ψc for all c̸ = b↑.
+
+Lemma D.4 (Factor version of S–P Eq. 4.30: colinear, survivor not linear) . Let a ∈ A be colinear and maximal, B = A\{ a},
+
+b = a↓ ∈ B not linear in B, and let cB (b) be the M¨ obius coefficient of b in the poset B. Then 
+
+ψ′
+
+> b
+
+(x) ∝  ψb(x) 1− 1 
+
+> cB(b)
+
+ X 
+
+> z∈Ea:zb=x
+
+ψa(z)
+
+ 1 
+
+> cB(b)
+
+(x ∈ Eb),
+
+and ψ′ 
+
+> c
+
+= ψc for all c̸ = b.Both lemmas. Start from the H-space statements in S–P and exponentiate. For Eq. 4.29: eHb↑ = Hb↑ − bHb ◦ πb↑b with 
+
+bHb(x) = ln P  
+
+> z:zb=x
+
+e−Ha(z)+ Hb(x) gives 
+
+ψ′ 
+
+> b↑
+
+(k) ∝ e− eHb↑ (k) ∝ e−Hb↑ (k) e bHb(x) = ψb↑ (k)
+
+P  
+
+> z:zb=x
+
+e−Ha(z)
+
+e−Hb(x) = ψb↑ (k)
+
+P  
+
+> z:zb=x
+
+ψa(z)
+
+ψb(x) .
+
+21 Reduction of Probabilistic Chemical Reaction Networks 
+
+For Eq. 4.30: eHb = Hb − 1  
+
+> cB(b)
+
+ln P  
+
+> z:zb=x
+
+e−Ha(z)+ Hb(x) yields 
+
+ψ′
+
+> b
+
+(x) ∝ e− eHb(x) = ψb(x)
+
+ X 
+
+> z:zb=x
+
+e−Ha(z)+ Hb(x)1/c B (b)
+
+= ψb(x)
+
+ 1
+
+> ψb(x)
+
+X 
+
+> z:zb=x
+
+ψa(z)
+
+1/c B (b)
+
+,
+
+we can verify this is correct by taking logs. 
+
+Proof of Prop 6.2. We verify the two functor axioms: preservation of identities and preservation of composition. 
+
+(Identities). If r = id (A,H ), then no poset point is retracted and the Hamiltonians Hc (hence the tables ψc) are unchanged. The compilation on objects produces the same CRN (X, R, κ ), and on morphisms we have 
+
+φ0 = id X , φ1 = id R, ψ = id κ,
+
+so N (id (A,H )) = id N (A,H ).
+
+(Composition). Let 
+
+r1 : ( A, H ) → (B, G ), r2 : ( B, G ) → (C, K )
+
+be two morphisms in FGraphRet . Their composite r2 ◦ r1 is again a finite composite of linear/colinear retractions. On factor tables, the SP–B update rules are defined by local formulas in ψ-space; applying r1 and then r2 gives the same final tables ψ′′  
+
+> c
+
+as applying the composite r2 ◦ r1 once. On CRNs we have: • φr2◦r1 
+
+> 0
+
+deletes exactly the union of bundles deleted by r1 and r2; this is the same as φr2 
+
+> 0
+
+◦ φr1 
+
+> 0
+
+bundlewise. • Likewise, φr2◦r1 
+
+> 1
+
+= φr2 
+
+> 1
+
+◦ φr1 
+
+> 1
+
+because a reaction is present after the composite if and only if all its bundles survive both stages. • For the rate part, each surviving edge j → n carries a scalar cj→n that we keep fixed along the entire chain. If 
+
+ψj 7 → ψ′ 
+
+> j
+
+7 → ψ′′  
+
+> j
+
+are the factor tables under r1 and r2, then 
+
+λj→n = cj→nψjψr1
+
+7−−→ cj→nψ′
+
+> jψr2
+
+7−−→ cj→nψ′′  
+
+> j
+
+,
+
+which is exactly the update prescribed by ψr2◦r1 . Hence ψr2◦r1 = ψr2 ◦ ψr1 .Therefore 
+
+N (r2 ◦ r1) = ( φr2◦r1 
+
+> 0
+
+, φ r2◦r1 
+
+> 1
+
+, ψ r2◦r1 ) = ( φr2 
+
+> 0
+
+, φ r2 
+
+> 1
+
+, ψ r2 ) ◦ (φr1 
+
+> 0
+
+, φ r1 
+
+> 1
+
+, ψ r1 ) = N (r2) ◦ N (r1).
+
+(Closure under (W1)–(W6)). For any factor graph (A, H ), the construction of N (A, H ) forces the bundle decomposition and zero ↔coordinate structure, so (W1)–(W3) always hold. We verify (W4)–(W6) directly: • (W4): By construction, sum-bundle production reactions have the form 
+
+Sj→n 
+
+> 0
+
++ X 
+
+> n′̸=n
+
+P n′→jkjn′
+
+→ Sj→nk + X 
+
+> n′̸=n
+
+P n′→jkjn′
+
+,
+
+with rate ψj (kj ). The catalytic neighbors of Sj→n are the product bundles {P n′→j }n′∈ne( j)\n, and each monomial uses exactly one coordinate from each such bundle. This is precisely the assignment-form expansion required by (W4). 22 Reduction of Probabilistic Chemical Reaction Networks 
+
+• (W5): Product bundles have production reactions of the form 
+
+P n→j 
+
+> 0
+
++ X 
+
+> j′̸=j
+
+Sj′→nk → P n→jk + X 
+
+> j′̸=j
+
+Sj′→nk .
+
+For each k, there is exactly one assignment (all catalysts contribute state k), and the bijections θP,B are simply the identity on the state set En. This satisfies (W5). • (W6): Sum bundles for the same factor j form a factor class Jj . For each variable n ∈ ne( j), the sum bundle Sj→n
+
+has Cat (Sj→n) = {P n′→j : n′̸ = n} = VJj \ { P n→j }, establishing the missing-one-neighbor pattern. The coefficient arrays are CSj→n (k; a) = ψj (xn = k, x n′ = a(n′)) , which is the clamped-table property with κj→n = 1 .SP–B retractions only change the tables ψJ within a factor class and do not permute or merge catalytic bundles. Thus (W4)–(W6) continue to hold after any sequence of retractions, and the target CRN of N (r) still lies in the subcategory of CRNs satisfying (W1)–(W6). Altogether, N preserves identities and composition, and by Lemma 6.1 its image is contained in the CRNs satisfying (W1)–(W6) and (R1), as claimed. 
+
+Proof of Theorem 6.3. By Lemma 6.1, both Γ = N (A, H ) and Γ′ = N (A′, H ′) satisfy (W1)–(W6) and (R1). By Theorem 5.4, their positive steady states correspond to BP fixed points on the respective factor graphs. This is exactly the definition of N (r) given above. The key points are: • φ0 deletes bundles corresponding to removed edges/variables; • φ1 deletes reactions involving those bundles; • ψ updates production rates according to the SP–B table update, while leaving recycling rates unchanged. The main theorem of Sergeant–Perthuis–Boitel (Sergeant-Perthuis & Boitel, 2025) shows that SP–B retractions r : ( A, H ) →
+
+(A′, H ′) map BP fixed points on (A, H ) to BP fixed points on (A′, H ′) by restricting to the surviving sites and updating factor tables. We verify that this correspondence is reflected at the CRN level. Let π be a BP fixed point on (A, H ). By Theorem 5.4, there exists a positive steady state x∗ of Γ = N (A, H ) such that the bundle-normalized concentrations [Bk]∗
+
+P 
+
+> k′
+
+[Bk′ ]∗
+
+equal the corresponding message components of π.Let π′ be the restriction of π to (A′, H ′) as defined by the SP–B retraction. The Sergeant–Perthuis–Boitel theorem guarantees that π′ is a BP fixed point on (A′, H ′).Now consider the CRN morphism N (r) = ( φ0, φ 1, ψ ). For surviving bundles B, the morphism: • Preserves the bundle structure (same zero and coordinate species); • Preserves recycling rates ( ρB unchanged); • Updates production rates according to ψj 7 → ψ′ 
+
+> j
+
+.The steady-state equations for surviving bundles in Γ′ are: 
+
+ρB
+
+[B0]′ [Bk]′ = κj→n
+
+X
+
+> a
+
+ψ′ 
+
+> j
+
+(kj ) Y 
+
+> Q′∈VJ\{ Q}
+
+[Q′
+
+> a(Q′)
+
+]′.
+
+Since the factor-table update ψj 7 → ψ′ 
+
+> j
+
+is exactly what appears in the SP–B prescription, and since π′ satisfies the BP equations with tables ψ′ 
+
+> j
+
+, there exists a positive steady state x′∗ of Γ′ whose bundle-normalized concentrations equal the message components of π′.23 Reduction of Probabilistic Chemical Reaction Networks 
+
+The relationship between x∗ and x′∗ is that their restrictions to surviving bundles are related by the concentration rescaling induced by N (r). Specifically, if B is a surviving bundle, then 
+
+[Bk]′∗ = sB · [Bk]∗
+
+for some positive scalar sB that depends on the normalization conventions but preserves the bundle-normalized ratios. This completes the proof that N (r) transports BP fixed points from Γ to Γ′.
+
+## E. Examples 
+
+These examples illustrate the two main concrete mechanisms behind the paper. Example E.1 shows that the steady-state equations of the compiled CRN reproduce the BP fixed-point equations on a small mixed-cardinality chain. Example E.2 then shows how an SP–B retraction acts on the same instance and how the induced CRN morphism removes the corresponding bundles while preserving the BP semantics on the surviving variables. 
+
+Example E.1 (Chain graph with mixed cardinalities) . Consider variables {1, 2, 3} with state spaces E1 = {1, 2}, E2 =
+
+{1, 2, 3}, E3 = {1, 2}, and factors a, b with ne( a) = {1, 2}, ne( b) = {2, 3}. The factor tables are 
+
+ψa : E1 × E2 → (0 , ∞), ψb : E2 × E3 → (0 , ∞),
+
+so ψa is 2 × 3 and ψb is 3 × 2.24 Reduction of Probabilistic Chemical Reaction Networks 
+
+X1 X2 X3a b                        
+
+> Sa→1
+> 012
+> Sa→2
+> 0123
+> Sb→2
+> 0123
+> Sb→3
+> 012
+> P1→a
+> 012
+> P2→a
+> 0123
+> P2→b
+> 0123
+> P3→b
+> 012
+
+(a) Full CRN Γ: 28 species   
+
+> N(r)
+> SP–B
+
+X1 a X2 b X3                        
+
+> Sa→1
+> 012
+> Sa→2
+> 0123
+> Sb→2
+> 0123
+> Sb→3
+> 012
+> P1→a
+> 012
+> P2→a
+> 0123
+> P2→b
+> 0123
+> P3→b
+> 012
+
+(b) Reduced CRN Γ′: 14 species 
+
+Figure 6. Bundle structure of the compiled CRN Γ = N (F) (left) and the reduced CRN Γ′ = N (F′) (right) for the mixed-cardinality chain of Example E.1 and its reduction in Example E.2. Each directed edge of the factor graph produces one sum bundle (above) and one product bundle (below); dots represent individual chemical species (zero species indexed 0, coordinate species indexed 1, . . . , |E|). The SP–B retraction r removes variable X1 and factor a, deleting the four faded bundles and their associated reactions. The surviving bundles carry the same BP beliefs on X2 and X3 as the full network, with the influence of X1 absorbed into the updated rate parameters of Sb→2
+
+and Sb→3.
+
+Bundles. Each directed edge of the factor graph produces one bundle. The four sum bundles and four product bundles are: Bundle Type |EB | Target/Source Species 
+
+Sa→1 sum 2 Tgt = P 1→a Sa→10 , S a→11 , S a→12
+
+Sa→2 sum 3 Tgt = P 2→a Sa→20 , S a→21 , S a→22 , S a→23
+
+Sb→2 sum 3 Tgt = P 2→b Sb→20 , S b→21 , S b→22 , S b→23
+
+Sb→3 sum 2 Tgt = P 3→b Sb→30 , S b→31 , S b→32
+
+P 1→a product 2 var 1 → fac a P 1→a 
+
+> 0
+
+, P 1→a 
+
+> 1
+
+, P 1→a
+
+> 2
+
+P 2→a product 3 var 2 → fac a P 2→a 
+
+> 0
+
+, P 2→a 
+
+> 1
+
+, P 2→a 
+
+> 2
+
+, P 2→a
+
+> 3
+
+P 2→b product 3 var 2 → fac b P 2→b 
+
+> 0
+
+, P 2→b 
+
+> 1
+
+, P 2→b 
+
+> 2
+
+, P 2→b
+
+> 3
+
+P 3→b product 2 var 3 → fac b P 3→b 
+
+> 0
+
+, P 3→b 
+
+> 1
+
+, P 3→b
+
+> 2
+
+Here subscript 0 is the zero (unassigned) species XB, 0, and subscripts 1, . . . , |EB | are the coordinate species. Note that bundles associated with variable 2 have |EB | = 3 coordinate species, while those for variables 1 or 3 have |EB | = 2 .
+
+Catalytic neighbor sets. For each sum bundle B, Cat( B) consists of the product bundles in the same factor class minus the target (the missing-one-neighbor pattern of (W6.1)): 
+
+Cat( Sa→1) = VJa \ { P 1→a} = {P 2→a},
+
+Cat( Sa→2) = VJa \ { P 2→a} = {P 1→a},
+
+Cat( Sb→2) = VJb \ { P 2→b} = {P 3→b},
+
+Cat( Sb→3) = VJb \ { P 3→b} = {P 2→b}.
+
+For each product bundle P , Cat( P ) consists of the sum bundles targeting the same variable from other factors: 
+
+Cat( P 1→a) = ∅ (variable 1 touches only factor a),
+
+Cat( P 2→a) = {Sb→2} (sum bundle from factor b targeting var 2),
+
+Cat( P 2→b) = {Sa→2} (sum bundle from factor a targeting var 2),
+
+Cat( P 3→b) = ∅ (variable 3 touches only factor b).
+
+25 Reduction of Probabilistic Chemical Reaction Networks 
+
+Factor classes and variable classes. 
+
+• Ja = {Sa→1, S a→2} with VJa = {P 1→a, P 2→a}; factor table ψa : E1 × E2 → (0 , ∞), a 2 × 3 matrix. • Jb = {Sb→2, S b→3} with VJb = {P 2→b, P 3→b}; factor table ψb : E2 × E3 → (0 , ∞), a 3 × 2 matrix. The cross-link relation ∼ on product bundles (Definition 5.1) gives: P 2→a ∼ P 2→b via Sb→2 (target P 2→b, catalyzes 
+
+P 2→a) and symmetrically via Sa→2. No other pairs are cross-linked. The variable classes are therefore 
+
+{P 1→a}, {P 2→a, P 2→b}, {P 3→b},
+
+with cardinalities 2, 3, 2, matching variables 1, 2, 3.
+
+Napp compilation N (F): species. Each bundle B with |EB | coordinate species contributes |EB | + 1 species (one zero species + |EB | coordinate species). The total species count is 
+
+(2+1) 
+
+| {z } 
+
+> Sa→1
+
++ (3+1) 
+
+| {z } 
+
+> Sa→2
+
++ (3+1) 
+
+| {z } 
+
+> Sb→2
+
++ (2+1) 
+
+| {z } 
+
+> Sb→3
+
++ (2+1) 
+
+| {z }  
+
+> P1→a
+
++ (3+1) 
+
+| {z }  
+
+> P2→a
+
++ (3+1) 
+
+| {z }  
+
+> P2→b
+
++ (2+1) 
+
+| {z }  
+
+> P3→b
+
+= 28 species .
+
+Recycling reactions. For each bundle B and each coordinate species Bk, k ≥ 1 (Definition D.1, step 2): 
+
+Bkκr
+
+−−→ B0.
+
+The number of recycling reactions per bundle equals |EB |, giving 2 + 3 + 3 + 2 + 2 + 3 + 3 + 2 = 20 recycling reactions. We list them explicitly: 
+
+Sum-bundle recycling (10 reactions): 
+
+Sa→11
+
+> κr
+
+−→ Sa→10 , Sa→12
+
+> κr
+
+−→ Sa→10 ,Sa→21
+
+> κr
+
+−→ Sa→20 , Sa→22
+
+> κr
+
+−→ Sa→20 , Sa→23
+
+> κr
+
+−→ Sa→20 ,Sb→21
+
+> κr
+
+−→ Sb→20 , Sb→22
+
+> κr
+
+−→ Sb→20 , Sb→23
+
+> κr
+
+−→ Sb→20 ,Sb→31
+
+> κr
+
+−→ Sb→30 , Sb→32
+
+> κr
+
+−→ Sb→30 .
+
+Product-bundle recycling (10 reactions): 
+
+P 1→a
+
+> 1
+> κr
+
+−→ P 1→a 
+
+> 0
+
+, P 1→a
+
+> 2
+> κr
+
+−→ P 1→a 
+
+> 0
+
+,P 2→a
+
+> 1
+> κr
+
+−→ P 2→a 
+
+> 0
+
+, P 2→a
+
+> 2
+> κr
+
+−→ P 2→a 
+
+> 0
+
+, P 2→a
+
+> 3
+> κr
+
+−→ P 2→a 
+
+> 0
+
+,P 2→b
+
+> 1
+> κr
+
+−→ P 2→b 
+
+> 0
+
+, P 2→b
+
+> 2
+> κr
+
+−→ P 2→b 
+
+> 0
+
+, P 2→b
+
+> 3
+> κr
+
+−→ P 2→b 
+
+> 0
+
+,P 3→b
+
+> 1
+> κr
+
+−→ P 3→b 
+
+> 0
+
+, P 3→b
+
+> 2
+> κr
+
+−→ P 3→b 
+
+> 0
+
+.
+
+Sum-bundle production reactions. For each directed edge j → n and each joint assignment kj ∈ Q 
+
+> n′∈ne( j)
+
+En′ with 
+
+(kj )n = k (Definition D.1, step 3): 
+
+Sj→n 
+
+> 0
+
++ X
+
+> n′∈ne( j)\n
+
+P n′→j   
+
+> (kj)n′
+> ψj(kj)
+
+−−−−−→ Sj→nk + X
+
+> n′∈ne( j)\n
+
+P n′→j  
+
+> (kj)n′
+
+.
+
+Sum bundle Sa→1 (target: variable 1; catalyst: P 2→a). The assignment is ka = ( k1, k 2) ∈ E1 × E2 with output state 
+
+k = k1. There are |E1| × | E2| = 2 × 3 = 6 reactions, one per entry of ψa:26 Reduction of Probabilistic Chemical Reaction Networks 
+
+(k1, k 2) Reaction Rate 
+
+(1 , 1) Sa→10 + P 2→a 
+
+> 1
+
+→ Sa→11 + P 2→a 
+
+> 1
+
+ψa(1 , 1) (1 , 2) Sa→10 + P 2→a 
+
+> 2
+
+→ Sa→11 + P 2→a 
+
+> 2
+
+ψa(1 , 2) (1 , 3) Sa→10 + P 2→a 
+
+> 3
+
+→ Sa→11 + P 2→a 
+
+> 3
+
+ψa(1 , 3) (2 , 1) Sa→10 + P 2→a 
+
+> 1
+
+→ Sa→12 + P 2→a 
+
+> 1
+
+ψa(2 , 1) (2 , 2) Sa→10 + P 2→a 
+
+> 2
+
+→ Sa→12 + P 2→a 
+
+> 2
+
+ψa(2 , 2) (2 , 3) Sa→10 + P 2→a 
+
+> 3
+
+→ Sa→12 + P 2→a 
+
+> 3
+
+ψa(2 , 3) 
+
+Observe that P 2→a species appear on both sides (zero net stoichiometry)—they are catalysts. The net stoichiometry of each reaction is Sa→10 → Sa→1 
+
+> k
+
+, supported entirely in the bundle Sa→1, verifying (W1) and (W3). 
+
+Sum bundle Sa→2 (target: variable 2; catalyst: P 1→a). Assignment ka = ( k1, k 2) with output k = k2. There are 2 × 3 = 6 
+
+reactions: 
+
+(k1, k 2) Reaction Rate 
+
+(1 , 1) Sa→20 + P 1→a 
+
+> 1
+
+→ Sa→21 + P 1→a 
+
+> 1
+
+ψa(1 , 1) (2 , 1) Sa→20 + P 1→a 
+
+> 2
+
+→ Sa→21 + P 1→a 
+
+> 2
+
+ψa(2 , 1) (1 , 2) Sa→20 + P 1→a 
+
+> 1
+
+→ Sa→22 + P 1→a 
+
+> 1
+
+ψa(1 , 2) (2 , 2) Sa→20 + P 1→a 
+
+> 2
+
+→ Sa→22 + P 1→a 
+
+> 2
+
+ψa(2 , 2) (1 , 3) Sa→20 + P 1→a 
+
+> 1
+
+→ Sa→23 + P 1→a 
+
+> 1
+
+ψa(1 , 3) (2 , 3) Sa→20 + P 1→a 
+
+> 2
+
+→ Sa→23 + P 1→a 
+
+> 2
+
+ψa(2 , 3) 
+
+Here the catalyst P 1→a has only |E1| = 2 coordinate species, while the target bundle Sa→2 has |ESa→2 | = 3 coordinate species. This is where mixed cardinalities become visible in the reaction stoichiometry: the number of reactions producing a given coordinate Sa→2 
+
+> k
+
+equals |E1| = 2 (one per state of the catalyst), whereas each reaction producing Sa→1 
+
+> k
+
+(above) had 
+
+|E2| = 3 such variants. 
+
+Sum bundle Sb→2 (target: variable 2; catalyst: P 3→b). Assignment kb = ( k2, k 3) with output k = k2. There are 3 × 2 = 6 
+
+reactions: 
+
+(k2, k 3) Reaction Rate 
+
+(1 , 1) Sb→20 + P 3→b 
+
+> 1
+
+→ Sb→21 + P 3→b 
+
+> 1
+
+ψb(1 , 1) (1 , 2) Sb→20 + P 3→b 
+
+> 2
+
+→ Sb→21 + P 3→b 
+
+> 2
+
+ψb(1 , 2) (2 , 1) Sb→20 + P 3→b 
+
+> 1
+
+→ Sb→22 + P 3→b 
+
+> 1
+
+ψb(2 , 1) (2 , 2) Sb→20 + P 3→b 
+
+> 2
+
+→ Sb→22 + P 3→b 
+
+> 2
+
+ψb(2 , 2) (3 , 1) Sb→20 + P 3→b 
+
+> 1
+
+→ Sb→23 + P 3→b 
+
+> 1
+
+ψb(3 , 1) (3 , 2) Sb→20 + P 3→b 
+
+> 2
+
+→ Sb→23 + P 3→b 
+
+> 2
+
+ψb(3 , 2) 
+
+Sum bundle Sb→3 (target: variable 3; catalyst: P 2→b). Assignment kb = ( k2, k 3) with output k = k3. There are 3 × 2 = 6 
+
+reactions: 27 Reduction of Probabilistic Chemical Reaction Networks 
+
+(k2, k 3) Reaction Rate 
+
+(1 , 1) Sb→30 + P 2→b 
+
+> 1
+
+→ Sb→31 + P 2→b 
+
+> 1
+
+ψb(1 , 1) (2 , 1) Sb→30 + P 2→b 
+
+> 2
+
+→ Sb→31 + P 2→b 
+
+> 2
+
+ψb(2 , 1) (3 , 1) Sb→30 + P 2→b 
+
+> 3
+
+→ Sb→31 + P 2→b 
+
+> 3
+
+ψb(3 , 1) (1 , 2) Sb→30 + P 2→b 
+
+> 1
+
+→ Sb→32 + P 2→b 
+
+> 1
+
+ψb(1 , 2) (2 , 2) Sb→30 + P 2→b 
+
+> 2
+
+→ Sb→32 + P 2→b 
+
+> 2
+
+ψb(2 , 2) (3 , 2) Sb→30 + P 2→b 
+
+> 3
+
+→ Sb→32 + P 2→b 
+
+> 3
+
+ψb(3 , 2) 
+
+Sum-bundle production count: 6 + 6 + 6 + 6 = 24 reactions. 
+
+Product-bundle production reactions. For each variable n, each factor j ∈ ne( n), and each state k ∈ En (Definition D.1, step 4): 
+
+P n→j 
+
+> 0
+
++ X
+
+> j′∈ne( n)\j
+
+Sj′→nkκprod 
+
+−−−−→ P n→jk + X
+
+> j′∈ne( n)\j
+
+Sj′→nk .
+
+When |ne( n) \ j| = 0 (i.e. the variable touches only one factor), there are no catalysts and the reaction is simply 
+
+P n→j
+
+> 0
+> κprod
+
+−−−→ P n→jk .
+
+Product bundle P 1→a (ne(1) = {a}, so ne(1) \ a = ∅; no catalysts). Two reactions ( |E1| = 2 ): 
+
+P 1→a
+
+> 0
+> κprod
+
+−−−−→ P 1→a 
+
+> 1
+
+, P 1→a
+
+> 0
+> κprod
+
+−−−−→ P 1→a 
+
+> 2
+
+.
+
+Product bundle P 2→a (ne(2) = {a, b }, so ne(2) \ a = {b}; catalyst: Sb→2). Three reactions ( |E2| = 3 ): 
+
+P 2→a 
+
+> 0
+
++ Sb→21
+
+> κprod
+
+−−−−→ P 2→a 
+
+> 1
+
++ Sb→21 ,P 2→a 
+
+> 0
+
++ Sb→22
+
+> κprod
+
+−−−−→ P 2→a 
+
+> 2
+
++ Sb→22 ,P 2→a 
+
+> 0
+
++ Sb→23
+
+> κprod
+
+−−−−→ P 2→a 
+
+> 3
+
++ Sb→23 .
+
+Here the bijection θP 2→a, S b→2 from (W5) is the identity on E2 = {1, 2, 3}: coordinate k of the catalyst Sb→2 produces coordinate k of P 2→a. Both bundles have cardinality 3 because both are associated with variable 2.
+
+Product bundle P 2→b (ne(2) \ b = {a}; catalyst: Sa→2). Three reactions: 
+
+P 2→b 
+
+> 0
+
++ Sa→21
+
+> κprod
+
+−−−−→ P 2→b 
+
+> 1
+
++ Sa→21 ,P 2→b 
+
+> 0
+
++ Sa→22
+
+> κprod
+
+−−−−→ P 2→b 
+
+> 2
+
++ Sa→22 ,P 2→b 
+
+> 0
+
++ Sa→23
+
+> κprod
+
+−−−−→ P 2→b 
+
+> 3
+
++ Sa→23 .
+
+Product bundle P 3→b (ne(3) = {b}, so no catalysts). Two reactions: 
+
+P 3→b
+
+> 0
+> κprod
+
+−−−−→ P 3→b 
+
+> 1
+
+, P 3→b
+
+> 0
+> κprod
+
+−−−−→ P 3→b 
+
+> 2
+
+.
+
+Product-bundle production count: 2 + 3 + 3 + 2 = 10 reactions. 
+
+CRN summary. 
+
+Species: 28 
+
+Recycling reactions: 20 
+
+Sum-bundle production reactions: 24 
+
+Product-bundle production reactions: 10 
+
+Total reactions: 54 
+
+28 Reduction of Probabilistic Chemical Reaction Networks 
+
+Verification of the recognition conditions. We verify that the compiled CRN N (F) satisfies (W1)–(W6) and (R1). (W1) Every reaction has net stoichiometry supported in a single bundle. Recycling reactions change only Bk → B0 within their bundle. Sum- and product-production reactions convert B0 → Bk within a single bundle; catalytic species appear on both sides with zero net change. (W2) Each bundle has a distinguished zero species ( Sa→10 , P 1→a 
+
+> 0
+
+, etc.). (W3) All internal net stoichiometries are of the form −XB, 0 + XB,k (production) or XB, 0 − XB,k (recycling). (W4) Consider Sa→1 with Cat( Sa→1) = {P 2→a}. Its positive production is 
+
+ddt [Sa→1 
+
+> k
+
+]+ = [ Sa→10 ] X
+
+> k2∈E2
+
+ψa(k, k 2) [ P 2→ak2 ],
+
+which is multilinear in the catalytic coordinates, with assignment table CSa→1 (k; k2) = ψa(k, k 2), confirming the separability requirement. The other sum bundles are analogous. (W5) Consider P 2→a with Cat( P 2→a) = {Sb→2}. For each k ∈ E2, the unique supporting assignment is a(k)(Sb→2) = k
+
+(the identity bijection), and the rate is κprod independent of k. This is the diagonal/bijection structure. The endpoint bundles P 1→a and P 3→b have Cat = ∅, so (W5) holds vacuously. (W6) The partition of sum bundles into factor classes is Ja = {Sa→1, S a→2}, Jb = {Sb→2, S b→3}. For Ja: |Ja| = |VJa | =2; Cat( Sa→1) = VJa \ { P 1→a} = {P 2→a} (missing-one-neighbor). The state-space identification ιJa→P 1→a : E1 →
+
+ESa→1 is the identity, and ιJa→P 2→a : E2 → ESa→2 is the identity, confirming (W6.2) with |E1| = 2 ̸ = 3 = |E2|—the mixed-cardinality case. The clamped-table property (W6.3) holds: CSa→1 (k; k2) = ψa(k, k 2) as computed above. (R1) All recycling reactions use the global rate κr , and all product-production reactions use the global rate κprod , both independent of the state k.
+
+Steady-state equations (Theorem 5.4). At a positive steady state of N (F), the sum-bundle concentrations satisfy 
+
+κr
+
+[Sa→10 ] [Sa→1 
+
+> k
+
+] = 
+
+> 3
+
+X
+
+> k2=1
+
+ψa(k, k 2) [ P 2→ak2 ], k ∈ { 1, 2}, (7) 
+
+κr
+
+[Sa→20 ] [Sa→2 
+
+> k
+
+] = 
+
+> 2
+
+X
+
+> k1=1
+
+ψa(k1, k ) [ P 1→ak1 ], k ∈ { 1, 2, 3}, (8) 
+
+κr
+
+[Sb→20 ] [Sb→2 
+
+> k
+
+] = 
+
+> 2
+
+X
+
+> k3=1
+
+ψb(k, k 3) [ P 3→bk3 ], k ∈ { 1, 2, 3}, (9) 
+
+κr
+
+[Sb→30 ] [Sb→3 
+
+> k
+
+] = 
+
+> 3
+
+X
+
+> k2=1
+
+ψb(k2, k ) [ P 2→bk2 ], k ∈ { 1, 2}, (10) and the product-bundle concentrations satisfy 
+
+κr
+
+κprod [P 1→a 
+
+> 0
+
+] [P 1→ak ] = 1 , k ∈ { 1, 2}, (11) 
+
+κr
+
+κprod [P 2→a 
+
+> 0
+
+] [P 2→ak ] = [ Sb→2 
+
+> k
+
+], k ∈ { 1, 2, 3}, (12) 
+
+κr
+
+κprod [P 2→b 
+
+> 0
+
+] [P 2→bk ] = [ Sa→2 
+
+> k
+
+], k ∈ { 1, 2, 3}, (13) 
+
+κr
+
+κprod [P 3→b 
+
+> 0
+
+] [P 3→bk ] = 1 , k ∈ { 1, 2}. (14) 29 Reduction of Probabilistic Chemical Reaction Networks 
+
+Equations (11) and (14) say that P 1→a and P 3→b are uniform at steady state (no incoming sum messages, since variables 1
+
+and 3 each touch only one factor). Equations (12) and (13) express the product-message update for variable 2: the message from variable 2 to factor a is proportional to the sum message arriving from factor b, and vice versa, matching the BP product-message equation (9) with ne(2) \ a = {b}.Together, equations (7) – (14) are exactly the sum-product BP fixed-point equations on the chain 1–a–2–b–3 with mixed cardinalities (|E1|, |E2|, |E3|) = (2 , 3, 2) , confirming Theorem 5.4 on this instance. 
+
+Remark (effect of mixed cardinalities on CRN size). In the uniform-cardinality case |Ei| = K for all i, a chain on n
+
+variables produces 4( n−1) bundles each of size K+1 , giving 4( n−1)( K+1) species and 4( n−1) K+( n−1) K2 +( n−1) K2
+
+reactions (recycling + sum-production + product-production). With mixed cardinalities, these counts depend on the per-variable |Ei| and the per-factor product Q 
+
+> i∈ne( j)
+
+|Ei|. For our instance, the asymmetry |E2| = 3 versus |E1| = |E3| = 2 is visible in the reaction tables above: factor a generates |E1| · | E2| = 6 sum-production reactions per sum bundle, while a hypothetical uniform binary chain would generate 2 · 2 = 4 .The example below shows that the reduction deletes entire message bundles associated with retractable tendrils while leaving the core computation unchanged. On this small instance, the reduced CRN therefore has fewer species and reactions but still computes the same BP information on the surviving variables. 
+
+Example E.2 (Reduction of the mixed-cardinality chain) . We continue Example E.1 and apply SP–B retractions to the chain 
+
+1–a–2–b–3, tracking the induced CRN morphism N (r) at each step. 
+
+Poset structure. The associated poset A has five elements {1, 2, 3, a, b } with cover relations 1 < a , 2 < a , 2 < b , 3 < b .We check for linear and colinear points. 
+
+Variable 1 has upper covers {a}. Candidate 1↑ = a: for every x ≥ 1 in A, the only such x is a, and a ≥ a. So the condition 
+
+(∀x ≥ 1) x ≥ a holds. Therefore variable 1 is linear with 1↑ = a.
+
+Variable 3 has upper covers {b}. By the same argument, variable 3 is linear with 3↑ = b.
+
+Variable 2 has upper covers {a, b }. For candidate 2↑ = a: we need b ≥ a, but b̸ ≥ a. For candidate 2↑ = b: we need a ≥ b,but a̸ ≥ b. So variable 2 is not linear .No factor is colinear in the original poset (both a and b are binary factors, and neither scope is contained in the other). We choose to retract variable 1.
+
+Step 1: Linear retraction of variable 1.Factor-graph level. Removing variable 1 from the poset gives A′ = {2, 3, a, b } with relations 2 < a , 2 < b , 3 < b . Factor 
+
+a now has ne( a) = {2} (it has become unary). By the SP–B linear-retraction rule (Appendix D.1), the Hamiltonians on survivors are unchanged, so the surviving factor tables are: 
+
+ψ′
+
+> a
+
+(k2) = X
+
+> k1∈E1
+
+ψa(k1, k 2) = ψa(1 , k 2) + ψa(2 , k 2), k2 ∈ { 1, 2, 3},ψ′ 
+
+> b
+
+= ψb (unchanged) .
+
+The marginalization over k1 arises because variable 1 had no other incident factors, so P 1→a was uniform at steady state (cf. equation (11)). 
+
+CRN morphism N (r1) = ( ϕ0, ϕ 1, ψ ).
+
+ϕ0: Delete all bundles involving variable 1:
+
+Sa→1, P 1→a.
+
+This removes 3 + 3 = 6 species: Sa→10 , S a→11 , S a→12 and P 1→a 
+
+> 0
+
+, P 1→a 
+
+> 1
+
+, P 1→a 
+
+> 2
+
+.
+
+ϕ1: Delete all reactions involving deleted species: 30 Reduction of Probabilistic Chemical Reaction Networks 
+
+– Recycling of Sa→1: 2 reactions ( Sa→11 → Sa→10 , Sa→12 → Sa→10 ). 
+
+– Recycling of P 1→a: 2 reactions ( P 1→a 
+
+> 1
+
+→ P 1→a 
+
+> 0
+
+, P 1→a 
+
+> 2
+
+→ P 1→a 
+
+> 0
+
+). 
+
+– Sum-production of Sa→1: 6 reactions (the full Sa→1 table from Example E.1). 
+
+– Sum-production of Sa→2: all 6 reactions are deleted, because they use P 1→ak1 as catalyst. 
+
+– Product-production of P 1→a: 2 reactions ( P 1→a 
+
+> 0
+
+→ P 1→a 
+
+> 1
+
+, P 1→a 
+
+> 0
+
+→ P 1→a 
+
+> 2
+
+). Total deleted: 2 + 2 + 6 + 6 + 2 = 18 reactions. 
+
+ψ: Update sum-production rates for Sa→2. After removing P 1→a from the catalytic set, the factor class Ja now contains only the sum bundle Sa→2 (since Sa→1 was deleted), and VJa = {P 2→a}. The sum bundle Sa→2 has Cat( Sa→2) = ∅
+
+(no remaining catalytic neighbors), and the factor table is now the unary table ψ′
+
+> a
+
+(k2) = P 
+
+> k1
+
+ψa(k1, k 2). New sum-production reactions for Sa→2 (no catalysts, one reaction per state): 
+
+Sa→20
+
+> ψ′
+> a(1)
+
+−−−−→ Sa→21 ,Sa→20
+
+> ψ′
+> a(2)
+
+−−−−→ Sa→22 ,Sa→20
+
+> ψ′
+> a(3)
+
+−−−−→ Sa→23 ,
+
+where ψ′
+
+> a
+
+(k2) = ψa(1 , k 2) + ψa(2 , k 2). These replace the 6 deleted Sa→2 reactions with 3 new ones. All other surviving reactions (recycling of Sa→2, Sb→2, Sb→3, P 2→a, P 2→b, P 3→b; sum-production of Sb→2, Sb→3; product-production of P 2→a, P 2→b, P 3→b) retain their original rate constants. 
+
+Intermediate CRN Γ′ after Step 1. 
+
+Bundle Type |EB | Species 
+
+Sa→2 sum 3 Sa→20 , S a→21 , S a→22 , S a→23
+
+Sb→2 sum 3 Sb→20 , S b→21 , S b→22 , S b→23
+
+Sb→3 sum 2 Sb→30 , S b→31 , S b→32
+
+P 2→a product 3 P 2→a 
+
+> 0
+
+, P 2→a 
+
+> 1
+
+, P 2→a 
+
+> 2
+
+, P 2→a
+
+> 3
+
+P 2→b product 3 P 2→b 
+
+> 0
+
+, P 2→b 
+
+> 1
+
+, P 2→b 
+
+> 2
+
+, P 2→b
+
+> 3
+
+P 3→b product 2 P 3→b 
+
+> 0
+
+, P 3→b 
+
+> 1
+
+, P 3→b
+
+> 2
+
+After Step 1: 22 species , 54 − 18 + 3 = 39 reactions 1.
+
+Step 2: Colinear retraction of unary factor a.Poset analysis of A′ = {2, 3, a, b }. After Step 1, factor a is unary with ne( a) = {2}. Its scope {2} is contained in the scope {2, 3} of factor b. Therefore factor a is colinear with a↓ = 2 (the unique lower cover of a). We check the conditions of Lemma B.3. Let B = A′ \ { a} = {2, 3, b }. In B, variable 2 has a single upper cover b↑ = b. So variable 2 is linear in B, and Lemma B.3 applies. 
+
+Factor-table update (Lemma B.3). With a↓ = 2 and b↑ = b, the updated factor table is 
+
+ψ′
+
+> b
+
+(k2, k 3) ∝ ψb(k2, k 3) ·
+
+X  
+
+> z∈Ea:za↓=k2
+
+ψa(z)
+
+ψa↓ (k2) .
+
+> 1
+
+We deleted 18 reactions and added 3 new sum-production reactions for the updated unary factor ψ′
+
+> a
+
+. Equivalently: 20 − 4 = 16 
+
+recycling + 24 − 12 + 3 = 15 sum-production + 10 − 2 = 8 product-production = 39 .
+
+31 Reduction of Probabilistic Chemical Reaction Networks 
+
+Since factor a is already unary on variable 2 (i.e. Ea = E2 and za↓ = z = k2), the sum has a single term: 
+
+X 
+
+> z∈Ea:z2=k2
+
+ψ′
+
+> a
+
+(z) = ψ′
+
+> a
+
+(k2).
+
+Furthermore, the “variable region” ψa↓ is absent here (variable 2 carries no separate unary factor in the current poset A′;equivalently, ψ2 ≡ 1). So the update simplifies to 
+
+ψ′
+
+> b
+
+(k2, k 3) = ψb(k2, k 3) · ψ′
+
+> a
+
+(k2) = ψb(k2, k 3) · ψa(1 , k 2) + ψa(2 , k 2). (15) This is still a 3 × 2 table (unchanged shape), but the entries have been modulated row-wise by the marginalized unary factor from variable 1.
+
+Reduced poset. After removing factor a, the poset is A′′ = {2, 3, b } with relations 2 < b , 3 < b . This is the factor graph consisting of a single factor b on variables {2, 3} with the updated table ψ′
+
+> b
+
+.
+
+CRN morphism N (r2) = ( ϕ0, ϕ 1, ψ ).
+
+ϕ0: Delete all bundles involving factor a (as sender or receiver): 
+
+Sa→2, P 2→a.
+
+This removes 4 + 4 = 8 species. 
+
+ϕ1: Delete all reactions involving deleted species: 
+
+– Recycling of Sa→2: 3 reactions. 
+
+– Recycling of P 2→a: 3 reactions. 
+
+– Sum-production of Sa→2: 3 reactions (the uncatalyzed reactions from Step 1). 
+
+– Product-production of P 2→a: 3 reactions ( P 2→a 
+
+> 0
+
++ Sb→2 
+
+> k
+
+→ · · · ). 
+
+– Product-production of P 2→b: These used Sa→2 
+
+> k
+
+as catalyst, so all 3 are deleted. Total deleted: 3 + 3 + 3 + 3 + 3 = 15 reactions. 
+
+ψ: Update rates. 
+
+Sum-production of Sb→2: Factor class Jb now has VJb = {P 2→b, P 3→b} (as before), but the table changes from ψb to 
+
+ψ′
+
+> b
+
+. The 6 reactions for Sb→2 retain their structure but their rates change from ψb(k2, k 3) to ψ′
+
+> b
+
+(k2, k 3):
+
+(k2, k 3) Reaction Updated rate 
+
+(1 , 1) Sb→20 + P 3→b 
+
+> 1
+
+→ Sb→21 + P 3→b 
+
+> 1
+
+ψ′
+
+> b
+
+(1 , 1) (1 , 2) Sb→20 + P 3→b 
+
+> 2
+
+→ Sb→21 + P 3→b 
+
+> 2
+
+ψ′
+
+> b
+
+(1 , 2) (2 , 1) Sb→20 + P 3→b 
+
+> 1
+
+→ Sb→22 + P 3→b 
+
+> 1
+
+ψ′
+
+> b
+
+(2 , 1) (2 , 2) Sb→20 + P 3→b 
+
+> 2
+
+→ Sb→22 + P 3→b 
+
+> 2
+
+ψ′
+
+> b
+
+(2 , 2) (3 , 1) Sb→20 + P 3→b 
+
+> 1
+
+→ Sb→23 + P 3→b 
+
+> 1
+
+ψ′
+
+> b
+
+(3 , 1) (3 , 2) Sb→20 + P 3→b 
+
+> 2
+
+→ Sb→23 + P 3→b 
+
+> 2
+
+ψ′
+
+> b
+
+(3 , 2) 
+
+Sum-production of Sb→3: Same structure, updated rates: 32 Reduction of Probabilistic Chemical Reaction Networks 
+
+(k2, k 3) Reaction Updated rate 
+
+(1 , 1) Sb→30 + P 2→b 
+
+> 1
+
+→ Sb→31 + P 2→b 
+
+> 1
+
+ψ′
+
+> b
+
+(1 , 1) (2 , 1) Sb→30 + P 2→b 
+
+> 2
+
+→ Sb→31 + P 2→b 
+
+> 2
+
+ψ′
+
+> b
+
+(2 , 1) (3 , 1) Sb→30 + P 2→b 
+
+> 3
+
+→ Sb→31 + P 2→b 
+
+> 3
+
+ψ′
+
+> b
+
+(3 , 1) (1 , 2) Sb→30 + P 2→b 
+
+> 1
+
+→ Sb→32 + P 2→b 
+
+> 1
+
+ψ′
+
+> b
+
+(1 , 2) (2 , 2) Sb→30 + P 2→b 
+
+> 2
+
+→ Sb→32 + P 2→b 
+
+> 2
+
+ψ′
+
+> b
+
+(2 , 2) (3 , 2) Sb→30 + P 2→b 
+
+> 3
+
+→ Sb→32 + P 2→b 
+
+> 3
+
+ψ′
+
+> b
+
+(3 , 2) 
+
+Product-production of P 2→b: After deletion of Sa→2, the catalytic set of P 2→b becomes Cat( P 2→b) = ∅ (variable 2
+
+now touches only factor b). The product-production reactions become uncatalyzed: 
+
+P 2→b
+
+> 0
+> κprod
+
+−−−−→ P 2→b 
+
+> 1
+
+, P 2→b
+
+> 0
+> κprod
+
+−−−−→ P 2→b 
+
+> 2
+
+, P 2→b
+
+> 0
+> κprod
+
+−−−−→ P 2→b 
+
+> 3
+
+.
+
+These replace the 3 deleted catalyzed reactions with 3 new uncatalyzed ones. All other surviving reactions (recycling of Sb→2, Sb→3, P 2→b, P 3→b; product-production of P 3→b) are unchanged. 
+
+Final reduced CRN Γ′′ = N (A′′ , H ′′ ). The reduced factor graph has variables {2, 3} with state spaces E2 = {1, 2, 3},
+
+E3 = {1, 2}, a single factor b with ne( b) = {2, 3}, and updated table ψ′ 
+
+> b
+
+from equation (15) . The compiled CRN has four bundles: Bundle Type |EB | Species 
+
+Sb→2 sum 3 Sb→20 , S b→21 , S b→22 , S b→23
+
+Sb→3 sum 2 Sb→30 , S b→31 , S b→32
+
+P 2→b product 3 P 2→b 
+
+> 0
+
+, P 2→b 
+
+> 1
+
+, P 2→b 
+
+> 2
+
+, P 2→b
+
+> 3
+
+P 3→b product 2 P 3→b 
+
+> 0
+
+, P 3→b 
+
+> 1
+
+, P 3→b
+
+> 2
+
+Complete reaction list of Γ′′ . Recycling (8 reactions): 
+
+Sb→21
+
+> κr
+
+−→ Sb→20 , Sb→22
+
+> κr
+
+−→ Sb→20 , Sb→23
+
+> κr
+
+−→ Sb→20 ,Sb→31
+
+> κr
+
+−→ Sb→30 , Sb→32
+
+> κr
+
+−→ Sb→30 ,P 2→b
+
+> 1
+> κr
+
+−→ P 2→b 
+
+> 0
+
+, P 2→b
+
+> 2
+> κr
+
+−→ P 2→b 
+
+> 0
+
+, P 2→b
+
+> 3
+> κr
+
+−→ P 2→b 
+
+> 0
+
+,P 3→b
+
+> 1
+> κr
+
+−→ P 3→b 
+
+> 0
+
+, P 3→b
+
+> 2
+> κr
+
+−→ P 3→b 
+
+> 0
+
+.
+
+Sum-production of Sb→2 (6 reactions, catalyst P 3→b): 
+
+(k2, k 3) Reaction Rate 
+
+(1 , 1) Sb→20 + P 3→b 
+
+> 1
+
+→ Sb→21 + P 3→b 
+
+> 1
+
+ψ′
+
+> b
+
+(1 , 1) (1 , 2) Sb→20 + P 3→b 
+
+> 2
+
+→ Sb→21 + P 3→b 
+
+> 2
+
+ψ′
+
+> b
+
+(1 , 2) (2 , 1) Sb→20 + P 3→b 
+
+> 1
+
+→ Sb→22 + P 3→b 
+
+> 1
+
+ψ′
+
+> b
+
+(2 , 1) (2 , 2) Sb→20 + P 3→b 
+
+> 2
+
+→ Sb→22 + P 3→b 
+
+> 2
+
+ψ′
+
+> b
+
+(2 , 2) (3 , 1) Sb→20 + P 3→b 
+
+> 1
+
+→ Sb→23 + P 3→b 
+
+> 1
+
+ψ′
+
+> b
+
+(3 , 1) (3 , 2) Sb→20 + P 3→b 
+
+> 2
+
+→ Sb→23 + P 3→b 
+
+> 2
+
+ψ′
+
+> b
+
+(3 , 2) 
+
+Sum-production of Sb→3 (6 reactions, catalyst P 2→b): 
+
+33 Reduction of Probabilistic Chemical Reaction Networks 
+
+(k2, k 3) Reaction Rate 
+
+(1 , 1) Sb→30 + P 2→b 
+
+> 1
+
+→ Sb→31 + P 2→b 
+
+> 1
+
+ψ′
+
+> b
+
+(1 , 1) (2 , 1) Sb→30 + P 2→b 
+
+> 2
+
+→ Sb→31 + P 2→b 
+
+> 2
+
+ψ′
+
+> b
+
+(2 , 1) (3 , 1) Sb→30 + P 2→b 
+
+> 3
+
+→ Sb→31 + P 2→b 
+
+> 3
+
+ψ′
+
+> b
+
+(3 , 1) (1 , 2) Sb→30 + P 2→b 
+
+> 1
+
+→ Sb→32 + P 2→b 
+
+> 1
+
+ψ′
+
+> b
+
+(1 , 2) (2 , 2) Sb→30 + P 2→b 
+
+> 2
+
+→ Sb→32 + P 2→b 
+
+> 2
+
+ψ′
+
+> b
+
+(2 , 2) (3 , 2) Sb→30 + P 2→b 
+
+> 3
+
+→ Sb→32 + P 2→b 
+
+> 3
+
+ψ′
+
+> b
+
+(3 , 2) 
+
+Product-production of P 2→b (3 reactions, no catalysts): 
+
+P 2→b
+
+> 0
+> κprod
+
+−−−−→ P 2→b 
+
+> 1
+
+, P 2→b
+
+> 0
+> κprod
+
+−−−−→ P 2→b 
+
+> 2
+
+, P 2→b
+
+> 0
+> κprod
+
+−−−−→ P 2→b 
+
+> 3
+
+.
+
+Product-production of P 3→b (2 reactions, no catalysts): 
+
+P 3→b
+
+> 0
+> κprod
+
+−−−−→ P 3→b 
+
+> 1
+
+, P 3→b
+
+> 0
+> κprod
+
+−−−−→ P 3→b 
+
+> 2
+
+.
+
+Reduced CRN summary. 
+
+Species: 4 + 3 + 4 + 3 = 14 (vs. 28 original, 50 % reduction) Recycling reactions: 10 
+
+Sum-bundle production: 6 + 6 = 12 
+
+Product-bundle production: 3 + 2 = 5
+
+Total reactions: 27 (vs. 54 original, 50 % reduction) 
+
+Steady-state equations of the reduced CRN. At a positive steady state of Γ′′ :
+
+κr
+
+[Sb→20 ] [Sb→2 
+
+> k
+
+] = 
+
+> 2
+
+X
+
+> k3=1
+
+ψ′
+
+> b
+
+(k, k 3) [ P 3→bk3 ], k ∈ { 1, 2, 3}, (16) 
+
+κr
+
+[Sb→30 ] [Sb→3 
+
+> k
+
+] = 
+
+> 3
+
+X
+
+> k2=1
+
+ψ′
+
+> b
+
+(k2, k ) [ P 2→bk2 ], k ∈ { 1, 2}, (17) 
+
+κr
+
+κprod [P 2→b 
+
+> 0
+
+] [P 2→bk ] = 1 , k ∈ { 1, 2, 3}, (18) 
+
+κr
+
+κprod [P 3→b 
+
+> 0
+
+] [P 3→bk ] = 1 , k ∈ { 1, 2}. (19) Equations (18) and (19) say that both product bundles are uniform at steady state (both variables now touch a single factor). The sum-bundle equations (16) and (17) implement BP on the single-factor graph {2, 3, b } with the updated table ψ′
+
+> b
+
+, which encodes the influence of the retracted variable 1 through the factor ψ′
+
+> a
+
+(k2) = ψa(1 , k 2) + ψa(2 , k 2) absorbed into ψ′
+
+> b
+
+.
+
+BP fixed-point preservation. By Lemma 6.3, the marginals of variables 2 and 3 computed from the reduced CRN Γ′′ 
+
+coincide with those from the original CRN Γ. Concretely, at any positive steady state: 
+
+[Sb→2 
+
+> k
+
+]
+
+P 
+
+> k′
+
+[Sb→2 
+
+> k′
+
+] Γ′′ 
+
+= [Sb→2 
+
+> k
+
+]
+
+P 
+
+> k′
+
+[Sb→2 
+
+> k′
+
+] Γ
+
+, k ∈ { 1, 2, 3},
+
+and similarly for the messages involving variable 3. The retracted variable 1 is no longer represented in the reduced CRN, but its effect on the surviving marginals is faithfully encoded in the updated rate constants ψ′
+
+> b
+
+.34 Reduction of Probabilistic Chemical Reaction Networks 
+
+Remark (reduction on the chain graph is maximal). The reduced poset A′′ = {2, 3, b } has no linear or colinear points: variable 2 has upper covers {b} and variable 3 has upper covers {b}, but neither is linear because b has two lower covers (b↓ = {2, 3}, not a single element). Factor b is binary, so it is not colinear. Therefore A′′ is the core of the original poset A.By symmetry, retracting variable 3 first (instead of variable 1) would yield the same core {1, 2, a } up to relabeling, with an analogous updated factor table ψ′
+
+> a
+
+(k1, k 2) = ψa(k1, k 2) · [ψb(k2, 1) + ψb(k2, 2)] .
+
+Remark (Reconstructing beliefs on retracted variable nodes) The retraction of a linear or colinear point induces a mapping that enables the reconstruction of beliefs for the retracted node from the node onto which it was retracted. By recursively applying this mapping, one can reconstruct the belief of any retracted node by following the path from a node in the reduced factor graph back to the node in question. This implies that from the steady-state concentrations of the reduced CRN, one can infer the concentrations of the original CRN. This reconstruction can be implemented using any CRN designed for filtering, such as Napp–Adams Belief Propagation (BP) CRNs (Napp & Adams, 2013), or specific CRNs proposed for the E-step of the Expectation-Maximization (EM) algorithm for learning Hidden Markov Models (HMMs) (Wiuf et al., 2023). Doing so is arguably less computationally expensive than executing full BP and it’s associated CRN ODEs, particularly when only a few retracted belief nodes need to be reconstructed for downstream decision-making. A hypothetical example of this efficiency could arise when designing a synthetic chemotactic or phototactic cell. Such a cell might use a message-passing CRN to perform inference on sensory inputs, which then drive decision-making through competition between chemical concentrations, similar to the mechanisms described in (Tang et al., 2026). In this setting, retracted factor nodes that are not directly associated with observations possess factors that remain invariant to new sensory data. Consequently, the reconstruction mapping outlined above can be structurally enforced by design. These specific concentrations, which may play a critical role in the cell’s decision-making, can thus be computed highly efficiently: first by performing the ODE associated to BP exclusively on the reduced CRN, and then by executing a targeted reconstruction only for the necessary nodes. 35

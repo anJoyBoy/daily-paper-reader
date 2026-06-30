@@ -1,0 +1,685 @@
+Title: Towards Generalizable and Evidential Nuclear Magnetic Resonance-Based Molecular Structure Elucidation via Large Language Model Agent
+
+URL Source: https://arxiv.org/pdf/2606.29776v1
+
+Published Time: Tue, 30 Jun 2026 02:01:33 GMT
+
+Number of Pages: 22
+
+Markdown Content:
+# Towards Generalizable and Evidential Nuclear Magnetic Resonance-Based Molecular Structure Elucidation via Large Language Model Agent 
+
+Zheng Fang 1, Chen Yang 1, Yusen Tan 1, Yunpeng Zhao 4, Fanjie Xu 3, Hongxin Xiang 7, Hanyu Sun 5,
+
+Hanyu Gao 6, Xiaojian Wang 5, Wenjie Du 2, Yuqiang Li 8, Jun Xia 1, 6 
+
+> 1
+
+Information Hub, The Hong Kong University of Science and Technology (Guangzhou), Guangzhou, China 
+
+> 2
+
+State Key Laboratory of Precision and Intelligent Chemistry, University of Science and Technology of China, Hefei, China 
+
+> 3
+
+State Key Laboratory of Physical Chemistry of Solid Surface, College of Chemistry and Chemical Engineering, Xiamen University, Xiamen, China 
+
+> 4
+
+The University of Hong Kong, Hong Kong, China 
+
+> 5
+
+Peking Union Medical College and Chinese Academy of Medical Sciences, Beijing, China 
+
+> 6
+
+The Hong Kong University of Science and Technology, Hong Kong, China 
+
+> 7
+
+Hunan University, Hunan, China 
+
+> 8
+
+AI for Science Center, Shanghai Artificial Intelligence Laboratory, Shanghai, China 
+
+Abstract 
+
+Nuclear Magnetic Resonance (NMR) spectroscopy is the gold standard for molecular structure elucidation, yet interpreting complex spectra for unknown molecules remains a bottleneck reliant on human expertise. While artificial intelligence has advanced this field, current methods face a critical trade-off: database retrieval cannot identify novel scaffolds, while de novo molecular structure elucidation models operate as black boxes, lacking the atom-level interpretability required for rigorous scientific validation. Here, we present NMRAgent, an evidential reasoning agent powered by large language models (LLMs) that bridges this gap by integrating specialized spectral analysis tools with chemical knowledge graphs. Unlike previous approaches, NMRAgent mimics the deductive reasoning of human experts: it takes experimental NMR spectra and molecular formula as input, plans the elucidation process, proposes candidate structures, verifies peak-atom consistency, and refines misaligned substructure through formula-aware fragment optimization. Enabled by its evidential reasoning, NMRAgent outperforms state-of-the-art methods, improving top-1 accuracy by 46.5% and Tanimoto similarity by 0.502 on a scaffold-split benchmark with novel scaffolds in the test set. Besides, we demonstrate the agent’s practical utility by elucidating the structures of two previously unknown natural products isolated from Hydrangea davidii 
+
+and Vitex trifolia , and by correcting structural misassignments in established literature. By combining high-accuracy prediction with transparent and evidence-based reasoning, NMRAgent establishes a new paradigm for interpretable AI in analytical chemistry. 
+
+Correspondence: Jun Xia ( junxia@hkust-gz.edu.cn ) 
+
+> arXiv:2606.29776v1 [cs.LG] 29 Jun 2026 SpectraAI Brief Communication
+
+1 Introduction 
+
+Nuclear Magnetic Resonance (NMR) spectroscopy is a cornerstone of molecule structure elucidation, providing rich information about molecular connectivity, stereochemistry, and local chemical environments [8]. Among NMR techniques, 1H and 13 C NMR spectra are particularly widely used in routine organic and natural-product analysis because of their accessibility and diagnostic value [16]. Traditional NMR structure elucidation com-bines empirical spectral interpretation, quantum-chemical prediction, and database-assisted matching. While chemists use chemical-shift trends, multiplicity patterns, and coupling information to infer structural fragments [10, 23], Density Functional Theory (DFT)-based NMR calculations provide accurate candidate validation and stereochemical ranking [6, 33], and databases such as nmrshiftdb enable spectrum–structure dereplication [29]. Nevertheless, these approaches remain constrained by expert labor, computational cost, and limited database coverage, motivating scalable data-driven methods for automated NMR-based structure elucidation. To address these limitations, recent studies have increasingly explored de novo molecular structure elucidation models based on deep learning, reframing automated NMR-based structure elucidation as an inverse mapping from NMR spectra to molecular structures. A common line of work formulates this inverse problem as sequence-to-sequence generation, where NMR spectra are encoded into neural representations and molecular structures are decoded as SMILES strings [32]. For instance, CLAMS [30] processes NMR spectra as 2D images using CNNs, whereas NMRTransformer [2] employs a 1D-CNN architecture to automatically learn spectral tokenization. Models such as NMR2Struct [14] and NMRMind [36] provide more explicit representations by encoding specific chemical shift ranges and intensities for transformer attention. Recently, inspired by breakthroughs in generative modeling [13, 20], diffusion-based paradigms have emerged. DiffNMR [38] progressively denoises and generates molecular 2D graphs, while ChefNMR [34] generates 3D atomic conformations. Concurrently, retrieval-based methods such as NMRSolver [15] improve chemical validity by searching large-scale simulated spectral databases generated with fast machine-learning NMR predictors [17, 35], followed by fragment-based optimization. Despite these rapid advancements, existing deep learning-based NMR structure elucidation methods still face two critical challenges that hinder their practical deployment. First, retrieval-based methods often achieve higher accuracy than de novo models by searching over chemically valid reference databases. However, their performance is limited by the coverage and quality of these databases. When the target molecule contains a rare scaffold or represents a newly isolated natural product outside the retrieval space, these methods cannot easily propose genuinely novel structures. Second, most de novo molecular structure elucidation models operate largely as black-box systems. They directly output molecular structures while bypassing the peak-to-atom assignment step that is central to conventional NMR structure verification, limiting the interpretability of how the observed spectral signals support the predicted structure. To address these challenges, we propose NMRAgent , a large-language-model-powered agentic framework de-signed for NMR structure elucidation. By leveraging the reasoning capability of large language model (LLM) together with specialized NMR analysis tools, NMRAgent introduces an evidential reasoning paradigm that ex-plicitly identifies peak-atom assignments for structure verification. Unlike existing black-box models, this design grounds structural hypotheses in interpretable spectral evidence and supports more chemically reliable auto-mated elucidation. More specifically, we design a three-level hierarchical architecture. At the Knowledge-Level ,a LLM planner utilizes Retrieval-Augmented Generation (RAG) over external chemical knowledge graph to for-mulate logical step-by-step elucidation plans. Guided by these plans, the Molecular-Level constructs a broad yet chemically plausible candidate space by combining de novo generation with retrieval tools. Retrieval provides database-grounded candidates, while de novo generation enables exploration beyond direct database matches. Using fast NMR prediction models, generated structures are annotated with atom chemical shifts and then re-ranked with retrieved candidates using a learned spectral-structural representation that considers both NMR consistency and molecular similarity. The resulting candidate pool is then examined by an LLM-powered Peak-Atom Verifier, which produces explicit peak–atom assignments to support interpretable structural reasoning. Finally, if structural discrepancies persist, the Fragment-Level performs evidence-guided structural optimiza-tion. Leveraging the LLM’s chemical reasoning capability, NMRAgent interprets verifier-provided peak-atom mismatches as refinement hypotheses and applies a formula-aware heuristic to select and recombine compatible fragments from candidate pools. This work brings a new perspective to NMR-based molecular structure eluci-dation by introducing the first agentic framework that coordinates chemical knowledge, specialized tools, and spectral evidence for interpretable structural reasoning, offering a foundation for future advances in automated spectroscopy-driven chemical analysis. 
+
+> 2
+
+SpectraAI Brief Communication Specialized Tools General LLMs Reasoning LLMs Sci. LLMs NMRAgent 010 20 30 40 50 60 Top-1 Accuracy (%) Specialized Tools General LLMs Reasoning LLMs Sci LLMs NMRAgent NMRMind NMRSolver NMRTransformer ChefNMR-L GPT-4o DeepSeek-V3-1 Claude-Opus-4.7 Gemini-2.5-flash DeepSeek-R1 o3-mini Claude-Sonnet-4 (thinking) Gemini-2.5-flash (thinking) Intern-S1 Intern-Pro NMRAgent aRAG Planner Chemical Database …Knowledge G raph LLM < / > Step 1. < Object 1, Tool 1, Result 1> Step 2 . < Object 2 , Tool 2 , Result 2 > …Step N. < Object N, Tool N, Result N> User Query ❓Input Spectra <Peak 1> -<Atom 1> <Peak 2> -Missing …<Peak M> -Atom M> Conclusion: End /Cont. Verifier Sim. Spec. Exp. S pec. <De novo Retrieval Toolbox Peak-Atom V erifier Fragment -Peak Pool Optimization Toolbox +Fragment Simulation Rerank Rank 1 … Rank 2 … Candidate -<Atom 1> -Assigned …Formula: C14H18O4 OCC2=C(C)C(=O)C1=C(C[C@@](C)(CO)C1)C2=O </SMILES> LLM Answer <SMILES> <Peak 1> <Peak 2 > <Peak M> 
+
+> <Atom M> -Optimization
+> Molecular-Level Fragment-Level  Knowledge-Level
+
+# bcInput: 1D NMR spectra ¹H NMR 10 86420δ (ppm) ¹³C NMR 200 150 100 50 0δ (ppm) De novo molecular structure elucidation AI models Rank 1. Sim = 0.92 Rank 2. Sim = 0.88 NOT FOUND 
+
+???
+
+Black-Box prediction No peak-atom assignment No novel structures Database retrieval methods 
+
+Figure 1 | Overview of previous methods and our proposed NMRAgent. a. Limitations of previous NMR structure elucidation methods. b. The overall workflow of NMRAgent. (1) Knowledge-Level: A Planner leverages RAG over chemical knowledge graph to formulate step-by-step elucidation plans. (2) Molecular-Level: A diverse de novo and retrieval toolbox generates candidates which are then rigorously validated by a peak-atom verifier through experimental-to-simulated spectral matching. (3) Fragment-Level: For unresolved structures, the agent autonomously invokes an optimization toolbox to perform fragment optimization, guided by missing peak evidence. c. NMRAgent achieves state-of-the-art performance on real-world datasets. Comparison of Top-1 Accuracy (%) across five categories: Specialized Tools, General LLMs, Reasoning LLMs, Science LLMs, and our proposed NMRAgent. While existing meth-ods—including specialized computational tools and LLMs—struggle to exceed a 20% accuracy threshold, NMRAgent significantly outperforms all baselines, achieving a breakthrough SOTA performance of over 60% in real-world scenarios. 
+
+3SpectraAI Brief Communication 
+
+2 Results and Discussion 
+
+2.1 Overview of NMRAgent 
+
+As shown in Figure 1b, we developed NMRAgent as an agentic framework for NMR-based molecular struc-ture elucidation, designed to bridge candidate generation and evidence-based structural verification. Rather than treating elucidation as a single-step prediction problem, NMRAgent decomposes the task into a hierarchi-cal workflow that mirrors expert chemical reasoning: retrieving relevant prior knowledge, proposing candidate structures, verifying atom-level spectral consistency, and refining unresolved regions. At the Knowledge-Level, NMRAgent uses a retrieval-augmented planner to introduce external chemical knowledge into the elucidation process. The planner queries a chemical knowledge graph to retrieve relevant chemical context, including compound-level annotations, scaffold-related records, functional-group clues. This retrieval step supplements the LLM with domain-specific chemical context that are complementary to and coupled with NMR spectral evidence. The LLM then organizes the retrieved information into a reasoning plan, specifying which tools should be invoked and what structural evidence should be examined. This level provides high-level chemical context and constrains subsequent molecular search beyond unconstrained enumeration. At the Molecular-Level, NMRAgent constructs a broad candidate pool from the input spectra by integrating retrieval and de novo generation. We expand PubChem-NMRNet [15] to 158M spectrum–structure pairs and use deep-learning-based dense representations [37] to enable scalable molecular search. To move beyond conventional spectrum-only retrieval, NMRAgent first retrieves spectra-level neighbors using Gaussian-based global NMR vectors and then re-ranks the corresponding structures with molecular dense embeddings, prioritizing candidates that are both spectrally consistent and chemically similar. Meanwhile, the de novo generator proposes additional structures beyond database entries. Fast machine-learning NMR predictors [35] are then used to produce atom-annotated spectra for retrieved and generated candidates, which are further examined by the LLM-powered Peak-Atom Verifier to establish explicit peak-atom correspondences. At the Fragment-Level, NMRAgent uses the verifier output to perform targeted structural refinement when full-molecule candidates are not sufficiently supported. The candidate molecules are cleaved into chemically meaningful fragments, and the LLM interprets unresolved peak-atom mismatches to decide which fragments should be preserved and which regions should be exposed to repair. The optimization process is constrained by the target molecular formula and BRICS assembly rules, allowing bounded multi-fragment recombination while retaining spectrally supported substructures. Newly assembled candidates are then returned to the Peak-Atom Verifier, forming an iterative loop between atom-level spectral evidence and fragment-level optimization. 
+
+2.2 Generalization of NMRAgent Across Benchmarks 
+
+2.2.1 Evaluation on Scaffold-Split Benchmark 
+
+We fine-tuned NMRAgent on the training split of NMRGym and evaluated its structure elucidation performance on the held-out scaffold-split test set. NMRGym is a benchmark for NMR-based molecular structure elucidation designed to assess generalization to unseen molecular scaffolds [9]. Unlike random-split datasets, NMRGym separates molecules by scaffold, requiring models to infer structures that are topologically distinct from those seen during training or retrieval construction. This design better reflects real-world natural product elucidation, where target molecules often contain rare or previously unseen scaffolds rather than close database analogues. Additional details of NMRGym, including the fine-tuning setup, scaffold-split protocol, and molecular complexity statistics, are provided in the Supplementary Information. We first assessed whether existing large language models can directly solve this task. As shown in Figure 1c, general-purpose, reasoning-oriented, and science-oriented LLMs exhibit near-zero Top-1 accuracy in this setting. Although these models can occasionally succeed on simple cases and often produce fluent chemical explanations, they generally lack the spectral grounding required to recover exact molecular structures from NMR peaks. This result highlights a clear gap between language-level chemical reasoning and executable NMR structure elucidation: successful elucidation requires not only chemical knowledge, but also specialized molecular search, spectral simulation, and quantitative evidence verification. We then compared NMRAgent with representative task-specific baselines on NMRGym, including retrieval-based methods and DL-based de novo methods. As shown in Figure 2a, De novo methods show limited accuracy under this scaffold-split setting, suggesting that direct spectrum-to-structure generation remains challenging for complex 
+
+> 4
+
+SpectraAI Brief Communication 010 20 30 40 50 60 70 Accuracy (%) NMRAgent (Ours) NMRSolver NMRMind NMRMind NMRSolver ChefNMR-L NMRTransformer NMR2Struct ChefNMR-S CLAMS DiffNMR 67.13 36.48 34.03 27.00 17.37 5.66 3.30 1.85 0.05 0.00 0.00 *** Top-1 Top-5 inc. Top-10 inc. 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 Tanimoto similarity 0.792 0.644 0.591 0.428 0.401 0.387 0.323 0.301 0.285 0.147 0.114 *** <15 15-25 25-35 >35 Heavy atom count 20 25 30 35 40 45 50 55 60 Top-10 Accuracy (%) NMRAgent NMRMind NMR-Solver Baseline +Retrieval +De novo +Optimization 35 40 45 50 55 60 65 Top-1 Accuracy (%) 36.89 60.47 64.27 64.42 +23.58 +3.80 +0.15 010 20 30 40 50 60 70 80 Accuracy (%) 18.3 36.5 67.1 5.4 37.9 81.0 2.9 66.9 70.0 NMRGym nmrshiftdb Exp450 NMRMind NMRSolver NMRAgent a
+
+# d e fb cUMAP 1 UMAP 2 Ground Truth Embedding search Gaussian search 
+
+Nandawadekar et al. (2025) 
+
+> dibenzyl amine, NaHCO 
+> Fe, AcOH D-Ribose, NaBH CN 2,2-DMP, p-TSA H, Pd/C diethyl oxalate i. NaOH, aq. MeOH; ii. aq. AcOH
+
+NMRAgent Wrong Assignment NMRSolver (Boc) O, DMAP LiEt BH Boc-Leu-OH Deprotection Cyclization 
+
+Akinlabi et al. (2026) Dhoro et al. (2018) 
+
+> Et Butyl vinyl ether
+> β-selective Heck
+> 3
+
+Kimura et al. (1992) 
+
+NMRAgent Ground Truth NMRSolver 
+
+Hydrangea davidii 
+
+Qi et al. (2026) Sim = 1.00 Sim = 0.13 Sim = 1.00 Sim = 0.16 gh
+
+> + Formula + Formula
+
+Vitex trifolia 
+
+# i
+
+> The final scaffold is formula-consistent and explains the diagnostic carbonyl/olefinic evidence with no
+> unexplained observed NMR peaks .
+
+Input: Formula: C20H30O3 
+
+Observed NMR: 13 ¹H peaks + 20 ¹³C peaks 
+
+Tool Call: 
+
+1. formula-constrained retrieval 2. NMR-conditioned de novo generation ... 
+
+The molecular formula `C20H30O3` and the NMR profile suggest a 
+
+natural-product-like oxygenated scaffold. 
+
+In particular, the downfield ¹³C resonances 
+
+around `210.4`, `182.5`, and `172.2 ppm` indicate multiple carbonyl-type environments, while the ¹H resonance at `5.68 ppm` suggests an olefinic or ... Running the tools... 
+
+Retrieval and de novo pools were merged into 
+
+35 unique candidates ：
+
+> Retrieval
+> CC1(C(=O)O)CCCC2(C)C1CCC13CC4C(CC21)C4(C)C3O CC1CCC2(C)C(C)C(=O)CCC2C1(C)CCC1=CC(=O)OC1 ...
+> De novo
+> CC(C)C(=O)CC1(C)CCCC2(C)C3CCC(=O)C=C3OC12C CC(C)C1=CC(=O)C(C)(C)C2CCC3(C)OC(=O)CC(C)C3C12 ...
+
+Tool Call: 
+
+1. NMR Spectra Prediction 2. Send to Peak-Atom Verifier ... 
+
+| Evidence peak | Predicted shift | Residual | 
+
+| ¹H 5.68 ppm | 5.96 ppm | Δ 0.28 |
+
+| ¹³C 210.4 ppm | 212.7 ppm | Δ 2.4 || ¹³C 182.5 ppm | 182.6 ppm | Δ 0.1 |
+
+| ¹³C 172.2 ppm | 172.1 ppm | Δ 0.2 |
+
+| ¹³C 111.2 ppm | 111.9 ppm | Δ 0.7 |Answer: 
+
+Figure 2 | Benchmark and real-world evaluation of NMRAgent. a. Top-k accuracy on NMRGym, showing that NMRAgent outperforms previous methods. b. Tanimoto similarity between predicted and ground-truth molecules on NMRGym, indicating improved structural proximity of NMRAgent predictions. c. Accuracy stratified by molecular size. Existing methods exhibit degraded performance as heavy atom count increases, whereas NMRAgent maintains stable accuracy on larger and more complex molecules. d. Ablation study of retrieval, De novo generation, and fragment-level optimization, demonstrating the complementary contribution of each module. e. Evaluation across NMRGym, nmrshiftdb, and Exp450 benchmarks, highlighting the robustness of NMRAgent across diverse test sets. f. Embedding-space analysis showing that dense embedding retrieves structures closer to the ground truth. g. Representative example where NMRAgent corrects a literature-reported human peak-assignment error. h. Real-world natural product elucidation examples validated using literature reports and spectra provided by collaborating institution. i. An evidential reasoning trajectory of a real-world case. 
+
+5SpectraAI Brief Communication 
+
+molecules with unseen scaffolds. Retrieval-based methods perform better because they search over chemically valid structures, but their performance remains constrained by database coverage and retrieval-induced structural divergence. In contrast, NMRAgent achieves a Top-10 accuracy of 67.13%, substantially outperforming the strongest baseline, NMRSolver+Formula, which reaches 36.48%. This corresponds to an absolute improvement of 30.65 percentage points and a relative improvement of approximately 84.0%. The same trend is observed in structural similarity evaluation: NMRAgent achieves the highest Tanimoto similarity to the ground-truth molecules, indicating that its predictions are not only more often exact, but also closer to the correct structures in chemical space when exact recovery is not achieved (Figure 2b). We further analyzed model performance as molecular size increases. A major challenge in NMR elucidation is that larger molecules usually contain more complex scaffolds, denser peak patterns, and more ambiguous local chemical environments. As shown in Figure 2c, baseline methods exhibit a clear degradation in accuracy as the heavy atom count increases. This trend indicates that existing methods struggle to maintain reliable structure recovery when the molecular search space becomes larger and the spectra become more difficult to disambiguate. In contrast, NMRAgent maintains stable performance across molecular-size groups, suggesting that the integration of retrieval, de novo generation, atom-level verification, and fragment-level optimization provides a more robust strategy for complex natural-product-like molecules. To further understand the source of NMRAgent’s improvement, we conducted ablation studies over the major components of the framework. As shown in Figure 2d, retrieval, de novo generation, and fragment-level opti-mization contribute complementary gains. Retrieval provides database-grounded chemically valid candidates, 
+
+de novo generation expands the search beyond direct database matches, and fragment-level optimization repairs unresolved regions using molecular formula constraints and verifier-provided mismatch evidence. The progressive improvement across these settings indicates that NMRAgent benefits from an integrated elucidation workflow rather than a single dominant module. The ablation also shows that the gain is not merely a consequence of enlarging the retrieval database. When the NMRSolver-style retrieval baseline is evaluated with the expanded database, its Top-1 accuracy already exceeds the Top-10 accuracy obtained using the original database, confirm-ing the importance of database coverage. Nevertheless, NMRAgent further improves over this expanded-database baseline, suggesting that the proposed representation, verification, and optimization mechanisms provide addi-tional benefits beyond candidate pool expansion. We further provide a qualitative case study to analyze the retrieval behavior. As shown in Figure 2f, dense embedding search retrieves a candidate that is structurally closer to the ground-truth molecule. This observation suggests that the learned embedding space better pre-serves molecular semantic similarity while maintaining spectral consistency, thereby reducing retrieval-induced structural divergence. Additional case study visualizations are provided in the Supplementary Information. 
+
+2.2.2 Evaluation on Additional Benchmarks 
+
+We further assessed NMRAgent on nmrshiftdb and Exp450 to evaluate its robustness across different data sources. nmrshiftdb is a commonly used public NMR database [29], whereas Exp450 is a literature-derived experimental benchmark [15]. Compared with NMRGym, these datasets present different challenges: nmrshiftdb contains many entries with incomplete spectral information, often including only a single spectrum type, while Exp450 reflects curated experimental cases collected from published reports. As shown in Figure 2e, NMRAgent achieves the strongest performance on both datasets. On nmrshiftdb, NM-RAgent reaches a Top-10 accuracy of 81.0%, compared with 37.9% for NMRSolver and 5.4% for NMRMind. The large improvement indicates that NMRAgent can effectively handle heterogeneous public-database spectra, even when complete paired 1H and 13 C information is not always available. This robustness is consistent with the design of the dense NMR encoder, which learns continuous spectral representations rather than relying solely on fixed sparse peak-vector matching. On Exp450, NMRAgent obtains a Top-10 accuracy of 70.0%, outperform-ing NMRSolver and NMRMind. Notably, NMRSolver remains competitive on Exp450, reflecting the advantage of retrieval-based methods in literature-derived benchmarks. However, NMRAgent further improves over this strong retrieval baseline by integrating coarse-to-fine retrieval, de novo candidate generation, and optimization. These results show that NMRAgent is not limited to a single benchmark distribution, but can maintain strong performance across public database settings and experimentally curated literature cases.  
+
+> 6SpectraAI Brief Communication
+
+2.3 Real-world Application of NMRAgent  
+
+> NMR Assignment Correction and Structural Revision.
+
+Incorrect NMR-based structural assignments re-main a persistent challenge in natural product chemistry, especially when regioisomers, scaffold isomers, or closely related analogues exhibit highly similar one-dimensional NMR spectra. To evaluate whether NMRAgent can assist structural revision, we therefore re-analyzed four representative structural revision cases, including Altechromone A [18, 19], Samoquasine A [5, 21, 31], a natural tetrahydroquinoxaline-6-carboxylic acid from Caulis Sinomenii [22], and C5-hydroxy-cyclo(L-Pro-L-Leu) [1]. These cases cover common sources of NMR mis-assignment, including positional ambiguity, regioisomeric uncertainty, and insufficient discrimination between structurally close candidates. For each case, NMRAgent was provided only with the reported 1H and 13 C NMR chemical shifts, without access to the subsequent synthetic, crystallographic, or DFT evidence used in the human revisions. Despite this restricted input, NMRAgent recovered the revised structures rather than the originally proposed assignments. These results suggest that NMRAgent can serve as a practical tool for detecting poten-tially incorrect NMR assignments and prioritizing chemically plausible structural revisions.  
+
+> Novel Natural Product Structure Elucidation.
+
+Beyond correcting previously misassigned structures, we further evaluated NMRAgent in novel natural product elucidation scenarios. We considered two representative novel-structure cases: one coumarin dimer isolated from Hydrangea davidii [25], and one compound isolated from Vitex trifolia . These cases represent more realistic application settings, where the target molecules are not simple benchmark compounds but structurally complex natural products requiring interpretation from experimental NMR evidence. NMRAgent successfully recovered structures consistent with the literature-reported assignment and the collaborating group’s experimentally validated solution, respectively. These results demonstrate that NMRAgent can extend beyond retrospective benchmark evaluation and support practical structure elucidation of newly isolated natural products. We show that NMRAgent demonstrates evidential reasoning capability, explicitly tracing how observed NMR signals support the predicted structure, as illustrated in Figure 2i. In addition to structure-level elucidation, we also explored whether the learned NMR representation could provide tentative metadata annotations for newly isolated compounds. Specifically, we integrated the knowledge-graph database described above with a fine-tuned NMR encoder, using approximately 1,000 labeled examples per class to train lightweight classifiers for chemical superclass, natural product pathway, and genus-level metadata. Rather than serving as definitive annotations, these predictions are intended to provide auxiliary hypotheses that may help contextualize novel molecules in broader natural-product chemical space. The resulting embedding-space visualizations, including t-SNE plots, are provided in the Supplementary Information. 
+
+3 Discussion and Limitations 
+
+Despite its strong performance, NMRAgent still has several limitations. First, the current framework focuses on one-dimensional 1H and 13 C NMR spectra, while expert elucidation often relies on richer spectroscopic evidence, including 2D NMR, IR, UV, and stereochemical measurements. Future versions should therefore incorporate ad-ditional tools and modalities to support more comprehensive spectral reasoning. Second, although the expanded database substantially improves candidate coverage, NMRAgent remains partially constrained by database com-pleteness and still does not fully reach the reliability of experienced human experts, especially for rare scaffolds, noisy spectra, or highly ambiguous natural products. Third, the LLM component does not yet intrinsically understand NMR spectral information; its current effectiveness mainly comes from tool grounding, retrieval, and verifier-provided evidence. Future work should explore agentic learning and post-training strategies that allow LLMs to learn from verifier feedback, failed reasoning trajectories, and expert corrections, thereby internalizing spectroscopic knowledge more effectively. Despite these limitations, NMRAgent establishes an LLM-powered agentic framework for evidence-grounded NMR structure elucidation. By moving beyond direct black-box pre-diction toward interpretable candidate verification, our work provides a scalable foundation for incorporating richer spectral modalities, broader chemical knowledge, and stronger spectroscopic reasoning in future systems. 
+
+4 Method 
+
+4.1 Preliminaries 
+
+In standard structure elucidation pipelines, the exact molecular formula F is typically determined prior to NMR analysis, often utilizing mass spectrometry (MS) [23]. Given F as a global structural constraint, the  
+
+> 7SpectraAI Brief Communication
+
+subsequent task is to deduce the precise atomic connectivity. We formally define the input NMR information as a collection of peak sets. Specifically, let SH = {sH 
+
+> 1
+
+, s H 
+
+> 2
+
+, . . . , s HNH } and SC = {sC 
+
+> 1
+
+, s C 
+
+> 2
+
+, . . . , s CNC } denote the 
+
+> 1
+
+H and 13 C NMR spectra, respectively, where each peak si ∈ R represents a chemical shift value (in ppm). Detailed chemical definitions are provided in Appendix A. Since the physical measurement of NMR peaks is invariant to permutation, we treat each spectrum strictly as a set rather than a sequence. For methodological simplicity in the following sections, we denote the unified input as S = SH ∪ S C , assuming that both spectra are concurrently provided to the model. The corresponding molecular structure is represented as a SMILES [32] sequence Y = {y1, . . . , y L}, where each element yi ∈ V denotes a discrete token from a predefined chemical vocabulary V (e.g., atom symbols, bonds, and structural indicators). 
+
+4.2 Overall Workflow 
+
+To elucidate a molecular structure from NMR spectra, human chemists typically follow a deductive workflow that starts from global constraints such as the molecular formula, interprets local chemical environments from NMR peaks, and iteratively verifies structural hypotheses against experimental evidence [10, 23, 27]. Inspired by this process, NMRAgent adopts a three-level hierarchical workflow consisting of Knowledge-Level planning, Molecular-Level candidate generation and verification, and Fragment-Level optimization. An LLM acts as the reasoning controller throughout the workflow, coordinating knowledge retrieval, tool invocation, candidate evaluation, and evidence-based refinement. As illustrated in Figure 1, the Knowledge-Level uses a retrieval-augmented planner to formulate a target-specific elucidation plan from external chemical knowledge. The Molecular-Level constructs full-molecule candidates conditioned on the input spectra S and molecular formula F, using a de novo and retrieval toolbox together with an LLM-powered Peak-Atom Verifier that establishes explicit peak-atom correspondences. If unresolved spectral evidence remains, the Fragment-Level performs targeted fragment optimization guided by the missing or inconsistent peak evidence identified by the verifier. Detailed descriptions of each module are provided below. 
+
+4.3 Knowledge-Level Planner 
+
+In chemical research, expert chemists rely on standardized analytical workflows for molecular structure elucida-tion, grounded in established spectroscopic heuristics and empirical rules [10, 23, 27]. To emulate this human expertise, we propose the Knowledge-Level Planner , a central reasoning module within NMRAgent that uses Retrieval-Augmented Generation (RAG) to formalize complex structure elucidation processes. To establish a comprehensive knowledge base, we integrate heterogeneous scientific resources, including natural product repos-itories [24, 26, 28] and bioactivity-related databases [3, 12]. In addition to external chemical knowledge, the planner maintains an NMR evidence memory that stores previously verified spectroscopic reasoning cases, such as confirmed peak–atom assignments, solvent conditions, multiplicity patterns, confidence scores, and expert or user feedback. This memory allows the planner to reuse reliable assignment evidence from prior elucidation cases, thereby making the reasoning process closer to the way chemists draw on accumulated spectroscopic experience. Formally, the planning process is triggered by the molecular formula F, input spectra S, and experimental metadata M, where M may include available contextual information such as reaction precursors, reagents, catalysts, biological source, or isolation conditions. We denote the external chemical knowledge graph as K and the NMR evidence memory as H. Given (F, S, M), the planner retrieves relevant chemical context from K and assignment-level evidence from H:
+
+CK = RK (K; F, M), CH = RH (H; S, F, M), (1) where CK denotes retrieved chemical knowledge and CH denotes retrieved memory evidence from previous NMR assignment cases. The LLM then synthesizes these retrieved contexts into a procedural guideline G:
+
+G = LLM( F, S, M, CK , CH ). (2) To translate the high-level guideline G into an executable workflow, the planner integrates it with a predefined toolset T and corresponding operation descriptions A. It generates a molecule-specific elucidation plan P =
+
+{P 1, P2, . . . , Pn}, where each reasoning step is represented as: 
+
+Pi = ⟨ti, x i, e i, y i⟩, ti ∈ T , (3)  
+
+> 8SpectraAI Brief Communication
+
+where ti is the selected tool, xi is the input to the tool, ei is the supporting evidence retrieved from CK or CH , and 
+
+yi is the expected structural inference or intermediate result. In this framework, the inclusion of experimental metadata and NMR evidence memory helps NMRAgent avoid blind structural enumeration. Instead, the planner produces a chemically grounded and evidence-supported elucidation plan that reflects both external chemical knowledge and reusable spectroscopic assignment experience. 
+
+4.4 Molecular-Level Candidate Construction and Verification 
+
+Recent de novo models directly generate molecular strings or graphs while bypassing the peak-to-atom assignment process that is central to conventional NMR verification. Second, retrieval-based methods provide chemically valid candidates, but their performance depends on the coverage of the reference spectrum–structure database and on the quality of the retrieval representation. In particular, conventional spectrum-only retrieval can identify candidates with similar global peak distributions, but such candidates are not necessarily structurally close to the target molecule, especially for complex natural products with rare scaffolds or subtle local variations. To address these issues, NMRAgent constructs a hybrid candidate pool by integrating database-grounded retrieval with de novo generation. We expand Pubchem-NMRNet [15] to 158M spectrum–structure pairs by augmenting the original database with additional compounds, including complex scaffold-containing and natural-product-like molecules. For the expanded portion of the database, NMR spectra are simulated in silico using Gaussian software [11], enriching the reference space beyond the original database coverage. This expanded database provides a broader pool of chemically valid candidates for downstream retrieval and reasoning. In parallel, the de novo and retrieval toolbox can invoke NMR-conditioned molecular generators, such as ChefNMR [34] and NMRMind [36], to propose additional structures beyond database entries. The retrieved and generated candidates are then merged into a unified candidate pool for verification. To support more informative retrieval, we use UltraNMR [37], a self-supervised representation model for NMR spectra. Given heterogeneous 1H and 13 C NMR inputs, UltraNMR maps spectra into a dense continuous embed-ding space that captures both individual peak patterns and contextual dependencies across spectra. The model is pre-trained with a masked spectral modeling objective, where a subset of chemical-shift tokens is masked and predicted from the remaining spectral context. In addition, UltraNMR is trained to estimate structural similarity between molecules from their spectral embeddings: 
+
+LSSL = Lmask + λFP LFP , (4) where Lmask denotes the masked chemical-shift prediction loss and LFP denotes the fingerprint-similarity pre-diction loss. This objective encourages the spectral representation to preserve structural information useful for candidate ranking. To further distinguish structurally similar candidates, especially formula-identical isomers, we further incorpo-rates a cross-modal contrastive objective: 
+
+LNCE = − log exp(cos( z, v+)/τ )exp(cos( z, v+)/τ ) + ∑Kk=1 exp(cos( z, v− 
+
+> k
+
+)/τ ) , (5) where z is the projected NMR embedding, v+ is the fingerprint representation of the matched molecule, v−
+
+> k
+
+denotes the k-th hard-negative fingerprint representation, and τ is the temperature hyperparameter. The final representation learning objective is: 
+
+LUltraNMR = LSSL + λNCE LNCE . (6) For database-grounded candidate search, NMRAgent performs coarse-to-fine retrieval. At the coarse stage, the query spectrum is encoded into a global NMR vector and used for high-recall retrieval of spectra-level neighbors following the global vector retrieval protocol [15]. This step rapidly narrows the 158M-scale database to a manageable candidate set with similar overall NMR patterns. At the fine stage, the retrieved candidates are re-ranked using UltraNMR dense embeddings, prioritizing structures whose learned spectral representations are closer to the query. Thus, the coarse stage emphasizes efficient spectrum-level recall, whereas the fine stage refines the ranking with a representation that better reflects structural similarity.  
+
+> 9SpectraAI Brief Communication
+
+In parallel with retrieval, UltraNMR is paired with an autoregressive molecular decoder for de novo candidate generation. Given a target SMILES sequence Y = {y1, y 2, . . . , y L} and the projected NMR embedding z, the decoder models: 
+
+pθ (Y | z) = 
+
+> L
+
+∏
+
+> t=1
+
+pθ (yt | y<t , z), (7) with the training objective: 
+
+Lgen = −
+
+> L
+
+∑
+
+> t=1
+
+log pθ (yt | y<t , z). (8) This generation branch complements retrieval by proposing additional structures that may not appear in the reference database. After candidate construction, NMRAgent applies an LLM-powered peak-atom verifier to convert candidate scor-ing into explicit atom-level evidence. Given the unified candidate pool Cpool = {c1, . . . , c M } and the query spectrum S, the verifier first invokes a fast machine-learning NMR predictor [35, 39] to generate atom-annotated chemical shifts for each candidate. For a candidate molecule c, this process produces ˆSatom (c) = {(ˆδ, a, α )},where ˆδ is a predicted chemical shift, a is the associated atom index, and α ∈ { 1H,13 C} denotes the nucleus type. The verifier compares ˆSatom (c) with the observed spectrum S using a set-similarity metric [15]. It then iden-tifies compatible peak–atom correspondences, producing an assignment set A(c), a consistency score s(c), and unresolved mismatch regions U(c). Together, these outputs form an evidence object: 
+
+E(c) = {c, s (c), A(c), U(c)}. (9) The peak-atom verifier aggregates the verifier evidence across Cpool to produce either a ranked elucidation list or targeted mismatch descriptions for subsequent Fragment-Level optimization. 
+
+4.5 Fragment-Level Optimization 
+
+When the peak-atom verifier indicates insufficient spectral support for the current molecular candidates, NM-RAgent activates the Fragment-Level Optimization module for targeted structural refinement. Rather than treating refinement as unconstrained molecular generation, this module uses verifier-provided evidence to local-ize uncertain structural regions and explores chemically valid fragment substitutions or recombinations under molecular-formula constraints. This design complements molecular-level candidate construction by preserving spectrally supported regions as structural anchors and focusing refinement on unresolved or mismatched regions. Given the candidate pool evaluated by the peak-atom verifier, NMRAgent constructs a fragment pool Pfrag 
+
+by decomposing relevant candidates according to chemically defined fragmentation rules, such as BRICS-based cleavage or other rule-based bond-disconnection strategies. Each fragment is associated with its sub-formula and local spectral evidence inherited from the verifier. Specifically, atom-level shift annotations indicate which local regions are supported by matched experimental peaks and which regions remain ambiguous or inconsistent. The LLM acts as an evidence interpreter rather than a direct structure generator: it uses verifier outputs to identify fragments that should be preserved, regions that require modification, and alternative fragment compositions that should be explored. Formally, let Ftarget denote the target molecular formula. Based on the peak–atom evidence, NMRAgent identifies a set of supported fragments Pkeep and a candidate repair space Pedit associated with unresolved spectral evidence. Fragment-Level Optimization searches for chemically assembleable fragment combinations that satisfy the formula constraint and improve agreement with the experimental spectrum: 
+
+S∗ = arg min 
+
+> S⊆P frag
+
+dset 
+
+( ˆYNMR (Assemble( S)) , Yexp 
+
+)
+
+, (10) subject to: ∑ 
+
+> f∈S
+
+Formula( f ) = Ftarget , Pkeep ⊆ S, S \ P keep ⊆ P edit . (11) Here, Assemble( ·) denotes rule-guided chemical assembly, ˆYNMR (·) denotes the predicted NMR shifts of the assembled molecule, Yexp is the experimental spectrum, and dset (·, ·) measures spectral disagreement. The formula 
+
+> 10
+
+SpectraAI Brief Communication 
+
+constraint acts as a hard filter, while the verifier-guided preservation and repair constraints focus the search on regions with insufficient peak–atom evidence. The resulting formula-compatible and chemically assembleable candidates are then passed back to the peak–atom verifier for iterative evidence-based assessment. 
+
+5 Code and Data Availability 
+
+The code is available at https://github.com/Meaw0415/NMRAgent . The checkpoints of UltraNMR [37] are available at https://huggingface.co/milesyc/ultranmr . The released NMRMind [36] checkpoints used in this work can be accessed through the official NMRMind repository at https://github.com/WJmodels/NMRMind .The released ChefNMR [34] checkpoints are available at https://zenodo.org/records/17766755 . The released NMRNet [35] checkpoints for forward NMR prediction are available at https://zenodo.org/records/19142375 .The source data of the Pubchem-NMRNet database [15] can be accessed through https://huggingface.co/ datasets/yqj01/SimNMR-PubChem . The NMRGym [9] dataset can be accessed through https://huggingface. co/datasets/meaw0415/NMRGym . The processed nmrshiftdb data [29] can be obtained at https://zenodo.org/ records/19142375 . The Exp450 dataset can be obtained at https://doi.org/10.5281/zenodo.16952024 .Detailed information on the datasets is provided in the Supplementary Information. 
+
+Acknowledgments. 
+
+References 
+
+[1] Blessing B Akinlabi, Jared Balsz-Diaz, Mark C Walker, and Matthew R Aronoff. Synthesis-driven structural revision of c5-hydroxy-cyclo (l-pro-l-leu) using electrochemical oxidation. 2026. [2] Marvin Alberts, Federico Zipoli, and Alain Vaucher. Learning the language of nmr: structure elucidation from nmr spectra using transformer models. In AI for Accelerated Materials Design-NeurIPS 2023 Workshop, 2023. [3] Payal Chandak, Kexin Huang, and Marinka Zitnik. Building a knowledge graph to enable precision medicine. Scientific data, 10(1):67, 2023. [4] Seyone Chithrananda, Gabriel Grand, and Bharath Ramsundar. Chemberta: Large-scale self-supervised pretraining for molecular property prediction. arXiv preprint arXiv:2010.09885, 2020. [5] Francis Dhoro, Jesse Parkin-Gibbs, Matthew McIldowie, Brian W Skelton, and Matthew J Piggott. Confirmation of the revised structure of samoquasine a and a proposed structural revision of cherimoline. Journal of natural products, 81(7):1658–1665, 2018. [6] Robert Ditchfield. Self-consistent perturbation theory of diamagnetism: I. a gauge-invariant lcao method for nmr chemical shifts. Molecular Physics, 27(4):789–807, 1974. [7] Matthijs Douze, Alexandr Guzhva, Chengqi Deng, Jeff Johnson, Gergely Szilvasy, Pierre-Emmanuel Mazaré, Maria Lomeli, Lucas Hosseini, and Hervé Jégou. The faiss library. IEEE Transactions on Big Data, 2025. [8] Abdul-Hamid Emwas, Kacper Szczepski, Benjamin Gabriel Poulson, Kousik Chandra, Ryan T McKay, Manel Dhahri, Fatimah Alahmari, Lukasz Jaremko, Joanna Izabela Lachowicz, and Mariusz Jaremko. Nmr as a “gold standard” method in drug design and discovery. Molecules, 25(20):4597, 2020. [9] Zheng Fang, Chen Yang, Hai-tao Yu, Haoming Luo, Haitao He, Jiaqing Xie, Zhuo Yang, and Jun Xia. Nmrgym: A comprehensive benchmark for nuclear magnetic resonance based molecular structure elucidation. arXiv preprint arXiv:2601.15763, 2026. [10] Leslie D Field, Sev Sternhell, and John R Kalman. Organic Structures from Spectra. John Wiley & Sons, 2012. [11] M. J. Frisch, G. W. Trucks, H. B. Schlegel, G. E. Scuseria, M. A. Robb, J. R. Cheeseman, G. Scalmani, V. Barone, G. A. Petersson, H. Nakatsuji, X. Li, M. Caricato, A. V. Marenich, J. Bloino, B. G. Janesko, R. Gomperts, B. Men-nucci, H. P. Hratchian, J. V. Ortiz, A. F. Izmaylov, J. L. Sonnenberg, D. Williams-Young, F. Ding, F. Lipparini, F. Egidi, J. Goings, B. Peng, A. Petrone, T. Henderson, D. Ranasinghe, V. G. Zakrzewski, J. Gao, N. Rega, G. Zheng, W. Liang, M. Hada, M. Ehara, K. Toyota, R. Fukuda, J. Hasegawa, M. Ishida, T. Nakajima, Y. Honda, O. Kitao, H. Nakai, T. Vreven, K. Throssell, J. A. Jr. Montgomery, J. E. Peralta, F. Ogliaro, M. J. Bearpark, J. J. Heyd, E. N. Brothers, K. N. Kudin, V. N. Staroverov, T. A. Keith, R. Kobayashi, J. Normand, K. Raghavachari, A. P. Rendell, J. C. Burant, S. S. Iyengar, J. Tomasi, M. Cossi, J. M. Millam, M. Klene, C. Adamo, R. Cammi, J. W. Ochterski, R. L. Martin, K. Morokuma, O. Farkas, J. B. Foresman, and D. J. Fox. Gaussian 16, revision c.01. Gaussian, Inc., Wallingford CT, 2016. 
+
+11 SpectraAI Brief Communication 
+
+[12] Anna Gaulton, Louisa J Bellis, A Patricia Bento, Jon Chambers, Mark Davies, Anne Hersey, Yvonne Light, Shaun McGlinchey, David Michalovich, Bissan Al-Lazikani, et al. Chembl: a large-scale bioactivity database for drug discovery. Nucleic acids research, 40(D1):D1100–D1107, 2012. [13] Emiel Hoogeboom, Vıctor Garcia Satorras, Clément Vignac, and Max Welling. Equivariant diffusion for molecule generation in 3d. In International conference on machine learning, pages 8867–8887. PMLR, 2022. [14] Frank Hu, Michael S Chen, Grant M Rotskoff, Matthew W Kanan, and Thomas E Markland. Accurate and efficient structure elucidation from routine one-dimensional nmr spectra using multitask machine learning. ACS Central Science, 10(11):2162–2170, 2024. [15] Yongqi Jin, Jun-Jie Wang, Fanjie Xu, Xiaohong Ji, Zhifeng Gao, Linfeng Zhang, Guolin Ke, Rong Zhu, and Weinan E. Nmr-solver: automated structure elucidation via large-scale spectral matching and physics-guided fragment optimization. Nature Communications, 2026. [16] Eric Jonas, Stefan Kuhn, and Nils Schlörer. Prediction of chemical shift in nmr: A review. Magnetic Resonance in Chemistry, 60(11):1021–1031, 2022. [17] Hyun Woo Kim, Chen Zhang, Raphael Reher, Mingxun Wang, Kelsey L Alexander, Louis-Félix Nothias, Yoo Kyong Han, Hyeji Shin, Ki Yong Lee, Kyu Hyeong Lee, et al. Deepsat: learning molecular structures from nuclear magnetic resonance data. Journal of Cheminformatics, 15(1):71, 2023. [18] Yasuo Kimura, Takashi Mizuno, Hiromitsu Nakajima, and Takashi Hamasaki. Altechromones a and b, new plant growth regulators produced by the fungus, alternaria sp. Bioscience, biotechnology, and biochemistry, 56(10):1664– 1665, 1992. [19] P Konigs, B Rinker, L Maus, M Nieger, J Rheinheimer, and SR Waldvogel. Structural revision and synthesis of altechromone a. Journal of natural products, 73(12):2064–2066, 2010. [20] Alex Morehead and Jianlin Cheng. Geometry-complete diffusion for 3d molecule generation and optimization. Communications Chemistry, 7(1):150, 2024. [21] Hiroshi Morita, Yumiko Sato, Kit-Lam Chan, Chee-Yan Choo, Hideji Itokawa, Koichi Takeya, and Jun’ichi Kobayashi. Samoquasine a, a benzoquinazoline alkaloid from the seeds of annona s quamosa. Journal of natural products, 63 (12):1707–1708, 2000. [22] Laxman D Nandawadekar, Hiba K P, Teena P George, Choppari Thirupathi, Aparna Sahoo, Sidharth Chopra, and D Srinivasa Reddy. Structural revision of a natural tetrahydroquinoxaline-6-carboxylic acid isolated from caulis sinomenii through total synthesis of both the regioisomers. Journal of Natural Products, 88(12):2978–2986, 2025. [23] Yong-Cheng Ning. Interpretation of Organic Spectra. John Wiley & Sons, 2011. [24] Ella F Poynton, Jeffrey A van Santen, Matthew Pin, Marla Macias Contreras, Emily McMann, Jonathan Parra, Brandon Showalter, Liana Zaroubi, Katherine R Duncan, and Roger G Linington. The natural products atlas 3.0: extending the database of microbially derived natural products. Nucleic Acids Research, 53(D1):D691–D699, 2025. [25] Wan-Xian Qi, Wei-Juan Zu, Gang Li, Jing Wang, Li-Juan Lang, Rong Liu, Bei Jiang, and Chao-Jiang Xiao. Coumarin dimers from hydrangea davidii and their antimalarial activities. Magnetic Resonance in Chemistry, 2026. [26] Adriano Rutz, Maria Sorokina, Jakub Galgonek, Daniel Mietchen, Egon Willighagen, Arnaud Gaudry, James G Graham, Ralf Stephan, Roderic Page, Jiří Vondrášek, et al. The lotus initiative for open knowledge management in natural products research. elife, 11:e70780, 2022. [27] Ondrej Socha, Zuzana Osifová, and Martin Dracinsky. Nmr-challenge. com: An interactive website with exercises in solving structures from nmr spectra, 2023. [28] Maria Sorokina, Peter Merseburger, Kohulan Rajan, Mehmet Aziz Yirik, and Christoph Steinbeck. Coconut online: collection of open natural products database. Journal of Cheminformatics, 13(1):2, 2021. [29] Christoph Steinbeck, Stefan Krause, and Stefan Kuhn. Nmrshiftdb constructing a free chemical information system with open-source components. Journal of chemical information and computer sciences, 43(6):1733–1739, 2003. [30] Xiaofeng Tan. A transformer based generative chemical language ai model for structural elucidation of organic compounds. Journal of cheminformatics, 17(1):103, 2025. [31] Cody Timmons and Peter Wipf. Density functional theory calculation of 13c nmr shifts of diazaphenanthrene alkaloids: reinvestigation of the structure of samoquasine a. The Journal of Organic Chemistry, 73(22):9168–9170, 2008. 
+
+12 SpectraAI Brief Communication 
+
+[32] David Weininger. Smiles, a chemical language and information system. 1. introduction to methodology and encoding rules. Journal of chemical information and computer sciences, 28(1):31–36, 1988. [33] Krzysztof Wolinski, James F Hinton, and Peter Pulay. Efficient implementation of the gauge-independent atomic orbital method for nmr chemical shift calculations. Journal of the American Chemical Society, 112(23):8251–8260, 1990. [34] Ziyu Xiong, Yichi Zhang, Foyez Alauddin, Chu Xin Cheng, Joon Soo An, Mohammad R Seyedsayamdost, and Ellen D Zhong. Atomic diffusion models for small molecule structure elucidation from nmr spectra. arXiv preprint arXiv:2512.03127, 2025. [35] Fanjie Xu, Wentao Guo, Feng Wang, Lin Yao, Hongshuai Wang, Fujie Tang, Zhifeng Gao, Linfeng Zhang, Weinan E, Zhong-Qun Tian, et al. Toward a unified benchmark and framework for deep learning-based prediction of nuclear magnetic resonance chemical shifts. Nature Computational Science, 5(4):292–300, 2025. [36] Xi Xue, Hanyu Sun, Jingying Sun, Luc Patiny, Xiangying Liu, Kai Chen, Jingjie Yan, Liangning Li, Xue Liu, Shu Xu, et al. Nmrmind: A transformer-based model enabling the elucidation from multidimensional nmr to structures. Analytical Chemistry, 97(41):22603–22614, 2025. [37] Chen Yang, Zheng Fang, Hanyu Sun, Fanjie Xu, Hongxin Xiang, Hanyu Gao, Xiangxiang Zeng, Yuqiang Li, Xiaojian Wang, and Jun Xia. A large-scale foundation model enables simulation-to-real adaptation for nuclear magnetic resonance-based molecular structure analysis, 2026. URL https://arxiv.org/abs/2606.20756 .[38] Qingsong Yang, Binglan Wu, Xuwei Liu, Bo Chen, Wei Li, Gen Long, Xin Chen, and Mingjun Xiao. Diffnmr: diffusion models for nuclear magnetic resonance spectra elucidation. Materials Futures, 5(1):015601, 2026. [39] Zihan Zou, Yujin Zhang, Lijun Liang, Mingzhi Wei, Jiancai Leng, Jun Jiang, Yi Luo, and Wei Hu. A deep learning model for predicting selected organic molecular spectra. Nature Computational Science, 3(11):957–964, 2023. 
+
+13 SpectraAI Brief Communication 
+
+# Appendix 
+
+A Chemical Preliminaries 
+
+Formally, we model the spectrum as a continuous function x(δ) : R → R over the chemical shift domain δ.Disregarding spin-spin interactions, the signal is a superposition of N independent resonance peaks: 
+
+x(δ) = 
+
+> N
+
+∑
+
+> n=1
+
+In · L (δ; μn, λ n) + ξ(δ), (12) where In and μn denote the intensity and chemical shift of the n-th nucleus, and ξ(δ) represents additive Gaussian noise. The spectral lineshape L typically follows a Lorentzian distribution with half-width λn:
+
+L(δ; μn, λ n) = 1
+
+πλn
+
+(δ − μn)2 + λ2
+
+> n
+
+. (13) In experimental settings, scalar coupling ( J-coupling) introduces spin-spin interactions between neighboring nuclei, splitting the resonance signal into multiplets. The model generalizes to a nested summation over Kn
+
+sub-peaks: 
+
+x(δ) = 
+
+> N
+
+∑
+
+> n=1
+> Kn
+
+∑
+
+> k=1
+
+In,k · L (δ; μn,k , λ n) + ξ(δ), (14) where the relative positions μn,k and intensities In,k are governed by the coupling constants ( J-values) and molecular topology. Crucially, the accessibility of these spectral parameters varies significantly across data sources. High-fidelity datasets typically provide comprehensive annotations, including precise chemical shifts ( μ), peak intensities ( I), and coupling constants ( J). This appendix provides supplementary material that supports the main paper. 
+
+B Implementation Details 
+
+B.1 Benchmark Datasets and Evaluation Metrics 
+
+PubChem-NMRNet [15] was used as the simulated NMR reference database for retrieval-based candidate search. The original database contains approximately 100 million molecule–spectrum paired records from PubChem, with 1H and 13 C NMR spectra predicted by NMRNet. In this work, we further extended the reference database to 158 million molecule–spectrum pairs. NMRGym [9] was used as a scaffold-split benchmark to evaluate the generalization ability of NMRAgent, particularly its ability to recover novel molecular structures beyond seen scaffolds. The nmrshiftdb benchmark was originally derived from nmrshiftdb [29] and followed the processed version released with NMRNet [35]. Exp450 was used as an external experimental benchmark curated from the NMRSolver study [15], containing 450 literature-extracted samples that reflect real-world scenarios. We evaluated performance using top-k exact-match accuracy and top-k molecular similarity, with k ∈ { 1, 5, 10 }.Given the limited availability of standardized 2D NMR benchmarks and the insufficient stereochemical infor-mation provided by 1D NMR spectra alone, stereochemistry was removed for both exact-match accuracy and Tanimoto-similarity evaluation. Top-k accuracy was defined as the fraction of test cases for which the ground-truth structure appeared in the top-k ranked predictions: 
+
+Acc@ k = 1
+
+N
+
+> N
+
+∑
+
+> i=1
+
+I
+
+[
+
+Gi ∈ { ˆMi, 1, . . . , ˆMi,k }
+
+]
+
+. (15) Molecular similarity was measured using Tanimoto similarity between binary Morgan fingerprints with radius 2 and 2048 bits. For two molecules A and B, let f (A) and f (B) denote their Morgan fingerprints. The Tanimoto  
+
+> 14 SpectraAI Brief Communication
+
+similarity is defined as 
+
+Tan( A, B ) = f (A)⊤f (B)
+
+∥f (A)∥1 + ∥f (B)∥1 − f (A)⊤f (B) . (16) For top-k molecular similarity, we reported the highest Tanimoto similarity between the ground-truth molecule and any of the top-k ranked predictions, averaged over all test cases. 
+
+B.2 Agent System Prompts 
+
+To make the agent behavior auditable and reproducible, NMRAgent separates the system prompts from the graph execution logic. The prompts define the role, constraints, evidence requirements, and output format of each agent, while deterministic Python tools execute retrieval, de novo generation, reranking, optimization, and molecular editing. Below, we provide the system prompts. 
+
+B.2.1 Planner System Prompt 
+
+Planner system prompt 
+
+You are an expert organic chemistry NMR structure-elucidation planner. Your task is to design an executable plan for elucidating the structure of an unknown molecule from its molecular formula, 1H NMR spectrum, 13 C NMR spectrum, optional experimental metadata, previous tool outputs, verifier feedback, and recalled confirmed memories. You should not directly decide the final molecular structure. Instead, you should determine which tools should be invoked, what evidence should be examined, and whether retrieval, de novo generation, verifier-guided optimization, or a larger candidate pool is needed. 
+
+> Core instructions:
+
+1. Treat the molecular formula as a hard constraint. Do not plan any candidate search or structural modification that violates the molecular formula. 2. Use the 1H NMR spectrum to reason about proton environments, integration, multiplicity when available, and repeated or equivalent signals. If the input contains expanded repeated shifts, do not collapse repeated peaks unless explicitly instructed. 3. Use the 13 C NMR spectrum as strong evidence for carbon environments, including carbonyl-like carbons, aromatic or alkene carbons, oxygen-bearing carbons, and saturated aliphatic carbons. 4. Use optional experimental metadata only as contextual evidence. Metadata such as reaction precur-sors, reagents, catalysts, biological source, or isolation conditions can guide hypotheses, but cannot override the molecular formula or spectral evidence. 5. Use recalled memories only as analogical evidence from previously confirmed cases. A memory cannot override the query spectra, molecular formula, or verifier evidence. 6. Preserve both retrieval and de novo candidates when both are useful. Retrieval rank alone should not suppress plausible de novo candidates before peak–atom verification. 7. Prefer a larger or more diverse candidate pool when the spectra suggest compact natural-product-like scaffolds, fused rings, lactones, enones, unusual oxygenation patterns, or other rare scaffold types. 8. If previous verifier feedback identifies unmatched peaks, inconsistent local assignments, or unresolved mismatch regions, plan targeted optimization rather than blind regeneration. 9. Return JSON only. Do not include free-form text outside the JSON object. 
+
+The Planner returns the following JSON schema:  
+
+> {"analysis": "short evidence-grounded reasoning about formula and NMR signals", "use_retrieval": "<true_or_false>", "use_denovo": "<true_or_false>", "retrieval_top_k": "<integer>", "denovo_top_k": "<integer>", "save_pool_file": "<true_or_false>", "need_large_pool": "<true_or_false>", "need_opt_after_generation": "<true_or_false>",
+> 15 SpectraAI Brief Communication
+> "notes_for_executor": "concrete execution notes for tool use" }
+
+B.2.2 Executor System Prompt 
+
+Executor system prompt 
+
+You are the execution controller for NMRAgent. Your role is to execute the Planner’s JSON instructions using deterministic tools. You do not decide the final molecular structure. You must preserve candidate provenance and return structured outputs for downstream peak–atom verification. 
+
+> Execution instructions:
+
+1. Execute retrieval, de novo generation, pool merging, reranking, optimization, and molecular editing only when requested by the Planner or by verifier feedback. 2. Preserve candidate provenance whenever possible, including SMILES string, source label, source rank, source score, molecular formula, spectrum metadata, and candidate-pool path. 3. Keep retrieval-derived candidates and de novo candidates visible for downstream verification. Do not discard a candidate solely because it comes from a lower-volume source. 4. Deduplicate candidates by canonical non-isomeric SMILES while retaining all available source prove-nance. 5. Do not silently invoke retrieval or de novo generation inside an optimization step. Candidate con-struction, candidate merging, optimization, and verification must remain auditable as separate op-erations. 6. Optimization tools should operate only on an existing candidate pool. 7. Verifier-guided in-place molecular editing may be invoked only when the verifier localizes a high-confidence mismatch to a specific atom or small chemical environment. 8. After any local edit, retain the unedited parent candidate for comparison. 9. If a tool fails, returns invalid output, or produces an empty candidate pool, report the failure explicitly in the structured execution output. 10. Return structured execution results, including generated files, candidate counts, source composition, tool status, and any warnings needed by the verifier. You must not provide the final molecular structure unless the Peak–Atom Verifier has supplied sufficient evidence. 
+
+B.2.3 Peak–Atom Verifier System Prompt 
+
+Peak–Atom Verifier system prompt 
+
+You are an expert NMR peak–atom assignment verifier. Your task is to evaluate candidate molecules using formula consistency, forward-predicted NMR shifts, matched peaks, unmatched peaks, residual errors, atom-level assignment summaries, and candidate prove-nance. You should not judge candidates from SMILES strings alone. Your verdict must be grounded in explicit spectral evidence. 
+
+> Evidence to inspect:
+
+1. Molecular formula consistency between the query and each candidate. 2. Overall NMR similarity score from the reranking tool. 3. Matched query peaks and their assigned candidate atoms. 4. Unmatched query peaks, especially diagnostic peaks that indicate missing functional groups or unresolved local environments. 5. Unused predicted peaks, especially predicted signals that have no reasonable support in the experi-mental spectrum. 6. 1H and 13 C residuals, including whether the largest errors occur in chemically diagnostic regions. 7. Atom-level assignment summaries, including which parts of the molecule are well supported and which regions remain uncertain. 8. Candidate provenance, including retrieval, de novo , optimized, merged, edited, or seed sources.  
+
+> 16 SpectraAI Brief Communication
+
+9. Previous verifier outputs or recalled confirmed memories, if available. These may provide supporting context but cannot override the current query evidence. 
+
+> Decision instructions:
+
+1. Return accept only when both 1H and 13 C evidence are coherent and no major diagnostic query peaks remain unexplained. 2. A de novo candidate may be accepted over retrieval candidates if its formula consistency, spectral similarity, and peak–atom assignments provide stronger evidence. 3. Return need_opt when the best candidate is globally reasonable but contains local mismatches that can be targeted by fragment optimization or in-place editing. 4. Return need_bigger_pool when the candidate pool lacks sufficiently diverse or formula-compatible alternatives. 5. Return need_retry when tool outputs are invalid, incomplete, inconsistent, or insufficient for evidence-based verification. 6. When optimization is needed, provide concrete mismatch descriptions, including the relevant un-matched peaks, poorly matched atoms, or local structural regions. Return JSON only using the required schema. 
+
+The Peak–Atom Verifier returns the following JSON schema: 
+
+> {"verdict": "<accept | need_opt | need_bigger_pool | need_retry>", "analysis": "evidence-grounded summary of the decision", "top_candidate": "<SMILES string or null>", "retry_recommendation": "<specific next action or null>" }
+
+B.3 Planner Tools 
+
+NMRAgent uses a lightweight Graph RAG tool to provide advisory chemical context for the Planner. We build a heterogeneous chemical knowledge graph from public natural-product databases, molecular databases, ontology resources, biomedical relation graphs, and synthetic chemistry knowledge cards. Source-specific parsers convert CSV, JSON, SQLite, OBO graph, and tabular triple files into a unified graph containing molecule or ontology nodes, typed relation edges, retrievable text documents, and aliases. The merged graph contains 4,275,055 nodes, 2,516,946 edges, 4,337,742 documents, and 10,432,630 aliases. For runtime use, the graph is indexed with SQLite/FTS to support fast metadata lookup and BM25-style document retrieval. The retrieved KG evidence is provided to the Planner only as background context and cannot override molecular formula constraints, NMR reranking evidence, or peak-assignment diagnostics. Beyond the external knowledge graph, NMRAgent further includes a lightweight memory store for real-world iter-ative structure elucidation. The memory module is implemented with langgraph.store.memory.InMemoryStore ,where confirmed cases are stored under ("nmr_agent", "confirmed_cases") . Auto-remembering accepted out-puts is disabled by default; instead, cases are written to memory only after explicit user confirmation, particularly when the final structure and peak–atom assignments have been checked. This prevents unverified agent outputs from becoming self-reinforcing evidence. Each memory record stores the molecular formula, observed 1H and 
+
+> 13
+
+C shifts, final SMILES, optional canonical SMILES, verified peak–atom assignments, diagnostic notes, source information, and metadata. During inference, relevant memories are recalled using a local non-embedding simi-larity score that combines formula matching with greedy one-to-one matching of 1H and 13 C peaks under ppm tolerances. Recalled memories are provided to the Planner and Verifier as relevant_confirmed_memories . They serve only as advisory evidence and cannot override hard constraints such as molecular formula consistency, can-didate validity, or NMR reranking results. This design allows NMRAgent to reuse user-validated experimental knowledge while reducing confirmation bias and error propagation. 
+
+B.4 Retrieval Tool 
+
+Following NMRSolver [15], we implement a retrieval tool based on large-scale NMR spectral matching. For each modality m ∈ { H, C }, the input spectrum is represented as a peak set Sm = {smi }Nm
+
+> i=1
+
+. We first convert the  
+
+> 17 SpectraAI Brief Communication
+
+discrete peaks into a continuous signal by Gaussian convolution: 
+
+gSm (t) = 
+
+> Nm
+
+∑
+
+> i=1
+
+exp 
+
+(
+
+− (t − smi )2
+
+2σ2
+
+> m
+
+)
+
+, (17) where σm controls the peak width. We set σH = 1 .0, and σC = 10 .0 in all NMR2Vector calculations. The con-tinuous signal is then discretized at K = 128 uniformly sampled points to form the NMR2Vector representation: 
+
+vSm = [ gSm (t1), g Sm (t2), . . . , g Sm (tK )] . (18) Given a database spectrum Rm = {rmj }Mm 
+
+> j=1
+
+, its vector vRm is constructed in the same way. The vector similarity is computed as: 
+
+VecSim( Sm, Rm) = v⊤Sm vRm
+
+∥vSm ∥2∥vRm ∥2
+
+. (19) For peak-level comparison, we also use Set Similarity [15]. The similarity between Sm = {smi }Nm 
+
+> i=1
+
+and Rm =
+
+{rmj }Mm 
+
+> j=1
+
+is defined as: 
+
+SetSim( Sm, Rm) = 1
+
+√NmMm
+
+max 
+
+> P
+
+∑
+
+> (i,j )∈P
+
+f (smi , r mj ), (20) where P denotes a one-to-one matching between peaks, and 
+
+f (smi , r mj ) = exp 
+
+(
+
+− (smi − rmj )2
+
+2σ2
+
+> m
+
+)
+
+. (21) In addition to NMR2Vector, we use UltraNMR [37] as a dense NMR spectral encoder. Following the original UltraNMR setting, we pre-train the encoder on 1.58M NMR spectra and use it to encode all spectra in the reference database. The resulting dense embeddings are indexed with FAISS [7] for approximate nearest-neighbor search. During inference, NMRAgent follows a two-stage retrieval strategy. First, NMR2Vector is used to retrieve an initial pool of candidates by direct spectral similarity. Second, the pool is reranked using UltraNMR dense embeddings, which capture learned spectral-structural similarity and help prioritize candidates that are not only peak-wise similar but also chemically plausible. When the molecular formula F is available, we further apply a formula filter to prioritize formula-consistent candidates before downstream verification. 
+
+B.5 De novo Tools 
+
+For de novo candidate generation, NMRAgent integrates NMRMind [36], ChefNMR [34], and UltraNMR [37]. We use the released checkpoints of NMRMind and ChefNMR directly, without additional training. UltraNMR is fine-tuned only on the NMRGym training split to avoid test-set leakage. Following the original setting, SMILES are tokenized with the ChemBERTa vocabulary [4], and F is encoded as a 50-dimensional atom-count vector, projected by a two-layer MLP, and used as a prefix token for generation. We set learning rate 1 × 10 −5, batch size 64, 50 epochs, dropout 0.1, weight decay 0.01, a 6-layer Transformer decoder, and length penalty 1.0. We use beam search during inference, 
+
+B.6 Spectral Simulation Tools 
+
+For forward NMR prediction, NMRAgent uses NMRNet [35] as the spectral simulation tool. We directly use the released NMRNet checkpoint without additional training. 
+
+B.7 Optimization Tools 
+
+In addition to fragment recombination, NMRAgent also implements a lightweight in-place editing mode for cases where the verifier localizes the mismatch to a specific atom or a small chemical environment, such as neighboring atoms, an adjacent substituent, or a local functional group. This mode is distinct from fragment-level recombination: fragment optimization explores alternative fragment compositions when the mismatch spans a broader local region, whereas in-place editing performs minimal local modifications when the evidence supports a more specific edit. This design is useful because rule-based fragmentation may be too coarse to express small corrections, such as replacing a single heteroatom or removing an unsupported atom. The LLM can invoke  
+
+> 18 SpectraAI Brief Communication
+
+constrained RDKit-based operations, including SMILES canonicalization, atom replacement, and atom deletion. After each edit, the molecule is sanitized and canonicalized, while the original parent candidate is retained for comparison. Edited candidates are then returned to the peak-atom verifier for reassessment, ensuring that local modifications are accepted only when they improve the evidence-grounded spectral consistency. 
+
+C Experimental NMR Spectra of Two Novel Natural Products 
+
+> Compound 1
+
+SMILES: CC12C(CCC(O3)(CC(C(C)C)=O)C2=CC3=O)C(C)(C)CCC1 
+
+Molecular formula: C20H30O3. 
+
+> 1
+
+H NMR (400 MHz, CDCl 3) δ 5.68 (s, 1H), 3.19–2.98 (m, 2H), 2.68 (p, J = 6 .9 Hz, 1H), 2.59 (dt, J = 9 .1, 2.4
+
+Hz, 1H), 1.86 (dt, J = 13 .7, 4.1 Hz, 2H), 1.77 (tt, J = 14 .5, 3.9 Hz, 1H), 1.69–1.57 (m, 2H), 1.56–1.44 (m, 3H), 1.32–1.23 (m, 1H), 1.20 (s, 3H), 1.11 (dd, J = 6 .9, 2.9 Hz, 6H), 1.02 (td, J = 8 .1, 3.8 Hz, 1H), 0.94 (d, J = 3 .7
+
+Hz, 6H). 
+
+> 13
+
+C NMR (101 MHz, CDCl 3) δ 210.38, 182.46, 172.23, 111.19, 86.84, 56.39, 46.03, 42.31, 41.72, 40.55, 40.20, 37.25, 34.24, 33.51, 21.71, 19.45, 18.34, 18.07, 17.90, 17.51. 
+
+> Compound 2
+
+SMILES: COc1c(O)c(-c2cc3ccc(=O)oc3c(OC)c2O)cc2ccc(=O)oc12 
+
+Molecular formula: C20H14O8. 
+
+> 1
+
+H NMR (400 MHz) δ 7.90 (d, J = 9 .3 Hz), 7.39 (s), 6.12 (d, J = 9 .3 Hz), 3.96 (s). 
+
+> 13
+
+C NMR (101 MHz) δ 164.0, 110.4, 147.1, 112.0, 125.5, 129.0, 160.0, 137.8, 149.1, 164.0, 110.4, 147.1, 112.0, 125.5, 129.0, 160.0, 137.8, 149.1, 61.3, 61.3. 
+
+D More Results 
+
+> 19
+
+SpectraAI Brief Communication a bc d025 50 75 100 Molecules by heavy atoms (%) NMRShiftDB Exp450 NMRGym 10 26 Molecular size composition Heavy atoms <15 15–24 25–34 ≥35 Top-1 Top-5 Top-10 0.0 0.2 0.4 0.6 0.8 Top-k accuracy +0.197 +0.370 +0.393 Top-1 Top-5 Top-10 0.5 0.6 0.7 0.8 0.9 1.0 Top-k similarity +0.2747 +0.3524 +0.3834 Scaffold split Random split Data Leakage Impact 
+
+Figure A | Benchmark composition and scaffold-split evaluation analysis of NMRGym. a. Distribution of the maximum Tanimoto similarity between each test molecule and the training set under random-split and scaffold-split settings. Compared with random splitting, the scaffold split substantially reduces near-duplicate test molecules and pro-vides a more stringent evaluation of structural generalization. b. Coverage@ τ curves under different similarity thresholds, showing that random splits retain much higher training-set coverage of test molecules, whereas scaffold splits better separate test structures from training scaffolds. c. Molecular size composition of nmrshiftdb, Exp450, and NMRGym, grouped by heavy atom count. NMRGym contains a larger fraction of complex molecules with high heavy-atom counts, making it a more challenging benchmark for natural-product-like structure elucidation. d. Impact of data leakage on model evaluation. Random splitting leads to substantially higher Top-k accuracy and structural similarity than scaffold splitting, highlighting the importance of scaffold-aware evaluation for realistic NMR structure elucidation. acbd
+
+Figure B | Qualitative analysis of NMRAgent structure elucidation results. a. Representative successful cases in which NMRAgent recovers the exact ground-truth structures, including stereochemical assignments, at Top-1. b. Cases in which NMRAgent recovers the correct molecular connectivity but fails to fully match the stereochemical configuration. 
+
+c. High-similarity failure cases. d. Low-similarity failure cases. 
+
+20 SpectraAI Brief Communication −60 −40 −20 020 40 60 t-SNE 1 −80 −60 −40 −20 020 40 60 80 t-SNE 2 Chemical Superclass Lipids and lipid-like molecules Organoheterocyclic compounds Phenylpropanoids and polyketides Benzenoids Organic acids and derivatives Organic oxygen compounds −60 −40 −20 020 40 60 t-SNE 1 −60 −40 −20 020 40 60 t-SNE 2 NP Pathway Terpenoids Alkaloids Shikimates and Phenylpropanoids Polyketides Fatty acids Amino acids and Peptides −40 −20 020 40 t-SNE 1 −40 −30 −20 −10 010 20 30 40 t-SNE 2 Genus Streptomyces Aspergillus Penicillium Artemisia Aconitum Acacia Euphorbia Ganoderma −8 −6 −4 −2 02468t-SNE 1 −4 −2 024t-SNE 2 Disease Neoplasms Cardiovascular Diseases HIV Infections Bacterial Infections Breast Neoplasms Depressive Disorder, Major Psychotic Disorders Diabetes Mellitus Hypertension Liver disease Kidney disease Diabetes mell. Epilepsy CYP3A4 ABCB1 ALB CYP2D6 TNF Prenols Carboxyl derivs. Heterocycles Benzene derivs. Fatty acyls Oxy compounds Organic acids Lipid-likes Terpenoids Alkaloids Shikimates & Phenyl… Polyketides Triacylglycerols Simple coumarins Oleanane triterp… Pyridine alkaloids Cyclic peptides Carboline alkaloids Cholestane steroids Flavonols Streptomyces spp. H. sap A. thaliana Penicillium E. coli C. sativa S. cerevisiae Fatty acids Disease Hypertension Liver disease Kidney disease Diabetes mellitus ( disease) Epilepsy Gene CYP3A4 ABCB1 ALB CYP2D6 TNF Chemical Class Prenol lipids Carboxylic acids and derivatives Organoheterocyclic compounds Benzene and substituted derivatives Fatty Acyls Organic oxygen compounds Organic acids and derivatives Lipids and lipid-like molecules NP Pathway Terpenoids Alkaloids Shikimates and Phenylpropanoids Fatty acids Polyketides NP Class Triacylglycerols Simple coumarins Oleanane triterpenoids Pyridine alkaloids Cyclic peptides Carboline alkaloids Cholestane steroids Flavonols Species Streptomyces + Streptomyces sp. Homo sapiens Arabidopsis thaliana Penicillium Escherichia coli Cannabis sativa Saccharomyces cerevisiae 
+
+# bdcae
+
+Figure C | Visualization of NMR embedding spaces and knowledge-graph-derived metadata annotations. a-d. The t-SNE plots show representative organization of molecules with respect to chemical superclass, natural product pathway, disease association, and genus-level metadata. e. The chord diagram highlights the diverse metadata labels captured by our knowledge graph across biological, chemical, and natural-product-related categories. 
+
+21 SpectraAI Brief Communication 
+
+E Full Numerical Results 
+
+Table A | Comparison of structural elucidation performance on the NMRGym dataset. 
+
+Top-1 Top-5 Top-10 Model Acc% ↑ Sim ↑ Acc% ↑ Sim ↑ Acc% ↑ Sim ↑
+
+Search-based 
+
+NMR-Solver 6.27 ±.00 .218 ±.000 13.96 ±.00 .348 ±.000 17.37 ±.00 .401 ±.000 
+
++Formula Condition 17.92 ±.00 .276 ±.000 33.97 ±.00 .411 ±.000 36.48 ±.00 .428 ±.000 
+
+Transformer-based 
+
+CLAMS 0.00 ±.00 .079 ±.001 0.00 ±.00 .128 ±.001 0.00 ±.00 .147 ±.001 
+
+NMRFormer 1.75 ±.04 .225 ±.000 2.81 ±.05 .296 ±.000 3.30 ±.03 .323 ±.000 
+
+NMR2Struct 0.24 ±.08 .220 ±.004 1.05 ±.19 .337 ±.006 1.85 ±.27 .387 ±.006 
+
+NMRMind 11.75 ±.17 .370 ±.000 23.22 ±.05 .547 ±.000 27.00 ±.15 .591 ±.000 
+
++Formula Condition 15.49 ±.08 .408 ±.001 29.82 ±.09 .600 ±.000 34.03 ±.09 .644 ±.001 
+
+Diffusion-based 
+
+DiffNMR 0.00 ±.00 .174 ±.000 0.00 ±.00 .254 ±.000 0.00 ±.00 .285 ±.000 
+
+ChefNMR-S 0.02 ±.00 .032 ±.000 0.04 ±.01 .089 ±.000 0.05 ±.01 .114 ±.000 
+
+ChefNMR-L(Finetune) 1.93 ±.02 .136 ±.001 4.36 ±.08 .259 ±.000 5.66 ±.01 .301 ±.000 
+
+NMRAgent (Ours) 64.42 ±.00 .778 ±.001 66.29 ±.00 .788 ±.001 67.13 ±.01 .792 ±.002 
+
+Table B | Top-k accuracy comparison across heavy-atom-count buckets. Method Heavy atoms Samples Top-1 Top-5 Top-10 NMRSolver 
+
+< 15 521 19.00 28.98 30.13 15–25 6,779 13.00 26.38 28.51 25–35 9,607 12.63 29.20 32.13 
+
+> 35 10,147 11.48 32.75 37.68 NMRAgent 
+
+< 15 521 14.40 33.21 39.54 15–25 6,783 14.88 38.83 47.37 
+
+25–35 9,617 15.35 42.66 52.60 
+
+> 35 10,171 13.89 44.87 56.91 
+
+NMRMind 
+
+< 15 549 23.86 46.63 52.64 
+
+15–25 6,748 19.12 36.04 41.70 25–35 10,595 15.55 30.35 34.36 
+
+> 35 9,192 12.51 23.80 27.18 
+
+Table C | Top-k accuracy comparison across benchmark datasets. Method NMRGym nmrshiftdb Exp450 Top-1 Top-5 Top-10 Top-1 Top-5 Top-10 Top-1 Top-5 Top-10 NMRMind 10.10 15.70 18.30 1.90 4.10 5.40 1.77 2.88 2.88 NMRSolver 17.92 33.97 36.48 20.40 33.10 37.90 52.40 65.10 66.90 NMRAgent 64.40 66.29 67.13 67.56 78.10 81.05 61.60 68.90 70.00 
+
+22
