@@ -1,0 +1,253 @@
+Title: Optimal Resource Utilization for Autonomous Laboratory Orchestrators
+
+URL Source: https://arxiv.org/pdf/2607.01188v1
+
+Published Time: Thu, 02 Jul 2026 01:22:54 GMT
+
+Number of Pages: 8
+
+Markdown Content:
+# JournalName Optimal Resource Utilization for Autonomous Labora-tory Orchestrators 
+
+Austin McDannald ∗ab , Julia Tisaranni ac , Howie Joress ad 
+
+In autonomous laboratories, AI agents suggest the next batch of experiments to do. However, planning and executing those tasks taking full advantage of the available resources is a completely different question. This can be challenging when dealing with real-world hardware constraints, es-pecially so when there are multiple instruments with different capacities and throughputs. Here we demonstrate a 2-step method to address resource utilization for our autonomous platform for metal-organic framework synthesis. First, we use constraint programming to find optimal schedules. This finds schedules that minimizes the total time while still satisfying the limitations and capacities of the hardware. Secondly, we use a system of status dependencies for each task, which allows for the robust execution of the optimal schedules. 
+
+# 1 Introduction 
+
+Autonomous systems are becoming ever more popular for exper-iments in materials and other physical sciences. 1,2 There is a rec-ognized need to orchestrate the actions within an autonomous experimental platform. 3 There have been a few developments of autonomous laboratory orchestration to date. These include ARES OS 4,5 , HELAO-async 6, NIMS-OS 7, ChemOS 2.0 8,9 , EOS 10 ,Bluesky+ROS2 11 , MULTITASK 12 . Many of these efforts have been focused on facilitating the deployment of autonomous labo-ratory components: networking computational resources, instru-ment communication, implementing server-client models for the instrument AI actions, facilitating different architectures for how AI agents can interact between themselves and with the instru-ments. In this paper we address a slightly different problem, namely, given a set of requested experiments from the AI agents, how do we make optimal use of the available instrumental re-sources? One of the issues with attempting to optimize the use and schedule of resources on an autonomous platform, is that we, as the operators and programmers, do not know a priori what tasks will be asked of platform to execute. In an autonomous system, there is an AI agent (or several 12 ) that is attempting to answer some question at hand (e.g. find some optimal property, answer some scientific question). These AI agent(s), through their acqui-sition functions, are generating list of requested new data points. The orchestrator of the platform must make decisions about how  
+
+> aMaterial Measurement Laboratory, National Institute of Standards and Technology, Gaithersburg, MD, USA
+> bORCID: 0000-0002-3767-926X, austin.mcdannald@nist.gov
+> cORCID: 0009-0008-0012-1714
+> dORCID: 0000-0002-6552-2972
+
+those requests are executed: what actions are performed by what resource of the platform and when. There are some cases when this orchestration might be trivial. For example, if there is only enough capacity to perform one job a time, then all the jobs must be executed serially. Also if there is enough capacity to perform all jobs in parallel, then the orchestration is also trivial. Lastly, if the platform can execute the jobs at the same speed that the AI sends requests, then there will only be 1 job in the list, which is again trivial. Complications can arise, however, when there is only capacity for some jobs in parallel - especially if those jobs can vary widely in execution time. Further complications can be when there are interrelated dependencies - e.g. parallel capac-ity, but only if certain conditions are met, or the execution of a task in one job depends on a task from another job. In general simply finding optimal schedules for a set of jobs is NP-hard. 13,14 
+
+Furthermore, orchestrating the execution of the schedules comes with its own challenges. In this work, we use the example of a robotic platform for the synthesis of metal-organic frameworks (MOFs). Some steps of the MOF synthesis require less than a few minutes (e.g. dispensing precursors), while other steps can take more than 12 hours (e.g. solvo-thermal reaction, drying). Some of these steps have strong dependencies - the reaction cannot start before the precursor are added. Some of the resources also impose constraints - while the centrifuge can process several samples at a time, it is hard to add a sample to the centrifuge if it is already spinning. Finding optimal schedules within the constraints imposed by the physical components of the platform can be cast as a Job Shop Problem using a Constraint Satisfaction framework. In mathemat-ics and computer science, Constraint Satisfaction Programming attempts to find the values of variables defined within a domain that satisfy all of the declared constraints. A Job Shop Problem JournalName ,[year],[vol.], 
+
+> 1–8 | 1
+> arXiv:2607.01188v1 [cs.AI] 1 Jul 2026
+
+is a common type of Constraint Satisfaction problem seen in op-erational research. 13 In Job Shop Problems there are a number of jobs that each need to be scheduled on specific machines, and the main variables are typically the start times, often with the goal of minimizing the total time to complete the entire set of jobs. Job Shop Problems are often computationally complex, 14 
+
+however solvers have been developed that attempt practical solu-tions. In this work, we use OR-Tools to find optimal schedules. 15 
+
+A discussion about the solver used in OR-Tools can be found here: Dominik Krupke et al. 16 .While finding optimal schedules is an important step in orches-trating the actions on the autonomous robotic platform, it is not sufficient for execution of the scheduled tasks. In this paper we also introduce our system of status dependencies for the robust execution of tasks. The rest of this paper is organized as follows: In Section 2 we introduce definitions that we use throughout this paper, in section 3 we provide details of our MOF synthesis plat-form, in Section 4 we discuss the framing and use of the sched-uler, in Section 5 we discuss the system of status dependencies, and discuss the conclusions and open problems in the final sec-tion. 
+
+# 2 Definitions 
+
+For the sake of clarity, for the remainder of this article we will use the following definitions: Campaign - A singular research effort containing multiple exper-iments all with a defined scientific goal and search space, e.g. discovering the synthesis landscape for a particular MOF. Job - a job is an entire experiment, potentially consisting of many tasks and using several resources, e.g. complete syn-thesis of one sample. Task - some action within a job, typically only requiring the use of one resource. UnitOP - short for unit operation, the function that executes a task. Resource - A component of the platform that gets used as part of the workflow. Each resource has constraints related to its use, including the number of samples it can handle at one time. Consumable - Items that a job uses that are single use (at least within the context of a campaign). These include precur-sors (chemicals, reactants, and other types of feedstock), as well as other items that used in the reaction such as sample containers, pipette tips. 
+
+# 3 Metal-Organic Framework Synthesis Platform 
+
+The autonomous laboratory orchestration system described in this paper was developed out of a need to coordinate the ac-tions of a robotic platform designed to synthesize MOFs via solvothermal synthesis. One such example is the synthesis of Copper benzene-1,3,5-tricarboxylate (Cu-BTC MOF also known as HKUST-1, Cu 3BTC 2, Basolite C300, or MOF-99) 17 . To contex-tualize the decisions and workflows used here we briefly describe the synthesis and how we carry it out. Solvothermal synthesis has several steps. First the organic link-ers (Trimesic acid for Cu-BTC) and metals salt (Copper nitrate) are dissolved into a mixture of solvents. In our case this pre-mixing will be manual and the mixtures will serve as precursors for the platform, along with pure solvents for further dissolution. The metal solution and linker solution are then mixed together along with additional solvents to reach their target concentration for each reaction. The solution is then heated in a closed vessel for some amount of time, typically on the order of tens of hours. At this point MOF has been precipitated but must be "washed", in order to remove the remaining precursors and perform a solvent exchange, then dried. Finally the the MOF is dried and activated, typically by heating it, applying vacuum, or both. Our platform will be described elsewhere in detail but in short, the reactions and subsequent processing steps occur within a glass vial. The platform consists of various stations with a robotic ma-nipulator to move the vials between stations (along with some other tasks). For convenience for tracking the status of both vials and resources, we assign each resource a 3-digit address. The first digit is the type of resource: arm & clamp, reactor, centrifuge, etc. The next digit is which particular resource: reactor 3, or reactor 4, etc. And the last digit specifies the position in the resource. We can track the location of the samples - or equivalently - the occu-pancy of each resource with these addresses. We can extend these addresses to also include the bank of syringe pumps, conveniently tracking which precursors are loaded into which syringe pumps. We further extend this address locations to account for new sam-ples - a address with the first digit of 0 can refer to samples that have yet to be assigned to a vial. A synthesis job begins by selecting a vial from a rack of vials on the platform. The stock solutions are added to the vial by a bank of syringe pumps, each precursor being weighed to ensure accu-racy of the addition. The vial is then closed and moved to one, of a number of, heater blocks, which has been preheated. The vial is then left in the heater block for the duration of its reaction. Fol-lowing the reaction the washing tasks begin. The vial is moved to a centrifuge to compact the solid MOF material to the bottom of the tube. A needle is then used to draw off the excess solvent (i.e., the supernatant) and additional fresh solvent is added. The vial is then placed in the centrifuge to break up the MOF pellet and allow the solvent to fully wet the material. The vial is then left to rest in the vial rack at room temperature, letting it sit for several hours. This washing process is repeated several times (possibly with different solvents). Following the final wash step the dry-ing process can begin. The drying process begins similarly to the washing process where the vial is centrifuged and as much sol-vent is removed by aspiration as possible. The vial is then placed in a heated reactor under vacuum and allowed to dry for several hours. Overall the complete synthesis for an individual sample can take on the order of a couple of days. However, many of the resources on the platform that are used with long dwell times are duplicated or capable of handling multiple samples: the vial rack has dozens of spots, there are 8 heating blocks, each with a capac- 
+
+> 2 | 1–8 JournalName ,[year],[vol.],
+
+ity of 4 samples, the centrifuge holds up to 6 vials. This means the platform is capable of simultaneously capable of processing tens of samples in semi-parallel. In the case of our platform, most of the characterization (ex-cept for a balance that can provide MOF yield data and a camera that can provide MOF color) will be performed off of the platform on semi-automated tools that can handle batches of up to 16 sam-ples. We expect, when working optimally, the turn around time for this feedback to be on the order of a day. 
+
+# 4 The Scheduler 
+
+Some schedulers, such as the Round-Robin scheduling algorithm commonly used for CPU’s, 18,19 can be tuned or configured to ex-ecute the next tasks when there is available capacity on the re-sources during the downtime of earlier tasks. While such a sched-uler would certainty be advantageous over a naive sequential ex-ecution, it would not provide a method of expressing the con-straints imposed by the hardware or the dependencies on tasks for other samples (e.g. reactions at the same temperature can be on the same reactor, but must end at the same time). Since we want to be able to receive updates to the list of experiments from the AI agents, we need a scheduler that is expressive enough to find optimal schedules that still satisfy all the relationships and dependencies between the tasks. We cast the robot scheduling operation as a Job Shop Prob-lem within the Constraint Satisfaction framework. For this, we break each requested synthesis job into several tasks. For each task, we prescribe what resources that task will use and its du-ration. For most tasks we can know a priori which resources it will use: e.g. dispensing the precursors will occupy the syringe pumps. Likewise we know or can estimate the duration of most tasks with reasonable accuracy - dispensing the precursors will take roughly the same amount of time (within a few seconds) re-gardless of what composition is being dispensed. For some tasks, we may only know what type of resource it will use - this is the case if there are several independent duplicates of the same re-source. For example, our platform has several reactors, each with the capacity for 4 samples. Before scheduling we do not know which reactor will be used for the reactions of any sample, let alone what position will be used. The drying tasks also use the reactors, but the reactors can only perform the reaction task or the drying task at any given time, so there is a need to coordinate which tasks are performed by which reactors. In our example of autonomous MOF synthesis, the acquisition function provides a list of requested synthesis experiments - a list of jobs. Each job can then be broken down into tasks, as shown in Table 1. Each of those tasks has a known (or estimated) duration, but variable starting times. We can now break down the list of jobs into a list of tasks. With this list of tasks we can impose con-straints. For each sample, the tasks must be completed in order. The arm & clamp has a capacity of 1. The sonicator has a capac-ity of 4. We can safely ignore the capacity of the rack - samples are created from the empty vials that are loaded onto the rack, so there will definitionally always be an open spot for any vial at hand. The centrifuge has a capacity of 6, but if any tasks over-
+
+Task Resource Duration (min) 
+
+dispense precursors arm & clamp 1reaction reactor ∈ [30 , 2880 ]
+
+> wash cycle
+
+centrifuge centrifuge 60 remove supernatant arm & clamp 1dispense solvent arm & clamp 1sonicate sonicator 20 hold rack 1440 dry reactor 1440   
+
+> Table 1 The set of tasks for each job ( i.e. the synthesis of one sample), the resources used for that task, and the duration. Note that the duration of the reaction task is one of the experiment variables, and therefor provided by the acquisition function of the autonomous agent in the science layer of the platform. Additionally, each synthesis might include several wash cycles perhaps with different solvents, compiled into a macro as indicated. The synthesis routine would escape the wash macro at the
+> remove supernatant step after all the wash cycles have been completed.
+
+lap on the centrifuge then they must overlap entirely (the start times must be equal) - we cannot add a sample to the centrifuge if it is already spinning. We also want to avoid a scenario where the precursors are dispensed, but there is a long wait before the sample is moved to heater block to start the reaction. So we can additionally impose the constraint that the end of dispensing task must be within 4 minutes of the start of the reaction task for each sample. For the heater blocks the constraints are a bit more in-volved. There are several heater blocks, and we can use those for the reaction and drying tasks. Each heater block has a capac-ity of 4 - however the temperature of each slot on an individual block cannot be independently controlled. So if tasks overlap on the same heater block, then they must be at the same tempera-ture. For the solvo-thermal synthesis, each individual heater slot is designed with pressure seals, such that the solvent vapors are captured and pressure builds to the vapor-pressure of the solvent mixture during the reaction. However, it is dangerous to release the pressure in a slot, so the entire block must be cooled to al-low for recondensation of the solvent prior to retrieving a vial. Therefore, if the reaction tasks overlap on the same heater block, then they must end at the same time. Our list of jobs can easily exceed the parallel capacity of the heater blocks. And while we can easily control heating rate of the blocks, they are not actively cooled. So we can further impose the constraint that if two tasks use the same heater block at different times and temperatures, then the one with the lower temperature should start first. The drying tasks and reaction tasks use the reactors in different con-figurations. We can impose that any drying tasks cannot overlap with any reaction tasks on the same reactor. To simplify the scheduling we can assign the reaction tasks to the reactors deterministically - as opposed to including those vari-ables in the Job Shop problem. We can agglomerate reactions at the same temperature (up to the capacity of 4) to the same heater block - these reactions will be performed in parallel. We can fur-JournalName ,[year],[vol.], 
+
+> 1–8 | 3
+
+ther agglomerate the groups of tasks by appending the 2 short-est duration groups together, iteratively, until we are left with as many groups as reactors. Lastly, for the drying tasks, these can use any reactors and have no constraints (other than order of operations constraint already imposed) - so long as they do not overlap with a reaction task on the same reactor. To encode this within the constraint program-ming framework, we construct a boolean variables that effectively choose which reactor to use for drying, then impose the constraint that it does not overlap with the reaction tasks for that reactor. This is a decidedly sample-wise perspective breakdown of the jobs and tasks, which is convenient for keeping track of the data and metadata for the samples and ultimately the pertinent infor-mation for the AI agent attempting to answer some scientific or engineering question. However, this sample-wise treatment does have its limitations - e.g. for scheduling actions of resources that operate on multiple samples at once or on actions not tied to any one sample. Pre-heating the heater blocks is an example of this. We want the reactors to already be at the desired temperature when samples are loaded, and since there may be several hours between starting reactions of samples using the same reactor, it does not make sense to send new requests to heat the reactor for each sample as it is loaded. Instead, we interleave a preheat-ing step that heats the whole reactor to the desired temperature. Then the react tasks simply load the samples into the preheated reactor, wait for the proper time, then unload the samples. Similarly, the centrifuge tasks do not fit well into this sample-wise breakdown of the tasks, since we do not want to send sepa-rate requests to start the centrifuge for each sample. This is han-dled by the function dependencies discussed in the next section, since this does not affect the scheduling. The constraint satisfaction solver then attempts to discover schedules that minimize the total time to complete the list of jobs. One advantage to expressly encoding each of these constraints is the adaptability to new requests from the AI agents. The reac-tion and drying tasks will likely not conflict in a single batch of jobs - the react is at the beginning of each job, whereas the dry-ing is at the end. Let’s consider a concrete example. In Fig. 1we have the first batch of Jobs in a Campaign. This batch has 16 Jobs - with different reaction temperatures and times. There are 4 sets of 4 samples, each set with its own reaction temperature, and each sample with its own reaction time. Each Job also has the remaining tasks from Table 1, including 3 wash cycles. The scheduler finds optimal schedules that minimize the total time for the batch of Jobs, while still satisfying all the constraints. Our scheduler, written using the Python package OR-Tools discovered the schedule shown in Fig. 1 in about 28 s running on a 24 core CPU. Now, let’s suppose that the AI agent receives feedback on the experiments at 40000 Ds (aside: we used decaseconds so the in-teger variables have sufficient, but not superfluous fidelity), and uses that information to suggest the next batch of 8 samples. We want the scheduler to find optimal schedules for the remaining Tasks from the first batch of Jobs, as well as all the Tasks for new 8 Jobs. This new schedule is shown in Fig. 2, which was discovered in about 1.4 s on the same 24 core CPU. Note how none of the drying tasks overlap with the reaction tasks on the same reactor. Furthermore, since the reaction tasks are one of the early tasks in the sequence of tasks for each Job, scheduling any of the drying tasks at the beginning of experiment would delay the total completion time. From the perspective of the scheduler, which has the objective of minimizing the total completion time, the drying tasks from the previous 8 samples can be scheduled anytime there is open capacity on the reactors that doesn’t inter-fere with the scheduling of the reaction or drying tasks from the new 8 samples. That is, changing the start times any of the drying task from the previous 8 samples so that they fit in the window between about 4500 Ds and 34600 Ds has no impact on total re-action completion time, and is therefore considered equally opti-mal. Of course, in practice, we would like the previous 8 samples to be completed as soon as possible so that they could move on to characterization stages. Eventually this could be handled by increasing the scope of tasks modeled in the Job Shop scheduler. For the time being, we handle this with the function dependencies (discussed in the next section) which executes the tasks as soon as status dependencies and component mutexes allow. 
+
+# 5 Function Dependencies 
+
+The job shop scheduler is good for finding the order of tasks, and for estimating the start times and total duration, but it is not suffi-cient for the execution. The duration of the tasks in the scheduler are fixed and approximate - depending on these estimates could lead to unnecessary down time (if the estimate is too long) or conflicts (if the estimate is too short). Neither is the schedule detailed enough to use for execution. Moving the samples from one resource to another also requires the arm, but it would be too cumbersome to model that level of granularity in the job shop problem. This also means that the constraints imposed cannot be executed to the mathematical precision (reactions cannot end at the same time, since it takes non-zero time to, for example, move the sample from the reactor to the next resource). To robustly execute the list of tasks without strict reliance on the schedule and clocktime, we use a system of status dependen-cies and mutexes. There is a mutex for every component of the system. If the component has capacity for more than one sam-ple, there is an additional mutex for each position. For example: there is a mutex for the arm & clamp, but for a heater block with 4 sample positions there are 5 mutexes - 1 mutex for each position, and 1 mutex for heater block as a whole. Any function attempt-ing to use any component must first checkout the mutex for that component - checking the status that the mutex is "Available" and changing that to "Occupied". For the reaction task as an exam-ple, the must checkout the mutex for an available position on the heater block, then checkout the mutex for the arm & clamp. The arm can then move the sample to that position, and upon com-pletion the function releases the mutex for the arm & clamp but retains the mutex for the heater block position. At the end of the reaction, the function must then checkout the mutex for the arm & clamp once again to remove the sample from the heater block, and upon completion releases all mutexes. This allows for the arm to be free to perform other tasks while sample is reacting in the heater block.  
+
+> 4 | 1–8 JournalName ,[year],[vol.],0.00 10000 20000 30000 40000 50000 Reactor 1 Reactor 0 Arm&Clamp Centrifuge Sonicator VialRack
+
+Sample Name None UIRD H8NQ BT1G YNIZ 9DBF VY01 VBX3 POCG BU6L WUPR SWKK 2OHU X9XC D2RZ 7J9N 4OHN Resource Timeline Time (Ds) Resource 0.00 10000 20000 30000 40000 50000 None UIRD H8NQ BT1G YNIZ 9DBF VY01 VBX3 POCG BU6L WUPR SWKK 2OHU X9XC D2RZ 7J9N 4OHN UnitOP pre_heat_reactor add_fluids react centrifuge_0 rm_supernatent_0 add_solvents_0 sonicate_0 rack_hold_0 centrifuge_1 rm_supernatent_1 add_solvents_1 sonicate_1 rack_hold_1 centrifuge_2 rm_supernatent_2 add_solvents_2 sonicate_2 rack_hold_2 Sample Timeline Time (Ds) Sample Name centrifuge_3 rm_supernatent_3 dry Fig. 1 Gantt charts of the Tasks for the initial batch of Jobs in a Campaign. The left plot shows the tasks organized by which resource is used, while on the right the tasks are organized by sample. Note how the batches of reaction tasks on the same reactor and at the same temperature are constrained to end at the same time. At the plotted timescale the tasks involving the arm & clamp are often too brief to see. As an aside, we chose decaseconds as the units for the variable times since the constraint satisfaction solvers operate on integers, minutes were too coarse resolution, and using seconds added unnecessary computational complexity. 0.00 10000 20000 30000 40000 Reactor 1 Reactor 0 Centrifuge Arm&Clamp Sonicator VialRack Sample Name None WUPR VBX3 D2RZ 7J9N 3K1Y 2OHU SWKK BCQB X9XC 4OHN 55XL GV1B CFH0 I6XO 6A0M F11T Resource Timeline Time (Ds) Resource 0.00 10000 20000 30000 40000 None WUPR VBX3 D2RZ 7J9N 2OHU SWKK X9XC 4OHN BCQB 55XL I6XO CFH0 GV1B 6A0M F11T 3K1Y UnitOP pre_heat_reactor centrifuge_3 add_fluids react rm_supernatent_3 centrifuge_0 dry rm_supernatent_0 add_solvents_0 sonicate_0 rack_hold_0 centrifuge_1 rm_supernatent_1 add_solvents_1 sonicate_1 rack_hold_1 centrifuge_2 rm_supernatent_2 Sample Timeline Time (Ds) Sample Name add_solvents_2 sonicate_2 rack_hold_2 
+
+Fig. 2 New Gantt charts of the Tasks after 8 new samples were introduced at 40000 Ds in the schedule from Fig. 1. The starting time for this set of tasks was reset to 0 Ds. The left plot shows the tasks organized by which resource is used, while on the right the tasks are organized by sample. Note how the drying tasks of the 8 samples from the previous batch can be optimally scheduled anytime there is open capacity between the end of the first reaction tasks and the start of the last drying tasks of the new 8 samples. JournalName ,[year],[vol.],
+
+1–8 | 5 Fig. 3 A simplified graph of the dependencies of the UnitOPs used for a MOF synthesis job. The color coding indicates the main resource each task. The arrows indicate what conditions should be met before proceeding to the next task. 
+
+The UnitOP functions also have dependencies on the other tasks. A simplified diagram of the dependencies for the MOF syn-thesis job is shown in Fig. 3. We use a table as a centralized source detailing the status of each task for each sample. For each MOF synthesis job, the first task is to dispense the precursors. This UnitOP depends on the Pre-Heat UnitOP for 2 reasons: first, the reactor that this sample will use might be processing an earlier set of samples, and second, as mentioned in the Job Shop Problem constraints, we do not want the precursors to be dispensed un-less the reaction can be started within 4 minutes. The Pre-Heat 
+
+UnitOP depends only on any earlier reactions being completed. So for the first set of samples scheduled, the Pre-Heat UnitOP starts warming the reactor. Once the reactor is at temperature, this UnitOP updates the status table to release the first sample to the Dispense Precursors UnitOP. Meanwhile the Pre-Heat Uni-tOP sleeps for the interval between the start times of the first and second samples, as determined by the scheduler, then releases the next sample, and so on until all samples have been released. The 
+
+Reaction UnitOP execution depends on the precursor dispensing task being completed. There is also a redundant check to ensure that the reactor is still at the desired temperature from the Pre-Heat task. The sample-specific Centrifuge UnitOP only depends on the Reaction UnitOP - samples are ready to be centrifuged as soon as the reaction is complete. However, the centrifuge can hold several samples at a time. Similar to the Pre-Heat Uni-tOP, we use a separate UnitOP to send a single start command to the centrifuge, which we call the Global Centrifuge UnitOP. This Global Centrifuge UnitOP waits for each sample in the set to begin. The set of samples is provided by the scheduler. The 
+
+Centrifuge UnitOP for each of those samples can update the sta-tus table to indicate that it is loaded into the centrifuge. Once all the samples have been loaded, the Global Centrifuge Uni-tOP can check to make sure the centrifuge is balanced, then be-gin. Meanwhile each individual Centrifuge UnitOP must wait for the Global Centrifuge UnitOP to update the status, releas-ing the samples, an allowing them to be unloaded. The Remove 
+
+Algorithm 1 Generic Unit Operation  
+
+> 1:
+
+await status_dependencies_check  
+
+> 2:
+
+component_mutex_checkout:  
+
+> 3:
+
+await component_mutex == "Available"  
+
+> 4:
+
+component_mutex = "Occupied"  
+
+> 5:
+
+perform task  
+
+> 6:
+
+update task_status  
+
+> 7:
+
+release component_mutex:  
+
+> 8:
+
+component_mutex = "Available"   
+
+> The basic structure of a unit operation function. Note that the order of the checks matter. The function should pass all the status depen-dency checks before attempting to obtain the mutexes for components. This ensures that some task is not blocking the use of the components unnecessarily.
+
+Supernatent , Dispense Solvent , Sonicate , and Hold UnitOPs each simply depend on the previous UnitOP completing. The Dry 
+
+UnitOP depends on the last Remove Supernatent UnitOP for this sample. Combining the component mutexes and the dependencies al-lows for the robust control of the execution of all of the tasks from each of the jobs. A generic example of a UnitOP is shown in Alg. 1. Our Python implementation of these algorithms make use of the AsyncIO package 20 for asynchronous execution of the tasks. In the UnitOPs, the order of the checks matter. The samples should be ready for the task before attempting to obtain the mu-texes to the components for that task. This means that the UnitOP should pass the dependency check before checking out the com-ponent mutexes. This order ensures that the UnitOP does hoard a resource before the sample is ready for that task, which might potentially create a situation where no UnitOPs are able to run and the entire autonomous campaign grinds to a halt. The structure of a UnitOP for a task that uses a shared re-source, as shown in Alg. 2 is even more nuanced. In addition to passing the dependency check before checking out the mutex needed component, these tasks should also check out the needed component before checking out the mutex for the arm & clamp. This ensures that other UnitOPs can continue to execute while this UnitOP waits for the needed component to become available. As mentioned earlier, to avoid sending multiple commands for each sample-wise UnitOP that uses the shared resource, we use a separate UnitOP that directly controls this resource as a whole. There are 2 basic structures for these sample-wise UnitOPs: one for when the global component UnitOP is not blocking, and an-other for when it is blocking. For the React UnitOP, samples can be loaded and un-loaded from the reactors while other samples continue to use that reactor. Therefore the Pre-Heat UnitOP does not need block the execution of any of the React UnitOPs. So the sample-wise React UnitOP, first moves the sample to the re-actor, then simply sleeps for the duration of the reaction time, then moves the sample from the reactor. However, the Global Centrifuge UnitOP does need to be blocking, since samples can only be loaded or un-loaded when the centrifuge is stationary. Therefore the sample-wise Centrifuge UnitOP, moves the sam- 
+
+> 6 | 1–8 JournalName ,[year],[vol.],
+
+Algorithm 2 Shared Resource Unit Operation  
+
+> 1:
+
+await status_dependencies_check  
+
+> 2:
+
+component_mutex_checkout:  
+
+> 3:
+
+await component_mutex == "Available"  
+
+> 4:
+
+component_mutex = "Occupied"  
+
+> 5:
+
+arm&clamp_mutex_checkout:  
+
+> 6:
+
+await arm&clamp_mutex == "Available"  
+
+> 7:
+
+arm&clamp_mutex = "Occupied"  
+
+> 8:
+
+move_to_component  
+
+> 9:
+
+release arm&clamp_mutex  
+
+> 10:
+
+IF resource_control is not blocking: ▷ e.g. React UnitOP  
+
+> 11:
+
+sleep duration  
+
+> 12:
+
+IF resource_control is blocking: ▷ e.g. Centrifuge UnitOP  
+
+> 13:
+
+await status_dependencies_check  
+
+> 14:
+
+await arm&clamp_mutex_checkout  
+
+> 15:
+
+move_from_component  
+
+> 16:
+
+update task_status  
+
+> 17:
+
+release component_mutex:  
+
+> 18:
+
+component_mutex = "Available"  
+
+> 19:
+
+release arm&clamp_mutex:  
+
+> 20:
+
+arm&clamp_mutex = "Available"  
+
+> The basic structure of a unit operation function that uses a shared re-source. Here, again, the order of the checks matter. Firstly, the sample should be ready for this task. Then the mutex for the component of the shared resource should be obtained, and then the mutex for the arm&clamp should be obtained. When the unit operation controlling the shared resource is not blocking, this sample-wise unit operation simply sleeps for the duration. When the unit operation controlling the shared resource is blocking, then this sample-wise unit operation waits for the appropriate status. The structure of this unit operation ensures that the execution of the function is appropriately blocking for the interplay of resources in the platform.
+
+ple to the centrifuge, then waits for the Global Centrifuge Uni-tOP to update sample status to the appropriate condition before moving the sample from the centrifuge. The mutexes to the arm & clamp are released after every move is completed to allow other UnitOPs to move samples and execute elsewhere on the platform. The pertinent question now is: if we have this system of mu-texes and dependencies do we still need the Job Shop scheduler? The answer is yes, but we don’t rely on the start or stop times. From the scheduler, we use the order of samples on each reactor, and the time delay between the Pre-Heat steps and the Dispense Precursors steps so that each batch of samples on a reactor will finish their reactions as close to simultaneously as practically pos-sible. The rest of the UnitOPs would automatically execute an op-timal schedule according to the constraints imposed by the mutex and dependencies. However, in the event of re-scheduling while some jobs are still incomplete - e.g. if new samples are requested by the AI agents - then the scheduler also ensures an order of operations that makes optimal use of resources within the con-straints. For example the scheduler would ensure that no React 
+
+UnitOPs from the new samples overlap with any of the Dry Uni-tOPs from earlier samples on the same reactor. 
+
+# 6 Open Problems 
+
+The Job Shop Scheduler finds schedules that minimize the total time. The system of status dependencies for the machines and the UnitOPs robustly executes those schedules - with the added benefit that jobs are completed as soon as possible (when there is capacity that does not impact the schedule). This would be an ideal solution to autonomous laboratory orchestration – if all jobs were equally valuable. However, often the goal of autonomous laboratories is to ac-celerate the knowledge gain and there are a few open challenges that the framework presented here does not address: 
+
+1) Prioritization: Often the acquisition functions of the AI agents generating the list new experiments to perform can ad-ditionally include some prioritization of those tasks - ranking or scoring the jobs based on predicted knowledge gain. The or-chestrator presented here ignores that information; the scheduler takes advantage of efficiency gains due to batching, but only op-timizes for the total completion time. 
+
+2) Feedback: Often the acquisition functions only consider the costs of each experiment independently. However, the time cost is not just the length of time required for each task for that sam-ple, but is also affected by the other experiments that are part of that schedule. Furthermore, adding an experiment to the sched-ule will have knock-on effects to all subsequent experiments in that campaign. Therefore, the true marginal time cost is only dis-cernible after the entire campaign has been executed. Even limit-ing the scope of scheduling optimization to a single batch of jobs being scheduled, the scheduler is too computationally expensive to practically to feedback to the acquisition function. 
+
+3) Design of Experiments Decisions : Because of points 1
+
+and 2 above, there is limited ability for the scheduler to make higher-order design decisions about which experiments to per-form. Given a list of jobs with forecasted expected knowledge gains for performing that experiment, the question for the sched-uler is which experiments to run. The further into the forecasted list, the less accurate the forecasting will be, so those points may be less valuable. Should the platform start 8 experiments, 16 experiments, 24 experiments? The more that are started at one time, the faster data will be generated, but there is a higher likeli-hood the data will have less useful information. Conversely, start-ing fewer, but more informative, samples in a batch allows the next batch of experiments to start sooner, with those experiments having higher certainty of knowledge gain. In the case of our platform and workflow, there is an even more difficult optimization problem that can be addressed. The ideal goal for an autonomous project is not to maximize the short term knowledge gain rate, but to maximize knowledge gain over a campaign (the length of which is typically bound by the re-searcher based on time, number of experiments, or amount of consumables). There is also no reason that experiments being queued need to be completed in order. In the case of our work-flow, there is benefit of running, for instance, samples that are reacted at the same temperature together, because they can be run on a reactor together. While this type of clustering acceler-ates the rate of samples through the reaction stage (which is a JournalName ,[year],[vol.], 
+
+> 1–8 | 7
+
+large component of the synthesis time), completing the process-ing of these samples may slow the total flow of samples through the system. Again these samples may be less valuable and doing these syntheses may ultimately waste consumables. Getting proper estimates on the value and costs (both in time and materials) of samples depends on what else is being run and therefore requires updating the forecast generated by the scien-tific agent as well as the scheduler. We could, in principle, re-run the scheduler for each possible forecasted sample to accurately determine the overall costs, and repeat that as the acquisition function of the AI in the science layer adds each sample to pop-ulate the next batch of samples. However, this leads to a combi-natorial explosion of an already computationally intensive task, which quickly becomes intractable. So, how many samples should be in the batch? And what sam-ples should be in that batch - especially given efficiency gains from batching and speed of feedback from the results of the ex-periments? Perhaps the answers to these questions changes as the research campaign progresses. Solving this higher level or-chestration problem is a quite important, but difficult, operations research problem that remains an open challenge. 
+
+# 7 Code Availability 
+
+The code is available from https://github.com/usnistgov/ autoMOF 
+
+# Conflicts of Interest 
+
+There are no conflicts to declare. 
+
+# Disclaimer 
+
+Any mention of commercial products in this report is for informa-tion only; it does not imply recommendation or endorsement by NIST. 
+
+# Notes and references 
+
+1 E. Stach, B. DeCost, A. G. Kusne, J. Hattrick-Simpers, K. A. Brown, K. G. Reyes, J. Schrier, S. Billinge, T. Buonassisi, I. Foster, C. P. Gomes, J. M. Gregoire, A. Mehta, J. Montoya, E. Olivetti, C. Park, E. Rotenberg, S. K. Saikin, S. Smullin, V. Stanev and B. Maruyama, Matter , 2021, 4, 2702–2726. 2 H. Joress, Z. Trautt, A. McDannald, B. DeCost, A. G. Kusne and F. Tavazza, Driving U.S. innovation in materials and man-ufacturing using AI and autonomous labs , National institute of standards and technology technical report, 2024. 3 H. Joress, B. Decost, K. Jones, A. G. Kusne, A. McDannald, Z. Trautt and F. Tavazza, ResearchGate , 2025. 4 J. R. Deneault, J. Chang, J. Myung, D. Hooper, A. Armstrong, M. Pitt and B. Maruyama, MRS Bulletin , 2021, 46 , 566–575. 5 A.-A. , ARES OS , 2021, https://github.com/AFRL-ARES/ ARES_OS , Accessed 2026-03-25. 6 D. Guevarra, K. Kan, Y. Lai, R. J. Jones, L. Zhou, P. Donnelly, M. Richter, H. S. Stein and J. M. Gregoire, Digital Discovery ,2023, 2, 1806–1812. 7 R. Tamura, K. Tsuda and S. Matsuda, Science and Technology of Advanced Materials: Methods , 2023, 3, 2232297. 8 L. M. Roch, F. Häse, C. Kreisbeck, T. Tamayo-Mendoza, L. P. E. Yunker, J. E. Hein and A. Aspuru-Guzik, Science Robotics ,2018, 3, eaat5559. 9 M. Sim, M. G. Vakili, F. Strieth-Kalthoff, H. Hao, R. J. Hick-man, S. Miret, S. Pablo-García and A. Aspuru-Guzik, Matter ,2024, 7, 2959–2977. 10 A. Angelopoulos, C. Baykal, J. Kandel, M. Verber, J. F. Cahoon and R. Alterovitz, Proceedings - IEEE International Conference on Robotics and Automation , 2025, 15900–15906. 11 C. Fernando, H. Marcello, J. Wlodek, J. Sinsheimer, D. Olds, S. I. Campbell and P. M. Maffettone, Digital Discovery , 2025, 
+
+4, 1083–1091. 12 A. G. Kusne and A. McDannald, Matter , 2023, 1, 0–1. 13 S. C. Brailsford, C. N. Potts and B. M. Smith, European Journal of Operational Research , 1999, 119 , 557–581. 14 M. Mnich and R. van Bevern, Computers and Operations Re-search , 2018, 100 , 254–261. 15 OR-Tools , 2026. 16 Dominik Krupke, Leon Lan and Micheal Perk, The CP-SAT Primer: Using and Understanding Google OR-Tools’ CP-SAT Solver , Technische Universität Braunschweig, Braunschweig, Germany, 2024. 17 Z. Wang, X. Li, Y. Cui, Y. Yang, H. Pan, Z. Wang, C. Wu, B. Chen and G. Qian, Crystal growth & design , 2013, 13 ,5116–5120. 18 L. Kleinrock, Naval Research Logistics Quarterly , 1964, 11 , 59– 73. 19 R. H. Arpaci-Dusseau and A. C. Arpaci-Dusseau, in Operating Systems: Three Easy Pieces , Arpaci-Dusseau Books, 1st edn, 2023, ch. Scheduling: Introduction. 20 Python Software Foundation, asyncio — Asynchronous I/O ,Python Software Foundation, 2024.

@@ -6,53 +6,67 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-01
-- 运行时间：2026-07-01 21:28:32 UTC
+- 最新运行日期：2026-07-02
+- 运行时间：2026-07-02 20:41:32 UTC
 - 运行状态：成功
-- 本次总论文数：11
-- 精读区：5
-- 速读区：6
+- 本次总论文数：15
+- 精读区：6
+- 速读区：9
 
 ### 今日简报（AI）
-今日共处理11篇论文，覆盖LLM推理优化、知识图谱自动化及材料科学等多领域。精读中《Coverage-Driven KV Cache Eviction》和《Automating Cause-Effect Specification》均获9.0高分，前者提出高效缓存驱逐策略以提升推理效率，后者利用知识图谱与大模型自动化因果关系生成。建议优先研读这两篇精读论文，聚焦LLM推断加速及因果关系自动化技术。
-- 详情：[/202607/01/README](/202607/01/README)
+今日精选15篇论文，重点关注用大模型标注实体匹配训练数据、以及材料科学多模态数据集两大方向。  
+值得深读的两篇9分论文分别聚焦于LLM辅助数据标注和材料科学大规模图文数据集，速读中工具增强科学模拟智能体（8分）和AI加速化学工作流（8分）也具参考价值。  
+建议优先阅读这两篇9分论文，尤其关注LLM在数据标注中的实际效果与材料科学多模态数据的应用潜力。
+- 详情：[/202607/02/README](/202607/02/README)
 
 ### 精读区论文标签
-1. [Coverage-Driven KV Cache Eviction for Efficient and Improved Inference of LLM](/202607/01/2606.29563v1-coverage-driven-kv-cache-eviction-for-efficient-and-improved-inference-of-llm)  
+1. [Labeling Training Data for Entity Matching Using Large Language Models](/202607/02/2606.28823v1-labeling-training-data-for-entity-matching-using-large-language-models)  
+   标签：评分：9.0/10、query:llm-dm
+   evidence：LLM用于为实体匹配标记训练数据，属于数据挖掘任务
+2. [Unlocking the Visual Record of Materials Science: A Large-Scale Multimodal Dataset from Scientific Literature](/202607/02/2606.29667v1-unlocking-the-visual-record-of-materials-science-a-large-scale-multimodal-dataset-from-scientific-literature)  
+   标签：评分：9.0/10、query:llm-dm
+   evidence：LLM引导从材料文献提取视觉数据
+3. [Active-GRPO: Adaptive Imitation and Self-Improving Reasoning for Molecular Optimization](/202607/02/2607.00531v1-active-grpo-adaptive-imitation-and-self-improving-reasoning-for-molecular-optimization)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：直接解决大语言模型推理效率中的KV缓存驱逐问题
-2. [Automating Cause-Effect Specification with Knowledge Graphs and Large Language Models](/202607/01/2606.31614v1-automating-cause-effect-specification-with-knowledge-graphs-and-large-language-models)  
+   evidence：利用LLM进行化学分子优化
+4. [Agentic generation of verifiable rules for deterministic, self-expanding reaction classification](/202607/02/2607.01061v1-agentic-generation-of-verifiable-rules-for-deterministic-self-expanding-reaction-classification)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：LLM用于化工过程控制因果逻辑自动化
-3. [A Tutorial on Autonomous Fault-Tolerant Control Using Knowledge-Grounded LLM Agents](/202607/01/2606.31635v1-a-tutorial-on-autonomous-fault-tolerant-control-using-knowledge-grounded-llm-agents)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：在化工厂中使用LLM智能体进行容错控制
-4. [SAKE: Software Architectural Knowledge Evaluation Benchmark for Large Language Models](/202607/01/2606.29520v1-sake-software-architectural-knowledge-evaluation-benchmark-for-large-language-models)  
+   evidence：LLM多代理框架用于化学反应自动分类和规则生成
+5. [Why Solve It Twice? Hierarchical Accumulation of Skills for Transfer-Efficient ML Engineering](/202607/02/2606.30911v1-why-solve-it-twice-hierarchical-accumulation-of-skills-for-transfer-efficient-ml-engineering)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：评估大语言模型对软件架构知识的掌握程度
-5. [ElemeNet: Multiscale Molecular Machine Learning with Uncertainty Quantification Across the Periodic Table](/202607/01/2606.30961v1-elemenet-multiscale-molecular-machine-learning-with-uncertainty-quantification-across-the-periodic-table)  
+   evidence：利用LLM驱动抽象实现ML工程技能的层级积累
+6. [Query-Centric Optimization of AI Workflows via Approximate Query Processing and Proxy Models](/202607/02/2607.00254v1-query-centric-optimization-of-ai-workflows-via-approximate-query-processing-and-proxy-models)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：面向化学性质预测的机器学习
+   evidence：使用近似查询和代理模型优化LLM工作流
 
 ### 速读区论文标签
-1. [Labeling Training Data for Entity Matching Using Large Language Models](/202607/01/2606.28823v1-labeling-training-data-for-entity-matching-using-large-language-models)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：LLM知识蒸馏用于实体匹配（数据挖掘任务）
-2. [Unlocking the Visual Record of Materials Science: A Large-Scale Multimodal Dataset from Scientific Literature](/202607/01/2606.29667v1-unlocking-the-visual-record-of-materials-science-a-large-scale-multimodal-dataset-from-scientific-literature)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：使用大语言模型从科学文献中提取结构化数据
-3. [ReactionAtlas: Ab origine exploration of chemical reaction networks with machine learning](/202607/01/2606.30778v1-reactionatlas-ab-origine-exploration-of-chemical-reaction-networks-with-machine-learning)  
+1. [PHREEQC-MCQ-200: A Diagnostic Benchmark for Tool-Augmented Scientific Simulator Agents](/202607/02/2607.00436v1-phreeqc-mcq-200-a-diagnostic-benchmark-for-tool-augmented-scientific-simulator-agents)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：LLM代理工具增强的基准测试
+2. [Ai2-Kit: Streamlining AI-Accelerated Ab Initio Workflows for Complex Chemical Systems](/202607/02/2607.00613v1-ai2-kit-streamlining-ai-accelerated-ab-initio-workflows-for-complex-chemical-systems)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：用于复杂化学系统的AI加速从头算工作流
+3. [Adaptive fine-tuning of foundation models for crystal structure prediction: Discovery of high-pressure phases in the CaFeNi system](/202607/02/2606.30870v1-adaptive-fine-tuning-of-foundation-models-for-crystal-structure-prediction-discovery-of-high-pressure-phases-in-the-cafeni-system)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：机器学习用于化学反应网络
-4. [Bridging electrode preparation and electrocatalyst performance with physics-based causal AI](/202607/01/2606.30898v1-bridging-electrode-preparation-and-electrocatalyst-performance-with-physics-based-causal-ai)  
+   evidence：基础模型微调用于晶体结构预测
+4. [Optimal Resource Utilization for Autonomous Laboratory Orchestrators](/202607/02/2607.01188v1-optimal-resource-utilization-for-autonomous-laboratory-orchestrators)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：基于物理的因果AI用于化工行业电极-电催化剂优化
-5. [Labimus: A Simulation and Benchmark for Humanoid Dexterous Manipulation in Chemical Laboratory](/202607/01/2606.31037v1-labimus-a-simulation-and-benchmark-for-humanoid-dexterous-manipulation-in-chemical-laboratory)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：化学实验室中的AI驱动自动化
-6. [Towards Automating Scientific Review with Google's Paper Assistant Tool](/202607/01/2606.28277v1-towards-automating-scientific-review-with-googles-paper-assistant-tool)  
+   evidence：自主化学实验室资源调度优化
+5. [Surrogate-Gated Generation and Foundation-Model Embeddings for Bayesian Materials Design](/202607/02/2606.28578v1-surrogate-gated-generation-and-foundation-model-embeddings-for-bayesian-materials-design)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：使用AI/大语言模型自动化科学评审
+   evidence：贝叶斯材料设计使用代理门和基础模型嵌入
+6. [Characterizing Large Language Model Agentic Workflows: A Study on N8n Ecosystem](/202607/02/2606.29116v1-characterizing-large-language-model-agentic-workflows-a-study-on-n8n-ecosystem)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：大语言模型代理工作流实证研究
+7. [A Single Rewrite Suffices: Empirical Lessons from Production Skill Description Optimization](/202607/02/2606.30775v1-a-single-rewrite-suffices-empirical-lessons-from-production-skill-description-optimization)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：在企业AI代理中优化基于LLM的技能路由
+8. [Labimus: A Simulation and Benchmark for Humanoid Dexterous Manipulation in Chemical Laboratory](/202607/02/2606.31037v2-labimus-a-simulation-and-benchmark-for-humanoid-dexterous-manipulation-in-chemical-laboratory)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：化学实验室自动化与AI驱动操作
+9. [SynLaD: Latent Diffusion for Generating Synthesizable Molecules Conditioned on 3D Pharmacophore Profiles](/202607/02/2607.01105v1-synlad-latent-diffusion-for-generating-synthesizable-molecules-conditioned-on-3d-pharmacophore-profiles)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：AI用于化学分子生成，与化学工程相关
 
 
 <div class="dpr-home-promo-card">
