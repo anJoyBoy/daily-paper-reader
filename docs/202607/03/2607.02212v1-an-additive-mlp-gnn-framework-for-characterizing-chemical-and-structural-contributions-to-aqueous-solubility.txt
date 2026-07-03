@@ -1,0 +1,458 @@
+Title: An Additive MLP-GNN Framework for Characterizing Chemical and Structural Contributions to Aqueous Solubility
+
+URL Source: https://arxiv.org/pdf/2607.02212v1
+
+Published Time: Fri, 03 Jul 2026 01:29:06 GMT
+
+Number of Pages: 26
+
+Markdown Content:
+# An Additive MLP–GNN Framework for Characterizing Chemical and Structural Contributions to Aqueous Solubility 
+
+## Sampreeti Bhattacharya ∗
+
+## and Arkaprava Roy †
+
+Abstract: Aqueous solubility is a key property in early-stage drug discovery, but most pre-dictive models merge physicochemical descriptors and molecular graph information into a single representation, obscuring whether a prediction is driven by global chemistry, molecular structure, or both. We present an additive deep-learning framework that keeps these two sources of infor-mation separate throughout training: physicochemical descriptors are encoded by a multilayer perceptron (the chemical branch) and molecular graph topology by a graph neural network (the structural branch), with the two outputs combined only at the prediction stage through an addi-tive model with an optional multiplicative interaction. This design provides a direct decomposition of chemical and structural components that can be examined separately after training. Further-more, pretraining on the larger AqSolDB dataset and fine-tuning on the smaller BigSolDB2 dataset substantially improve accuracy and reduce run-to-run variations, indicating generalizability of the learned features from the data-rich settings. We further interpret the fitted model using best linear projections of the branch outputs, molecule-level embedding summaries across solubility classes, and atom-level GNNExplainer masks aggregated over functional groups. These analyses show that the chemical branch aligns with familiar physicochemical descriptors, while the structural branch captures graph-topological and functional-group patterns associated with solubility. Across both datasets, the framework attains competitive predictive performance while making the distinct roles of chemical and structural information more transparent. 
+
+# 1 Introduction 
+
+Aqueous solubility is a critical physicochemical property in early-stage drug discovery, as it strongly influences oral bioavailability and formulation strategies [Lipinski, 2000, 2002]. Experimental mea-surements of solubility across large compound libraries is slow and expensive [White, 2000, Morelli and Rezende, 2018, Fink and Reymond, 2007], motivating the widespread use of computational models for predicting solubility from molecular structure and associated physical/chemical descrip-tors [Lovri´ c et al., 2021, Lusci et al., 2013, Lee et al., 2022, Conn et al., 2023, Bongini et al., 2021, 
+
+> ∗sampriti@alumni.unc.edu
+> †arkaprava.roy@ufl.edu
+
+1
+
+> arXiv:2607.02212v1 [stat.ML] 2 Jul 2026
+
+Xiong et al., 2021, Jiang et al., 2021, Segler et al., 2018, Ruiz Puentes et al., 2021, Tang et al., 2020, Ramani and Karmakar, 2024, Jorgensen and Duffy, 2002, Kovdienko et al., 2010]. A key challenge in solubility prediction is to obtain a chemically interpretable and quantifi-able representation of the molecules. Two broad sources of information are commonly used. The first consists of global physicochemical descriptors, such as partition coefficients, molecular weight, polar surface area, and hydrogen-bond counts, which summarize bulk chemical properties of the molecule. The second consists of structural information, represented by the molecular graph of atoms and bonds. Classical graph-theoretic indices, including Wiener’s index [Wiener, 1947], Bal-aban’s index [Balaban, 1982], Hosoya’s index [Hosoya, 1971], and Randi’c’s index [Randic, 1975], have long been used to encode molecular topology [Capecchi et al., 2020, Lehner et al., 2024]. More recently, graph neural networks (GNNs) have provided a flexible way to learn molecular represen-tations directly from graph structure by passing information between neighboring atoms and bonds [Wang et al., 2022, Rollins et al., 2024].Many sophisticated solubility prediction models [Ramani and Karmakar, 2024, Saquer et al., 2024, Dwivedi et al., 2023] combine molecular information into a single input representation or a single learned embedding. Although not completely outperform-ing descriptor-based or traditional machine-learning models in solubility tasks [Jiang et al., 2021], these methodologies can produce some of the more accurate predictions. However, what has not kept pace with predictive performance is interpretability as these approaches obscure whether a prediction is driven primarily by global physicochemical properties or by the molecular scaffold. Standard GNN pipelines may further entangle these sources of information by attaching chemically meaningful descriptors, functional-group annotations, formal charges, or fragment labels directly to graph nodes and edges. Descriptor-only models have the opposite limitation, they discard ex-plicit molecular graph structure and can be less accurate in settings where topology carries useful predictive information. Neural-network models have also been used for solubility prediction for decades, from early descriptor-based MLPs using electrotopological and topological indices [Hu-uskonen et al., 1998, Huuskonen, 2000] to recent deep-learning models based on RDKit descriptors, SMILES, and SELFIES representations [Kurotani et al., 2021, Ramos and White, 2024]. These studies show that neural networks can achieve strong predictive accuracy, but they also reinforce a recurring limitation: performance depends strongly on the molecular representation, data quality, and experimental uncertainty in measured solubility values. Importantly, these models typically improve prediction without explicitly separating the roles of global physicochemical descriptors and molecular graph structure. In both cases, chemical and structural information are mixed before or during model fitting, making it difficult to separate their contributions after training. This interpretability gap motivates the first contribution of this paper. We propose an additive deep-learning framework that explicitly separates chemical and structural contributions to aqueous solubility. Specifically, the two sources of information are combined additively, with an optional in-teraction term, as yi = κ+f (Gi)+ g(xi)+ τ f (Gi)g(xi)+ ϵi, where g encodes the chemical descriptors, 
+
+f encodes the molecular graph, and τ controls the interaction between them. Bhattacharya and Roy [2025] also considered this modeling formulation using radial basis function networks over fixed chemical and graph-theoretic descriptors. In this paper, we instead learn f (·) and g(·) end-to-end with a descriptor-based MLP and a graph neural network, and additionally study transfer learning across datasets along with post-hoc interpretation of the learned branches. Global physicochemical 2descriptors are encoded by a multilayer perceptron, forming the chemical branch, while molecular graph topology is encoded by a graph neural network – either a graph convolutional network (GCN) or a message-passing neural network (MPNN) – forming the structural branch. The two branch outputs are combined only at the final prediction stage, either additively or through an additional learnable interaction term. This modular design allows the fitted model to estimate chemical and structural contributions separately, while still permitting the two sources of information to inter-act. Unlike standard GNN pipelines that fuse chemical annotations and graph structure within a single learned representation, the proposed architecture preserves a decomposition that is further examined after training. The second contribution addresses the practical challenge of solubility data with limited samples. High-quality solubility datasets are difficult to assemble, and smaller datasets can lead to unstable training of neural network-based models. Since this study focuses on room-temperature solubility, we restrict the aqueous solubility data points recorded within 25 ±5◦C. Under this temperature criterion, BigSolDB2 [Krasnov et al., 2025] contains a much lower proportion of molecules than AqSolDB [Sorkun et al., 2019]. To improve model robustness and generalization in this data-limited setting, we implement a transfer-learning strategy. The two-branch model is first pretrained using AqSolDB and then fine-tuned using BigSolDB2 by updating only the final prediction layers. This strategy preserves the chemical and structural representations learned from the larger dataset while adapting the output mapping to the smaller dataset. We show that this transfer-learning step improves prediction accuracy and reduces run-to-run variability on BigSolDB2. The third contribution is a set of post hoc interpretation analyses designed to characterize what each branch has learned. Although the proposed architecture separates the chemical and structural branches, the learned branch outputs remain nonlinear summaries. We therefore use marginal best linear projections (MBLPs) inspired by Semenova and Chernozhukov [2021] to relate the learned branch outputs to familiar physicochemical and graph-theoretic descriptors. We further examine molecule-level embedding summaries across solubility classes to determine whether the learned graph representation varies systematically with solubility. Finally, we apply atom-level GNNExplainer masks [Ying et al., 2019] and aggregate them across functional groups to identify structural motifs that the fitted graph branch consistently emphasize or underemphasize. Together, these three components define the main goal of the paper: to develop a solubility prediction framework that remains competitive with standard molecular learning approaches while making the separate roles of chemical descriptors and molecular graph structure more transparent. The remainder of the paper is organized as follows. We first describe the proposed additive architec-ture, data sources, molecular representations, and training procedure. We then evaluate predictive performance on AqSolDB and BigSolDB2, including transfer learning from AqSolDB to BigSolDB2. Finally, we use best linear projections, molecule-level embedding summaries, and GNNExplainer-based functional-group analyses to characterize the chemical and structural information learned by the model. 32 Additive Deep Characterization 
+
+We adopt an interpretable additive structure that keeps the two information sources separate and combines them only at the output. In contrast to Bhattacharya et al. Bhattacharya and Roy [2025], who use radial basis functions over fixed chemical and graph-theoretic descriptors, we parameterize the component functions with deep neural networks and train the full model end-to-end, thereby allowing us to do more in-depth analyses. Specifically, let xi denote the vector of global physicochemical descriptors for molecule i and Gi its molecular graph. The structural branch maps Gi to a learned structural representation, 
+
+ui1 = f (Gi),
+
+and the chemical branch maps xi to a scalar learned chemical representation, 
+
+ui2 = g(xi).
+
+We refer to these quantities as the learned structural and chemical contributions, respectively. Substituting these learned representations into an interaction model gives 
+
+yi = κ + g(xi) + f (Gi) + τ g (xi)f (Gi) + ϵi, i = 1 , . . . , n, (1) where κ is an intercept and τ is a learnable interaction parameter. When τ = 0, the model reduces to an additive decomposition in which the chemical and structural branches contribute independently. When τ̸ = 0, the model allows the effect of one branch to depend on the other, capturing potential synergy or attenuation between physicochemical descriptors and molecular graph structure. In our implementation, g(·) is represented by a multilayer perceptron (MLP) applied to global physicochemical descriptors such as MolLogP, MolWt, TPSA, and hydrogen-bond counts. The structural component f (·) is represented by a graph neural network applied to the molecular graph constructed from the SMILES string, where atoms are nodes and chemical bonds are edges. Aschematic of the proposed architecture is shown in Figure 1. We evaluate two model configurations: an interaction model with τ̸ = 0, and a no-interaction model with τ = 0. Comparing these two specifications allows us to assess whether the multiplicative interaction improves prediction beyond the simpler additive decomposition, and to quantify the interaction between the two branches. 
+
+Identifiability consideration for f and g. Because both branches are fitted jointly against a single response, the additive split of predictive signal between f and g is not guaranteed to be identi-fiable: signal shared by the descriptor and graph information could in principle be absorbed by either branch. We therefore check empirically how consistently each branch is recovered across 10 independent runs (10 random seeds). For each of the  10 2
+
+ = 45 pairs of runs, we compute the Pearson correlation between the per-molecule structural contributions f (Gi), and separately between the chemical contributions g(xi); because the branch outputs are identified only up to a shared offset and scale, correlation is the appropriate measure, being invariant to both. As a complementary check on the stability of the split itself, we compute the structural variance share 
+
+ρ = std( f )/ std( f ) + std( g) per run, where std( f ) and std( g) are the standard deviations of the per-molecule outputs {f (Gi)}ni=1 and {g(xi)}ni=1 . High per-branch correlations together with a stable ρ indicate that the model recovers a consistent assignment of signal between the branches across runs, evidence of reproducibility. 4Figure 1: Proposed additive deep-learning framework for aqueous solubility analysis combining two separate branches of outputs. Global physicochemical descriptors are encoded by the chemical branch via g, while molecular graph structure is encoded by the structural branch via f . The two learned branch outputs are combined through an additive model with an optional multiplicative interaction. 52.1 Data 
+
+We analyze two aqueous-solubility datasets: AqSolDB [Sorkun et al., 2019] and BigSolDB2 [Krasnov et al., 2025]. AqSolDB contains 9,982 compounds, curated by merging a total of nine different aqueous solubility datasets, and BigSolDB2 [Krasnov et al., 2025] contains 103,944 experimental solubility values for 1,448 organic compounds, measured in 213 solvents over a temperature range of 243–425 K. As we focus on aqueous solubility, we extract the water-solvent measurements and retain compounds in the temperature range of 298–304 K , yielding 692 unique SMILES after removing entries that overlap with AqSolDB. This temperature window is chosen to match AqSolDB, whose measurements are reported at 25 ± 5 ◦C. Physicochemical descriptors are then computed with 
+
+RDKit ; full details are given in the SI. Each compound is represented by a SMILES string and an experimentally measured aqueous solubility value, reported as log S. AqSolDB is used as the primary large-scale dataset for model development and pretraining, whereas BigSolDB2 is used to evaluate model performance in a smaller-sample setting and to assess transfer learning from AqSolDB. For each compound, we compute a set of global physicochemical descriptors to define the chem-ical input to the MLP branch. These descriptors include molecular weight (MolWt), octanol wa-ter partition coefficient (MolLogP), molar refractivity (MolMR), heavy-atom count (HeavyAtom-Count), number of hydrogen-bond acceptors (NumHAcceptors), number of hydrogen-bond donors (NumHDonors), number of heteroatoms (NumHeteroatoms), number of rotatable bonds (Num-RotatableBonds), number of valence electrons (NumValenceElectrons), number of aromatic rings (NumAromaticRings), number of saturated rings (NumSaturatedRings), number of aliphatic rings (NumAliphaticRings), total ring count (RingCount), topological polar surface area (TPSA), and Labute’s approximate surface area (LabuteASA) [Labute, 2000]. These 15 descriptors are used as the input features for the descriptor-based physicochemical branch. Balaban’s J index [Balaban, 1982] and Bertz’s complexity index (BertzCT) [Bertz, 1981] are excluded from the MLP input because both are derived from molecular graph topology already represented by the graph branch. Removing these descriptors reduces redundancy and maintains a clearer separation between descriptor-based chemical information and graph-encoded structural information. For the graph branch, each SMILES string is converted into a molecular graph, with atoms represented as nodes and chemical bonds represented as edges. Node-level features included atomic number, implicit valence, formal charge, number of radical electrons, and hybridization state. Bond information is used to define graph connectivity, with additional bond-level attributes such as bond type, conjugation, and ring membership stored as edge information. A representative example of the descriptor set and molecular graph representation is shown in Figure S5. 
+
+## 2.2 Model architecture and computation 
+
+The descriptor branch is implemented using torch.nn , and the graph branch is implemented using 
+
+torch geometric . Each molecule is converted from its SMILES string into a PyTorch Geometric data object, with atoms represented as nodes and chemical bonds represented as bidirectional edges. Let Gi = ( Vi, E i) denote the molecular graph for molecule i, and let xi ∈ Rp, with p = 15, denote 6the standardized physicochemical descriptor vector. The graph branch takes Gi as input and produces a scalar structural output f (Gi). We consider two graph encoders: a graph convolutional network (GCN) and a message-passing neural network (MPNN). Both encoders use atom-level node features and the same graph-level pooling operation, but they differ in how node embeddings are updated within each graph layer. For the GCN encoder, let H(ℓ) ∈ RNi×dℓ denote the matrix of node embeddings for molecule i
+
+at layer ℓ. The layer-wise update is 
+
+H(ℓ+1) = σ
+
+ eD−1/2 eA eD−1/2H(ℓ)W(ℓ)
+
+,
+
+where eA = A + I is the adjacency matrix with self-loops, eD is the corresponding degree matrix, 
+
+W(ℓ) is a learnable weight matrix, and σ(·) is a nonlinear activation function. This update prop-agates degree-normalized information across neighboring atoms using node features and molecular connectivity, but it does not directly use bond attributes in the convolutional update. The MPNN encoder uses an explicit bond-aware message-passing update. For each edge from atom u to atom v, let euv denote the corresponding edge-feature vector, containing bond-level in-formation such as bond type, conjugation, and ring membership. Messages are formed by concate-nating the source-node embedding with the edge-feature vector, applying a linear transformation, and multiplying by a degree-normalization factor: 
+
+m(ℓ) 
+
+> u→v
+
+= αuv W(ℓ)msg 
+
+h
+
+h(ℓ) 
+
+> u
+
+∥ euv 
+
+i
+
+,
+
+where 
+
+αuv = ˆd−1/2 
+
+> u
+
+ˆd−1/2
+
+> v
+
+is the degree-normalization factor after adding self-loops. Self-loop edges are assigned zero-valued edge features. Incoming messages are aggregated using mean aggregation, and a separate linear transformation is applied to the central node: 
+
+h(ℓ+1)  
+
+> v
+
+= tanh 
+
+h
+
+W(ℓ)self h(ℓ) 
+
+> v
+
++ Mean u∈N (v)∪{ v}
+
+n
+
+m(ℓ)
+
+> u→v
+
+oi 
+
+,
+
+where N (v) denotes the neighbors of node v. Thus, compared with the GCN encoder, the MPNN encoder makes the message construction step explicit and allows bond attributes to contribute directly to the information passed between atoms. For both graph encoders, the graph branch consists of four graph layers. The first layer maps the node features to an embedding dimension d = 8, and the next three layers preserve this dimension. A hyperbolic tangent activation is applied after each graph layer. After the final graph layer, the node embeddings H ∈ RNi×d are aggregated into a graph-level representation by concatenating global max pooling and global mean pooling: 
+
+hGi = [GMP( H) ∥ GAP( H)] ∈ R2d.
+
+This pooled representation is passed through a linear output layer to produce the scalar structural branch output f (Gi). For the MPNN encoder, we also retain an atom-level local summary by 7summing each final node embedding across embedding dimensions; this summary is used only for downstream local-weight visualizations. The descriptor branch takes the 15 standardized physicochemical descriptors as input. The descriptors are standardized before model fitting using StandardScaler . The MLP consists of three hidden layers of width h = 4, each followed by a ReLU activation, and a final linear output layer without bias: 
+
+a(1)  
+
+> i
+
+= σ
+
+
+
+W (1) xi + b(1) 
+
+,
+
+a(2)  
+
+> i
+
+= σ
+
+
+
+W (2) a(1)  
+
+> i
+
++ b(2) 
+
+,
+
+a(3)  
+
+> i
+
+= σ
+
+
+
+W (3) a(2)  
+
+> i
+
++ b(3) 
+
+,g(xi) = W (4) a(3)  
+
+> i
+
+,
+
+where σ(t) = max(0 , t ) is the ReLU activation. The compact hidden dimension is chosen to limit overfitting and to keep the descriptor branch from dominating the graph branch. The final prediction combines the descriptor and graph outputs additively, with an optional multiplicative interaction: 
+
+byi = κ + g(xi) + f (Gi) + τ g (xi)f (Gi).
+
+When the interaction model is fitted, τ is learned jointly with the other model parameters. When the no-interaction model is fitted, the multiplicative term is removed: 
+
+byi = κ + g(xi) + f (Gi).
+
+Comparing these two specifications allows us to assess whether the interaction term improves predictive performance beyond the simpler additive decomposition. Model parameters are estimated by minimizing the mean squared error loss, 
+
+L = 1
+
+n
+
+> n
+
+X
+
+> i=1
+
+(yi − byi)2 .
+
+Architecture and tuning parameters, including the number of graph layers, graph embedding dimen-sion, MLP width, and inclusion of the interaction term, are selected by minimizing validation-set prediction error. Model parameters are optimized using Adam with learning rate 10 −3. Each model is trained for 5000 epochs with a training batch size of 10; validation and test errors are recorded every 10 epochs using a batch size of 200. The target LogS values are kept on their original scale. To reduce overfitting, we use early stopping based on the validation loss. For each run, we select the model checkpoint corresponding to the minimum validation loss. The learned branch outputs from this checkpoint are then extracted and used for subsequent interpretability analyses. Final prediction accuracy is summarized using mean absolute error on the test set. All experiments are repeated over 10 independent runs with different model initializations. We also examine the run-to-run correlation of the learned branch outputs as a diagnostic for the stability and identifiability of the two-branch decomposition. 82.3 Transfer Learning from AqSolDB to BigSolDB2 
+
+We use a lightweight transfer learning approach to improve prediction accuracy for BigSolDB2, which contains fewer samples than AqSolDB, and to assess whether molecular representations learned from the larger AqSolDB dataset generalize to BigSolDB2. The GNN and MLP branches pretrained on AqSolDB initialize the prediction model for BigSolDB2. During fine-tuning, all representation-learning layers remain frozen, and only the final prediction layer in each branch is updated: the graph-output layer in the GNN branch and the final fully connected layer in the MLP branch. This strategy preserves the chemical and structural representations learned from AqSolDB while allowing the final mapping to adapt to the BigSolDB2 solubility scale. Fine-tuning uses Adam and a learning rate of 10 −3, with all other training settings kept the same as in the base protocol. Validation and test errors are recorded over 10 independent runs with 10 different seeds to evaluate predictive performance and run-to-run stability. 
+
+To confirm that this improvement reflects information carried over from AqSolDB rather than the regularizing effect of fitting only a small number of parameters, we run a control experiment using the same frozen fine-tuning procedure but with randomly initialized branches. Specifically, the GNN and MLP modules are initialized at random rather than from the AqSolDB-pretrained weights, and are then kept frozen exactly as above, so that only the final prediction layer of each branch is updated on BigSolDB2. All other settings—optimizer, learning rate, and number of runs and seeds—are kept identical to the transfer-learning protocol. Comparing this random-initialization control against the pretrained model isolates the contribution of the learned represen-tations: if pretraining carries no useful information, the two should perform comparably, whereas a gap in favor of the pretrained model indicates that the AqSolDB representations themselves drive the transfer-learning gain. 
+
+## 2.4 Best Linear Projection-Based Inference 
+
+Although the proposed architecture separates chemical and structural information into distinct branches, the learned branch outputs f (·) and g(·) remain nonlinear summaries and are therefore not directly interpretable. This is especially true for f (·), which is learned from molecular graph structure through the graph neural network. To examine what information each branch encodes, we use marginal best linear projections (MBLPs), motivated by Semenova and Chernozhukov [2021], to project the learned branch outputs onto interpretable molecular descriptors. For the structural branch f (·), we project the learned graph-based representation onto six graph-theoretic descriptors that are not used as direct inputs to either branch: global efficiency, average shortest path length ( Avg SPL ), strength, algebraic connectivity ( Alg connectivity ), average degree connectivity ( Avg degree connectivity ), and betweenness centrality ( Bwn centrality ). These projections provide a post hoc summary of how the learned structural representation aligns with familiar graph-level molecular summaries. For the chemical branch g(·), we project the learned descriptor-based representation onto the same 15 physicochemical descriptors used as MLP inputs. In this case, the MBLP coefficients quantify how strongly each input descriptor is linearly reflected in the learned chemical representation, rather than measuring encoding of unseen features. For each of the 10 independent runs, we fit a separate univariate linear projection, including an 9intercept, for each descriptor and retain only the slope coefficient. Thus, each descriptor receives one projection coefficient per run. Because these projections are univariate and do not residualize against the other descriptors, the resulting coefficients should be interpreted as measures of linear association between a learned branch output and a descriptor, not as causal effects or conditional feature importance. The full procedure is summarized in Algorithm 1. 
+
+Algorithm 1 Linear Projection of Descriptors onto Learned Representations 
+
+Require: Learned representations f (i)(·) and g(i)(·) from runs i = 1 , . . . , 10; standardized graph-theoretic descriptor matrix Df ∈ RN ×6; standardized physicochemical descriptor matrix Dg ∈
+
+RN ×15 
+
+Ensure: Projection coefficient matrices Cf ∈ R10 ×6 and Cg ∈ R10 ×15  
+
+> 1:
+
+for k = 1 to 10 do  
+
+> 2:
+
+Load the saved representations f (k) and g(k) 
+
+> 3:
+
+Build the output vectors f (k) and g(k) over the full set of data points  
+
+> 4:
+
+for j = 1 to 6 do  
+
+> 5:
+
+Let df,j be the j-th column of Df 
+
+> 6:
+
+Compute ( bα(k) 
+
+> f,j
+
+, bβ(k) 
+
+> f,j
+
+) ← arg min α,β ∥f (k) − α1 − βdf,j ∥22 
+
+> 7:
+
+Set Cf [k, j ] ← bβ(k) 
+
+> f,j
+> 8:
+
+end for  
+
+> 9:
+
+for j = 1 to 15 do  
+
+> 10:
+
+Let dg,j be the j-th column of Dg 
+
+> 11:
+
+Compute ( bα(k) 
+
+> g,j
+
+, bβ(k) 
+
+> g,j
+
+) ← arg min α,β ∥g(k) − α1 − βdg,j ∥22 
+
+> 12:
+
+Set Cg[k, j ] ← bβ(k) 
+
+> g,j
+> 13:
+
+end for  
+
+> 14:
+
+end for  
+
+> 15:
+
+return Cf , Cg
+
+Equivalently, for each run ( k), the univariate projection coefficients for the structural descriptors are obtained from (bα(k) 
+
+> f,j
+
+, bβ(k) 
+
+> f,j
+
+) = arg min  
+
+> α,β
+
+f (k) − α1 − βdf,j  
+
+> 22
+
+, j = 1 , . . . , 6,
+
+and the corresponding coefficients for the chemical descriptors from (bα(k) 
+
+> g,j
+
+, bβ(k) 
+
+> g,j
+
+) = arg min  
+
+> α,β
+
+g(k) − α1 − βdg,j  
+
+> 22
+
+, j = 1 , . . . , 15 .
+
+We retain only the slope coefficients bβ(k) 
+
+> f,j
+
+and bβ(k) 
+
+> g,j
+
+. With the intercept included, these reduce to the mean-centered estimates 
+
+bβ(k) 
+
+> f,j
+
+= (df,j − ¯df,j 1)⊤(f (k) − ¯f (k)1)(df,j − ¯df,j 1)⊤(df,j − ¯df,j 1) , bβ(k) 
+
+> g,j
+
+= (dg,j − ¯dg,j 1)⊤(g(k) − ¯g(k)1)(dg,j − ¯dg,j 1)⊤(dg,j − ¯dg,j 1) ,
+
+10 where ¯d·,j , ¯f (k), and ¯ g(k) denote the corresponding sample means. The coefficients are then collected across the 10 independent runs to form 
+
+Cf =
+
+ bβ(k)
+
+> f,j
+
+  
+
+> k=1 ,..., 10; j=1 ,..., 6
+
+, Cg =
+
+ bβ(k)
+
+> g,j
+
+ 
+
+> k=1 ,..., 10; j=1 ,..., 15
+
+# 3 Results 
+
+We evaluate the proposed additive deep-learning framework from three complementary perspec-tives. First, we assess predictive performance on AqSolDB and BigSolDB2 across graph convo-lutional network (GCN) and message-passing neural network (MPNN) implementations of the structural branch, with and without the interaction term. Second, we examine whether rep-resentations learned from the larger AqSolDB dataset could be transferred to the substantially smaller BigSolDB2 dataset. Third, we use best linear projections, molecule-level summed embed-ding weights, and atom-level GNNExplainer masks to characterize the chemical and structural information learned by the fitted model. 
+
+## 3.1 Predictive performance 
+
+To assess generalizability to structurally novel molecules, we employ a scaffold-splitting procedure that partitions molecules according to their two-dimensional core structural frameworks. Molecules sharing the same scaffold are assigned to the same subset, so the validation and test sets contain molecular frameworks not seen during training. This provides a more realistic estimate of model performance in prospective experimental settings, where predictions are often required for new chemical scaffolds. For both AqSolDB, we borrow the scaffold split provided by Dwivedi et al. [2023] to be able to compare with their results. For BigSolDB2, we partition the data by Bemis– Murcko scaffold [Bemis and Murcko, 1996] , computed using RDKit’s MurckoScaffold module, following the splitting protocol of Ramsundar [2018], Wu et al. [2018] with an 80:10:10 split for training, testing, and validation, respectively. Table 1 reports the mean, standard deviation, and median test MAE across 10 independent runs. In the case of AqSolDB, the additive models without the interaction term consistently perform better than their corresponding interaction models, although the differences are modest. The MPNN+MLP model without interaction achieves the lowest test error, with mean MAE 1.06 and standard deviation 0.02, followed closely by the GCN+MLP model, with mean MAE 1.07 and standard deviation 0.03. Adding the multiplicative interaction term increases the test error for both graph architectures: the GCN+MLP interaction model has mean MAE 1.12, and the MPNN+MLP interaction model has mean MAE 1.10. Thus, for AqSolDB, the separate chemical and structural branches appear to capture most of the useful predictive information. The interaction term does not improve out-of-sample accuracy and instead adds model flexibility that is not supported by the prediction results. This is also consistent with the estimated interaction effects, which do not provide clear evidence of a stable additional contribution beyond the main chemical and structural components. 11 It is also important to note that Dwivedi et al. [2023] reported a GCN test MAE of approx-imately 1.35 on AqSolDB, whereas the present GCN+MLP model achieves a mean test MAE of 1.07. Although the comparison is not exact because of differences in implementation and repeated-run design, the improvement suggests that global physicochemical descriptors contain predictive information that is not fully captured by graph topology alone Huuskonen [2000], Ramos and White [2024]. For BigSolDB2, the GCN+MLP model improves over the standalone GCN baseline. The standalone GCN achieves mean MAE 1.29 with standard deviation 0.05, whereas the GCN+MLP model reduces the mean MAE to 1.24. This supports the central motivation of the proposed framework: global physicochemical descriptors provide information that complements the molec-ular graph representation. The GCN+MLP interaction model performs worse, with mean MAE 1.39, again suggesting that the interaction term is not needed for prediction in these data. In contrast, the MPNN+MLP models trained directly on BigSolDB2 show higher prediction error and greater run-to-run variability, with mean MAE 1.21 without interaction and 1.39 with interaction. This instability is likely related to the small sample size of BigSolDB2, which contains far fewer compounds than AqSolDB and therefore provides limited information for fitting the more flexible message-passing representation from scratch. Although the proposed models are Table 1: Mean absolute error (MAE) performance of different graph neural network architectures on the AqSolDB and BigSolDB2 datasets. For each model configuration, results are reported as the mean MAE, standard deviation (in parentheses), and median MAE obtained over 10 indepen-dent training runs using 10 different random seeds. Lower MAE values indicate better predictive accuracy. The evaluated architectures include a baseline Graph Convolutional Network (GCN), GCN combined with a multilayer perceptron (GCN+MLP), GCN+MLP with an interaction mod-ule, Message Passing Neural Network combined with a multilayer perceptron (MPNN+MLP), and MPNN+MLP with an interaction module. The standard deviation quantifies performance vari-ability across runs, while the median provides a robust measure of central tendency Dataset Model Mean (Std dev) Median AqSolDB GCN+MLP 1.07 (0.03) 1.08 AqSolDB GCN+MLP with interaction 1.12 (0.03) 1.12 AqSolDB MPNN+MLP 1.06 (0.02) 1.07 AqSolDB MPNN+MLP with interaction 1.10 (0.05) 1.08 BigSolDB2 GCN 1.29 (0.05) 1.28 BigSolDB2 GCN+MLP 1.24 (0.12) 1.27 BigSolDB2 GCN+MLP with interaction 1.39 (0.12) 1.41 BigSolDB2 MPNN+MLP 1.21 (0.19) 1.21 BigSolDB2 MPNN+MLP with interaction 1.39 (0.21) 1.38 not designed solely to optimize benchmark accuracy, their prediction errors are competitive with established GNN baselines reported by Dwivedi et al. [2023]. More importantly, the additive formulation provides a direct way to separate the contributions of physicochemical descriptors and molecular graph structure. Thus, even when the gain in raw prediction accuracy is modest, the 12 model offers additional interpretability by allowing the chemical and structural components to be examined separately. This is the focus of the inference analyses in Section Inference. Overall, the best-performing model for AqSolDB in Table 1 is the MPNN+MLP model without the interaction term. We therefore use this model for the downstream analyses in the subsequent sections, which we base on AqSolDB rather than BigSolDB2 given the former’s larger sample size and correspondingly more reliable estimates. 
+
+## 3.2 Transfer learning improves prediction on BigSolDB2 
+
+Table 2 summarizes the transfer-learning results on BigSolDB2. Pretraining on AqSolDB and then fine-tuning on the same BigSolDB2 training, validation, and test splits used in the previous section substantially improves prediction relative to training directly on BigSolDB2. Importantly, after canonicalizing SMILES, we confirmed that the AqSolDB pretraining set and the BigSolDB2 test set share no compounds, ruling out data leakage. The best transfer-learning performance is obtained by the GCN+MLP model, which achieves mean MAE 1 .03 with standard deviation 0.07. The MPNN+MLP transfer-learning model performed similarly, with mean MAE 1 .04 and standard deviation 0 .06. These errors are markedly lower than the corresponding models trained from scratch on BigSolDB2. Table 2: Transfer-learning performance on BigSolDB2 after pretraining on AqSolDB. For each model, the graph and descriptor branches were initialized from the AqSolDB-pretrained model and fine-tuned on BigSolDB2 by updating the final prediction layers. Values report mean, standard deviation, and median test MAE across 10 independent runs with 10 different seeds. Model Mean (Std dev) Median GCN+MLP 1.03 (0.07) 1.03 GCN+MLP with interaction 1.09 (0.08) 1.06 MPNN+MLP 1.04 (0.06) 1.05 MPNN+MLP with interaction 1.11 (0.06) 1.13 The improvement is especially clear for the MPNN-based model. When trained directly on BigSolDB2, MPNN+MLP had mean MAE 1 .51; with transfer learning, the mean MAE decreases to 1.04. This indicates that the structural and chemical representations learned from AqSolDB transfer effectively to BigSolDB2, even though only the final prediction layers are fine-tuned. Transfer learning also reduces the variability of the MPNN-based model across independent runs, suggesting that pretraining stabilizes the learned representation and reduces sensitivity to random initialization in the small-sample setting. Similar to the direct-training experiments, the interaction term does not improve prediction after transfer learning. The GCN+MLP transfer-learning model without interaction achieved mean MAE 1.03, compared with 1 .09 for the corresponding interaction model. Similarly, the MPNN+MLP transfer-learning model without interaction achieved mean MAE 1 .04, compared with 1 .11 with interaction. 13 Verifying that pretraining drives the transfer gain. To confirm that the improvement from transfer learning reflects useful representations learned on AqSolDB rather than the regularizing effect of training only a small number of parameters, we repeat the fine-tuning procedure with randomly initialized GCN, MLP, and MPNN modules: the representation layers are left untrained and frozen, and only the final prediction layer of each branch is fit on BigSolDB2. This control yields substan-tially higher test MAE, 1.33 (0.3) without the interaction term and 1.36 (0.3) with it, well above the 1.03-1.04 obtained when the frozen backbone is pretrained on AqSolDB. The gap indicates that the transfer-learning gain is attributable to the representations learned during pretraining, not merely to the reduced number of trainable parameters during fine-tuning. 
+
+## 3.3 Inference 
+
+Aqueous solubility (log S, the base-10 logarithm of molar solubility) is commonly represented using discrete solubility classes rather than as a continuous variable. Following the classification scheme adopted in Sorkun et al. [2019], compounds are categorized as highly soluble (log S ≥ 0), soluble (−2 ≤ log S < 0), slightly soluble ( −4 ≤ log S < −2), and insoluble (log S < −4) Sorkun et al. [2019]. These categories are broadly consistent with pharmaceutical development guidelines, where candidate compounds are generally required to exhibit solubilities above approximately 10 μM to support preclinical evaluation Sun et al. [2019], Fink et al. [2020]. To identify molecular features associated with solubility extremes, we divide the dataset into three classes: poorly soluble (log S ≤−5.0), moderately soluble ( −5.0 < log S < −0.5), and highly soluble (log S ≥ − 0.5). The selected thresholds intentionally extend beyond the conventional boundaries of log S = −4 and log S =0. Compounds with log S ≤ − 5.0 fall well below the commonly accepted insolubility threshold and approach the regime of extremely low solubility Sun et al. [2019], whereas compounds with log S ≥ − 0.5 lie comfortably within the freely soluble range. As a result, compounds that would traditionally be classified as “soluble” (e.g., log S ≈ − 2.5) are intentionally included within the moderate-solubility category. This broader separation of the extreme classes minimizes the inclusion of borderline compounds whose classifications may be influenced by experimental uncertainty in aggregated solubility datasets. By focusing on molecules that are unequivocally poorly soluble or highly soluble, the resulting groups exhibit stronger structural contrast, facilitating a more robust interpretation of the molecular descriptors and structural motifs that govern aqueous solubility. Before running our inferential analyses, we examine run-to-run variabilities. For each pair of runs, we compute the Pearson correlation between the per-molecule branch outputs. The chemical branch g(xi) is highly reproducible (mean r ≈ 0.97), as expected for a compact network applied to a fixed set of 15 descriptors. The structural branch f (Gi) is correlated at r ≈ 0.80, a moderate but expected reduction given that the graph encoder is more expressive than the descriptor branch and different initializations can settle on different but near-equivalent representations. The allocation of signal between the branches is more stable than the detailed structural output. Defining the structural variance share ρ = std( f )/ std( f ) + std( g), we obtain ρ = 0 .33 ± 0.03 over the 10 runs. Here, std( f ) and std( g) denote the standard deviations of the per-molecule outputs {f (Gi)}ni=1 and 
+
+{g(xi)}ni=1 , respectively for a given run. These results indicate that, although the fine detail of the graph representation exhibits some run-to-run variabilities, the decomposition into chemical and 14 structural contributions is reproducible, supporting its use in the subsequent interpretive analyses. 
+
+3.3.1 Best linear projections 
+
+Now, we examine MBLP coefficients following the protocol discussed in Section Best Linear Projection-Based Inference, these projections should be interpreted as associations between learned branch out-puts and interpretable molecular summaries, not as causal effects. Top panel in Figure 2 summarizes the chemical-branch MBLP coefficients stratified by solubility class. Several descriptors show sta-ble positive associations with the learned chemical representation across solubility groups. MolMR, HeavyAtomCount, NumRotatableBonds, and NumValenceElectrons are particularly prominent, with larger coefficients among soluble compounds than among insoluble compounds. For example, MolMR increases from 0 .24 in the insoluble group to 0 .50 in the soluble group, while NumRotat-ableBonds increases from 0 .15 to 0 .43. These patterns indicate that the chemical branch is not simply reproducing a single descriptor, but is instead learning a composite representation that reflects molecular size, refractivity, flexibility, and electronic content. The intercept absorbs the differences in baseline scale between the solubility strata, leaving the slope coefficients to capture the descriptor associations. Several of these descriptors, such as MolWt, MolMR, HeavyAtomCount, NumValenceElectrons, and LabuteASA, are mutually correlated through their shared dependence on molecular size, so their individually large projection coefficients should be read as a single coherent size-and-bulk signal rather than five independent contributions. That the chemical branch consistently aligns with this entire size-related cluster, positively across all independent runs and across solubility classes, is worth noting: the MLP branch reproducibly encodes molecular size and bulk as a dominant axis of its learned chemical representation. MolLogP shows a different pattern, with the largest coefficient among insoluble compounds. This is consistent with the known role of hydrophobicity in reducing aqueous solubility, but here it should be interpreted more cautiously as a projection of the learned chemical representation rather than a direct regression effect on solubility. TPSA and NumHeteroatoms have negative projection coefficients in the insoluble group but small positive values in the moderate and soluble groups, suggesting that the chemical branch encodes these descriptors differently across three solubility ranges. The bottom panel in Figure 2 summarizes MBLP coefficients for graph-topology descriptors. The structural branch shows noticeable differences between insoluble and soluble compounds. Global efficiency and algebraic connectivity are strongly negative among insoluble molecules, with coefficients −0.42 and −0.55, respectively, but are much closer to zero among soluble molecules. Strength and betweenness centrality are positive in the insoluble group and smaller in the moderate and soluble groups. These patterns suggest that the graph branch captures broad differences in molecular topology across solubility classes. As these graph summaries are global descriptors, the signs should not be interpreted mechanis-tically on their own; rather, they show that the learned structural representation is systematically associated with recognizable network-level properties. In summary, the MBLP results support the interpretability goal of the proposed architecture. The chemical branch aligns with familiar 15 physicochemical descriptors, while the structural branch aligns with graph-topology summaries. Importantly, these associations are obtained after model fitting and are therefore summaries of the information encoded by the learned representations, not inputs artificially imposed on the final prediction. 
+
+3.3.2 Model-learned embedding weights separate solubility classes 
+
+We next examine molecule-level summed embedding weights from the fitted MPNN+MLP model. For each molecule, this quantity is the sum over atoms of the last-layer node embeddings, P
+
+> v∈Vi
+
+Pdk=1 h(L) 
+
+> v,k
+
+,computed after training, where v runs over the atoms of molecule i and k runs over the d embedding dimensions. The summed weight is a simple unweighted aggregate of the node embeddings, distinct from the trained structural output f (Gi). As it is a simple unweighted aggregate of the node em-beddings rather than the model’s prediction, separation across solubility classes is not guaranteed; on the other hand, such separation would indicate that the atom-level summed embeddings we later interpret carry solubility-sensitive structural information. Highly insoluble compounds are defined by log S ≤ − 5.0 and highly soluble compounds by log S ≥ − 0.5; these thresholds isolate the two ends of the solubility distribution. As shown in Figures 3(c)-3(d), summed embedding weights show a shift across two extremes of solubility. For highly soluble compounds, the distribution is concentrated in a relatively narrow range, approxi-mately between −10 .0 and 0 .0, with a peak near −6.5. Highly insoluble compounds show a much broader distribution, approximately ranging between −35 .0 and −7.0, centered at −15 .0. This result is an unsupervised aggregate of the hidden node embeddings, P
+
+> v
+
+P 
+
+> k
+
+h(L) 
+
+> v,k
+
+, rather than the optimized structural output f (Gi). The monotone ordering in Figure 4(a) therefore shows that the variation with solubility is present not only in the optimized readout but also in a coarse, unweighted summary of the underlying node embeddings, suggesting that information sensitive to solubility is distributed throughout the latent representation. Here, we read this analysis as a diagnostic of molecule-level summaries that vary systematically across solubility classes. 
+
+3.3.3 GNNExplainer identifies functional groups emphasized by the structural branch 
+
+Finally, we apply GNNExplainer to the fitted MPNN model to identify atoms that are most im-portant for preserving each molecule’s prediction. For each molecule, the atom-level masks are mean-centered and normalized to the interval [ −1, 1], so that each atom’s value is expressed rel-ative to the other atoms in the same molecule. We examine ten functional groups and substruc-tural motifs: hydroxyl ( −OH), nitro ( −NO 2), sulfonamide ( −SO 2NH), amide ( −CONH), methoxy (−OCH 3), carboxylic acid ( −COOH), aldehyde/ketone (C −−O), alkene (C −−C), aromatic carbon, and amine ( −NH 2). These motifs span both directions of the solubility response. The polar, hydrogen-bonding groups—hydroxyl, carboxylic acid, amide, amine, nitro, and sulfonamide—act as hydrogen-bond donors and/or acceptors and tend to promote aqueous solubility, whereas the hydrophobic motifs—aromatic carbon and alkene—tend to reduce it; the carbonyl and methoxy groups occupy an intermediate, predominantly acceptor-like regime. This set is chemically inter-pretable and balanced across the solubility response, yet small enough to support reliable per-group 16 Figure 2: MBLP coefficients (calculated using MPNN-MLP model) for the chemical (top) and structural (bottom) branches, stratified by aqueous solubility class. Points are averages over the 10 runs and bars are ±1 SD; positive values indicate that the learned summary increases with the descriptor. Associations are post hoc summaries of the learned representations, not causal effects. 17 (a) (b)  
+
+> (c) (d)
+
+Figure 3: Histograms for solubility and corresponding summed embedding weights for molecules with solubility range (a,c) ≤ − 5.0 and (b,d) ≥ − 0.5, representing the least and highly soluble compounds in AqSolDB, respectively. 18 statistical comparison, providing a basis against which to test whether the learned structural rep-resentation f (Gi) attends to the substructures that established structure–property relationships associate with solubility. For each functional group, we summarize every molecule containing that group by two quantities: the mean mask value of the atoms belonging to the group and the mean mask value of the remaining atoms in that same molecule. This yields one paired observation per molecule and treats the molecule, rather than the individual atom, as the unit of analysis, avoiding the artificially inflated significance that arises when correlated atoms within a molecule are treated as independent. Because these per-molecule values need not be normally distributed and may con-tain outliers, we compare the in-group and out-of-group means using the Wilcoxon signed-rank test Bauer [1972], a nonparametric paired comparison of the medians. Since each molecule serves as its own control, this design removes molecule-size and scaffold effects that would otherwise confound a pooled comparison. We apply this test to the ten groups listed above and report the results in Figure 4(b). In Figure 4(b), the GNNExplainer analysis shows systematic differences in the importance assigned to chemically meaningful motifs. Hydroxyl, Nitro, Sulfonamide, Amide, Carboxylic acid, Aldehyde/ketone, Methoxy, and Alkene groups have positive median node-mask values, indicating that atoms in these groups are emphasized by the fitted MPNN relative to other atoms. Hydroxyl and Nitro groups show the largest positive median masks, suggesting that the structural branch relies strongly on these motifs when forming its learned representation. In contrast, aromatic carbon and amine groups have negative median node-mask values, indicating that these atoms are relatively deemphasized by the fitted model.  
+
+> (a) (b)
+
+Figure 4: Panel (a) shows box plots of the molecule-wise weighted embedding sums for highly soluble, moderately soluble, and poorly soluble compounds. Panel (b) presents the mean-centered median node masks as a function of functional-group fractions, with statistically significant differ-ences denoted by asterisks (*). All embedding weights and node masks were obtained using the MPNN+MLP model. 19 These results however, should be interpreted as local model explanations aggregated across the dataset, rather than as independent chemical effects of each functional group. Many molecules contain multiple functional groups, and the explanation masks are estimated separately for each molecule. Nevertheless, the enrichment patterns provide a chemically interpretable view of what the structural branch uses: atoms belonging to polar or strongly functionalized groups tend to receive higher importance, while some common backbone or aromatic features receive lower relative importance. 
+
+# 4 Conclusion 
+
+We developed an additive deep-learning framework for aqueous solubility prediction that separates global physicochemical information from molecular graph structure. In contrast to single-input black-box approach, the proposed architecture uses a descriptor-based MLP branch to encode chemical properties alongside graph neural network branch to encode molecular topology. This design provides a direct way to examine physicochemical and structural contributions separately while retaining the flexibility of nonlinear prediction. Across AqSolDB and BigSolDB2, the simpler additive models without the multiplicative interaction term performs comparable and often better than, their interaction counterparts, indicating that the two separate branches already capture most of the useful predictive information in the data. The results show that the framework achieves competitive predictive performance while offering substantially improved interpretability. On BigSolDB2, transfer learning from AqSolDB signifi-cantly reduces prediction error and improves stability across independent runs, demonstrating that representations learned from a larger solubility dataset can be effectively reused in a smaller-sample setting. Post hoc analyses further show that the learned chemical branch aligns with physicochemical descriptors, while the graph branch reflects interpretable molecular topology. Molecule-level em-bedding summaries vary systematically across solubility classes, and GNNExplainer masks identify functional groups and atom-level motifs emphasized by the fitted structural branch. Together, these findings support the central premise of the paper: aqueous solubility analyses can be made more interpretable by designing the model architecture to preserve the distinction between chemical and structural sources of information. 
+
+Several extensions are natural. The same additive framework can be implemented with more expressive graph encoders, alternative pooling mechanisms, or solvent-aware molecular representa-tions, potentially improving predictive accuracy while retaining the branch-wise interpretation. In addition, replacing the current RDKit descriptor set with quantum-mechanical or solute–solvent interaction aware descriptors may provide a more physically grounded chemical branch. Although physics-driven machine-learning approaches have recently shown good predictive performance sup-porting inference based on thermodynamics of solvation Fowles et al. [2025], Al Ibrahim et al. [2025], Amiri [2026], extending them to aqueous solubility prediction is not straightforward. Density func-tional theory (DFT) calculations can be sensitive to the choice of exchange-correlation functional, dispersion correction, solvent model, temperature, protonation state, tautomeric and stereochemi-cal forms. These dependencies can make energy- or thermodynamics-based learning targets difficult 20 to define consistently across large heterogeneous databases Bhattacharya and Roy [2024]. In ad-dition, many solutes of practical interest, including zwitterions, salts, coordination complexes, and aggregating surfactants, are not well described by a neutral single-molecule representation. Thus, physics-driven extensions are an important future direction and will be explored in future work, but they require chemically consistent datasets and solution-state molecular representations. 
+
+# Data and Software Availability 
+
+The data used in this manuscript are freely available; full details are provided in Sorkun et al. [2019]. Code for data processing and model training will be available at https://github.com/spriti523 .
+
+# References 
+
+Emad Al Ibrahim, Nathan Morgan, Simon Muller, Saikiran Motati, and William H Green. Ac-curately predicting solubility curves via a thermodynamic cycle, machine learning, and solvent ensembles. Journal of the American Chemical Society , 147(49):45057–45069, 2025. Masoud Amiri. Physics-informed deep learning for molecular solubility prediction: integrating thermodynamic constraints with neural network architectures. Scientific Reports , 2026. AT Balaban. Distance connectivity index. Chem. Phys. Lett , 89:399–404, 1982. David F Bauer. Constructing confidence sets using rank statistics. Journal of the American Sta-tistical Association , 67(339):687–690, 1972. Guy W Bemis and Mark A Murcko. The properties of known drugs. 1. molecular frameworks. 
+
+Journal of medicinal chemistry , 39(15):2887–2893, 1996. Steven H Bertz. The first general index of molecular complexity. Journal of the American Chemical Society , 103(12):3599–3601, 1981. Sampreeti Bhattacharya and Arkaprava Roy. Linking stability with molecular geometries of per-ovskites and lanthanide richness using machine learning methods. Computational Materials Sci-ence , 231:112581, 2024. Sampreeti Bhattacharya and Arkaprava Roy. How molecular weight shapes the relative importance of chemical and structural descriptors for aqueous solubility. 2025. Pietro Bongini, Monica Bianchini, and Franco Scarselli. Molecular generative graph neural networks for drug discovery. Neurocomputing , 450:242–252, 2021. Alice Capecchi, Daniel Probst, and Jean-Louis Reymond. One molecular fingerprint to rule them all: drugs, biomolecules, and the metabolome. Journal of cheminformatics , 12:1–15, 2020. 21 Jonathan GM Conn, James W Carter, Justin JA Conn, Vigneshwari Subramanian, Andrew Baxter, Ola Engkvist, Antonio Llinas, Ekaterina L Ratkova, Stephen D Pickett, James L McDonagh, et al. Blinded predictions and post hoc analysis of the second solubility challenge data: exploring training data and feature set selection for machine and deep learning models. Journal of Chemical Information and Modeling , 63(4):1099–1113, 2023. Vijay Prakash Dwivedi, Chaitanya K Joshi, Anh Tuan Luu, Thomas Laurent, Yoshua Bengio, and Xavier Bresson. Benchmarking graph neural networks. Journal of Machine Learning Research ,24(43):1–48, 2023. Clemens Fink, Micha¨ el Lecomte, Lassina Badolo, Knut Wagner, Sneha Mhatre, Per Sjoeberg, and Sheila Annie Peters. Evaluating the role of solubility in oral absorption of poorly water-soluble drugs using physiologically-based pharmacokinetic modeling. Clinical Pharmacology & Therapeutics , 107(3):650–661, 2020. doi: 10.1002/cpt.1672. Tobias Fink and Jean-Louis Reymond. Virtual exploration of the chemical universe up to 11 atoms of c, n, o, f: assembly of 26.4 million structures (110.9 million stereoisomers) and analysis for new ring systems, stereochemistry, physicochemical properties, compound classes, and drug discovery. 
+
+Journal of chemical information and modeling , 47(2):342–353, 2007. Daniel J Fowles, Benedict J Connaughton, James W Carter, John BO Mitchell, and David S Palmer. Physics-based solubility prediction for organic molecules. Chemical Reviews , 125(15): 7057–7098, 2025. Haruo Hosoya. Topological index. a newly proposed quantity characterizing the topological nature of structural isomers of saturated hydrocarbons. Bulletin of the Chemical Society of Japan , 44 (9):2332–2339, 1971. Jarmo Huuskonen. Estimation of aqueous solubility for a diverse set of organic compounds based on molecular topology. Journal of Chemical Information and Computer Sciences , 40(3):773–777, 2000. doi: 10.1021/ci9901338. Jarmo Huuskonen, Marja Salo, and Jyrki Taskinen. Aqueous solubility prediction of drugs based on molecular topology and neural network modeling. Journal of Chemical Information and Computer Sciences , 38(3):450–456, 1998. doi: 10.1021/ci970100x. Dejun Jiang, Zhenxing Wu, Chang-Yu Hsieh, Guangyong Chen, Ben Liao, Zhe Wang, Chao Shen, Dongsheng Cao, Jian Wu, and Tingjun Hou. Could graph neural networks learn better molecular representation for drug discovery? a comparison study of descriptor-based and graph-based models. Journal of cheminformatics , 13(1):1–23, 2021. William L Jorgensen and Erin M Duffy. Prediction of drug solubility from structure. Advanced drug delivery reviews , 54(3):355–366, 2002. Nikolay A Kovdienko, Pavel G Polishchuk, Eugene N Muratov, Anatoly G Artemenko, Victor E Kuz’min, Leonid Gorb, Frances Hill, and Jerzy Leszczynski. Application of random forest and 22 multiple linear regression techniques to qspr prediction of an aqueous solubility for military compounds. Molecular informatics , 29(5):394–406, 2010. Lev Krasnov, Dmitry Malikov, Marina Kiseleva, Sergei Tatarin, Sergey Sosnin, and Stanislav Bez-zubov. Bigsoldb 2.0, dataset of solubility values for organic compounds in different solvents at various temperatures. Scientific Data , 12(1):1236, 2025. Atsushi Kurotani, Toshifumi Kakiuchi, and Jun Kikuchi. Solubility prediction from molecular properties and analytical data using an in-phase deep neural network (ip-DNN). ACS Omega , 6 (21):14278–14287, 2021. doi: 10.1021/acsomega.1c01035. Paul Labute. A widely applicable set of descriptors. Journal of Molecular Graphics and Modelling ,18(4-5):464–477, 2000. Sumin Lee, Myeonghun Lee, Ki-Won Gyak, Sung Dug Kim, Mi-Jeong Kim, and Kyoungmin Min. Novel solubility prediction models: Molecular fingerprints and physicochemical features vs graph convolutional neural networks. ACS omega , 7(14):12268–12277, 2022. Marc T. Lehner, Paul Katzberger, Niels Maeder, Gregory A. Landrum, and Sereina Riniker. DASH properties: Estimating atomic and molecular properties from a dynamic attention-based sub-structure hierarchy. The Journal of Chemical Physics , 161(7):074103, 2024. Christopher A Lipinski. Drug-like properties and the causes of poor solubility and poor permeability. 
+
+Journal of pharmacological and toxicological methods , 44(1):235–249, 2000. Christopher A Lipinski. Poor aqueous solubility—an industry wide problem in drug discovery. Am Pharm Rev , 5(3):82–85, 2002. Mario Lovri´ c, Kristina Pavlovi´ c, Petar ˇZuvela, Adrian Spataru, Bono Luˇ ci´ c, Roman Kern, and Ming Wah Wong. Machine learning in prediction of intrinsic aqueous solubility of drug-like compounds: Generalization, complexity, or predictive ability? Journal of chemometrics , 35 (7-8):e3349, 2021. Alessandro Lusci, Gianluca Pollastri, and Pierre Baldi. Deep architectures and deep learning in chemoinformatics: the prediction of aqueous solubility for drug-like molecules. Journal of chemical information and modeling , 53(7):1563–1575, 2013. Giancarlo Morelli and Suely Rezende. Navigation bar. Navigation , 110(5), 2018. Vansh Ramani and Tarak Karmakar. Graph neural networks for predicting solubility in diverse solvents using molmerger incorporating solute–solvent interactions. Journal of chemical theory and computation , 20(15):6549–6558, 2024. Mayk Caldas Ramos and Andrew D. White. Predicting small molecules solubility on endpoint devices using deep ensemble neural networks. Digital Discovery , 3(4):786–795, 2024. doi: 10. 1039/d3dd00217a. 23 Bharath Ramsundar. Molecular machine learning with DeepChem . PhD thesis, Stanford University, 2018. Milan Randic. Characterization of molecular branching. Journal of the American Chemical Society ,97(23):6609–6615, 1975. Zachary A Rollins, Alan C Cheng, and Essam Metwally. Molprop: Molecular property prediction with multimodal language and graph fusion. Journal of Cheminformatics , 16(1):56, 2024. Paola Ruiz Puentes, Natalia Valderrama, Cristina Gonz´ alez, Laura Daza, Carolina Mu˜ noz-Camargo, Juan C Cruz, and Pablo Arbel´ aez. Pharmanet: Pharmaceutical discovery with deep recurrent neural networks. Plos one , 16(4):e0241728, 2021. Naseem Saquer, Razib Iqbal, Joshua D Ellis, and Keiichi Yoshimatsu. Infrared spectra prediction using attention-based graph neural networks. Digital Discovery , 3(3):602–609, 2024. Marwin HS Segler, Thierry Kogej, Christian Tyrchan, and Mark P Waller. Generating focused molecule libraries for drug discovery with recurrent neural networks. ACS central science , 4(1): 120–131, 2018. Vira Semenova and Victor Chernozhukov. Debiased machine learning of conditional average treat-ment effects and other causal functions. The Econometrics Journal , 24(2):264–289, 2021. Murat Cihan Sorkun, Abhishek Khetan, and S¨ uleyman Er. Aqsoldb, a curated reference set of aqueous solubility and 2d descriptors for a diverse set of compounds. Scientific data , 6(1):1–8, 2019. Hongmao Sun, Pranav Shah, Kimloan Nguyen, Kyeong Ri Yu, ED Kerns, Md Kabir, Yuhong Wang, and Xin Xu. Predictive models of aqueous solubility of organic compounds built on a large dataset of high integrity. Bioorganic & medicinal chemistry , 27(14):3110–3114, 2019. Bowen Tang, Skyler T Kramer, Meijuan Fang, Yingkun Qiu, Zhen Wu, and Dong Xu. A self-attention based message passing neural network for predicting molecular lipophilicity and aqueous solubility. Journal of cheminformatics , 12(1):1–9, 2020. Yuyang Wang, Jianren Wang, Zhonglin Cao, and Amir Barati Farimani. Molecular contrastive learning of representations via graph neural networks. Nature Machine Intelligence , 4(3):279– 287, 2022. Ronald E White. High-throughput screening in drug metabolism and pharmacokinetic support of drug discovery. Annual review of pharmacology and toxicology , 40(1):133–157, 2000. Harry Wiener. Structural determination of paraffin boiling points. Journal of the American chemical society , 69(1):17–20, 1947. Zhenqin Wu, Bharath Ramsundar, Evan N Feinberg, Joseph Gomes, Caleb Geniesse, Aneesh S Pappu, Karl Leswing, and Vijay Pande. Moleculenet: a benchmark for molecular machine learning. Chemical science , 9(2):513–530, 2018. 24 Jiacheng Xiong, Zhaoping Xiong, Kaixian Chen, Hualiang Jiang, and Mingyue Zheng. Graph neural networks for automated de novo drug design. Drug Discovery Today , 26(6):1382–1393, 2021. Zhitao Ying, Dylan Bourgeois, Jiaxuan You, Marinka Zitnik, and Jure Leskovec. Gnnexplainer: Generating explanations for graph neural networks. Advances in neural information processing systems , 32, 2019. 25 Supplementary materials 
+
+> (a)
+> (b)
+
+Figure 5: (a) Schematic overview and representative example of the physicochemical descriptors and PyTorch Geometric graph features used in the proposed model. (b) Exploratory analysis: scatter plots of aqueous solubility (LogS) versus individual physicochemical descriptors for AqSolDB. The color bar indicates the strength and direction of the linear correlation, and each subplot title reports the corresponding Pearson correlation magnitude between the respective descriptor and LogS. 26

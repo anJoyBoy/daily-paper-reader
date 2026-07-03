@@ -1,0 +1,1056 @@
+Title: Do LLMs Truly Generalize in the Molecular Domain? A Perturbation-Based Analysis
+
+URL Source: https://arxiv.org/pdf/2607.01800v1
+
+Published Time: Fri, 03 Jul 2026 00:38:45 GMT
+
+Number of Pages: 21
+
+Markdown Content:
+# Do LLMs Truly Generalize in the Molecular Domain? A Perturbation-Based Analysis 
+
+Jiatong Li 1,2 Weida Wang 3,4 Changmeng Zheng 1 Shufei Zhang 3
+
+Yatao Bian 2 Xiao-yong Wei 1† Qing Li 11The Hong Kong Polytechnic University 2National University of Singapore 
+
+> 3
+
+Shanghai AI Lab 4Fudan University 
+
+> †
+
+Corresponding author: x1wei@polyu.edu.hk 
+
+Abstract 
+
+Large Language Models (LLMs) have recently shown promise in molecular discov-ery, yet a gap remains between their probabilistic nature over discrete sequential tokens and the rigid topological constraints of chemical space. This raises the ques-tion of whether molecular LLMs can generalize beyond the local neighborhoods induced by their sequence-based representations. To systematically investigate this question, we introduce a Molecular Perturbation framework that generates syntax-valid structural variants of training molecules under controlled Graph Edit Distance (GED) to probe the manifold regularity of molecular LLMs. Our analysis shows that even a single edit can cause substantial performance drops on common molecular tasks, revealing a narrow local trust region and fragile sensitivity to struc-tural changes. Since similar molecules tend to exhibit similar properties, In-Context Tuning (ICT), which anchors predictions on structurally similar molecules, offers a natural way to mitigate such fragility. Our experiments also examine whether ICT confers robustness under controlled structural perturbations, and the results suggest that it can partially expand the local trust region and offer a promising direction for stabilizing molecular LLMs against structural variation. 
+
+1 Introduction O  
+
+> c1ccccc1C MR: 31.18 QED: 0.459 c1ccccc1O MR: 28.11 QED: 0.515 Phenol Toluene
+> Add -CH3 Add -OH
+> GED=1 GED=1
+> Atom Perturbation Bond Perturbation
+> CC
+> Ethene: C=C MR: 11.25 QED: 0.345 Ethane: CC MR: 11.35 QED: 0.373 Ethyne: C#C MR: 9.89 QED: 0.333
+> GED=1 GED=1
+> Bond Order +1  Bond Order -1
+> Benzene c1ccccc1
+> MR: 26.44 QED: 0.443
+
+Figure 1: Illustration of Molecular Perturbation, including atom pertur-bations and bond perturbations. The integration of Large Language Models (LLMs) into chem-ical research has enabled models to generate and predict molec-ular structures with apparent fluency. By linearizing molecu-lar graphs into sequential notations like SMILES (Weininger, 1988) and SELFIES (Krenn et al., 2020), these models lever-age the statistical power of token prediction (Vaswani et al., 2017; Radford et al., 2018) to navigate the vastness of chemical space. However, this empirical success masks an ontological disconnect. LLMs are engineered to optimize probabilistic likelihood over discrete sequences, a paradigm well-suited for natural language where semantic meaning is resilient to minor syntactic noise. In stark contrast, chemistry is governed by rigid topological constraints (Hubin, 2003) and quantum mechanical laws (Primas, 2013), where the “syntax” is non-negotiable and the “semantics” are highly volatile. As shown in Figure 1, a single structural edit does not merely alter the local sequence, but also impacts the molecule’s bioactivity, a complex mapping that can be difficult to capture. This raises a critical, often overlooked question: Do LLMs truly learn the underlying manifold of chemical space via molecular textual representations, or do they merely exploit surface sequence or topological patterns that interpolate within local training clusters? 
+
+Preprint. 
+
+> arXiv:2607.01800v1 [cs.LG] 2 Jul 2026
+
+To answer this, we must scrutinize the model’s behavior not on static benchmarks, but through the lens of manifold regularity . A robust scientific model should exhibit Lipschitz continuity relative to the chemical structure, meaning that small perturbations in the input graph should map to predictable, smooth transitions in the latent representation space. We find that current LLMs fail to model this duality even for different textual representations of the same molecule (Ganeeva et al., 2024), simply because their training objectives prioritize textual coherence over topological consistency. They lack an intrinsic mechanism to align structural-level variation with chemically meaningful similarity, confining generalization to the narrow training distribution. Consequently, when faced with molecules that drift slightly from the training distribution, the performance may not just degrade, but collapse. To rigorously diagnose this fragility, we dismantle the standard random-split evaluation paradigm, which often suffers from data leakage and fails to test true generalization. Instead, we introduce a systematic evaluation framework centered on Molecular Perturbation . We generate syntax-valid “structural variants” under controlled Graph Edit Distance (GED) (Gao et al., 2010), constructing a spectrum of deformation that probes the model’s robustness. By applying granular Atom Perturbations 
+
+(node feature shifts) and Bond Perturbations (edge feature shifts), we simulate a walk away from the training manifold. This allows us to dissect the model’s failure modes. Our empirical analysis reveals a sobering reality: for specific tasks, even a single structural edit can cause substantial performance drops, and the degradation remains pronounced as GED increases. This suggests that, while models may preserve some coarse-grained continuity over chemical space, their local smoothness around training molecules is limited (i.e., a narrow trust region ), consistent with strong reliance on high-density regions of the training distribution. A natural question is whether this fragility can be alleviated by exposing the model to chemically related references at inference time, in line with the long-standing molecular similarity principle (Bender, Glen, 2004) that similar molecules tend to share similar properties. This perspective directly connects to In-Context Tuning (ICT) (Li et al., 2024b; Chen et al., 2025), which fine-tunes molecular LLMs to condition predictions on a small set of structurally similar molecules retrieved from the training set. ICT can be viewed as an operationalization of the molecular similarity principle: rather than treating each molecule as an isolated input requiring global extrapola-tion from internalized parameters, it reframes prediction as a locally grounded inference anchored on chemically related neighbors. If the fragility we observe stems from over-reliance on high-density regions of the training distribution, then ICT, by explicitly anchoring inference to nearby training examples, should in principle confer robustness as inputs drift away from the training manifold. We therefore systematically examine ICT through the lens of our Molecular Perturbation framework, tracking how prediction quality evolves as GED increases. Our results suggest that ICT can partially expand the local trust region and alleviate the fragility of direct prediction, with neighbor-conditioned models retaining more performance under controlled structural edits. While ICT does not fully eliminate sensitivity to perturbation, these findings indicate that retrieval-based anchoring offers a promising direction for stabilizing molecular LLMs against structural variation, pointing toward local, similarity-grounded inference as a practical mechanism for bridging the gap between probabilistic sequence modeling and the rigid topology of chemical space. 
+
+2 Related Work 
+
+Early efforts for applying LLMs in molecule discovery predominantly focused on cross-modal retrieval (Edwards et al., 2021) and bidirectional translation (Edwards et al., 2022) between natural language and SMILES strings. Models such as MolT5 (Edwards et al., 2022) and KV-PLM (Zeng et al., 2022) established that treating molecular notations as a specialized language allows LLMs to capture fundamental chemical grammar, effectively bridging the gap between high-level human descriptions and formal chemical notations. Subsequent works focused on strengthening the capability of LLMs through domain-specific pre-training and instruction-based alignment. For instance, BioT5 (Pei et al., 2023) and MolXPT (Liu et al., 2023a) established strong baselines by pre-training on large-scale molecular corpora and biological literature, often employing “wrapped text” paradigms where molecules in scientific papers were replaced with their corresponding sequences to capture deep contextual associations. At the same time, the Mol-Instructions (Fang et al., 2024) dataset provides a large-scale biomolecular instruction set to refine model proficiency across tasks like retrosynthesis and property prediction. Furthermore, there are also sophisticated benchmarks to probe 2creative and logical capabilities, such as TOMG-Bench (Li et al., 2024a), ChemLLMBench (Guo et al., 2023), and ChemCoTBench (Li et al., 2025). 
+
+3 Molecular Perturbation 
+
+To systematically assess the manifold regularity of molecular LLMs, we propose a Molecular Perturbation strategy to perform minor syntax-valid structural edits on molecular graphs. This strategy allows us to simulate a spectrum of out-of-distribution by quantifying the deviation of a perturbed molecule from its original structure via Graph Edit Distance (GED). 
+
+3.1 Perturbation Strategy 
+
+As shown in Figure 1, our strategy mainly operates at two fundamental levels of molecular structure (i.e., Atom Perturbation and Bond Perturbation ), which are designed to mimic common chemical modifications that may occur in drug design, such as functionalization and saturation changes. 
+
+Atom Perturbation. For atom-level perturbations, we perform random heteroatom substitution .Specifically, we randomly select non-carbon atoms in the molecule and replace them with an al-ternative atom sampled from the set {B, N, O, F, P, S, Cl }, subject to a simple valence-preserving constraint. During substitution, we require that the total valence of the original atom does not exceed the default valence of the newly assigned atom, to avoid invalid configurations. This operation intro-duces minimal yet semantically meaningful structural perturbations while preserving the molecular topology, enabling a controlled evaluation of the model’s local generalization behavior. 
+
+Bond Perturbation. For bond-level modifications, we perform random bond order perturbations 
+
+under implicit valence constraints. Specifically, hydrogen atoms are first removed to avoid selecting bonds involving hydrogens, and a subset of existing bonds is randomly sampled for modification. For each selected bond, we attempt to adjust its bond order while simultaneously updating the associated hydrogen counts to preserve valid valence configurations. If the resulting molecular structure violates valence constraints or cannot be sanitized, the modification is discarded and the bond is excluded from further consideration. This process continues until a predefined number of successful bond modifications is reached or no valid candidate bonds remain. 
+
+3.1.1 Syntax Validity Check 
+
+A central challenge in automated molecular perturbation lies in maintaining syntax validity. Besides common RDKit sanitization, in our framework, syntax validity is also enforced through an incremen-tal rejection mechanism integrated directly into the perturbation process, rather than via post-hoc filtering: For atom-level edits, candidate replacements are accepted only if the total valence of the original atom does not exceed the default valence of the newly assigned element, thereby ensuring basic valence consistency. For bond-level modifications, hydrogen atoms are temporarily removed and bond order changes are attempted only when the resulting structure can be successfully sanitized; otherwise, the modification is discarded and excluded from further consideration. Once a perturbed molecule is obtained, we query its corresponding IUPAC name from database and retain only those that yield a valid result. In contrast to molecule captions, which may admit multiple valid textual descriptions for a single structure, IUPAC nomenclature provides a standardized and unambiguous representation. This ensures that our evaluation focuses strictly on the model’s ability to interpret the chemical semantics under controlled structural perturbations. 
+
+3.2 Graph Edit Distance 
+
+To quantify the magnitude of structural changes induced by our perturbation strategy, we adopt 
+
+Graph Edit Distance (GED) to control the molecular dissimilarity of variants. GED evaluates the similarity between two graphs by computing the minimum-cost sequence of edit operations required to transform one graph into another. 31 2 3 4 5
+
+> Graph Edit Distance (GED)
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> Average Tanimoto Similarity
+> 0.680
+> 0.553
+> 0.463
+> 0.401
+> 0.354
+> 0.590
+> 0.452
+> 0.379
+> 0.330
+> 0.305
+> Atom
+> Bond
+
+(a) Average Molecular Similarity 1 2 3 4 5 
+
+> Graph Edit Distance (GED)
+> 0
+> 5
+> 10
+> 15
+> 20
+> 25
+> Average Levenshtein Distance
+> 8.7
+> 15.0
+> 19.5
+> 23.0
+> 26.4
+> 6.9
+> 12.4
+> 16.0
+> 20.3
+> 25.5 Atom
+> Bond
+
+(b) Average Levenshtein distance 
+
+Figure 2: Comparison of atom-only and bond-only perturbations across five graph edit distance (GED) levels, measured by (a) molecular similarity and (b) Levenshtein distance on SMILES strings. Formally, given an original molecular graph G1 = ( V1, E 1) and a perturbed molecular graph 
+
+G2 = ( V2, E 2), the GED is defined as: 
+
+GED (G1, G 2) = min  
+
+> (e1,...,e k)∈P (G1,G 2)
+> k
+
+X
+
+> i=1
+
+c(ei), (1) where P(G1, G 2) denotes the set of all valid edit paths transforming G1 into G2, and c(ei) is the cost associated with each node or edge edit operation. In our framework, we define GED as the cumulative number of successful atomic and bond-level edit operations applied during perturbation stage. Each accepted atom substitution or bond type modification contributes a unit cost to the total GED. To probe the generalization spectrum, we consider five discrete perturbation levels with GED ∈ { 1, 2, 3, 4, 5}, corresponding to increasingly larger but controlled structural deviations from the original molecule, which ensures a fine-grained analysis of model robustness, allowing us to trace performance degradation from molecular structures with low GED to progressively more altered yet syntax valid derivatives (high GED). 
+
+3.3 Perturbation Effectiveness 
+
+To validate GED as an effective notion of perturbation strength, we examine whether it correlates with both (i) chemical similarity (Tanimoto similarity) and (ii) sequence-level difference (Levenshtein distance) between the corresponding molecular strings. As shown in Figure 2a, GED=1 perturbations maintain high structural fidelity (average similarity > 0.6), and chemical similarity decreases mono-tonically as GED increases. Consistently, Figure 2b shows that the average Levenshtein distance increases with GED, indicating that larger topological edits also induce larger sequence-level changes. Together, these trends confirm that increasing GED simultaneously moves molecules farther in chemical space and farther in token space, supporting GED as a controlled axis for generalization analysis. A comparative analysis reveals an intriguing mismatch between chemical-space and sequence-space distances. Chemically, bond-level modifications exert a more profound impact on molecules than atom-level perturbations: at GED=1, bond perturbations result in a markedly lower Tanimoto similarity compared to atom substitutions (0.680 vs. 0.590). However, in sequence space, we observe the opposite trend in Figure 2b: bond perturbations typically induce smaller Levenshtein distance than atom substitutions (8.7 vs. 6.9). This divergence highlights that “closeness” under molecular strings is not a reliable proxy for topological/chemical closeness. In particular, changing a bond order can substantially alter molecular connectivity while minimally editing the string, whereas an atom substitution may require larger textual changes while leaving the scaffold largely intact. 
+
+4 Manifold Regularity Analysis 
+
+In this part, we analyze how molecular LLMs generalize under controlled structural perturbations. We first report the experimental setup and demonstrate the overall performance degradation corresponding to increasing GED level (Figure 3) and then provide a comprehensive view of absolute performance across the original train/test and perturbed sets (Figure 4). Finally, we break down robustness by perturbation type (atom vs. bond), model architectures and scales. 4BioT5-base 
+
+> MolT5-base
+> Galactica-125M
+> MolT5-small
+> MolT5-large
+> Qwen3-0.6B
+> Qwen3-4B
+> Qwen3-1.7B  Raw
+> 1
+> 2
+> 3
+> 4
+> 5
+> Perturbation Level
+> 0
+> 25
+> 50
+> 75
+> 100
+> 125
+> 150
+> 175
+> Degradation (%)
+
+Property Prediction (QED) 
+
+RMSE Degradation 
+
+> 25
+> 50
+> 75
+> 100
+> 125
+> 150
+> 175
+> MolT5-small
+> MolT5-base
+> MolT5-large
+> Qwen3-1.7B
+> Qwen3-0.6B
+> Qwen3-4B
+> Galactica-125M
+> BioT5-base  Raw
+> 1
+> 2
+> 3
+> 4
+> 5
+> Perturbation Level
+> 0
+> 10
+> 20
+> 30
+> 40
+> 50
+> 60
+> Degradation (%)
+
+IUPAC to Molecule (IUPAC2Mol) 
+
+Morgan Degradation 
+
+> 10
+> 20
+> 30
+> 40
+> 50
+> 60
+> MolT5-small
+> MolT5-base
+> MolT5-large
+> BioT5-base
+> Galactica-125M
+> Qwen3-0.6B
+> Qwen3-1.7B
+> Qwen3-4B  Raw
+> 1
+> 2
+> 3
+> 4
+> 5
+> Perturbation Level
+> 0
+> 10
+> 20
+> 30
+> 40
+> 50
+> Degradation (%)
+
+Molecule to IUPAC (Mol2IUPAC) 
+
+BLEU-4 Degradation 
+
+> 10
+> 20
+> 30
+> 40
+> 50
+
+Figure 3: Performance degradation landscapes (smoothed) with increasing perturbation level. Each surface corresponds to one model and reports the relative drop (%) to raw_train in the task metric (RMSE, Morgan, or BLEU-4); higher values indicate poorer robustness. raw_train raw_test GED=1 GED=2 GED=3 GED=4 GED=5                                                 
+
+> molt5-small
+> galactica-125m
+> qwen3-4b
+> molt5-base
+> molt5-large
+> qwen3-0.6b
+> qwen3-1.7b
+> biot5-base
+> Models
+> 0.073 0.080 0.122 0.142 0.159 0.174 0.183
+> 0.073 0.091 0.143 0.160 0.176 0.191 0.204
+> 0.058 0.092 0.165 0.183 0.203 0.221 0.257
+> 0.047 0.065 0.104 0.115 0.121 0.128 0.129
+> 0.031 0.055 0.097 0.112 0.122 0.131 0.137
+> 0.027 0.066 0.117 0.133 0.148 0.162 0.175
+> 0.021 0.066 0.126 0.146 0.162 0.179 0.191
+> 0.001 0.071 0.106 0.121 0.130 0.137 0.139
+
+(a) Property Prediction (QED)                                                       
+
+> raw_train raw_test GED=1 GED=2 GED=3 GED=4 GED=5
+> molt5-small
+> molt5-base
+> molt5-large
+> biot5-base
+> galactica-125m
+> qwen3-0.6b
+> qwen3-1.7b
+> qwen3-4b
+> Models
+> 0.217 0.226 0.180 0.155 0.141 0.129 0.122
+> 0.357 0.350 0.266 0.225 0.201 0.181 0.167
+> 0.535 0.485 0.349 0.285 0.253 0.226 0.212
+> 0.917 0.476 0.290 0.222 0.196 0.192 0.178
+> 0.946 0.709 0.521 0.415 0.361 0.324 0.300
+> 0.998 0.737 0.560 0.442 0.382 0.341 0.314
+> 0.999 0.753 0.586 0.460 0.395 0.350 0.324
+> 0.999 0.760 0.596 0.468 0.400 0.353 0.323
+
+(b) IUPAC to Molecule (IUPAC2Mol)                                                       
+
+> raw_train raw_test GED=1 GED=2 GED=3 GED=4 GED=5
+> molt5-small
+> molt5-base
+> molt5-large
+> biot5-base
+> galactica-125m
+> qwen3-1.7b
+> qwen3-4b
+> qwen3-0.6b
+> Models
+> 0.340 0.346 0.298 0.280 0.274 0.266 0.258
+> 0.362 0.366 0.293 0.271 0.266 0.259 0.253
+> 0.461 0.456 0.352 0.327 0.321 0.310 0.301
+> 0.770 0.597 0.458 0.415 0.398 0.379 0.366
+> 0.859 0.723 0.489 0.456 0.443 0.434 0.426
+> 0.912 0.765 0.440 0.410 0.397 0.384 0.380
+> 0.912 0.771 0.437 0.413 0.399 0.387 0.380
+> 0.913 0.755 0.467 0.436 0.422 0.408 0.400
+
+(c) Molecule to IUPAC (Mol2IUPAC) 
+
+> 0.05
+> 0.10
+> 0.15
+> 0.20
+> 0.25
+> RMSE (lower is better)
+> 0.2
+> 0.3
+> 0.4
+> 0.5
+> 0.6
+> 0.7
+> 0.8
+> 0.9
+> Morgan FTS (higher is better)
+> 0.3
+> 0.4
+> 0.5
+> 0.6
+> 0.7
+> 0.8
+> 0.9
+> BLEU-4 (higher is better)
+
+Figure 4: Absolute task performance on the original train/test splits and perturbed test sets (GED from 1 to 5). (a) QED prediction (RMSE, lower is better). (b) IUPAC2Mol (Morgan FTS, higher is better). (c) Mol2IUPAC (BLEU-4, higher is better). 
+
+4.1 Experimental Setup 
+
+We evaluate manifold regularity by measuring how model performance changes as GED increases (GED = 1 → 5) across various tasks. 
+
+Model Families. Generally, we include two model architectures, including decoder-only models and encoder-decoder models. Both general-purpose and domain-adapted models are examined: • Decoder-only: We include Galactica-125M (Taylor et al., 2022), a model pre-trained on large-scale scientific corpora, and the general models like Qwen3 series: 0.6B, 1.7B, and 4B parameters (Yang et al., 2025). • Encoder-decoder: We evaluate the MolT5 family: small, base, and large (Edwards et al., 2022). Additionally, we include BioT5-base (Pei et al., 2023); notably, BioT5 utilizes the SELFIES representation of molecular structures. 
+
+Tasks and Metrics. The models are examined across three representative chemical downstream tasks, each targeting a different facet of molecular understanding and generation: • QED (drug-likeness prediction): This task requires the model to predict the Quantitative Estimate of Drug-likeness. We primarily evaluate performance using Root Mean Square Error (RMSE) ,where a lower value indicates higher precision in capturing the chemical properties of the molecule. • IUPAC2Mol (IUPAC to Molecule): This cross-modal generation task requires translating a formal chemical name into a molecular textual representation (SMILES or SELFIES). We utilize the 
+
+Morgan Fingerprints Similarity (Morgan) as the primary metric for generation quality. • Mol2IUPAC (Molecule to IUPAC): This task involves generating a standardized IUPAC name from a molecular textual representation. Performance is quantified using BLEU-4 , measuring the n-gram overlap between the generated nomenclature and the reference name. Additionally, we calculate the performance degradation by: 
+
+Degradation( k) = σ · M (k) − M (train) 
+
+M (train) × 100% , (2) where σ = +1 for lower-is-better metrics (RMSE) and σ = −1 for higher-is-better metrics (BLEU-4, Morgan similarity), and M (·) denotes the performance score. 54.2 Task-wise Manifold Regularity 
+
+Figures 3 and 4 reveal a task-dependent robustness pattern under controlled structural perturbations, yet a common theme emerges across all three tasks: the region in which models behave reliably around in-distribution molecules is remarkably narrow, and even a few graph edits can push an input across a generalization boundary. 
+
+Molecular understanding tasks exhibit steep early degradation with high model variance. For tasks that take molecular textual representations as input, e.g., QED prediction and Mol2IUPAC ,we observe a characteristic two-phase pattern: a steep drop at low perturbation strength (GED=1–3) followed by a plateau or slower decline beyond GED=3. Even a single structural edit (GED=1) can already induce a non-trivial degradation across most models. While the maximal degradation at GED=5 remains moderate on average for Mol2IUPAC (up to ∼50%), the steepness of the initial slope indicates that the model’s predictive reliability is concentrated in an extremely narrow neighborhood around the original molecules. We further observe substantial cross-model variance on these under-standing tasks: stronger domain-specific models might degrade more gracefully, whereas weaker general-purpose models such as Qwen3-1.7B exhibit catastrophic degradation (up to 175% on QED at GED=5). This wide spread suggests that the size of the local “trust region” is highly sensitive to model capacity and pretraining choices, and that surface-level performance on the unperturbed test set can mask large differences in robustness. We further note that Mol2IUPAC is an inherently difficult task with limited training data, which likely amplifies the steepness of the initial degradation as models have not fully internalized the underlying mapping. 
+
+Molecular generation exhibits a more consistent but pronounced collapse. In contrast, IU-PAC2Mol , which requires generating a valid molecular structure from a textual description, shows a more uniform degradation pattern across models, with curves that decline consistently and flatten around GED=3, reaching a maximal degradation of approximately 60% at GED=5. The relative consistency across models, together with the comparatively larger plateau magnitude, suggests that the bottleneck here is intrinsic to the task rather than to specific model choices: structure generation requires simultaneously satisfying syntactic validity (SMILES/SELFIES) and recovering precise connectivity, atom identities, bond orders, and branching. Consequently, the mapping between nearby input descriptions and output token sequences is highly non-smooth: small topological deviations in the implied target can trigger disproportionate changes in the correct output sequence. 
+
+4.3 Model-wise Manifold Regularity QED IUPAC2Mol Mol2IUPAC 
+
+> 0
+> 25
+> 50
+> 75
+> 100
+> 125
+> 150
+> 175
+> Degradation at GED=5 (%)
+> 118%
+> 54%
+> 32%
+> 123%
+> 58%
+> 41%
+> 178%
+> 57%
+> 49%
+> Molecular LM
+> Scientific LM
+> General LM
+
+Figure 5: Comparison of model pre-training strat-egy on extreme perturbation scenario (GED=5). To examine how architectural and pretraining choices shape robustness, we further group the evaluated models into three categories: Molec-ular LLMs (encoder–decoder models pretrained on chemical corpora, including MolT5 and BioT5), Scientific LLMs (Galactica-125M), and 
+
+General LLMs (the Qwen3 series). 
+
+Domain pretraining is critical for molecular understanding under perturbation. As shown in Figure 5, the General Qwen3 models are markedly more susceptible to structural pertur-bations: under the extreme perturbation setting (GED=5), they consistently underperform the other two categories across all three tasks. The gap is most striking on QED prediction, where every Qwen3 variant suffers a degradation exceeding 150%. This sharp contrast highlights the importance of domain-specific pretraining for molecular understanding tasks: without exposure to chemical corpora, general-purpose models fail to develop the local smoothness needed to remain stable under minor structural edits. 
+
+Encoder-decoder Molecular LLMs are the most robust under extreme perturbations. Among the three categories, encoder-decoder Molecular LLMs exhibit the smallest performance degra-dation at GED=5 across all three tasks. The advantage is particularly pronounced on molecular understanding tasks: BioT5-base achieves the best extreme-perturbation stability on both QED and Mol2IUPAC, outperforming both Scientific and General LLMs by a wide margin. This suggests that 6the combination of encoder-decoder architecture and domain pretraining can learn a more smooth molecular representation space. 
+
+Decoder-only models trade robustness for generative performance. While encoder-decoder Molecular LLMs degrade more gracefully at GED=5, they do not always achieve the highest absolute performance. On the two generative tasks (IUPAC2Mol and Mol2IUPAC), decoder-only models attain stronger absolute scores on the unperturbed test set, despite suffering steeper relative drops under perturbation. We attribute this to the strong auto-regressive modeling capacity of decoder-only architectures in fitting the training distribution and generating long sequences. 
+
+4.4 Effects of Perturbation Type 1 2 3 4 5      
+
+> Graph Edit Distance (GED)
+> 0.15
+> 0.20
+> 0.25
+> 0.30
+> 0.35
+> 0.40
+> 0.45
+> RMSE / Morgan FTS
+> QED (RMSE) Atom
+> QED (RMSE) Bond
+> IUPAC2Mol (Morgan) Atom
+> IUPAC2Mol (Morgan) Bond
+> Mol2IUPAC (BLEU-4) Atom
+> Mol2IUPAC (BLEU-4) Bond
+> 0.012
+> 0.014
+> 0.016
+> 0.018
+> 0.020
+> 0.022
+> 0.024
+> BLEU-4
+
+Figure 6: Absolute performance trend of Galactica-125M corresponding to GED levels under atom-only and bond-only perturbations. We further disentangle the contributions of atom-level and bond-level perturbations by evaluating Galactica-125M under each type in isolation (Figure 6). The two perturbation types exhibit different effects depending on whether the task is generative or understanding-oriented. For IUPAC2Mol , atom-only and bond-only per-turbations induce nearly indistinguishable degra-dation curves across all GED levels. This sym-metry is consistent with the nature of structure generation: the model must recover the exact connectivity and atom identities of the target molecule, so any modification, whether to a node or an edge, propagates through the output token sequence with comparable severity. In contrast, on the two understanding tasks ( Mol2IUPAC and QED ), bond perturbations cause noticeably smaller degradation than atom perturbations at matched GED levels. We attribute this asymmetry to the task-specific invariances of each objective. QED is largely driven by the presence and arrangement of salient functional groups and global molecular descriptors (molecular weight, logP, hydrogen-bond donors/acceptors), most of which are determined primarily by atomic composition and only secondarily by exact bond patterns. Similarly, IUPAC names are organized around principal chains and substituent atoms: many bond modifications (e.g., saturation changes within a ring) leave the parent name skeleton unchanged or alter only a localized prefix, while atom substitutions typically force a more global renaming. 
+
+5 In-Context Tuning under Molecular Perturbation 
+
+5.1 Theoretical Analysis Setup and notation. Let Dtrain = {(xi, y i)}Ni=1 ⊂ X × Y denote the training set, where the structure space X is equipped with a structural distance dX : X × X → R≥0 (e.g., graph edit distance), and the property space Y is a normed vector space with norm ∥·∥ . For a query ˜x ∈ X , let C(˜ x) ⊆ D train denote the retrieved context, consisting of its n nearest neighbors under dX , written C(˜ x) = {(xi, y i)}ni=1 .With slight abuse of notation, we write dX (˜ x, Dtrain ) := min (x,y )∈D train dX (˜ x, x ) for the distance from 
+
+˜x to its nearest training molecule. 
+
+Assumption 1 (Lipschitz continuity). We assume the ground-truth property mapping h∗ : X → Y 
+
+is L-Lipschitz with respect to dX :
+
+∥h∗(x1) − h∗(x2)∥ ≤ L · dX (x1, x 2), ∀x1, x 2 ∈ X . (3) This is a direct formalization of the molecular similarity principle that ICT itself presupposes: structurally similar molecules carry similar properties, with L quantifying the maximal sensitivity of h∗ to structural change. For tasks with discrete outputs, the assumption is read as a smoothness condition on a suitable divergence between output distributions; we develop the analysis in the normed-space setting for clarity and treat its qualitative implications as guidance for generative tasks. 
+
+Off-manifold inference is not constrained by the training objective. Let fθ : X → Y be a model trained without context. For a query ˜x outside the training support (i.e., dX (˜ x, Dtrain ) > δ for some 7δ > 0), the supervised objective imposes no constraint that ties ∥fθ (˜ x) − h∗(˜ x)∥ to dX (˜ x, Dtrain ):whatever smoothness fθ exhibits off-distribution must come from implicit regularization or archi-tectural priors, neither of which is structurally aligned with the chemical metric dX . Consequently, errors are free to grow without a controlled dependence on the perturbation distance, consistent with the divergent degradation observed as GED increases. 
+
+Local regularization via in-context inference. To gain analytical traction, we adopt an idealized 
+
+model of the in-context predictor. Let gθ : X × 2X ×Y → Y denote the in-context predictor that maps a query ˜x together with a context C(˜ x) to an output. Following a line of work that views in-context learning as performing implicit kernel regression (Xie et al., 2022; Garg et al., 2022), we approximate 
+
+gθ by a softmax kernel smoother over the retrieved context labels: 
+
+gθ
+
+ ˜x, C(˜ x) ≈ ˆyict := 
+
+> n
+
+X
+
+> i=1
+
+αi(˜ x; θ) yi, αi ≥ 0,
+
+> n
+
+X
+
+> i=1
+
+αi = 1 , (4) where the weights αi(˜ x; θ) are induced by the trained attention mechanism. We treat this as a stylized abstraction rather than a literal description of attention dynamics; the gap between gθ and its kernel-smoother form is absorbed into an additive approximation error εapprox that we do not attempt to bound. The purpose of the analysis below is not to predict ICT’s error quantitatively, but to identify the geometric quantity that the retrieval procedure can directly control. Let R := max (xi,y i)∈C (˜ x) dX (xi, ˜x) denote the retrieval radius. Assuming clean labels yi = h∗(xi),the triangle inequality combined with L-Lipschitzness yields: 
+
+∥ˆyict − h∗(˜ x)∥ =
+
+> n
+
+X
+
+> i=1
+
+αi
+
+ h∗(xi) − h∗(˜ x) ≤
+
+> n
+
+X
+
+> i=1
+
+αi ∥h∗(xi) − h∗(˜ x)∥ ≤ L · R. (5) Combining with the approximation error gives the full bound ∥gθ (˜ x, C(˜ x)) −h∗(˜ x)∥ ≤ L·R +εapprox .
+
+Proposition 1 (Locally bounded ICT error, idealized). Under the L-Lipschitz assumption on h∗
+
+and the kernel-smoother idealization of gθ , the in-context prediction error satisfies 
+
+gθ
+
+ ˜x, C(˜ x) − h∗(˜ x) ≤ L · R + εapprox ,
+
+where R is the retrieval radius. The bound is governed by the local geometric quantity R rather than by the global perturbation distance dX (˜ x, Dtrain ).
+
+Whereas the context-free error has no controlled dependence on dX (˜ x, Dtrain ) and grows freely as ˜x
+
+moves off-manifold, the in-context error is constrained locally: by selecting nearest neighbors, the retrieval procedure directly minimizes the geometric quantity R that governs the bound, confining the model to operate within a trust region defined by the retrieved context. Two predictions follow that we will probe empirically: (i) replacing nearest-neighbor retrieval with random retrieval enlarges R
+
+and should erode the bound; (ii) at large perturbation distances, even the nearest retrievable neighbor becomes far from ˜x, so R grows and the bound loosens. 
+
+5.2 ICT and Retrieval-Based Control 
+
+Standard Supervised Fine-Tuning (SFT) learns a direct mapping f : x → y by minimizing the negative log-likelihood over training pairs: 
+
+LSFT (θ) = −E(x,y )∼D train log pθ (y | x), (6) treating each sample in isolation without leveraging the local manifold structure of chemical space. In-Context Tuning (ICT) instead fine-tunes the model on (x, y ) pairs augmented with a retrieved context Cx ⊆ D train \ { x} of the nearest structural neighbors of x. A vanilla in-context objective 
+
+− log pθ (y | x, C x) exposes the model to retrieved neighbors but does not require it to use them: the model may bypass Cx and rely on its parametric prior, in which case the local-anchoring intuition of Proposition 1 fails to materialize at training time. We therefore add an auxiliary term to recover the in-context label mappings xi → yi, aligning training with the kernel-smoothing primitive. We expose the model to each training molecule under two complementary views via a Bernoulli indicator 
+
+v ∈ { 0, 1}: with probability 12 (v = 0 ) it sees x alone; with probability 12 (v = 1 ) it sees x together with Cx and additionally recovers the in-context mappings. The combined objective is: 
+
+LICT (θ) = −E(x,y ), v ∼Bern ( 12 )
+
+ log pθ
+
+ y | x, v · Cx
+
+ + v · X
+
+> (xi,y i)∈Cx
+
+log pθ (yi | xi) , (7) where Cx retrieves the nearest structural neighbor of x from the training set. 8Task Strategy Raw Test k=1 k=2 k=3 k=4 k=5                                                       
+
+> QED (RMSE ↓)Direct 0.0915 0.1435 0.1602 0.1758 0.1914 0.2039 ICT 0.0746 0.1272 0.1545 0.1756 0.1951 0.2075 Random ICT 0.1005 0.1447 0.1613 0.1752 0.1883 0.1945
+> Mol2IUPAC (BLEU-4 ↑)Direct 0.7231 0.4887 0.4556 0.4427 0.4338 0.4263 ICT 0.7635 0.5285 0.4959 0.4736 0.4604 0.4512
+> Random ICT 0.7096 0.4692 0.4534 0.4420 0.4297 0.4262 IUPAC2Mol (Morgan ↑)Direct 0.7092 0.5213 0.4148 0.3612 0.3237 0.3000
+> ICT 0.7304 0.5573 0.4342 0.3676 0.3257 0.2977 Random ICT 0.3013 0.2325 0.2053 0.1916 0.1844 0.1798
+
+Table 1: Empirical evaluation of in-context tuning under structural perturbation (Galactica-125M). Best results in bold .
+
+5.3 Findings 
+
+We evaluate three conditions on Galactica-125M across GED-perturbed inputs ( k ∈ { 1, . . . , 5}) with context size n = 1 : standard fine-tuning ( Direct ), ICT with nearest-neighbor retrieval, and Random ICT , which retains the in-context objective but draws context uniformly at random from the training set, isolating the role of structural similarity from in-context conditioning itself. 
+
+ICT confers consistent but task-dependent robustness against structural perturbation. ICT improves over Direct in 15 of 18 task–perturbation cells in Table 1. On Mol2IUPAC, ICT dominates Direct at every level, with BLEU-4 gains of ≈ 0.04 from raw to k = 2 and 0.025 –0.03 at higher perturbation. On IUPAC2Mol, ICT wins at five of six levels, narrowing from a 0.036 lead at k = 1 to a near-tie at k = 5 (0.2977 vs. 0.3000 ). On QED, ICT improves clean RMSE substantially ( 0.0746 
+
+vs. 0.0915 ) and remains better through k = 2 , but its advantage erodes at k ≥ 3. ICT thus extends the local trust region in the majority of conditions, but the magnitude of the benefit varies markedly with task and perturbation level. 
+
+Retrieval quality is essential: random neighbors largely eliminate the benefit. Random ICT isolates structural similarity from the mere presence of context. On IUPAC2Mol, random retrieval is catastrophic: Morgan FTS collapses from 0.7092 (Direct) to 0.3013 at clean and stays below 0.25 
+
+throughout. On Mol2IUPAC, Random ICT is consistently worse than ICT and slightly worse than Direct. These patterns are consistent with Proposition 1: random retrieval enlarges R and dissolves the locally bounded error guarantee. The exception is QED, where Random ICT is competitive and best at k ≥ 3; we attribute this to a regression-specific mean-regression effect on a bounded [0 , 1] 
+
+target. Overall, the benefit of ICT derives specifically from structural similarity. 
+
+Limitations of ICT-based Anchoring. The robustness gains of ICT diminish as perturbation grows: on Mol2IUPAC the gap to Direct narrows from 0.040 at k = 1 to 0.025 at k = 5 ; on IUPAC2Mol from 0.036 at k = 1 to a tie at k = 5 ; on QED, ICT loses its lead entirely by k = 4 . This shared trend points to retrieval quality, rather than the training objective, as the dominant factor at large k.When the perturbed query has drifted far from the training manifold, the nearest retrievable neighbor is no longer truly nearby: R in Proposition 1 grows, the local-anchor argument loosens, and the context can even induce negative transfer if it belongs to a different region of chemical space. ICT’s effectiveness is therefore fundamentally bounded by the geometry of Dtrain : it stabilizes predictions inside a moderate neighborhood of the training distribution, but cannot manufacture local structure where none exists. 
+
+6 Conclusion 
+
+We introduce a syntax-valid Molecular Perturbation framework to probe the manifold regularity of molecular LLMs via controlled structural edits (GED). Our results indicate a narrow local trust region : even a single graph edit can induce substantial performance degradation, highlighting limited generalization beyond the training distribution. Motivated by the molecular similarity principle, we study whether In-Context Tuning (ICT), which anchors predictions on structurally similar retrieved molecules, can mitigate this fragility. ICT consistently improves robustness within a local neighbor-hood, but its gains diminish as queries move further off-manifold. Overall, these findings suggest that retrieval-based anchoring is a promising yet inherently local mechanism, and underscore the need for evaluation and training strategies that account for the topological sensitivity of chemical space. 9References 
+
+Bender Andreas, Glen Robert C . Molecular similarity: a key technique in molecular informatics // Organic & biomolecular chemistry. 2004. 2, 22. 3204–3218. 
+
+Chen Zhe, Fang Zhe, Tian Wenhao, Long Zhaoguang, Sun Changzhi, Chen Yuefeng, Yuan Hao, Li Honglin, Lan Man . ReactGPT: Understanding of Chemical Reactions via In-Context Tuning // Proceedings of the AAAI Conference on Artificial Intelligence. 39-1. 2025. 84–92. 
+
+Edwards Carl, Lai Tuan, Ros Kevin, Honke Garrett, Cho Kyunghyun, Ji Heng . Translation between Molecules and Natural Language // Proceedings of the 2022 Conference on Empirical Methods in Natural Language Processing. 2022. 375–413. 
+
+Edwards Carl, Zhai ChengXiang, Ji Heng . Text2mol: Cross-modal molecule retrieval with natural language queries // Proceedings of the 2021 Conference on Empirical Methods in Natural Language Processing. 2021. 595–607. 
+
+Fang Yin, Liang Xiaozhuan, Zhang Ningyu, Liu Kangwei, Huang Rui, Chen Zhuo, Fan Xiaohui, Chen Huajun . Mol-Instructions: A Large-Scale Biomolecular Instruction Dataset for Large Language Models // The Twelfth International Conference on Learning Representations. 2024. 
+
+Gan Esther, Zhao Yiran, Cheng Liying, Yancan Mao, Goyal Anirudh, Kawaguchi Kenji, Kan Min-Yen, Shieh Michael . Reasoning robustness of llms to adversarial typographical errors // Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing. 2024. 10449–10459. 
+
+Ganeeva Veronika, Khrabrov Kuzma, Kadurin Artur, Savchenko Andrey, Tutubalina Elena . Chemical Language Models Have Problems with Chemistry: A Case Study on Molecule Captioning Task // The Second Tiny Papers Track at ICLR 2024. 2024. 
+
+Gao Xinbo, Xiao Bing, Tao Dacheng, Li Xuelong . A survey of graph edit distance // Pattern Analysis and applications. 2010. 13, 1. 113–129. 
+
+Garg Shivam, Tsipras Dimitris, Liang Percy S, Valiant Gregory . What can transformers learn in-context? a case study of simple function classes // Advances in neural information processing systems. 2022. 35. 30583–30598. 
+
+Guo Taicheng, Nan Bozhao, Liang Zhenwen, Guo Zhichun, Chawla Nitesh, Wiest Olaf, Zhang Xiangliang, others . What can large language models do in chemistry? a comprehensive benchmark on eight tasks // Advances in neural information processing systems. 2023. 36. 59662–59688. 
+
+Hubin Timothy J . Synthesis and coordination chemistry of topologically constrained azamacrocycles // Coordination chemistry reviews. 2003. 241, 1-2. 27–46. 
+
+Krenn Mario, Häse Florian, Nigam AkshatKumar, Friederich Pascal, Aspuru-Guzik Alan . Self-referencing embedded strings (SELFIES): A 100% robust molecular string representation // Machine Learning: Science and Technology. 2020. 1, 4. 045024. 
+
+Kumar Pankaj, Mishra Subhankar . Robustness in large language models: A survey of mitigation strategies and evaluation metrics // arXiv preprint arXiv:2505.18658. 2025. 
+
+Li Hao, Cao He, Feng Bin, Shao Yanjun, Tang Xiangru, Yan Zhiyuan, Yuan Li, Tian Yonghong, Li Yu .Beyond Chemical QA: Evaluating LLM’s Chemical Reasoning with Modular Chemical Operations // arXiv preprint arXiv:2505.21318. 2025. 
+
+Li Jiatong, Li Junxian, Wang Weida, Liu Yunqing, Zheng Changmeng, Zhou Dongzhan, Wei Xiao-yong, Li Qing . Speak-to-Structure: Evaluating LLMs in Open-domain Natural Language-Driven Molecule Generation // arXiv preprint arXiv:2412.14642. 2024a. 
+
+Li Jiatong, Liu Yunqing, Fan Wenqi, Wei Xiao-Yong, Liu Hui, Tang Jiliang, Li Qing . Empowering molecule discovery for molecule-caption translation with large language models: A chatgpt perspective // IEEE transactions on knowledge and data engineering. 2024b. 36, 11. 6071–6083. 10 Liu Zequn, Zhang Wei, Xia Yingce, Wu Lijun, Xie Shufang, Qin Tao, Zhang Ming, Liu Tie-Yan .MolXPT: Wrapping Molecules with Text for Generative Pre-training // Proceedings of the 61st Annual Meeting of the Association for Computational Linguistics (Volume 2: Short Papers). 2023a. 1606–1616. 
+
+Liu Zhiyuan, Li Sihang, Luo Yanchen, Fei Hao, Cao Yixin, Kawaguchi Kenji, Wang Xiang, Chua Tat-Seng . MolCA: Molecular Graph-Language Modeling with Cross-Modal Projector and Uni-Modal Adapter // Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing. 2023b. 15623–15638. 
+
+Lou Qian, Liang Xin, Xue Jiaqi, Zhang Yancheng, Xie Rui, Zheng Mengxin . Cr-utp: Certified robustness against universal text perturbations on large language models // Findings of the Association for Computational Linguistics: ACL 2024. 2024. 9863–9875. 
+
+Pei Qizhi, Zhang Wei, Zhu Jinhua, Wu Kehan, Gao Kaiyuan, Wu Lijun, Xia Yingce, Yan Rui . BioT5: Enriching Cross-modal Integration in Biology with Chemical Knowledge and Natural Language Associations // Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing. 2023. 1102–1123. 
+
+Primas Hans . Chemistry, quantum mechanics and reductionism: perspectives in theoretical chemistry. 24. 2013. 
+
+Radford Alec, Narasimhan Karthik, Salimans Tim, Sutskever Ilya . Improving language understanding by generative pre-training. 2018. 
+
+Taylor Ross, Kardas Marcin, Cucurull Guillem, Scialom Thomas, Hartshorn Anthony, Saravia Elvis, Poulton Andrew, Kerkez Viktor, Stojnic Robert . Galactica: A large language model for science // arXiv preprint arXiv:2211.09085. 2022. 
+
+Vaswani Ashish, Shazeer Noam, Parmar Niki, Uszkoreit Jakob, Jones Llion, Gomez Aidan N, Kaiser Łukasz, Polosukhin Illia . Attention is all you need // Advances in neural information processing systems. 2017. 30. 
+
+Weininger David . SMILES, a chemical language and information system. 1. Introduction to method-ology and encoding rules // Journal of chemical information and computer sciences. 1988. 28, 1. 31–36. 
+
+Xie Sang Michael, Raghunathan Aditi, Liang Percy, Ma Tengyu . An explanation of in-context learning as implicit bayesian inference // International Conference on Learning Representations. 2022. 
+
+Yang An, Li Anfeng, Yang Baosong, Zhang Beichen, Hui Binyuan, Zheng Bo, Yu Bowen, Gao Chang, Huang Chengen, Lv Chenxu, others . Qwen3 technical report // arXiv preprint arXiv:2505.09388. 2025. 
+
+Yang Zeyu, Meng Zhao, Zheng Xiaochen, Wattenhofer Roger . Assessing adversarial robustness of large language models: An empirical study // arXiv preprint arXiv:2405.02764. 2024. 
+
+Zeng Zheni, Yao Yuan, Liu Zhiyuan, Sun Maosong . A deep-learning system bridging molecule structure and biomedical text with comprehension comparable to human professionals // Nature communications. 2022. 13, 1. 862. 
+
+Zhang Minxing, Yang Yi, Xie Roy, Dhingra Bhuwan, Zhou Shuyan, Pei Jian . Generalizability of large language model-based agents: A comprehensive survey // ACM Computing Surveys. 2026. 58, 10. 1–44. 11 A Detailed Experiment Setup & Hyper Parameters 
+
+A.1 Hyper-parameters 
+
+Table 2 summarizes the default hyper-parameters used in training and inference. We report the main settings (e.g., batch size, learning rate, and decoding configuration) for reproducibility. All experiments were conducted on NVIDIA H200 GPUs with 141 GB memory. Additionally, all models are fully fine-tuned (no parameter-efficient adapters such as LoRA) on the training data.                           
+
+> Item Value
+> Training (Decoder-only)
+> Batch size 32 Micro batch size 4Gradient accumulation steps 8Epochs 10 Warm-up steps 200 Learning rate 2×10 −4
+> Optimizer AdamW Cutoff length 512 Precision FP32
+> Training (Encoder-decoder)
+> Micro batch size 8Epochs 10 Warm-up steps 200 Learning rate 2×10 −4
+> LR scheduler Cosine Cutoff length 512
+> Inference (Decoder-only)
+> Temperature 0.7 Top-p0.85 Top-k40 Max new tokens 256
+> Inference (Encoder-decoder)
+> Decoding Greedy Max new tokens 512
+
+Table 2: Hyper-parameters. 
+
+A.2 Perturbed Data Statistics 
+
+We construct our evaluation dataset by applying controlled perturbations to PubChem (Liu et al., 2023b). For each molecule in the original training set (i.e., raw_train ), we generate variants across the five discrete levels of Graph Edit Distance (GED). Crucially, we isolate perturbations by applying either atom-only or bond-only modifications. This controlled separation allows us to disentangle node 
+
+(atom identity) versus edge (bond order) sensitivity, and thereby directly test the manifold-regularity hypothesis that whether small, syntax valid topological edits lead to smooth and predictable changes in model behavior, or instead push the model across a generalization boundary. Table 3 summarizes the statistics of the original and perturbed datasets. For each GED level k, we report the total number of valid perturbed molecules, along with a breakdown of variants induced by atom-only or bond-only perturbations. Notably, as GED increases, the proportion of bond-level perturbations gradually decreases, reflecting the stricter syntax validity constraints associated with bond order modifications. In contrast, atom-level substitutions remain relatively stable across GED levels, indicating that atomic edits are more frequently admissible under the enforced valence constraints. A natural concern with atom-level perturbations is whether they push molecules into chemically implausible regions. To verify that our perturbations remain chemically meaningful, we compare the atom-frequency distributions of the raw and perturbed corpora, shown in Table 4. The two distributions are highly consistent: carbon and oxygen, which together account for over 90% of all atoms in the raw data, remain the dominant elements after perturbation, with only a marginal −3.8% 
+
+shift in carbon frequency. Other common organic atoms (N, S, P, Cl, F) see small absolute increases 12 Dataset Total Samples Atom-only Perturbations Bond-only Perturbations                      
+
+> raw_train 11853 N/A N/A raw_test 1985 N/A N/A k=1 16,162 7,838 8,324 k=2 18,899 9,366 9,533 k=3 18,485 9,326 9,159 k=4 17,368 9,317 8,051 k=5 15,633 9,184 6,449
+
+Table 3: Statistics of the raw and perturbed datasets.                             
+
+> Atom Raw Frequency Perturbed Frequency ∆
+> C68.1% 64.3% −3.8%
+> O22.8% 22.8% 0.0%
+> N6.2% 6.9% +0 .7%
+> S0.8% 1.5% +0 .7%
+> P0.8% 1.4% +0 .6%
+> Cl 0.5% 1.0% +0 .5%
+> F0.3% 0.9% +0 .6%
+> B<0.1% 0.8% +0 .8%
+
+Table 4: Atom frequency distribution before and after perturbation. ∆ denotes the change from raw to perturbed. of 0.5–0.7% , all within the range of typical drug-like molecular composition. Although rare atoms such as boron exhibit relatively larger fold-changes due to their near-zero baseline frequency, their absolute share remains below 1% . Overall, the perturbed corpus retains the elemental signature of the raw training distribution, confirming that our perturbations probe local neighborhoods within the realistic chemical space. 
+
+A.3 Similarity Distributions Under Perturbations 
+
+To quantify how much a perturbed molecule deviates from its original counterpart, we compute Tanimoto similarity between Morgan fingerprints (radius 2, 2048 bits) for both atom- and bond-level perturbations across GED levels. Figure 7 visualizes the resulting similarity histograms (top: atom perturbations; bottom: bond perturbations). Across both perturbation types, similarity decreases monotonically as GED ( k) increases, indicating progressively larger structural changes. For atom perturbations, the mean similarity drops from 0.68 (k=1, n = 7 ,838 ) to 0.55 (k=2, n = 9 ,366 ), 0.46 (k=3, n = 9 ,326 ), 0.40 (k=4, n = 9 ,317 ), and 0.35 (k=5, n = 9 ,184 ). Bond perturbations exhibit the same trend but yield consistently lower similarities at matched k, with means of 0.59 (k=1, n = 8 ,324 ), 0.45 (k=2, n = 9 ,533 ), 0.38 (k=3, n = 9 ,159 ), 0.33 (k=4, n = 8 ,051 ), and 0.30 (k=5, n = 6 ,449 ). Overall, these distributions confirm that (i) larger GED corresponds to lower molecular similarity and (ii) bond edits tend to induce larger deviations than atom edits under the same GED level. 
+
+A.4 Retrieval Setting 
+
+For tasks whose input is a SMILES string (Mol2IUPAC, QED, LogP, HOMO-LUMO gap, polariz-ability), we retrieve the nearest training neighbor using Morgan fingerprints (radius = 2, 2048 bits) with Tanimoto similarity. For IUPAC2Mol, where the input is an IUPAC name, we use BM25 over tokenized IUPAC names to obtain the nearest neighbor. 
+
+B Performance of Additional LLMs 
+
+To verify that our findings generalize beyond the models in the main analysis, we further evaluate two additional architectures under the same perturbation protocol: LLaMA-3.2-1B (a general-purpose LLM) and ChemLLM-7B (a chemistry-pretrained LLM). Table 5 reports their performance across the three tasks at GED levels k = 1 , . . . , 5.13 0.0 0.2 0.4 0.6 0.8 1.0                                                        
+
+> Tanimoto Similarity
+> 0
+> 100
+> 200
+> 300
+> 400
+> 500
+> Frequency
+> Atom Perturbation (GED=1)
+> n=7838, =0.680
+> Mean: 0.680
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Tanimoto Similarity
+> 0
+> 100
+> 200
+> 300
+> 400
+> Frequency
+> Atom Perturbation (GED=2)
+> n=9366, =0.553
+> Mean: 0.553
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Tanimoto Similarity
+> 0
+> 50
+> 100
+> 150
+> 200
+> 250
+> 300
+> 350
+> 400
+> Frequency
+> Atom Perturbation (GED=3)
+> n=9326, =0.463
+> Mean: 0.463
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Tanimoto Similarity
+> 0
+> 100
+> 200
+> 300
+> 400
+> 500
+> Frequency
+> Atom Perturbation (GED=4)
+> n=9317, =0.401
+> Mean: 0.401
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Tanimoto Similarity
+> 0
+> 100
+> 200
+> 300
+> 400
+> Frequency
+> Atom Perturbation (GED=5)
+> n=9184, =0.354
+> Mean: 0.354
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Tanimoto Similarity
+> 0
+> 50
+> 100
+> 150
+> 200
+> 250
+> 300
+> 350
+> 400
+> Frequency
+> Bond Perturbation (GED=1)
+> n=8324, =0.590
+> Mean: 0.590
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Tanimoto Similarity
+> 0
+> 100
+> 200
+> 300
+> 400
+> Frequency
+> Bond Perturbation (GED=2)
+> n=9533, =0.452
+> Mean: 0.452
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Tanimoto Similarity
+> 0
+> 100
+> 200
+> 300
+> 400
+> Frequency
+> Bond Perturbation (GED=3)
+> n=9159, =0.379
+> Mean: 0.379
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Tanimoto Similarity
+> 0
+> 50
+> 100
+> 150
+> 200
+> 250
+> 300
+> 350
+> 400
+> Frequency
+> Bond Perturbation (GED=4)
+> n=8051, =0.330
+> Mean: 0.330
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Tanimoto Similarity
+> 0
+> 50
+> 100
+> 150
+> 200
+> 250
+> 300
+> 350
+> Frequency
+> Bond Perturbation (GED=5)
+> n=6449, =0.305
+> Mean: 0.305
+
+Figure 7: Histograms of Tanimoto similarities between original and perturbed molecules across GED levels from 1 to 5 (Morgan fingerprints, radius 2, 2048 bits). The top row corresponds to atom-level perturbations and the bottom row to bond-level perturbations; each panel reports the sample size n
+
+and mean similarity μ.
+
+Model Task (Metric) Raw k=1 k=2 k=3 k=4 k=5 
+
+LLaMA-3.2-1B QED (RMSE ↓) 0.1302 0.1600 0.1733 0.1857 0.1999 0.2119 Mol2IUPAC (BLEU-4 ↑) 0.3843 0.2500 0.2244 0.2192 0.2120 0.2098 IUPAC2Mol (Morgan FTS ↑) 0.4611 0.3629 0.3069 0.2764 0.2515 0.2368 ChemLLM-7B QED (RMSE ↓) 0.2677 0.2456 0.1957 0.2936 0.2788 0.2457 Mol2IUPAC (BLEU-4 ↑) 0.4268 0.1991 0.1797 0.1743 0.1690 0.1658 IUPAC2Mol (Morgan FTS ↑) 0.5108 0.3869 0.3247 0.2930 0.2685 0.2524 
+
+Table 5: Performance of LLaMA-3.2-1B and ChemLLM-7B under structural perturbations of increasing GED ( k = 1 , . . . , 5) using standard fine-tuning. ↑/↓ indicates higher/lower is better. Both models reproduce the characteristic two-phase pattern observed earlier: a steep drop at low perturbation strength ( k = 1 ) followed by a slower decline as k grows. On the two generative tasks, the trend is particularly pronounced: Mol2IUPAC BLEU-4 falls by roughly 35% for LLaMA-3.2-1B and over 50% for ChemLLM-7B at k = 1 alone compared to the raw test set, and IUPAC2Mol Morgan similarity exhibits a similarly steep initial slope before flattening. This consistency across model scales (1B vs. 7B) and pretraining regimes (general vs. chemistry-specific) reinforces our central finding: the narrow local trust region is a property of the molecular sequence-modeling paradigm itself, not an artifact of a particular model choice. Interestingly, ChemLLM-7B, despite being seven times larger and pretrained on chemistry corpora, does not exhibit better robustness than the smaller LLaMA-3.2-1B. On Mol2IUPAC, ChemLLM-7B starts from a higher raw BLEU-4 ( 0.4268 vs. 0.3843 ) but ends up below LLaMA-3.2-1B at every perturbation level ( 0.1658 vs. 0.2098 at k = 5 ), indicating a steeper relative drop. The QED column further shows a non-monotonic trajectory for ChemLLM-7B, where RMSE fluctuates rather than degrading smoothly with k.
+
+C Absolute Performance 
+
+Tables 6, 7, and 8 report the complete numerical results for all models across three downstream tasks under increasing structural perturbation levels (GED k=1 , . . . , 5). 
+
+D Performance on Additional Molecular Property Prediction Tasks 
+
+To verify that our findings are not specific to QED, we evaluate ICT on three additional property prediction tasks: LogP (lipophilicity), HOMO-LUMO Gap (electronic structure), and Polarizability. Table 9 reports MAE under standard fine-tuning (Direct) and ICT with a single retrieved neighbor. 14 Architecture Model Raw Test k=1 k=2 k=3 k=4 k=5                                                             
+
+> Encoder-Decoder MolT5-small 0.0804 0.1222 0.1423 0.1587 0.1736 0.1829 MolT5-base 0.0646 0.1045 0.1146 0.1213 0.1279 0.1292 MolT5-large 0.0547 0.0973 0.1116 0.1221 0.1313 0.1375 BioT5-base 0.0713 0.1064 0.1207 0.1297 0.1366 0.1388 Decoder-Only Galactica-125M 0.0915 0.1435 0.1602 0.1758 0.1914 0.2039 Qwen3-0.6B 0.0656 0.1166 0.1326 0.1478 0.1620 0.1750 Qwen3-1.7B 0.0660 0.1262 0.1458 0.1625 0.1791 0.1914 Qwen3-4B 0.0925 0.1654 0.1830 0.2032 0.2208 0.2574 LLaMA-3.2-1B 0.1302 0.1600 0.1733 0.1857 0.1999 0.2119 ChemLLM-7B 0.2677 0.2456 0.1957 0.2936 0.2788 0.2457
+
+Table 6: Full results of property prediction (QED) performance measured by RMSE ( ↓) under increasing GED levels.                                                                    
+
+> Architecture Model Raw Test k=1 k=2 k=3 k=4 k=5
+> Encoder-Decoder MolT5-small 0.3464 0.2978 0.2798 0.2744 0.2660 0.2581 MolT5-base 0.3656 0.2931 0.2710 0.2657 0.2590 0.2529 MolT5-large 0.4558 0.3522 0.3267 0.3209 0.3104 0.3007 BioT5-base 0.5969 0.4578 0.4152 0.3976 0.3788 0.3660 Decoder-Only Galactica-125M 0.7231 0.4887 0.4556 0.4427 0.4338 0.4263 Qwen3-0.6B 0.7551 0.4668 0.4357 0.4225 0.4084 0.3997 Qwen3-1.7B 0.7649 0.4398 0.4096 0.3972 0.3841 0.3796 Qwen3-4B 0.7711 0.4372 0.4130 0.3994 0.3867 0.3799 LLaMA-3.2-1B 0.3843 0.2500 0.2244 0.2192 0.2120 0.2098 ChemLLM-7B 0.4268 0.1991 0.1797 0.1743 0.1690 0.1658
+
+Table 7: Full results of Molecule to IUPAC (Mol2IUPAC) performance measured by BLEU-4 ( ↑)under increasing GED levels. The results closely mirror the pattern observed on QED in our main analysis. First, all three properties exhibit substantial degradation under perturbation: even a single graph edit ( k = 1 ) more than doubles the MAE relative to the unperturbed test set across all settings, confirming that the narrow local trust region we identify is a general property of regression tasks rather than a quirk of QED. Second, ICT consistently improves robustness across all three properties: it dominates Direct at every perturbation level ( k = 1 , . . . , 5), with particularly large gains on LogP ( 1.4286 vs. 1.6063 at k = 5 ,a relative reduction of 11% ) and Polarizability ( 9.4900 vs. 12 .0652 at k = 5 , a 21% reduction). Third, the same trade-off between clean and perturbed performance recurs: on HOMO-LUMO Gap and Polarizability, Direct retains a slight edge on raw test inputs, but ICT takes over as soon as any structural perturbation is applied. This consistent pattern across four independent properties demonstrates that ICT’s local-anchoring mechanism generalizes broadly within molecular property prediction, and that the manifold-regularity issues we identify in the main paper are not idiosyncratic to a single property but reflect a structural property of the sequence-based modeling paradigm. 
+
+E ICT Performance on Encoder-decoder Models 
+
+Table 10 compares Direct generation and ICT on BioT5-base across three representative tasks. Unlike the consistent gains observed with Galactica-125M, ICT provides no clear advantage on the encoder-decoder architecture. For Mol2IUPAC , the two strategies are nearly indistinguishable: ICT edges ahead at k=1 and k=2 
+
+by less than 0.003 BLEU-4, while Direct takes a marginal lead from k=3 onward. The degradation trajectories are also almost identical ( −0.292 vs. −0.292 from raw to k=5 ), suggesting that the in-context example neither helps nor hurts when the encoder already captures sufficient SMILES-to-IUPAC correspondence. 15 Architecture Model Raw Test k=1 k=2 k=3 k=4 k=5 
+
+Encoder-Decoder MolT5-small 0.2261 0.1800 0.1554 0.1414 0.1286 0.1224 MolT5-base 0.3496 0.2661 0.2246 0.2013 0.1811 0.1669 MolT5-large 0.4854 0.3491 0.2846 0.2529 0.2263 0.2119 BioT5-base 0.4760 0.2903 0.2216 0.1958 0.1916 0.1782 Decoder-Only Galactica-125M 0.7092 0.5213 0.4148 0.3612 0.3237 0.3000 Qwen3-0.6B 0.7372 0.5604 0.4419 0.3821 0.3405 0.3139 Qwen3-1.7B 0.7535 0.5855 0.4597 0.3945 0.3499 0.3236 Qwen3-4B 0.7604 0.5958 0.4681 0.3996 0.3534 0.3231 LLaMA-3.2-1B 0.4611 0.3629 0.3069 0.2764 0.2515 0.2368 ChemLLM-7B 0.5108 0.3869 0.3247 0.2930 0.2685 0.2524 
+
+Table 8: Full results of IUPAC to Molecule (IUPAC2Mol) performance measured by Morgan FTS ( ↑)under increasing GED levels.                                                  
+
+> Property Strategy Raw Test k=1 k=2 k=3 k=4 k=5
+> LogP (MAE ↓)Direct 0.5374 1.2576 1.3891 1.4540 1.5287 1.6063 ICT 0.4824 0.8175 0.9688 1.1025 1.2475 1.4286
+> HOMO-LUMO Gap (MAE ↓, eV) Direct 0.3375 1.7622 1.9701 1.9486 2.0504 2.1374 ICT 0.4434 1.4387 1.7028 1.6872 1.7352 1.8067
+> Polarizability (MAE ↓)Direct 4.3439 10.1769 10.9901 11.0478 11.6991 12.0652 ICT 5.3884 7.2150 7.9970 8.2379 9.1079 9.4900
+
+Table 9: Performance of Galactica-125M on three additional molecular property prediction tasks (LogP, HOMO-LUMO Gap, Polarizability) under structural perturbations of increasing GED ( k =1, . . . , 5). Bold marks the best value per column. ICT uses a single retrieved neighbor ( n = 1 ). For IUPAC2Mol , the picture is mixed. ICT achieves higher Morgan fingerprint similarity at k=1 
+
+(+0.019) and k=5 (+0.037), but Direct is better at k=3 and k=4 . Both strategies suffer from extremely low SMILES validity ( <2%), indicating that BioT5-base struggles with syntactically correct SMILES generation regardless of the training strategy. The most decisive gap appears in 
+
+QED prediction , where Direct outperforms ICT at every perturbation level. The RMSE advantage widens from 0.005 at raw to 0.010 at k=5 , and the R2 gap grows from 0.012 to 0.087. More importantly, Direct degrades more gracefully: its R2 drops by 0.481 (raw →k=5 ) compared to 0.556 for ICT, a 15.6% larger collapse. This indicates that forcing all samples into ICT format— including those with low-similarity neighbors—injects noise that is particularly harmful for numerical regression. These results highlight a key architectural difference: decoder-only models like Galactica benefit from in-context demonstrations even when neighbor quality is uncontrolled, whereas encoder-decoder models like BioT5 are more sensitive to noisy examples. This observation motivates the similarity-threshold gating mechanism in our ICT strategy, which selectively applies ICT only when a sufficiently similar neighbor is available, thereby avoiding the noise penalty exposed by ICT. 
+
+F Related Work for LLM Generalization 
+
+The generalization and robustness of large language models under input perturbation has been extensively studied in the NLP domain. Kumar, Mishra (2025) provide a comprehensive survey on LLM robustness, categorizing sources of non-robustness into intrinsic model limitations, data-driven vulnerabilities, and adversarial factors. Notably, even minimal input perturbations can cause significant performance degradation: Gan et al. (2024) demonstrate that just 1 character edit on Mistral-7B-Instruct drops GSM8K accuracy from 43.7% to 38.6%, declining further to 19% with 8 edits, a pattern strikingly analogous to our findings in the molecular domain. Lou et al. (2024) further develop certified robustness methods against universal text perturbations using random smoothing, while Yang et al. (2024) systematically evaluate adversarial robustness across open-source LLMs including LLaMA, OPT, and T5, revealing that robustness varies substantially with model size and architecture. A recent comprehensive survey by Zhang et al. (2026) formalizes the generalizability of LLM-based agents as the ability to maintain consistent performance across varied tasks and domains beyond fine-tuning data, proposing a hierarchical domain-task ontology for evaluation. 16 Task Strategy Raw Test k=1 k=2 k=3 k=4 k=5                                        
+
+> Mol2IUPAC (BLEU-4 ↑)Direct 0.7842 0.6031 0.5437 0.5217 0.5020 0.4923
+> ICT 0.7815 0.6045 0.5461 0.5208 0.5009 0.4894 IUPAC2Mol (Morgan ↑)Direct 0.4492 0.2645 0.1810 0.1332 0.1607 0.1404 ICT 0.4506 0.2838 0.1827 0.1133 0.1490 0.1778
+> QED (RMSE ↓)Direct 0.0713 0.1064 0.1207 0.1297 0.1366 0.1388
+> ICT 0.0759 0.1164 0.1300 0.1376 0.1453 0.1490
+
+Table 10: Performance comparison between Direct generation and ICT under increasing GED levels (k = 1 , . . . , 5) on BioT5-base. Best results are bold .
+
+IUPAC2Mol: Positional Isomer Disambiguation 
+
+Input (IUPAC): 2,6-dimethylbenzoic acid 
+
+Ground Truth: CC1=C(C(=CC=C1)C)C(=O)O 
+
+Context Example: 
+
+• IUPAC: 2,4-dimethylbenzoic acid • SMILES: CC1=CC(=C(C=C1)C(=O)O)C 
+
+Comparison: 
+
+• Direct: CC1=CC(=C(C=C1)C(=O)O)C (2,4-dimethyl isomer )• ICT: CC1=C(C(=CC=C1)C)C(=O)O ✓
+
+IUPAC2Mol: Carbon Chain Length Counting 
+
+Input (IUPAC): (9S,10S)-9,10-dihydroxyoctadecanoic acid 
+
+Ground Truth: CCCCCCCC[C@@H]([C@H](CCCCCCCC(=O)O)O)O 
+
+Context Example: 
+
+• IUPAC: 9,10-dihydroxyoctadecanoic acid • SMILES: CCCCCCCCC(C(CCCCCCCC(=O)O)O)O 
+
+Comparison: 
+
+• Direct: CCCCCCCCC[C@@H]([C@H](CCCCCCCC(=O)O)O)O (C19, extra carbon )• ICT: CCCCCCCC[C@@H]([C@H](CCCCCCCC(=O)O)O)O ✓
+
+IUPAC2Mol: Unsaturation Pattern Recognition 
+
+Input (IUPAC): (2E,4E,6S)-6-methylocta-2,4-dienoic acid 
+
+Ground Truth: CC[C@H](C)/C=C/C=C/C(=O)O 
+
+Context Example: 
+
+• IUPAC: (2E,4E)-hexa-2,4-dienoic acid • SMILES: C/C=C/C=C/C(=O)O 
+
+Comparison: 
+
+• Direct: C/C=C(\C)/C=C/C(=O)O (wrong branching, missing ethyl )• ICT: CC[C@H](C)/C=C/C=C/C(=O)O ✓
+
+17 IUPAC2Mol: Heterocyclic Ring Connectivity 
+
+Input (IUPAC): 2-N-tert-butyl-6-chloro-1,3,5-triazine-2,4-diamine 
+
+Ground Truth: CC(C)(C)NC1=NC(=NC(=N1)N)Cl 
+
+Context Example: 
+
+• IUPAC: 2-N-tert-butyl-6-chloro-4-N-ethyl-1,3,5-triazine-2,4-diamine • SMILES: CCNC1=NC(=NC(=N1)Cl)NC(C)(C)C 
+
+Comparison: 
+
+• Direct: CC(C)(C)N1C(=NC(=N1)N)Cl (N bonded into ring )• ICT: CC(C)(C)NC1=NC(=NC(=N1)Cl)N ✓
+
+IUPAC2Mol: N-Oxide Functional Group 
+
+Input (IUPAC): 1-oxidopyridin-1-ium 
+
+Ground Truth: C1=CC=[N+](C=C1)[O-] 
+
+Context Example: 
+
+• IUPAC: (5S)-1-methyl-5-(1-oxidopyridin-1-ium-3-yl)pyrrolidin-2-one • SMILES: CN1[C@@H](CCC1=O)C2=C[N+](=CC=C2)[O-] 
+
+Comparison: 
+
+• Direct: C1=CC(=[N+](=C1)[O-])C (extra methyl, invalid SMILES )• ICT: C1=CC=[N+](C=C1)[O-] ✓
+
+Mol2IUPAC: Inorganic Salt Nomenclature 
+
+Input (SMILES): [C-]#N.[Ag+] 
+
+Ground Truth: silver;cyanide 
+
+Context Example: 
+
+• SMILES: [C-]#N.[Cu+] 
+
+• IUPAC: copper(1+);cyanide 
+
+Comparison: 
+
+• Direct: silver;cyanamide (wrong anion name )• ICT: silver;cyanide ✓
+
+Mol2IUPAC: Substituent Position Identification 
+
+Input (SMILES): CC1=C(C(=CC=C1)C)C(=O)O 
+
+Ground Truth: 2,6-dimethylbenzoic acid 
+
+Context Example: 
+
+• SMILES: C1=CC(=C(C(=C1)O)C(=O)O)O 
+
+• IUPAC: 2,6-dihydroxybenzoic acid 
+
+Comparison: 
+
+• Direct: 2,3-dimethylbenzoic acid (wrong positions )• ICT: 2,6-dimethylbenzoic acid ✓
+
+18 Mol2IUPAC: Ester vs. Nitro Group Naming 
+
+Input (SMILES): CC(=O)OC1=CC=C(C=C1)[N+](=O)[O-] 
+
+Ground Truth: (4-nitrophenyl) acetate 
+
+Context Example: 
+
+• SMILES: CCCC(=O)OC1=CC=C(C=C1)[N+](=O)[O-] 
+
+• IUPAC: (4-nitrophenyl) butanoate 
+
+Comparison: 
+
+• Direct: (4-acetyloxyphenyl) nitrate (inverted parent/substituent )• ICT: (4-nitrophenyl) acetate ✓
+
+Mol2IUPAC: Acyl Chain Length Determination 
+
+Input (SMILES): CCCCCCCCCCCCCCC(=O)OC(CC(=O)[O-])C[N+](C)(C)C 
+
+Ground Truth: 3-pentadecanoyloxy-4-(trimethylazaniumyl)butanoate 
+
+Context Example: 
+
+• SMILES: CCCCCCCCCCCCCCCC(=O)O[C@H](CC(=O)[O-])C[N+](C)(C)C 
+
+• IUPAC: (3R)-3-hexadecanoyloxy-4-(trimethylazaniumyl)butanoate 
+
+Comparison: 
+
+• Direct: 3-hexadecanoyloxy-4-(trimethylazaniumyl)butanoate (C16 instead of C15 )• ICT: 3-pentadecanoyloxy-4-(trimethylazaniumyl)butanoate ✓
+
+QED Prediction: Halogenated Ester 
+
+Input (SMILES): CC1([C@@H]([C@H]1C(=O)OCC2=C(C(=CC(=C2F)F)F)F)C=C(Cl)Cl)C 
+
+Ground Truth QED: 0.4286 
+
+Context Example: 
+
+• SMILES: CC1=C(C(=C(C(=C1F)F)COC(=O)C2C(C2(C)C)/C=C(/C(F)(F)F)\Cl)F)F 
+
+• QED: 0.3638 
+
+Comparison: 
+
+• Direct: 0.8127 (error = 0.3841) • ICT: 0.4417 (error = 0.0131) ✓
+
+QED Prediction: Prenylated Chalcone 
+
+Input (SMILES): CC(=CCC1=C(C(=CC(=C1)/C=C/C(=O)C2=C(C=C(C=C2)O)O)OC)O)C 
+
+IUPAC: (E)-1-(2,4-dihydroxyphenyl)-3-[4-hydroxy-3-methoxy-5-(3-methylbut-2-enyl)phenyl]prop-2-en-1-one 
+
+Ground Truth QED: 0.4107 
+
+Context Example: 
+
+• SMILES: CC(=CCC1=CC(=C(C=C1O)O)C(=O)/C=C/C2=CC=C(C=C2)O)C 
+
+• QED: 0.4373 
+
+Comparison: 
+
+• Direct: 0.6776 (error = 0.2669) • ICT: 0.4021 (error = 0.0086) ✓
+
+19 QED Prediction: Functional Group Variant 
+
+Input (SMILES): C1=CC=C(C=C1)C(=O)C2=CC=CC(=C2N)CC(=O)N 
+
+IUPAC: 2-(2-amino-3-benzoylphenyl)acetamide 
+
+Ground Truth QED: 0.6404 
+
+Context Example: 
+
+• SMILES: C1=CC=C(C=C1)C(=O)C2=CC=CC(=C2N)CC(=O)[O-] 
+
+• QED: 0.6456 
+
+Comparison: 
+
+• Direct: 0.8488 (error = 0.2084) • ICT: 0.6314 (error = 0.0090) ✓
+
+G Prompt Templates 
+
+We adopt two prompt formats depending on the training strategy. 
+
+Direct format. All six tasks share a unified conversational template:    
+
+> ## User: {task instruction}: {input} ## Assistant: {target}
+
+Table 11 lists the task-specific instructions.                     
+
+> Task Instruction Target
+> Mol2IUPAC Generate the IUPAC name for the molecule: {SMILES} IUPAC name IUPAC2Mol Generate a molecule based on the IUPAC name of the molecule: {IUPAC} SMILES QED Predict the qed value for the molecule: {SMILES} QED value LogP Predict the logp value for the molecule: {SMILES} LogP value HOMO-LUMO Predict the HOMO-LUMO gap value for the molecule: {SMILES} Gap value Polarizability Predict the polarizability value for the molecule: {SMILES} Polar. value
+
+Table 11: Task-specific prompt instructions and input/output types. 
+
+ICT format. When a sufficiently similar training example is retrieved, we prepend it as an in-context demonstration:  
+
+> Example 1: {neighbor_input} label {neighbor_output} Now, given {query_input}, please generate the label:
+
+Here neighbor_input and neighbor_output are the input–output pair of the retrieved nearest neighbor, and query_input is the test molecule’s input representation (SMILES for Mol2IUPAC and property tasks; IUPAC name for IUPAC2Mol). The target is the same as in the direct format. 
+
+H Limitations 
+
+Beyond the limitations already discussed in the paper, including the dependence of ICT on retrieval quality and the weakening of context anchors at high GED, we explicitly acknowledge the following additional limitations. 
+
+Representation scope. Our evaluation is limited to sequence-based molecular representations (SMILES and SELFIES). Graph-based molecular models, which operate directly on molecular topology without linearization, are not covered by our analysis and may exhibit qualitatively different robustness profiles under structural perturbation. 20 Computational overhead of ICT. ICT requires a nearest-neighbor retrieval step at both training and inference time, adding computational overhead relative to standard fine-tuning. This may limit scalability to very large training sets or latency-sensitive deployment scenarios. 
+
+I Broader Impacts 
+
+This work studies the manifold regularity of molecular LLMs under structural perturbations and proposes ICT as a manifold-regularization objective. On the positive side, our perturbation framework offers a practical diagnostic for the narrow “trust region” of current molecular LLMs, helping practitioners avoid over-relying on apparent in-distribution performance, which is particularly valuable for downstream applications such as drug discovery and materials design where over-confident predictions could lead to wasted experimental effort or safety concerns; ICT further provides a lightweight, retrieval-anchored route to improving robustness without architectural changes. On the negative side, more accurate molecular predictors carry a residual dual-use risk of being misused to design harmful compounds, though we view this risk as limited because the studied tasks (QED, LogP, HOMO–LUMO gap, polarizability, and IUPAC ↔SMILES translation) are standard cheminformatics operations already supported by tools like RDKit, and ICT requires labeled training data in the target property domain. We recommend that any deployment be accompanied by domain expert oversight and explicit communication of the rapidly growing prediction uncertainty as inputs drift from the training manifold, an issue our work itself highlights. 21
