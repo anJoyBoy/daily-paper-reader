@@ -6,38 +6,47 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-05
-- 运行时间：2026-07-05 20:13:17 UTC
+- 最新运行日期：2026-07-06
+- 运行时间：2026-07-06 20:56:47 UTC
 - 运行状态：成功
-- 本次总论文数：6
-- 精读区：1
+- 本次总论文数：9
+- 精读区：4
 - 速读区：5
 
 ### 今日简报（AI）
-今日精读1篇、速读5篇，核心关注LLM数据标注与材料科学/图强化学习前沿。最值得看：LLM高效标注实体匹配训练数据（8.0分），以及多模态材料数据集与图强化学习生成假设。建议优先精读LLM标注论文，再速览图强化学习与晶体预测方法，关注跨学科融合趋势。
-- 详情：[/202607/05/README](/202607/05/README)
+今日聚焦LLM驱动的量子测试优化、材料科学多模态数据集及自动启发式设计等前沿交叉研究。最值得关注的两项核心成果：利用LLM智能体生成量子测试优化方案（9.0分），以及从文献中挖掘大规模材料多模态数据集（8.0分）。普通读者可重点关注新材料稳定性和LLM自动设计方法，这将大幅提升科研效率与智能工具的可信度。
+- 详情：[/202607/06/README](/202607/06/README)
 
 ### 精读区论文标签
-1. [Labeling Training Data for Entity Matching Using Large Language Models](/202607/05/2606.28823v1-labeling-training-data-for-entity-matching-using-large-language-models)  
+1. [Leveraging LLM-Based Agentic Systems to Generate Quantum Applications for Test Optimization](/202607/06/2607.00939v1-leveraging-llm-based-agentic-systems-to-generate-quantum-applications-for-test-optimization)  
+   标签：评分：9.0/10、query:chemical-llm
+   evidence：基于LLM的多智能体系统生成量子应用
+2. [Unlocking the Visual Record of Materials Science: A Large-Scale Multimodal Dataset from Scientific Literature](/202607/06/2606.29667v1-unlocking-the-visual-record-of-materials-science-a-large-scale-multimodal-dataset-from-scientific-literature)  
    标签：评分：8.0/10、query:llm-dm
-   evidence：LLM知识蒸馏用于实体匹配数据标注
+   evidence：基于LLM的流水线从材料科学文献中提取子图级别的图文对
+3. [Exploring the Semantic Gap in Agentic Data Systems: A Formative Study of Operationalization Failures in Analytical Workflows](/202607/06/2607.00828v1-exploring-the-semantic-gap-in-agentic-data-systems-a-formative-study-of-operationalization-failures-in-analytical-workflows)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：LLM在分析工作流操作化中的失败研究
+4. [Do LLMs Truly Generalize in the Molecular Domain? A Perturbation-Based Analysis](/202607/06/2607.01800v1-do-llms-truly-generalize-in-the-molecular-domain-a-perturbation-based-analysis)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：分析LLM在分子领域的泛化能力，涉及化学工程
 
 ### 速读区论文标签
-1. [Unlocking the Visual Record of Materials Science: A Large-Scale Multimodal Dataset from Scientific Literature](/202607/05/2606.29667v1-unlocking-the-visual-record-of-materials-science-a-large-scale-multimodal-dataset-from-scientific-literature)  
+1. [RAISE: LLM-based Automated Heuristic Design with Robust Adversary Instance Search](/202607/06/2606.31801v1-raise-llm-based-automated-heuristic-design-with-robust-adversary-instance-search)  
    标签：评分：7.0/10、query:llm-dm
-   evidence：使用大语言模型从科学文献中提取图文对进行数据挖掘
-2. [Graph-Native Reinforcement Learning Enables Traceable Scientific Hypothesis Generation through Conceptual Recombination](/202607/05/2607.00924v1-graph-native-reinforcement-learning-enables-traceable-scientific-hypothesis-generation-through-conceptual-recombination)  
+   evidence：基于LLM的自动化启发式设计结合对抗性实例搜索，用于鲁棒数据挖掘
+2. [Predicting Novel Stable Materials for Experimental Synthesis](/202607/06/2607.01713v1-predicting-novel-stable-materials-for-experimental-synthesis)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：使用图原生强化学习AI进行材料科学中的假设生成
-3. [Complex crystal structure prediction using ML-enhanced multi-minima iterative genetic algorithm](/202607/05/2607.01004v1-complex-crystal-structure-prediction-using-ml-enhanced-multi-minima-iterative-genetic-algorithm)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：使用机器学习增强遗传算法进行化学中的晶体结构预测
-4. [Enerzyme: A Framework for Efficient Training of Reactive Neural Network Potentials for Enzyme Catalysis with Application to Methyltransferases](/202607/05/2607.01362v1-enerzyme-a-framework-for-efficient-training-of-reactive-neural-network-potentials-for-enzyme-catalysis-with-application-to-methyltransferases)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：开发用于酶催化的神经网络势，与化学工程相关
-5. [Evolution Fine-Tuning: Learning to Discover Across 371 Optimization Tasks](/202607/05/2606.29082v1-evolution-fine-tuning-learning-to-discover-across-371-optimization-tasks)  
+   evidence：机器学习加速新材料稳定性预测
+3. [Travel-Oriented Reasoning Large Language Model via Domain-Specific Knowledge Graphs](/202607/06/2606.29254v1-travel-oriented-reasoning-large-language-model-via-domain-specific-knowledge-graphs)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：将大语言模型与进化搜索集成，用于跨多种任务的优化
+   evidence：将大语言模型应用于旅行领域推理
+4. [Joint discovery of governing partial differential equations from multi-source datasets by competitive optimization](/202607/06/2606.30699v1-joint-discovery-of-governing-partial-differential-equations-from-multi-source-datasets-by-competitive-optimization)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：从多源数据发现偏微分方程的人工智能方法
+5. [Contrastive Regularization of Machine Learning Potentials](/202607/06/2606.31660v1-contrastive-regularization-of-machine-learning-potentials)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：机器学习势能用于分子模拟，结合AI正则化
 
 
 <div class="dpr-home-promo-card">
