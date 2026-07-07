@@ -1,0 +1,590 @@
+Title: Model-Guided Local Bayesian Optimization for Tuning of Interpretable Controllers in Injection Molding
+
+URL Source: https://arxiv.org/pdf/2607.05159v1
+
+Published Time: Tue, 07 Jul 2026 03:35:34 GMT
+
+Number of Pages: 7
+
+Markdown Content:
+# Model-Guided Local Bayesian Optimization for Tuning of Interpretable Controllers in Injection Molding 
+
+Jens Ahlers 1, Robert G¨ ollinger 1, Xu Chen 1, Heike Vallery 1,2, and Sebastian Stemmler 1
+
+Abstract — Advanced control methods have proven effective for controlling cavity pressure, a key determinant of part-quality attributes, in the plastics injection molding process. However, the abstract nature of the resulting control laws makes them difficult to interpret in a production environment, thereby limiting adoption in industrial applications. Additionally, con-troller optimization poses a severe challenge due to the diversity of mold geometries and materials. We propose a method to automatically optimize interpretable controllers during manufacturing while being cycle-efficient and risk-aware. The approach uses a Physics-Inspired Neu-ral Mixture-of-Local-Experts model of the injection molding dynamics and augments its simulated closed-loop costs with a residual Gaussian Process, enabling Local Bayesian Optimiza-tion of controller parameters. We benchmark the algorithm against Vanilla Bayesian Op-timization (BO) in simulation, using three controllers with parameter counts ranging from 1 to 30. Using the local method, we identify controller parameters that yield costs comparable to or lower than those of global BO over 20 optimization iterations, while mitigating high-cost excursions during tuning. 
+
+I. I NTRODUCTION 
+
+Injection molding (IM) is one of the most vital processes in the plastics processing industry, enabling the large-scale production of almost arbitrarily complex plastic products [1]. With worldwide annual production exceeding 400 million tons and continuing to rise, the efficiency and quality of this process are critical [2]. Usually in industrial IM, control schemes switch between screw-velocity control during the injection phase and screw-pressure control during the packing phase [3]. Determining the switch-over point between the two control strategies remains a topic of current research [4]. Although in-mold cavity-pressure sensors are not consid-ered an industrial standard in IM, the relationships between cavity pressure and part-quality attributes have been widely studied in the literature [5]. Due to strong correlations between the cavity pressure and part-quality attributes, cavity pressure is frequently used as a feature in quality-prediction models [6]. Some approaches even treat cavity pressure as the controlled variable [7]. Treating cavity pressure as the controlled variable during the injection and packing phases circumvents the need to     
+
+> *The presented research was funded by the Deutsche Forschungsgemein-schaft (German Research Foundation) under the funding code 378417139 (Phasen¨ ubergreifende Prozessf¨ uhrungskonzepte beim Spritzgießen unter Nutzung moderner Regelungsstrategien).
+> 1Institute of Automatic Control, RWTH Aachen University, Aachen, Germany;
+> 2Faculty of Mechanical Engineering, TU Delft, Delft, The Netherlands
+
+{j.ahlers, r.goellinger, x.chen, h.vallery, s.stemmler }@irt.rwth-aachen.de 
+
+determine a switch-over point. The approaches reported in the literature predominantly rely on dynamic models to per-form online or in-between-cycle optimizations to determine a suitable controller output [8]. However, model-based controllers face two challenges to industrial adoption: 1) Sophisticated model-based control algorithms almost behave like a black box. This makes it impossible for machine operators to assess and verify controller outputs, leading them to mistrust such controllers [9]. 2) Obtaining accurate and reliable process models is diffi-cult since cavity-pressure dynamics are highly sensitive to mold geometry, sensor location, and material proper-ties [10]. Due to the individuality and almost arbitrary complexity of mold geometries, first-principles mod-eling is cumbersome and can often yield inaccurate models. Conversely, relying solely on data-driven mod-els for model-based control can be risky, particularly during the initialization phase when sufficient data are not available. One approach to address these challenges is to em-ploy interpretable control laws that are parametrized by an optimization algorithm. In [11], the authors train human-interpretable control laws, implemented as fuzzy controllers, using reinforcement learning on a cart-pole example. In-terpretable control laws offer a transparent behavior, often visualized as a single parametrized curve, enabling machine operators to quickly assess and verify control decisions. To compete with model-based control schemes and adapt to different IMPs, the control law must be sufficiently flexible. To support plug-and-play capability, the algorithm should automatically determine its optimal parameters during manufacturing. Conducting trials that produce scrap parts is detrimental to economic goals, so this optimization should converge as quickly as possible. Bayesian Optimization (BO) is known for data-efficiently optimizing black-box problems by learning a surrogate model of the cost function during optimization [12]. While recent work has applied Vanilla BO to the tuning of an adap-tive model predictive cavity-pressure controller [13], Vanilla BO scales poorly in high-dimensional input spaces [12]. In the literature, multiple methods have been proposed to address the challenges of high-dimensional black-box opti-mization. The TurBO algorithm [14], an extension to Vanilla BO, focuses on local trust regions rather than maintaining a global surrogate model across the entire search space. Other extensions to Vanilla BO leverage first-order [15] and 
+
+> arXiv:2607.05159v1 [eess.SY] 6 Jul 2026
+
+second-order [16] optimization techniques to determine the next sample point. While these approaches assume the process is a black box, additional information can be incorporated by, e.g., using a composite objective function to guide the tuning process as presented in [17]. Effective automated controller tuning for IM requires minimizing the risk of machine damage and scrap-part production while remaining data-efficient. To achieve this, we adapt the TurBO-1 algorithm to the Injection Molding Process (IMP), yielding a Model-Guided Local Bayesian Optimization (MGLBO) approach. Central to this method is a composite objective function that approximates closed-loop costs by combining two models: 1) a Physics-Inspired Neural Mixture-of-Local-Experts model that approximates the underlying process dy-namics, and 2) a Gaussian Process (GP) regression model that corrects the mismatch between the dynamic model’s simulated closed-loop costs and real-world plant observations. The algorithm computes new controller parameters during the cooling phase of the IMP, utilizing an acquisition function to balance predicted performance against uncertainty. We investigate this approach for three interpretable controllers: 1) Proportional (P) controller, 2) Gain-Scheduled Proportional Integral (G-PI) con-troller, and 3) Radial-Basis-Function (RBF) controller. In simulations, we benchmark the performance of the MGLBO against Vanilla BO. To our knowledge, this is the first work to propose an IM process-controller-optimization approach that leverages a dynamic process model and plant observations to achieve both data efficiency and risk awareness. The contribution is structured as follows. First, the dy-namic model is introduced in Sec. II, which is then integrated into the trust-region optimization using Local BO in Sec. III. In Sec. IV, we define the tested controllers and the simulation setup to assess the effectiveness of MGLBO. Results are presented in Sec. V and discussed in Sec. VI. II. P ROCESS MODELING 
+
+A. Overview 
+
+A schematic overview of the plant is presented in Fig. 1. The command signal uS for the frequency inverter of the servo-electric drive of the IM machine serves as control input. The resulting screw velocity determines the volumetric flow rate QS. The screw antechamber has volume VS and measured internal pressure pS, while the cavity pressure pC
+
+inside the mold serves as the controlled variable with its reference pref C . Resistance in the nozzle and runner causes a pressure drop ∆p = pS − pC between the screw antechamber and the cavity-pressure sensor. We choose the system-state vector as x := VS QS pS pC
+
+⊤. The complete model consists of a drive model and a pressure model.  
+
+> Fig. 1. Schematic overview of the IMP.
+
+B. Drive Model 
+
+We approximate the IM’s drive dynamics using a Residual Network (ResNet), a common Artificial Neural Network (ANN) architecture for modeling dynamic systems, inspired by explicit Euler integration [18]. The time-discrete nonlinear state-space equations 
+
+ VS(k + 1) 
+
+QS(k + 1) 
+
+
+
+= f D(VS(k), u S(k), Q S(k)) = 
+
+ VS(k)
+
+QS(k)
+
+
+
++
+
+ −QS(k)∆ t
+
+ANN D(QS(k), u S(k), wD)
+
+
+
+(1) contain the neural network ANN D with trainable param-eters wD. The antechamber volume VS for the next time step k + 1 results from numerically integrating QS(k) using the time step size ∆t.
+
+C. Pressure Model 
+
+The process is divided into three phases, as shown in Fig. 2, depending on the cavity fill level. During injection, the mold fills with melt as the displaced screw volume ∆VS
+
+increases, with ∆VS(t) = R t 
+
+> 0
+
+QS(τ ) d τ . Before the melt  
+
+> Fig. 2. Schematic pressure curves of the cavity-pressure controlled IMP divided into three different phases depending on the degree of cavity filling (lower part of the figure).
+
+front reaches the cavity-pressure sensor, the sensor will measure ambient pressure (Phase 1). Once the melt front reaches the cavity-pressure sensor, the cavity pressure will increase moderately (Phase 2). Once the mold is completely filled, there is no room for further melt expansion, so pressure increases rapidly (Phase 3). The model depicted in Fig. 3 aims to capture the three phases via three separate Local-Expert submodels. These submodels smoothly transition via a sigmoid function sig( ·)
+
+as ∆VS increases, driven by the gating layer. The model outputs the pressures pS(k + 1) and pC(k + 1) for the Fig. 3. Approach for modeling the pressure dynamics of the IMP using a Physics-Inspired Neural Mixture-of-Local-Experts model. 
+
+next time step using a ResNet structure. The model varies with time t to approximate material cooling, as temperature measurements inside the mold are typically unavailable and provide limited insight into the material’s core temperature. To incorporate physics information, the neural network submodels do not calculate the residual of the pressures directly, but return weights 
+
+h
+
+a(i)1 a(i)2 a(i)3 a(i)4
+
+i
+
+that are used inside the equations 
+
+∆p(i)S (k) = 1
+
+VS(k)
+
+
+
+a(i)1 (k)QS(k) − a(i)2 (k)∆ p(k)
+
+
+
+(2) 
+
+∆p(i)C (k) = 
+
+(
+
+0, i = 1 
+
+a(i)3 (k)∆ p(k) − a(i)4 (k), i ∈ { 2, 3} (3) to prescribe a physics-conform behavior for each sub-model i ∈ { 1, 2, 3}. The structure of these equations is in-spired by well-known pressure-build-up equations also used in [8]. Using these equations and constraining the weights to a(i)(k) > 0 ∀i, k , using softplus (·) = log(1 + exp( ·)) (4) as the output-activation function, ensures physics-conform pressure-build-up. The Mixture-of-Local-Experts model predicts pressure build-up as 
+
+pS(k + 1) 
+
+pC(k + 1) 
+
+
+
+= f P(pS(k), p C(k), ∆VS(k), Q S(k), t (k)) =
+
+pS(k)
+
+pC(k)
+
+
+
++
+
+> 3
+
+X
+
+> i=1
+
+ψi(∆ VS(k)) ·
+
+"
+
+∆p(i)S (k)∆p(i)C (k)
+
+#
+
+(5) with the weights 
+
+
+
+ψ1
+
+ψ2
+
+ψ3
+
+ =
+
+
+
+1 − sig( a[∆ VS − s1]) sig( a[∆ VS − s1]) − sig( a[∆ VS − s2]) sig( a[∆ VS − s2]) 
+
+ (6) assigned to each individual local expert model at time step k
+
+with the switching values s1 < s 2 given by the gating layer in Fig. 3. The steepness factor a scales the argument of the sigmoid function. The architecture of the ANNs is defined by the hidden layer widths L1, L 2, and L3.
+
+D. Model Training 
+
+We use the Levenberg-Marquardt (LM) algorithm to train the models with NT data points. For the drive model, the one-step-prediction residual 
+
+rD(k) = 
+
+ VS(k + 1) 
+
+QS(k + 1) 
+
+
+
+− f D ∈ R2×1 (7) is inserted into the complete residual vector 
+
+RD = rD(1) ⊤ . . . rD(NT)⊤⊤ ∈ R(2 ·NT)×1. (8) To prevent overfitting on the time variable, we add a term to the one-step residual of the pressure model 
+
+rP(k) = 
+
+pS(k + 1) 
+
+pC(k + 1) 
+
+
+
+− f P
+
+pλReg · ∂f P
+
+> ∂t
+
+ ∈ R4×1, (9) regularizing high sensitivity of the ANN’s prediction with respect to time by using the weight λReg .The aggregated residual vector for the pressure model is written as. 
+
+RP = rP(1) ⊤ . . . rP(NT)⊤⊤ ∈ R(4 ·NT)×1. (10) All residual vectors, as well as the Jacobian matrices ∇RD
+
+and ∇RP with respect to the neural network parameters, are then used inside the LM algorithm to train the model. We train the drive and pressure models after each cycle using the previous nC IM cycles. III. C ONTROLLER OPTIMIZATION 
+
+A. Generic Control Law 
+
+The control law for a simple feedback controller can be written as 
+
+uS(k) = π(x(k), c(k), p ref C (k), θC) (11) with the vector of controller parameters θC ∈ RNθC , which we aim to optimize. The controller can also have internal states c(k). An update equation for these internal states can be written as 
+
+c(k + 1) = τ (c(k), x(k), p ref C (k), θC). (12) 
+
+B. Composite Cost Function 
+
+To measure the performance of the controller over one cycle of length NC, we define the cost function 
+
+J =
+
+> NC
+
+X
+
+> k=2
+
+ pC(k) − pref C (k)2 + R uS(k) − uS(k − 1) 2, (13) which penalizes tracking error and controller output devi-ation. The controller output deviation is penalized with the weight R to reduce strain on the injection molding machine’s drive. Combining the plant model and the controller allows predicting the costs JM, namely by inserting the simu-lated cavity-pressure curves and simulated controller outputs into (13). Since we do not assume that this simulated cost model perfectly matches the costs calculated from real plant experiments, we add a GP regression model to correct for this mismatch using previous observations. The sum of the deterministic model JM and the GP 
+
+Jtotal (θC) = JM (θC) + ˜J(θC) (14) 
+
+˜J(θC) ∼ GP  0, k SE (θC, θ′
+
+> C
+
+) (15) is again a GP, and its predictive Gaussian distribution has mean E(Jtotal (θC)) and variance Var( Jtotal (θC)) . We denote the Squared Exponential (SE) kernel function with kSE .
+
+C. Model-Guided Local Bayesian Optimization 
+
+The MGLBO algorithm is provided as pseudocode in Alg. 1. Since we assume JM and thus Jtotal is only accurate in the neighborhood of the last cycles, we use a trust-region-based approach. We aim to find a controller parametrization yielding lower costs within the trust region around the current best parameter vector θ∗
+
+> C
+
+. To obtain this, we use the TurBO-1 algorithm [14]. We define the trust region at optimization iteration n to be 
+
+S = θC ∈ RNθC | θ∗ 
+
+> C
+
+− b ≤ θC ≤ θ∗ 
+
+> C
+
++ b , (16) with the vector b defining the trust box around θ∗
+
+> C
+
+, where the inequality holds element-wise. If the algorithm determines controller parameters that yield lower costs, we increase the trust-region size and move its center to the new best controller parameters. If it fails, we expect the model to be an inaccurate approximation to the real cost function and shrink S. Therefore, the algorithm focuses on finding local optimal solutions. We determine the next evaluation point by minimizing the acquisition function 
+
+α(θC) = E(Jtotal (θC)) + κpVar (Jtotal (θC)) . (17) This choice of the acquisition function trades off predicted performance and uncertainty, thereby enabling risk-aware controller tuning. Higher values for κ ∈ R+ result in a more cautious optimization. The optimizer 
+
+ˆθC = argmin   
+
+> θC∈S
+
+(α(θC)) (18) is evaluated in the next IM cycle. IV. S IMULATION SETUP 
+
+The first-principles plant model used for evaluation is described in [19]. Unlike the model presented in Sec. II, it is not separated into distinct phases and relies on first-principles modeling. It accounts for non-Newtonian fluid behavior, assuming a power-law fluid, time-dependent cooling of the polymer melt, and a mold-specific bulk modulus that varies with the displaced screw volume. 
+
+Algorithm 1 Model-Guided Local Bayesian Optimization 
+
+Require: Current parameters ˆθC, Measured trajectory data 
+
+T = {X, u, c}, Reference pref C
+
+Require: Data History: θC, Data , JData , TData 
+
+Ensure: Next parameter candidate θcand C 
+
+> 1:
+
+procedure OPTIMIZATION STEP (θC, T , pref C ) 
+
+> 2:
+
+J ← CALCULATE COSTS (T , pref C ) ▷ (13)  
+
+> 3:
+
+Update Storage:  
+
+> 4:
+
+θC,Data ← θC,Data ∪ { θC} ▷ Store parameters  
+
+> 5:
+
+JData ← JData ∪ { J} ▷ Store costs  
+
+> 6:
+
+TData ← T Data ∪ {T } ▷ Store trajectory  
+
+> 7:
+
+Extract training set Ttrain ⊂ T Data (last nC cycles)  
+
+> 8:
+
+Fit Model M on Ttrain ▷ Sec. II-D  
+
+> 9:
+
+if J < J ∗ − ϵ then ▷ Improvement  
+
+> 10:
+
+θ∗ 
+
+> C
+
+← ˆθC; J∗ ← J; T ∗ ← T  
+
+> 11:
+
+b ← b · κsuc ▷ Expand Trust Region  
+
+> 12:
+
+else if J ≤ J∗ + ϵ then ▷ Neutral / Stagnation  
+
+> 13:
+
+θ∗ 
+
+> C
+
+← ˆθC; J∗ ← min( J, J ∗); T ∗ ← T  
+
+> 14:
+
+else ▷ Performance worse  
+
+> 15:
+
+b ← b · κfail ▷ Shrink Trust Region  
+
+> 16:
+
+end if  
+
+> 17:
+
+Define function JM (θC) := SIMULATE (M, θC) 
+
+> 18:
+
+Fit ˜J to residuals (JData − JM(θC, Data ))  
+
+> 19:
+
+ˆθC ← argmin θC α(θC) s.t. θC ∈ S 
+
+> 20:
+
+return ˆθC 
+
+> 21:
+
+end procedure 
+
+The control law of a P controller is defined by 
+
+πP(k) = [ θC]1 · (pref C (k) − pC(k)) , (19) which only includes one tunable parameter. The control law and the internal-state-update equation for the G-PI controller are written as 
+
+πPI (k) = Keff P e(k) + Keff I cPI (k) (20) 
+
+cPI (k + 1) = cPI (k) + ∆ t · [wP]3 · e(k) (21) 
+
+e(k) = pref C (k) − pC(k) (22) with the effective proportional gain Keff P and the effective integral gain Keff I . The weights 
+
+wP =
+
+
+
+1 − sig( a(∆ VS − [θC]5)) sig( a(∆ VS − [θC]5)) − sig( a(∆ VS − [θC]6)) sig( a(∆ VS − [θC]6)) 
+
+
+
+(23) are used to determine the effective gains, with a factor for the steepness a. The effective proportional and integral gain of the controller 
+
+Keff P = w⊤ 
+
+> P
+
+· [θC]1:3 (24) 
+
+Keff I = [ wP]3 · [θC]4 (25) depend on the displaced screw volume ∆VS.The RBF controller exemplifies a highly nonlinear control law with more tunable parameters than the aforementioned controllers. The control law 
+
+πRC (k) = θ⊤ 
+
+> C
+
+ψ (26) 
+
+ψi(k) = exp − 12σ2RC 
+
+ pC(k)
+
+pref C (k) − [rRC ]i
+
+2!
+
+(27) includes NRC basis functions located at the center points [rRC ]i with a measure for their width σRC .The controllers are parameterized such that the initial controller is always a P controller, with gain KInit P . The idea is that a P controller for the IMP is easy and safe to tune by incrementally increasing its proportional gain, and therefore serves as the starting point for each optimization. For the G-PI controller, enforcing the P control law is straightforward. For the RBF controller, we fitted the weights using least squares and the pseudo-inverse to the P control law. Given that a negative uS drives a positive QS, the control signal is constrained to the interval uS ∈ [u−
+
+> S,lim
+
+, u +S,lim ]. The lower bound addresses the maximum injection speed of the machine, while the upper bound prevents undesirably high screw retraction. To compare MGLBO against a baseline controller-tuning method, we use the MATLAB-internal bayesopt func-tion with the expected-improvement-plus acquisition func-tion [20]. For the Vanilla BO, we define bounds θ± 
+
+> C
+
+for each controller to limit the search space. We normalize all costs by the costs achieved by using the P controller with the initial gain KInit P .To assess MGLBO’s performance, we compare it using three metrics. 1) We evaluate the controller performance using the minimum observed cost Jmin . This comparison is particularly useful for determining whether the local exploitation of MGLBO can achieve solution quality comparable to that of global optimization in Vanilla BO. 2) The maximum cost Jmax is used to evaluate the safety of the tuning process. Monitoring this metric is critical to industrial deployment, as unsafe controller parame-ters risk causing physical damage to the machine. 3) The metric of cumulative worsening 
+
+JW(n) = 
+
+> n
+
+X
+
+> i=2
+
+max(0 , J i − Ji−1) (28) is also important in industrial applications. If machine operators observe frequent deterioration in controller performance, they may disable the algorithm to protect the IM machine. In Tab. I, we visualize the parameters used for the inves-tigation. V. R ESULTS 
+
+Fig. 4 illustrates the distributions for the metrics from Sec. IV for both MGLBO and Vanilla BO, derived from                                                                                                                                           
+
+> TABLE I PARAMETERS USED FOR THE INVESTIGATION .
+> Symbol Parameter Name Value Unit
+> Mixture-of-Local-Experts Model
+> nLM Number of LM steps 50 -
+> nCNumber of training cycles 4-
+> LDHidden layers ANN D[5] -
+> L1Hidden layers ANN 1[5] -
+> L2Hidden layers ANN 2[5] -
+> L3Hidden layers ANN 3[5 5] -
+> MGLBO
+> κsuc Increasing factor of b1.1-
+> κfail Decreasing factor of b0.9-
+> ϵCost tolerance 1·10 −5-
+> RPenalty for input deviation 5·10 6V−2
+> κPenalty for uncertainty 1.645 -
+> P controller
+> θ±
+> CBounds for θC[0 .11] ·10 −2Vbar −1
+> b0Initial trust-region size 1·10 −3Vbar −1
+> G-PI controller
+> [θ±
+> C]1:3 Bounds for [θC]1:3 [0 .11] ·10 −2Vbar −1
+> [θ±
+> C]4Bounds for [θC]4[0 5] ·10 −3Vbar −1s−1
+> [θ±
+> C]5Bounds for [θC]5[25 35] cm 3
+> [θ±
+> C]6Bounds for [θC]6[45 55] cm 3
+> [b0]1:3 Initial trust-region size 1·10 −3Vbar −1
+> [b0]4Initial trust-region size 1·10 −4Vbar −1s−1
+> [b0]5:6 Initial trust-region size 2cm 3
+> RBF controller
+> NRC Number of RBF 30 -
+> σRC RBF Standard deviation 0.05 -
+> θ±
+> CBounds for θC[−1.50.5] V
+> b0Initial trust-region size 0.1V
+> General
+> ∆tTime step size 8·10 −3s
+> pref CCavity-Pressure reference 250 bar
+> NCCycle length 1000 -
+> s1First switching point 30 cm 3
+> s2Second switching point 50 cm 3
+> aSteepness for sig function 4cm −3
+> KInit PInitial proportional gain 4·10 −3Vbar −1
+
+50 independent runs per controller. In the initial iteration, all controllers are set to the P control law. From the plot of Jmin in Fig. 4, it can be seen that the controllers with higher parameter counts yield lower overall minimum costs. For the MGLBO, all second controller generations yield only minor improvements over the first ones. During the MGLBO, all controllers converge to a final parametrization. The minimum costs obtained by MGLBO are lower than or equal to those of Vanilla BO, while the maximum costs correspond to the initial costs. The first deterioration of the controllers begins at iteration five, coinciding with the algorithm approaching convergence. For optimization using Vanilla BO, we observe that for the P controller, Vanilla BO shows an initial improvement higher than that of MGLBO. For all other controllers, the optimization converges more slowly compared to MGLBO. For the RBF controller, the Vanilla BO does not identify a 0.92 0.94 0.96 0.98 11.02 P
+
+Jmin 
+
+123
+
+Jmax 
+
+10 0
+
+JW
+
+0.92 0.94 0.96 0.98 11.02 G-PI 123 10 0
+
+5 10 15 20 Iteration 0.92 0.94 0.96 0.98 11.02 RBF 5 10 15 20 Iteration 245 10 15 20 Iteration 10 0
+
+Vanilla BO (Median ' IQR) MGLBO (Median ' IQR) Fig. 4. Comparison between the MGLBO and Vanilla BO for Jmin , Jmax , and JW for 50 individual runs. 
+
+better parameterization than the initial one within 20 itera-tions. Overall, the cumulative worsening of the controller’s performance for Vanilla BO is substantially greater than for MGLBO. In Fig. 5, we visualize the cavity-pressure curves and the control inputs during the optimization process with MGLBO for three different iterations. All controllers result in the 0100 200 300 
+
+> pC / bar
+
+P G-PI RBF 0 5
+
+t / s -1 -0.5 0
+
+> uS / V
+
+u+S;lim 
+
+u!
+
+> S;lim
+
+0 5
+
+t / s 
+
+u+S;lim 
+
+u!
+
+> S;lim
+
+0 5
+
+t / s 
+
+u+S;lim 
+
+u!
+
+> S;lim
+
+n = 1 
+
+n = 3 
+
+n = 10 
+
+pref C
+
+n = 1 
+
+n = 3 
+
+n = 10 
+
+pref C
+
+n = 1 
+
+n = 3 
+
+n = 10 
+
+pref C   
+
+> Fig. 5. Comparison between the cavity-pressure curves and control inputs resulting from different optimization iterations nfor all three controllers.
+
+same cavity-pressure curves at the first iteration of the optimization, as they are initialized using the P control law. Comparing the converged cavity-pressure curves of the P controller and the G-PI controller, we observe that the G-PI controller does not exhibit a stationary offset. The RBF controller also does not exhibit a stationary offset and exhibits a reduced cavity-pressure overshoot. Additionally, it can be seen that the RBF controller does not reach the upper bound u+S,lim of the controller output. In Fig. 6, we visualize the control law obtained by optimizing the RBF controller. The control law again starts with a P controller, successively adding nonlinearity to π.For lower cavity pressures, the RBF controller increases the 0 0.5 1 1.5 
+
+pC = p ref C
+
+-1 -0.5 0
+
+> uS / V
+
+u+S;lim 
+
+u!
+
+> S;lim
+
+:(1) 
+
+:(3) 
+
+:(10)    
+
+> Fig. 6. The control law π(n)for the RBF controller for three different iterations as a function of the nondimensional cavity pressure starting as a P controller.
+
+screw velocity by reducing uS compared to the initial control law. For cavity-pressure values close to the cavity-pressure reference, the control law of the RBF controller approaches the initial proportional control law. The control law of the RBF controller exhibits a negative offset for pC = pref C ,unlike the P control law, where the P controller output is exactly zero. During the optimization for 20 MGLBO steps, the mean execution time is 9.4 s on an 11th Gen Intel(R) Core(TM) i7-1165G7 with 2.8 GHz running in MATLAB R2024b [21] for the optimization of the RBF controller. VI. D ISCUSSION 
+
+A. Potential for Controller Optimization 
+
+The MGLBO approach demonstrates strong potential for risk-aware, data-efficient controller optimization in the IMP. Adding model information enables a more targeted optimiza-tion than Vanilla BO, with lower maximum costs and lower cumulative worsening. For a higher number of parameters, such as the RBF controller, the advantages of the composite objective function also become apparent for Jmin , since the prediction of the costs using the dynamic model is not influenced by a higher parameter count NθC .The algorithm takes very small steps at the beginning of the optimization because the value-at-risk acquisition function is employed, and the GP model relies on the initial observation. This behavior could be improved by conducting additional prior experiments to obtain an initial set of observations, or by making a reasonable guess about the GP hyperparameters. The Vanilla BO does not find lower minimum costs for P and G-PI. This may indicate that global optimization meth-ods are not required to identify optimal, interpretable cavity-pressure controllers. Global optimization methods search the entire domain of admissible solutions. Therefore, they may be unsuitable for learning the control law for cavity-pressure controllers, as poor parameterization can damage the IM machine and lead to scrap parts. Although the computational effort of MGLBO is substan-tially higher than that of Vanilla BO, particularly due to model retraining, the optimization is allowed to run for the full cooling time. The cooling time usually makes up more than half of the complete cycle [22]. For larger models that require more training time, updating model parameters over multiple cycles may also be sufficient. The optimization time can also be reduced by using parallel computing and by increasing termination tolerances and reducing the number of iterations of the underlying optimizations. The proposed approach must be adapted for the industrial application. The transition points between the local expert models are not updated in this work and are assumed to be known. For a real-world application, these points must be updated, by e.g., using the Maximum-Expectation Al-gorithm [23] or an Interacting Multiple Model filter [24]. Although the drive model can capture nonlinear dynamics, in its current form, it is limited to single-state drives. While this may be sufficient for IMs with electric drives, modeling IMs with hydraulic drives may require adding additional states [10]. 
+
+B. Outlook 
+
+Future work will involve testing the algorithm on real IM hardware under realistic conditions and comparing different interpretable control laws with model-based controllers. Beyond guiding controller optimization, incorporating a process model into the optimization loop enables addi-tional options. One could add process-dependent constraints, such as maximum admissible cavity-pressure overshoots. Combined with quality-attribute models that use the plant’s simulated pressure trajectories, we could also treat quality-attribute references as equality constraints in the controller optimization. This could yield a tightly controlled IMP while meeting desired quality-attribute references. REFERENCES [1] C. Hopmann and M. Schmitz, Plastics Industry 4.0: Potentials and Applications in Plastics Technology . Munich: Carl Hanser Verlag, 2021. [2] R. Geyer, “Production, use, and fate of synthetic polymers,” in Plastic Waste and Recycling . Elsevier, 2020, pp. 13–32. [3] K. Hornberg and C. Hopmann, “The switchover challenge and its consequences,” Kunststoffe International , vol. 2020, no. 03, pp. 82–86, 2020. [4] C. Bielenberg, M. Stommel, and P. Karlinger, “From Manual to Au-tomated: Exploring the Evolution of Switchover Methods in Injection Molding Processes—A Review,” Polymers , vol. 17, no. 8, p. 1096, Apr. 2025. [5] M. Kurt, O. Saban Kamber, Y. Kaynak, G. Atakok, and O. Girit, “Experimental investigation of plastic injection molding: Assessment of the effects of cavity pressure and mold temperature on the quality of the final products,” Materials & Design , vol. 30, no. 8, pp. 3217–3224, Sep. 2009. [6] Y. Lockner, C. Hopmann, and W. Zhao, “Transfer learning with artificial neural networks between injection molding processes and different polymer materials,” Journal of Manufacturing Processes ,vol. 73, pp. 395–408, Jan. 2022. [7] S. Stemmler, M. Vukovic, M. Ay, J. Heinisch, Y. Lockner, D. Abel, and C. Hopmann, “Quality Control in Injection Molding based on Norm-optimal Iterative Learning Cavity Pressure Control,” IFAC-PapersOnLine , vol. 53, no. 2, pp. 10 380–10 387, 2020. [8] M. Vukovic, S. Stemmler, K. Hornberg, D. Abel, and C. Hop-mann, “Adaptive model-based predictive control for cross-phase cavity pressure control in injection molding,” Journal of Manufacturing Processes , vol. 77, pp. 730–742, Jan. 2022. [9] M. G. Forbes, R. S. Patwardhan, H. Hamadah, and R. B. Gopaluni, “Model Predictive Control in Industry: Challenges and Opportunities,” 
+
+IFAC-PapersOnLine , vol. 48, no. 8, pp. 531–538, Jan. 2015. [10] C. Froehlich, W. Kemmetm¨ uller, and A. Kugi, “Control-oriented modeling of servo-pump driven injection molding machines in the filling and packing phase,” Mathematical and Computer Modelling of Dynamical Systems , vol. 24, no. 5, pp. 451–474, Jan. 2018. [11] D. Hein, S. Limmer, and T. A. Runkler, “Interpretable Control by Reinforcement Learning,” IFAC-PapersOnLine , vol. 53, no. 2, pp. 8082–8089, 2020. [12] C. M. Bishop, Pattern Recognition and Machine Learning , ser. Infor-mation Science and Statistics. New York: Springer, 2006. [13] M. Vukovic, “Cross-phase injection molding control for thermoplas-tics processing,” Ph.D. dissertation, Institute for Automatic Con-trol, Rheinisch-Westf¨ alische Technische Hochschule Aachen, Aachen, 2024. [14] D. Eriksson, M. Pearce, J. Gardner, R. D. Turner, and M. Poloczek, “Scalable global optimization via local bayesian optimization,” in 
+
+Advances in Neural Information Processing Systems , H. Wallach, H. Larochelle, A. Beygelzimer, F. dAlch´ e-Buc, E. Fox, and R. Garnett, Eds., vol. 32. Curran Associates, Inc., 2019. [15] S. M¨ uller, A. von Rohr, and S. Trimpe, “Local policy search with Bayesian optimization,” in Advances in Neural Information Processing Systems , M. Ranzato, A. Beygelzimer, Y. Dauphin, P. Liang, and J. W. Vaughan, Eds., vol. 34. Curran Associates, Inc., 2021, pp. 20 708– 20 720. [16] P. Brunzema and S. Trimpe, “BayeSQP: Bayesian Optimization through Sequential Quadratic Programming,” 2026. [17] R. Astudillo and P. I. Frazier, “Thinking inside the box: A tutorial on grey-box Bayesian optimization,” Jan. 2022. [18] R. T. Q. Chen, Y. Rubanova, J. Bettencourt, and D. K. Duvenaud, “Neural ordinary differential equations,” in Advances in Neural In-formation Processing Systems , S. Bengio, H. Wallach, H. Larochelle, K. Grauman, N. Cesa-Bianchi, and R. Garnett, Eds., vol. 31. Curran Associates, Inc., 2018. [19] J. Ahlers, R. G¨ ollinger, M. Mascher, C. Schulte, P. Schubert, C. Hop-mann, H. Vallery, and S. Stemmler, “Part-mass control in injection molding of recycled thermoplastics by learning-enabled model pre-dictive cavity-pressure control,” Journal of Process Control , vol. 162, p. 103725, Jun. 2026. [20] “Statistics and Machine Learning Toolbox,” The MathWorks Inc., Natick, Massachusetts, United States, 2024. [21] “MATLAB,” The MathWorks Inc., Natick, Massachusetts, United States, 2024. [22] C. Hopmann, W. Michaeli, H. Greif, and F. Ehrig, Technologie des Spritzgießens: Lern- und Arbeitsbuch , 4th ed. M¨ unchen: Carl Hanser Verlag GmbH & Co. KG, Mar. 2017. [23] A. Dempster, N. Laird, and D. Rubin, “Maximum likelihood from incomplete data via the EM algorithm,” Journal of the Royal statistical Society , vol. 39, no. 1, pp. 1–38, 1977. [24] H. Blom and Y. Bar-Shalom, “The interacting multiple model al-gorithm for systems with Markovian switching coefficients,” IEEE Transactions on Automatic Control , vol. 33, no. 8, pp. 780–783, Aug. 1988.
