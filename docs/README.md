@@ -6,66 +6,49 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-09
-- 运行时间：2026-07-09 21:23:38 UTC
+- 最新运行日期：2026-07-10
+- 运行时间：2026-07-10 21:32:57 UTC
 - 运行状态：成功
-- 本次总论文数：14
-- 精读区：6
-- 速读区：8
+- 本次总论文数：9
+- 精读区：5
+- 速读区：4
 
 ### 今日简报（AI）
-今日精读聚焦大语言模型在科学发现与真实数据复杂性分析中的突破应用，速读覆盖机器学习势函数开发与自进化智能体工具。
-
-最值得关注的两个方向：语言模型引导符号方程发现（9.0分）以及针对真实世界数据复杂性的LLM基准测试（9.0分），分别展示了AI在理论探索和实战分析中的潜力。
-
-建议普通读者优先阅读这两篇精读文章，了解当前LLM在科研工具和数据分析中的前沿能力，并留意速读中MLIP Studio等开源平台，便于入门分子模拟。
-- 详情：[/202607/09/README](/202607/09/README)
+今日9篇论文推荐，精读聚焦人机协作材料合成与LLM潜计算扩展两大高分方向。
+最值得看：LLM与人类协作加速材料发现（9.0/10）、大语言模型隐式解码扩展（9.0/10），速读中分子SMILES-图翻译（7.0/10）也具启发性。
+建议普通读者优先关注材料合成的人机协作应用，并跟进LLM计算效率改进的动态。
+- 详情：[/202607/10/README](/202607/10/README)
 
 ### 精读区论文标签
-1. [Language models guide symbolic equation discovery by controlling search](/202607/09/2607.04156v1-language-models-guide-symbolic-equation-discovery-by-controlling-search)  
+1. [Human and LLM Collaboration for Accelerated Materials Synthesis and Discovery](/202607/10/2607.07604v1-human-and-llm-collaboration-for-accelerated-materials-synthesis-and-discovery)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：LLM作为符号方程发现的搜索控制器
-2. [Data Analysis in the Wild: Benchmarking Large Language Models Against Real-World Data Complexities](/202607/09/2607.06482v1-data-analysis-in-the-wild-benchmarking-large-language-models-against-real-world-data-complexities)  
-   标签：评分：9.0/10、query:llm-dm
-   evidence：针对真实世界数据分析任务的LLM基准，包括表格问答和洞察发现
-3. [LLM-Guided Task-Semantic Field Factorization for Industrial Process Forecasting](/202607/09/2607.06623v1-llm-guided-task-semantic-field-factorization-for-industrial-process-forecasting)  
+   evidence：人类与LLM协作加速化学材料合成与发现
+2. [Hidden Decoding at Scale: Latent Computation Scaling for Large Language Models](/202607/10/2607.08186v1-hidden-decoding-at-scale-latent-computation-scaling-for-large-language-models)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：LLM引导的任务语义场分解用于工业过程预测
-4. [Human and LLM Collaboration for Accelerated Materials Synthesis and Discovery](/202607/09/2607.07604v1-human-and-llm-collaboration-for-accelerated-materials-synthesis-and-discovery)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：人机协作利用LLM加速化学材料合成与发现
-5. [On the Design Space of Discrete Diffusion Online Adaptation for Molecular Optimization](/202607/09/2607.02834v1-on-the-design-space-of-discrete-diffusion-online-adaptation-for-molecular-optimization)  
+   evidence：大语言模型的扩展方法
+3. [Uncertainty-Aware Abstention in Large Language Models with Provable Alignment Guarantees](/202607/10/2607.04430v1-uncertainty-aware-abstention-in-large-language-models-with-provable-alignment-guarantees)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：离散扩散模型用于分子优化的设计空间探索，属于人工智能在化学工程中的应用
-6. [Open-Ended Scenario Reasoning for Specialist Model Adaptation](/202607/09/2607.06625v1-open-ended-scenario-reasoning-for-specialist-model-adaptation)  
+   evidence：大语言模型中的不确定性量化与弃权机制
+4. [Reaction-network reasoning with frontier models for experimentally confirmed catalyst-selectivity hypotheses](/202607/10/2607.08003v1-reaction-network-reasoning-with-frontier-models-for-experimentally-confirmed-catalyst-selectivity-hypotheses)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：利用LLM推理适应化工等过程工业中的专家模型
+   evidence：利用前沿语言模型验证催化剂选择性假设，应用于化学工程
+5. [Structured Pruning of Large Language Models via Power Transformation and Sign-Preserving Score Aggregation with Adaptive Feature Retention](/202607/10/2607.08027v1-structured-pruning-of-large-language-models-via-power-transformation-and-sign-preserving-score-aggregation-with-adaptive-feature-retention)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：大型语言模型的剪枝方法
 
 ### 速读区论文标签
-1. [AI2Pot: A scalable and unified framework for machine-learning interatomic potential development and large-scale molecular dynamic simulations](/202607/09/2607.06969v1-ai2pot-a-scalable-and-unified-framework-for-machine-learning-interatomic-potential-development-and-large-scale-molecular-dynamic-simulations)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：机器学习原子间势用于化学模拟
-2. [From Atomic Actions to Standard Operating Procedures: Iterative Tool Optimization for Self-Evolving LLM Agents](/202607/09/2607.07321v1-from-atomic-actions-to-standard-operating-procedures-iterative-tool-optimization-for-self-evolving-llm-agents)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：LLM智能体工具优化与自演化
-3. [MLIP Studio: An Open Platform for Interactive Benchmarking and Atomistic Simulations Using Machine Learning Interatomic Potentials](/202607/09/2607.07606v1-mlip-studio-an-open-platform-for-interactive-benchmarking-and-atomistic-simulations-using-machine-learning-interatomic-potentials)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：用于机器学习原子间势的基准测试平台，支持化学工程中AI驱动的原子模拟
-4. [Exploring the Semantic Gap in Agentic Data Systems: A Formative Study of Operationalization Failures in Analytical Workflows](/202607/09/2607.00828v1-exploring-the-semantic-gap-in-agentic-data-systems-a-formative-study-of-operationalization-failures-in-analytical-workflows)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：LLM生成分析工作流中操作化失败的原创研究，与LLM辅助数据挖掘相关
-5. [PhysMiner: An Agentic AI Framework for Discovering Turbulence Physics](/202607/09/2607.04009v1-physminer-an-agentic-ai-framework-for-discovering-turbulence-physics)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：LLM驱动的湍流物理发现，类似于从流场数据中挖掘知识
-6. [An End-to-End Explainable AI Framework with Automated LLM-Based Natural Language Explanation Generation for Energy Systems](/202607/09/2607.04374v1-an-end-to-end-explainable-ai-framework-with-automated-llm-based-natural-language-explanation-generation-for-energy-systems)  
+1. [Back to Basics: Improving Molecular Understanding in LLMs via SMILES-Graph Translation](/202607/10/2607.03007v1-back-to-basics-improving-molecular-understanding-in-llms-via-smiles-graph-translation)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：使用LLM生成自然语言解释
-7. [AquaGen: Scaling generative models to molecular dynamics precision on thousands of atoms](/202607/09/2607.03513v1-aquagen-scaling-generative-models-to-molecular-dynamics-precision-on-thousands-of-atoms)  
+   evidence：通过SMILES-图翻译改进大语言模型的分子理解
+2. [Sparse State Feedback Control for Industrial Applications](/202607/10/2607.03159v1-sparse-state-feedback-control-for-industrial-applications)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：基于优化的工业过程控制设计
+3. [KARMA: Knowledge graph-based Automated Reasoning Materialization and Alignment](/202607/10/2607.03166v1-karma-knowledge-graph-based-automated-reasoning-materialization-and-alignment)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：用于分子构型的生成模型，达到分子动力学精度，属于人工智能在化学工程中的应用
-8. [Accurate, Interdisciplinary and Transparent Structure-property Understanding with Deep Native Structural Reasoning](/202607/09/2607.07708v1-accurate-interdisciplinary-and-transparent-structure-property-understanding-with-deep-native-structural-reasoning)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：人工智能用于材料/化学结构-性质关系
+   evidence：使用大语言模型结合知识图谱进行跨领域对比学习，包括化学领域
+4. [Workflow as Knowledge: Semantic Persistence for LLM-Mediated Workflows](/202607/10/2607.08740v1-workflow-as-knowledge-semantic-persistence-for-llm-mediated-workflows)  
+   标签：评分：6.0/10、query:llm-dm
+   evidence：LLM中介工作流的符号持久化，与数据挖掘操作相关
 
 
 <div class="dpr-home-promo-card">
