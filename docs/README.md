@@ -6,49 +6,68 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-10
-- 运行时间：2026-07-10 21:32:57 UTC
+- 最新运行日期：2026-07-11
+- 运行时间：2026-07-11 20:11:48 UTC
 - 运行状态：成功
-- 本次总论文数：9
-- 精读区：5
-- 速读区：4
+- 本次总论文数：16
+- 精读区：6
+- 速读区：10
 
 ### 今日简报（AI）
-今日9篇论文推荐，精读聚焦人机协作材料合成与LLM潜计算扩展两大高分方向。
-最值得看：LLM与人类协作加速材料发现（9.0/10）、大语言模型隐式解码扩展（9.0/10），速读中分子SMILES-图翻译（7.0/10）也具启发性。
-建议普通读者优先关注材料合成的人机协作应用，并跟进LLM计算效率改进的动态。
-- 详情：[/202607/10/README](/202607/10/README)
+今日收录16篇论文，精读6篇、速读10篇，重点关注AI驱动的科学发现与材料模拟。精读中《PhysMiner》和《URSA》分别以9.0/10分在湍流物理发现和化学逆合成评估上表现突出，值得深入研读。建议优先精读这两篇，结合速读中钙钛矿钝化建模和电池电压筛选研究，把握AI应用的前沿进展。
+- 详情：[/202607/11/README](/202607/11/README)
 
 ### 精读区论文标签
-1. [Human and LLM Collaboration for Accelerated Materials Synthesis and Discovery](/202607/10/2607.07604v1-human-and-llm-collaboration-for-accelerated-materials-synthesis-and-discovery)  
+1. [PhysMiner: An Agentic AI Framework for Discovering Turbulence Physics](/202607/11/2607.04009v1-physminer-an-agentic-ai-framework-for-discovering-turbulence-physics)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：人类与LLM协作加速化学材料合成与发现
-2. [Hidden Decoding at Scale: Latent Computation Scaling for Large Language Models](/202607/10/2607.08186v1-hidden-decoding-at-scale-latent-computation-scaling-for-large-language-models)  
+   evidence：PhysMiner集成了大语言模型驱动的推理
+2. [URSA: Chemistry-Aware Benchmark for Utilitarian Retrosynthesis Assessment](/202607/11/2607.04688v1-ursa-chemistry-aware-benchmark-for-utilitarian-retrosynthesis-assessment)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：大语言模型的扩展方法
-3. [Uncertainty-Aware Abstention in Large Language Models with Provable Alignment Guarantees](/202607/10/2607.04430v1-uncertainty-aware-abstention-in-large-language-models-with-provable-alignment-guarantees)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：大语言模型中的不确定性量化与弃权机制
-4. [Reaction-network reasoning with frontier models for experimentally confirmed catalyst-selectivity hypotheses](/202607/10/2607.08003v1-reaction-network-reasoning-with-frontier-models-for-experimentally-confirmed-catalyst-selectivity-hypotheses)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：利用前沿语言模型验证催化剂选择性假设，应用于化学工程
-5. [Structured Pruning of Large Language Models via Power Transformation and Sign-Preserving Score Aggregation with Adaptive Feature Retention](/202607/10/2607.08027v1-structured-pruning-of-large-language-models-via-power-transformation-and-sign-preserving-score-aggregation-with-adaptive-feature-retention)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：大型语言模型的剪枝方法
+   evidence：基于LLM的逆合成评估基准
+3. [Demonstrating TOFFEE: A Learned System for Synthesizing Data Agent Trajectories at Scale](/202607/11/2607.06233v1-demonstrating-toffee-a-learned-system-for-synthesizing-data-agent-trajectories-at-scale)  
+   标签：评分：9.0/10、query:llm-dm
+   evidence：为基于大语言模型的数据挖掘任务合成高质量数据代理轨迹
+4. [TF-Engram: A Train-Free Engram with SSD-Backed Memory for Large Language Models](/202607/11/2607.07388v1-tf-engram-a-train-free-engram-with-ssd-backed-memory-for-large-language-models)  
+   标签：评分：9.0/10、query:chemical-llm
+   evidence：TF-Engram：面向大语言模型的无需训练的记忆系统
+5. [Collective Intelligence with Foundation Models](/202607/11/2607.07729v1-collective-intelligence-with-foundation-models)  
+   标签：评分：9.0/10、query:chemical-llm
+   evidence：使用基础模型的集体智能，涉及大语言模型
+6. [From Execution to Education: A Bloom-Aligned Framework for Measuring Educational Control in LLMs](/202607/11/2607.08009v1-from-execution-to-education-a-bloom-aligned-framework-for-measuring-educational-control-in-llms)  
+   标签：评分：9.0/10、query:chemical-llm
+   evidence：引入用于测量大语言模型教育控制的Bloom对齐框架
 
 ### 速读区论文标签
-1. [Back to Basics: Improving Molecular Understanding in LLMs via SMILES-Graph Translation](/202607/10/2607.03007v1-back-to-basics-improving-molecular-understanding-in-llms-via-smiles-graph-translation)  
+1. [Data-driven atomistic modelling of hybrid halide perovskite passivation](/202607/11/2607.05321v1-data-driven-atomistic-modelling-of-hybrid-halide-perovskite-passivation)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：利用类似大语言模型的连续微调流程进行化学工程中的原子建模
+2. [UltraX: Refining Pre-Training Data at Scale with Adaptive Programmatic Editing](/202607/11/2607.08646v1-ultrax-refining-pre-training-data-at-scale-with-adaptive-programmatic-editing)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：大规模LLM预训练数据精炼
+3. [BatteryMat: a hierarchical machine-learning and DFT framework for average-voltage screening of lithium-ion cathode materials](/202607/11/2607.06645v1-batterymat-a-hierarchical-machine-learning-and-dft-framework-for-average-voltage-screening-of-lithium-ion-cathode-materials)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：通过SMILES-图翻译改进大语言模型的分子理解
-2. [Sparse State Feedback Control for Industrial Applications](/202607/10/2607.03159v1-sparse-state-feedback-control-for-industrial-applications)  
+   evidence：用于阴极材料筛选的层次化机器学习与密度泛函理论框架
+4. [VIBES -- A Two-Stage Scalable Bayesian Uncertainty Quantification Framework: Application to a Biomass Valorization Process](/202607/11/2607.06743v1-vibes----a-two-stage-scalable-bayesian-uncertainty-quantification-framework-application-to-a-biomass-valorization-process)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：基于优化的工业过程控制设计
-3. [KARMA: Knowledge graph-based Automated Reasoning Materialization and Alignment](/202607/10/2607.03166v1-karma-knowledge-graph-based-automated-reasoning-materialization-and-alignment)  
+   evidence：使用AI对生物质增值过程进行贝叶斯不确定性量化
+5. [A Multi-Scale Machine Learning Framework for Coupled Chemical, Spin, and Structural Disorder in Alloys](/202607/11/2607.07456v1-a-multi-scale-machine-learning-framework-for-coupled-chemical-spin-and-structural-disorder-in-alloys)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：针对合金化学无序的机器学习框架
+6. [A hierarchical memory architecture overcomes context limits in long-horizon multi-agent computational modeling](/202607/11/2607.07666v1-a-hierarchical-memory-architecture-overcomes-context-limits-in-long-horizon-multi-agent-computational-modeling)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：多代理LLM系统的层次记忆架构
+7. [Understanding Axes of Difficulty For Long Context Tasks Via PredicateLongBench](/202607/11/2607.08284v1-understanding-axes-of-difficulty-for-long-context-tasks-via-predicatelongbench)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：LLM长上下文评估基准
+8. [Workflow as Knowledge: Semantic Persistence for LLM-Mediated Workflows](/202607/11/2607.08740v1-workflow-as-knowledge-semantic-persistence-for-llm-mediated-workflows)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：LLM工作流知识表示
+9. [Rethinking Scientific Discovery in an Agentic Era](/202607/11/2607.03863v1-rethinking-scientific-discovery-in-an-agentic-era)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：使用大语言模型结合知识图谱进行跨领域对比学习，包括化学领域
-4. [Workflow as Knowledge: Semantic Persistence for LLM-Mediated Workflows](/202607/10/2607.08740v1-workflow-as-knowledge-semantic-persistence-for-llm-mediated-workflows)  
-   标签：评分：6.0/10、query:llm-dm
-   evidence：LLM中介工作流的符号持久化，与数据挖掘操作相关
+   evidence：用于AI驱动发现的智能科学操作系统
+10. [PORTS: Preference-Optimized Retrievers for Tool Selection with Large Language Models](/202607/11/2607.05441v1-ports-preference-optimized-retrievers-for-tool-selection-with-large-language-models)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：LLM工具选择检索器优化
 
 
 <div class="dpr-home-promo-card">

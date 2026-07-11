@@ -1,0 +1,2560 @@
+Title: 2607.06743v1.pdf
+
+URL Source: https://arxiv.org/pdf/2607.06743v1
+
+Published Time: Thu, 09 Jul 2026 00:07:44 GMT
+
+Number of Pages: 51
+
+Markdown Content:
+VIBES -A Two -Stage Scalable Bayesian Uncertainty Quantification 
+
+# Framework : Appli cation to a Biomass Valorization Process 
+
+Poulomi Das 1, Angan Mukherjee 2, and Debangsu Bhattacharyya 1*
+
+> 1
+
+Department of Chemical and Biomedical Engineering, West Virginia University, Morgantown, WV 26506, USA 
+
+> 2
+
+Department of Chemical and Biological Engineering, University of Wisconsin -Madison, Madison, WI 53706, USA 
+
+Abstract 
+
+This paper proposes Variational Inference -based Bayesian Estimation with Sobol screening (VIBES) – a two -
+
+stage scalable framework for Bayesian uncertainty quantification (UQ) . The proposed approach combin es 
+
+Sobol global sensitivity analysis (GSA) for screening and dimensionality reduction , followed by variational 
+
+inference (VI) for UQ of kinetic, design /operational , and economic parameters. In the first stage, Sobol GSA 
+
+is performed to identify dominant variables and parameters governing uncertainty in process outputs. In the 
+
+second stage, Bayesian inference is perform ed only on the reduced dimensional space using VI, thus 
+
+reducing computational burden and enhancing scalability. The framework is demonstrated on a process for 
+
+bioadhesive production through base -catalyzed depolymerization of kraft lignin and subsequent 
+
+crosslinking with isolated soy protein. A Python -Aspen interface is develop ed for automated simulation and 
+
+parameter estimation, enabling Bayesian calibration through stochastic gradient -based optimization and 
+
+automatic -differentiation. The methodology is generic and readily generalizable to other biomass conversion 
+
+pathways. The results show that application of VIBES consistently reduces predictive uncertainty bounds 
+
+across all model outputs by more than 8 0%, even when only the reduced -space input variables and 
+
+parameters are optimized during Bayesian estimation . The framework can be potentially applied for 
+
+scalable, uncertainty -aware decision -making in high -dimensional, complex chemical process systems. 
+
+Keywords : Bayesian uncertainty quantification, biomass valorization, Sobol sensitivity, variational 
+
+inference, sustainability 
+
+______________________________________________________________________________ 
+
+*Corresponding author. Tel: +1 -3042939335, Fax: +1 -3042934139 
+
+E-mail address:  Debangsu.Bhattacharyya@mail.wvu.edu 1. Introduction 
+
+High -dimensional process models of chemical process systems can be used for process design, 
+
+techno -economic analysis, sustainability analysis , and many other objectives . Such models are 
+
+developed using mass , energy, and momentum conservation equations that might require sub -
+
+models for reaction kinetics, thermodynamics, physical property, heat and mass transport , capital 
+
+and operating cost estimates, etc. However, there are often uncertainties in the parameters and 
+
+form of these sub -model s that can lead to uncertaint ies in outputs from these model s. Key outputs 
+
+of interest often include both performance measures such as conversion, product yield, selectivity, 
+
+utility consumption, emissions, etc. , and economic metrics like net present value, minimum selling 
+
+price, levelized cost of production , etc . (Monteiro and Bhattacharyya, 2026; Morgan et al., 2015) .
+
+Therefore, uncertainty quantification (UQ) is desired beyond nominal deterministic simulations 
+
+(Kennedy and O’Hagan, 2001; Morgan et al., 2015) , especially when process models are used for 
+
+design, analysis, and decision -making .
+
+UQ is particularly challenging when multiple sources of uncertainty interact across scales and 
+
+process subsystems. For example, parameter uncertainty can arise from limited kinetic, 
+
+thermodynamic , and mass /heat transfer data availability , whereas model -form uncertainty can 
+
+result from simplified mechanisms, empirical correlations, incomplete physical descriptions, or 
+
+assumptions introduced during model development (Mukherjee et al., 2025b; Ostace et al., 2020) .
+
+In addition, uncertainty in operating conditions, feed composition, experimental measurements, 
+
+and boundary conditions can affect both model calibration and process -level predictions (Morgan 
+
+et al., 2015; Ostace et al., 2020) . It has been observed that uncertainty in property models, mass 
+
+transfer correlations, reaction kinetics, and other constitutive sub -models can lead to appreciable 
+
+uncertainty in process performance, design requirements, and scale -up decisions (Hughes et al., 
+
+2022; Morgan et al., 2018; Soares Chinen et al., 2018) . UQ has been undertaken for various 
+
+chemical engineering applications, including  𝐶 𝑂 2 adsorption process models (Kalyanaraman et 
+
+al., 2016) , hydraulic and mass transfer sub -models (Soares Chinen et al., 2018) and physical 
+
+properties and thermodynamic models (Morgan et al., 2015; Ostace et al., 2020) for solvent -based 
+
+carbon capture processes , crude distillation unit (Minh et al., 2018) , and fluidized -based 
+
+gasification systems (Pan and Pandey, 2016) .Despite these advances, the computational scalability of UQ remains a major challenge for 
+
+nonlinear and high -dimensional process models (Ostace et al., 2020) . Most UQ analyses involve 
+
+uncertainty propagation through process model s, life -cycle models , or supply -chain models with 
+
+sampling approaches such as several variants of Monte Carlo type methods , Latin hypercube 
+
+sampling, and other approaches (Ou et al., 2018; Shi and Guest, 2020; Vicari et al., 2012) .
+
+Computational expense for these approaches increases rapidly when the uncertain input space 
+
+includes a large number of kinetic, design/operating, and economic variables and parameters, 
+
+particularly when propagation of each sample requires the solution of a rigorous process model. 
+
+This challenge is further exacerbated when uncertainty needs to be propagated through complex, 
+
+highly nonlinear, and large process models with comprehensive mass/ heat integration, and 
+
+economic calculations. Consequently, state -of -the -art UQ studies are often restrict ed to a lower 
+
+dimensional input space often down -selected using local sensitivity measures, or use simplified 
+
+surrogate representations, potentially overlooking nonlinear effects and interactions among 
+
+uncertain quantities (Hughes et al., 2022; Kirchner et al., 2021; Strunge et al., 2023; Zhang, 2021) .
+
+Bayesian approach es to UQ are being increasingly investigated for a variety of applications. 
+
+Bayesian approaches combine prior knowledge with available observations (measurements) to 
+
+estimate posterior distributions of uncertain variables and /or parameters (Kennedy and O’Hagan, 
+
+2001) . Additionally, these approaches can quantif y the relevant ranges of model input variables 
+
+and parameter s that remain consistent with available process, experimental, or market -derived 
+
+information. However, sampling -based Bayesian approaches, such as Markov chain Monte Carlo 
+
+(MCMC), can become computationally expensive for high -dimensional nonlinear process models 
+
+that require repeated first -principles model evaluations (Bardsley and Hansen, 2020; Zhang, 2021) .
+
+For keeping computational expenses tractable, down -selection of the input space is often 
+
+undertaken through local sensitivity analysis mostly around nominal operating condition s, but it 
+
+may not adequately represent nonlinea rities , higher -order interactions, or the global uncertainty 
+
+structure spanning the combined input -output space (Strunge et al., 2023; Saltelli et al., 2010, 
+
+2019) . These limitations motivate the development of scalable computational approaches for the 
+
+unified and efficient end -to -end integration of global sensitivity analysis , reduced -dimensional 
+
+Bayesian estimation, and posterior predictive UQ. The need for such approaches is especially pronounced when UQ is considered from a techno -
+
+economic analysis (TEA) perspective. Specifically , the simultaneous dependence of TEA outputs on 
+
+uncertain kinetic, design/operating, and economic variables and parameters (Das and 
+
+Bhattacharyya, 2026a) leads to a high -dimensional and highly nonlinear inference problem. 
+
+Uncertainty analysis of economic performance measures has also been reported. For example, 
+
+propagation of uncertainty in feedstock properties, yields, capital costs, and market variables 
+
+through Aspen -based TEA models (Vicari et al., 2012) or biorefinery simulation platforms such as 
+
+BioSTEAM (Cortes -Peña et al., 2020; Shi and Guest, 2020) has been undertaken to generate 
+
+distributions of product cost, minimum selling price, etc . While such approaches are useful for 
+
+quantifying how assumed input uncertainty affects model predictions, they do not infer posterior 
+
+distributions of uncertain variables and parameters from available experimental or market data 
+
+(Bardsley and Hansen, 2020; Salam et al., 2024) . In techno -economic studies, uncertainties in 
+
+feedstock and product prices, utility tariffs, capital -cost factors, and policy variables are commonly 
+
+examined through one -at -a-time sensitivity or scenario analysis, rather than through data -
+
+conditioned posterior estimation (Strunge et al., 2023; Van Der Spek et al., 2020) . Even recent 
+
+Bayesian optimization -based process economic studies use probabilistic surrogate models to 
+
+identify favorable operating or design conditions and subsequently assess the effects of economic 
+
+variables, but they do not seek joint posterior distributions of economic an d process variables and 
+
+parameters from process and market target data (Park et al., 2026; Urm et al., 2023) . Consequently, 
+
+there remains a need for developing an integrated framework that can sequentially identify 
+
+dominant sources of uncertainty in process modeling and TEA workflows, followed by posterior 
+
+estimation and Bayesian UQ in a computationally tractabl e reduced space. 
+
+To address these challenges, this paper proposes Variational Inference -based Bayesian Estimation 
+
+with Sobol screening (VIBES), a two -stage scalable Bayesian framework for UQ. In the first stage, 
+
+Sobol global sensitivity analysis (GSA) is undertaken to screen the full uncertain input space and 
+
+identify dominant kinetic, design/operating, and economic variables as well as parameters that 
+
+govern variability in process and economic outputs (Saltelli et al., 2010) . This variance -based 
+
+screening provides a rigorous dimensionality -reduction strategy that can still capture dominant 
+
+nonlinear effects and parameter/variable interactions, while improving identifiability and computational tractability for the subsequent inference step. In the second stage, variational 
+
+inference (VI) is performed over the reduced Sobol -selected input space to estimate posterior 
+
+distributions of the influential uncertain variables and parameters (Mukherjee and Zavala, 2026; 
+
+Wang et al., 2024) . By reformulating posterior inference as an optimization problem through 
+
+approximation of the true posterior distribution (Mukherjee and Zavala, 2026; Thompson et al., 
+
+2026; Wang et al., 2023) , VI provides a scalable alternative to conventional Bayesian sampling 
+
+methods, especially for computationally expensive models where repeated model evaluations are 
+
+expensive and rapid uncertainty updates are essential for design -space exploration. Estimated 
+
+posterior distributions are then propagated through the process model to quantify posterior 
+
+predictive uncertainty in both process and economic outputs. 
+
+The proposed framework is generic and can be extended to high -dimensional chemical process 
+
+systems, in general. In this work, VIBES is applie d to a biomass valorization process. In recent years, 
+
+lignocellulosic biomass valorization has emerged as an important route for the production of fuels, 
+
+chemicals, and value -added materials with improved sustainability by reducing dependence on 
+
+fossil -derived resources (Das and Bhattacharyya, 2026a ;(Das and Bhattacharyya, 2026a; Kirchner 
+
+et al., 2021) . However, the commercial deployment of novel biomass conversion technologies 
+
+remains significantly challenging due to several interacting sources of uncertainty that can have 
+
+strong impact on process performance, product quality, production rate, and economic viability. 
+
+These uncertainties may arise from feedstock composition, limited experimental data, uncertain 
+
+reaction pathways and kinetic parameters, scale -up assumptions, and market -dependent techno -
+
+economic factors such as raw material prices, utility costs, and equipment cost correlations , to 
+
+name a few (Das and Bhattacharyya, 2026b; Ou et al., 2018; Strunge et al., 2023) . As a result, UQ 
+
+of novel biomass conversion technologies is highly desired to support uncertainty -aware process 
+
+design and decision -making for different biomass valorization pathways. 
+
+In this work, t he VIBES framework is demonstrated using a bioadhesive production process 
+
+involving base -catalyzed depolymerization (BCD) of kraft lignin followed by crosslinking with soy 
+
+protein isolate (SPI) (Das and Bhattacharyya, 2026b; Jiang et al., 2023) . The kraft lignin -soy protein 
+
+isolate (KL -SPI) bio adhesive production technology is very novel and suffers from high uncertainties . In this work, available literature and market information are used to define physically 
+
+meaningful ranges for selected kinetic, design/operating, and economic variables and parameters. 
+
+These ranges provide representative information to generat e synthetic data in the absence of 
+
+sufficient experimental, pilot -plant, and/ or market -derived observations for this particular or 
+
+similar bio -adhesive manufacturing technologies . Obviously, any synthetic data that is used in this 
+
+work can readily be replaced by measured or experimental data when such information become s
+
+available. It is desired to investigate if the variability observed in target outputs, such as D -lignin 
+
+(i.e., partially degraded lignin/oligomers (Das and Bhattacharyya, 2026b) ) flow rate as a process 
+
+performance measure and levelized cost of adhesive (LCOA) as an economic performance 
+
+indicator , can be explained and quantified in terms of kinetic, design/operating, and economic 
+
+uncertaint ies in the underlying input space. VIBES uses available process and economic target 
+
+information to infer posterior distributions of influential variables and parameters. The resulting 
+
+posterior distributions are then propagated through the process model to enable uncertainty -aware 
+
+design -sp ace exploration, recommendation of future experimental needs , and more reliable 
+
+evaluation of KL -SPI bioadhesive manufacturing process. 
+
+Selecting appropriate software platform(s) is often an important decision for Bayesian UQ. While 
+
+process model s are often developed in a software that readily offers physical properties models 
+
+and parameters and comprehensive library of process models of desired level of rigor for typical 
+
+unit operations involved in chemical processes, tools/capabilities for UQ (Thompson et al., 2026) ,
+
+optimization (Mukherjee et al., 2025a; Tian et al., 2023) , machine learning (ML) (Lin, 2024) , and data 
+
+analytics (Oladokun et al., 2022) may be more readily available or more efficiently implemented in 
+
+another computational ecosystem (Nikkhah et al., 2024) . When multiple software platforms are 
+
+involved, it is important to consider compatibilities of these software, what information is needed 
+
+vs what information is available to be communicated from one software to the other, and 
+
+communication overhead. In this work , the process model for the bioadhesive production process 
+
+is developed in Aspen Plus while other capabilities/tools for Bayesian UQ are developed in Python. 
+
+Therefore, a multi -software integration approach is developed that enables automated input 
+
+sampling, process simulation, output extraction, GSA, Bayesian inference, model evaluation, and 
+
+posterior uncertainty propagation. This multi -software interface within VIBES further enables Bayesian calibration through stochastic gradient -based optimization (Tian et al., 2023) and 
+
+automatic differentiation using JAX (Lin, 2024) during iterative inference, while the high -fidelity 
+
+process model is used to evaluate posterior predictive uncertainty. In addition, this work 
+
+systematically compares and contrasts different dimension alities of the Sobol -selected input 
+
+space that achieves significant reduction in predictive uncertainty, rather than selecting a fixed 
+
+reduced dimension a priori , thereby enhancing computational scalability during posterior 
+
+estimation. 
+
+In summary, the main contributions of this paper are as follows: 
+
+• Development of VIBES, a two -stage scalable Bayesian framework that integrates Sobol GSA 
+
+with VI for simultaneous estimation and UQ of dominant kinetic, design/operating, and 
+
+economic variables and parameters in biomass valorization systems. 
+
+• Implementation of a sensitivity -driven dimensionality -reduction strategy that identifies the 
+
+most influential variables and parameters governing uncertainty in process and economic 
+
+outputs, thus improving inferential tractability, reducing over -parameterization, and 
+
+enhancing scalability during posterior estimation. 
+
+• Development of a scalable posterior estimation and predictive UQ workflow, where VI is 
+
+used to estimate posterior distributions of the Sobol -selected variables and parameters, 
+
+followed by propagation of the se distributions through the process model to quantify 
+
+posterior predictive uncertainty in process performance and economic indicators .
+
+• Development of a multi -software computational platform for automated simulation, 
+
+parameter estimation, model evaluation, and uncertainty propagation, enabling Bayesian 
+
+calibration through stochastic gradient -based optimization and automatic differentiation 
+
+(AD) during iterative inference. 
+
+• Demonstration of the VIBES framework on a KL -SPI bio adhesive production process, where 
+
+uncertaint ies in D -lignin mass flow rate and LCOA are quantified due to uncertainties in 
+
+interacting kinetic, design/operating, and economic variables and parameters, th us resulting 
+
+in uncertainty -aware design -space exploration and reliable decision -making for biomass 
+
+valorization technologies. The rest of the paper is organized as follows. Section 2 presents the detailed computational 
+
+workflow of VIBES, including the formulation of the reduced dimensional input space with Sobol -
+
+screened variables and parameters, evaluation of posterior and predictive uncertainty using VI for 
+
+Bayesian inference , followed by the development of a multi -software integration framework for 
+
+automated simulation and analysis . Section 3 describes the KL -SPI bioadhesive production 
+
+process , along with the relevant implementation details of th e multi -software interface and the list 
+
+of uncertain input variables and parameters considered in this work . Section 4 presents and 
+
+discusses the results obtained from the implementation of VIBES for simultaneous parameter 
+
+estimation and UQ in the selected case study . Finally, Section 5 summarizes the major findings in 
+
+the concluding remarks and presents potential directions for future work. 
+
+## 2. VIBES: Computational Workflow 
+
+This section presents the overall computational framework of VIBES. The proposed workflow leads 
+
+to the formulation of a two -stage Bayesian approach that integrates Sobol GSA with VI for scalable 
+
+parameter estimation and UQ. The separation of sensitivity -driven dimensionality reduction and 
+
+Bayesian estimation enhances the scalability of VIBES . The framework can be implemented entirely 
+
+within a single computational ecosystem or through a multi -software integration platform, as 
+
+discussed in Section 2.3. 
+
+2.1. Sobol Global Sensitivity Analysis 
+
+The first stage of VIBES employs Sobol GSA to identify the subset of dominating uncertain variables 
+
+and parameters for the process and economic outputs. The objective of this screening step is to 
+
+reduce the dimensionality of the Bayesian estimation (optimization) problem before applying VI . It 
+
+is worth mentioning here that VIBES solve s an inverse problem for estimating uncertainty in the 
+
+uncertain variables and parameters given available experimental or market -derived data. 
+
+Simultaneously estimating all uncertain input variables and parameters would not only lead to high 
+
+computational expense, but also can lead to poor estimability especially when availability of 
+
+experimental or market -derived data is scarce as would be expected for novel biomass valorization 
+
+technologies. This further motivates the sensitivity -guided dimensionality reduction before 
+
+Bayesian inference .Let the process model be represented as  𝒚 = 𝑓 (𝜽 ), where  𝜽 = [𝜃 1, 𝜃 2 , … , 𝜃 𝐷 ]𝑇 ∈ ℝ𝐷  denotes the 
+
+vector of  𝐷  uncertain input variables and parameters. The corresponding model output vector can 
+
+be defined as 
+
+𝒚 = [𝑦 1 , 𝑦 2 , … , 𝑦 𝑀 ] ∈ ℝ𝑀  (1) 
+
+where each output  𝑦 𝑚  for  𝑚 = 1,2, … , 𝑀  may represent a process performance and/ or economic 
+
+indicator of interest. For each uncertain variable or parameter  𝜃 𝑗  , the respective lower and upper 
+
+bounds are specified as 
+
+𝜃 𝑗 = [𝜃 𝑗 𝐿 , 𝜃 𝑗 𝑈 ], 𝑗 = 1, … , 𝐷  (2) 
+
+where  𝜃 𝑗 𝐿  and  𝜃 𝑗 𝑈  refer to the lower and upper bounds , respectively, of the  𝑗 𝑡 ℎ uncertain variable / 
+
+parameter. These bounds define the joint uncertainty domain over which the Sobol screening is 
+
+performed. 
+
+For each model output  𝑦 𝑚  , the total -order Sobol index of the  𝑗 𝑡 ℎ uncertain variable or parameter is 
+
+defined as 
+
+𝑆 𝑇 𝑗 (𝑦 𝑚 ) = 1 − 𝑉𝑎𝑟 (𝔼 [𝑦 𝑚 | 𝜽 ~𝑗 ])
+
+𝑉𝑎𝑟 (𝑦 𝑚 ) (3) 
+
+where  𝜽 ~𝑗  represents the vector of all uncertain variables and parameters except  𝜃 𝑗  for  𝑉𝑎𝑟 (𝑦 𝑚 ) >
+
+0. The total -order index  𝑆 𝑇 𝑗  measures the total contribution of  𝜃 𝑗  to the variance of the output  𝑦 𝑚  ,
+
+including both its direct effect and all higher -order interaction effects with other variables and 
+
+parameters (Puy et al., 2022; Tosin et al., 2020; Zhang et al., 2015) . The total -order Sobol index 
+
+accounts for nonlinear interactions among various model inputs. 
+
+In practice, the Sobol indices are estimated using a Sobol quasi -Monte Carlo sampling strategy 
+
+(Saltelli et al., 2010) . First,  2𝑁  samples are generated in the normalized unit hypercube [0, 1]𝐷  and 
+
+split into two base matrices defined as 
+
+𝑈 𝐴 ∈ [0, 1]𝑁 × 𝐷 , 𝑈 𝐵 ∈ [0, 1]𝑁 ×𝐷  (4) where  𝑁  denotes the number of samples in each base matrix. These normalized samples are then 
+
+mapped to the physical input bounds as 
+
+𝐴 𝑛 ,𝑗 = 𝜃 𝑗 𝐿 + 𝑈 𝐴 𝑛 ,𝑗 (𝜃 𝑗 𝑈 − 𝜃 𝑗 𝐿 ) (5a) 
+
+𝐵 𝑛 ,𝑗 = 𝜃 𝑗 𝐿 + 𝑈 𝐵 𝑛 ,𝑗 (𝜃 𝑗 𝑈 − 𝜃 𝑗 𝐿 ) (5b) 
+
+for sample index  𝑛 = 1,2, … , 𝑁  and input index  𝑗 = 1,2, … , 𝐷 . Here,  𝐴  and  𝐵  are the two physical 
+
+sample matrices corresponding to  𝑈 𝐴  and  𝑈 𝐵  . To estimate the contribution of each uncertain 
+
+variable or parameter, hybrid matrices are constructed by replacing one column of  𝐴  at a time with 
+
+the corresponding column of  𝐵 . For the  𝑗 𝑡 ℎ uncertain variable or parameter, the hybrid matrix is 
+
+defined as 
+
+𝐴 𝐵 (𝑗 ) = 𝐴 with column 𝑗 replaced by the 𝑗 𝑡 ℎ column of 𝐵  (6) 
+
+Thus,  𝐴 𝐵 (𝑗 ) differs from  𝐴  only in the  𝑗 𝑡 ℎ input variable or parameter. The process model is then 
+
+evaluated for the rows of  𝐴 , 𝐵 , and each hybrid matrix  𝐴 𝐵 (𝑗 ). Therefore, for a given output  𝑦 𝑚  , the 
+
+corresponding model evaluations can be expressed as 
+
+𝑌 𝐴 ,𝑚  
+
+> (𝑛 )
+
+= 𝑓 𝑚 (𝐴 𝑛 ,:), 𝑛 = 1, 2, … , 𝑁  (7a) 
+
+𝑌 𝐵 ,𝑚  
+
+> (𝑛 )
+
+= 𝑓 𝑚 (𝐵 𝑛 ,:), 𝑛 = 1, 2, … , 𝑁  (7b) 
+
+𝑌 𝐴 𝐵 (𝑗 ),𝑚  
+
+> (𝑛 )
+
+= 𝑓 𝑚 (𝐴𝐵 𝑛 ,:
+
+> (𝑗 )
+
+), 𝑛 = 1, 2, … , 𝑁  (7c) 
+
+where  𝑓 𝑚 (⋅) refers to the  𝑚 𝑡 ℎ scalar model output, and  𝐴 𝑛 ,:,𝐵 𝑛 ,:, and  𝐴 𝐵 𝑛 ,: 
+
+> (𝑗 )
+
+denote the  𝑛 𝑡 ℎ rows of 
+
+the corresponding sample matrices. Here,  𝑌 𝐴 ,𝑚 
+
+> (𝑛 )
+
+, 𝑌 𝐵 ,𝑚  
+
+> (𝑛 )
+
+, and  𝑌 𝐴 𝐵 (𝑗 ),𝑚  
+
+> (𝑛 )
+
+are the scalar model evaluations 
+
+for the  𝑛 𝑡 ℎ sample, while the corresponding output vectors are defined as 
+
+𝐘 𝐴 ,𝑚 = [𝑌 𝐴 ,𝑚 
+
+> (1)
+
+, 𝑌 𝐴 ,𝑚  
+
+> (2)
+
+, …, 𝑌 𝐴 ,𝑚 
+
+> (𝑁 )
+
+]𝑇 
+
+(8a) 
+
+𝐘 𝐵 ,𝑚 = [𝑌 𝐵 ,𝑚  
+
+> (1)
+
+, 𝑌 𝐵 ,𝑚  
+
+> (2)
+
+, …, 𝑌 𝐵 ,𝑚 
+
+> (𝑁 )
+
+]𝑇 
+
+(8b) 
+
+𝐘 𝐴 𝐵 (𝑗 ),𝑚 = [𝑌  
+
+> 𝐴 𝐵 (𝑗 ),𝑚
+> (1)
+
+, 𝑌  
+
+> 𝐴 𝐵 (𝑗 ),𝑚
+> (2)
+
+,…, 𝑌  
+
+> 𝐴 𝐵 (𝑗 ),𝑚
+> (𝑁 )
+
+]𝑇 
+
+(8c) The output variance for  𝑦 𝑚  is then estimated using the combined model evaluations from the two 
+
+base matrices , given by 
+
+𝑉 𝑦 𝑚 = 𝑉𝑎𝑟 ([𝐘 𝐴 ,𝑚 ; 𝐘 𝐵 ,𝑚 ]) (9) 
+
+Finally, using the Saltelli estimator (Saltelli et al., 2019, 2010) , the total -order Sobol index for the  𝑗 𝑡 ℎ
+
+uncertain variable or parameter with respect to output  𝑦 𝑚  is estimated as 
+
+𝑆 ̂ 𝑇 𝑗 (𝑦 𝑚 ) = 1
+
+2𝑁 ∗ 1
+
+𝑉 𝑦 𝑚 
+
+∗ ∑ (𝑌 𝐴 ,𝑚  
+
+> (𝑛 )
+
+− 𝑌 𝐴 𝐵 (𝑗 ),𝑚  
+
+> (𝑛 )
+
+)2
+
+> 𝑁
+> 𝑛 =1
+
+(10) 
+
+This estimator, as defined in Eq. (10), quantifies how strongly the output variance changes when the 
+
+𝑗 𝑡 ℎ uncertain input is perturbed within its admissible range while accounting for the interaction 
+
+effects with the remaining variables and parameters. 
+
+In this work, since the process model produces multiple outputs of interest , VIBES ranks the 
+
+uncertain variables and parameters based on their average total -order Sobol contribution across 
+
+all selected process and /or economic outputs. Specifically, the average total -order Sobol index for 
+
+the  𝑗 𝑡 ℎ uncertain variable or parameter can be computed as 
+
+𝑆 ̅ 𝑇 𝑗 = 1
+
+𝑀 ∑ 𝑆 ̂ 𝑇 𝑗 
+
+> 𝑀
+> 𝑚 =1
+
+(𝑦 𝑚 ) (11) 
+
+where  𝑀  is the number of outputs considered in the screening step. The dominant variables and 
+
+parameters are then selected according to the largest values of  𝑆 ̅ 𝑇 𝑗  . For a chosen reduced -space 
+
+dimension  𝑁 𝑡𝑜𝑝 , the selected index set is defined as 
+
+𝓘 𝑁 𝑡𝑜𝑝 = argtop 
+
+> 𝑁 𝑡𝑜𝑝
+
+{𝑆 ̅ 𝑇 𝑗 }𝑗 =1
+
+> 𝐷
+
+(12) 
+
+where  ℐ𝑁 𝑡𝑜𝑝  denotes the indices corresponding to the  𝑁 𝑡𝑜𝑝  largest average total -order Sobol indices. 
+
+The resulting reduced input vector is then expressed as 
+
+𝜽 𝑁 𝑡𝑜𝑝 = {𝜃 𝑗 ∶ 𝑗 ∈ 𝓘 𝑁 𝑡𝑜𝑝 } (13) It should be noted that VI is undertaken only for the selected subset  𝜽 𝑁 𝑡𝑜𝑝 . In this work, different 
+
+values of  𝑁 𝑡𝑜𝑝  are also systematically evaluated to determine how the dimension of the Sobol -
+
+selected input space affects posterior contraction and subsequent reduction in predictive 
+
+uncertainty. 
+
+2.2. Variational Inference 
+
+The second stage of VIBES performs Bayesian estimation and posterior UQ over the reduced input 
+
+space obtained from the Sobol GSA screening step. As defined in Eq. (13), the Sobol -selected 
+
+reduced input vector is represented as  𝜽 𝑁 𝑡𝑜𝑝 
+
+that correspond s to  𝑁 𝑡𝑜𝑝  variables and parameters with the largest average total -order Sobol 
+
+indices (𝑆 ̅ 𝑇 𝑗 ). The objective of VI is to approximate the posterior distribution  𝑝 ( 𝜽 𝑁 𝑡𝑜𝑝 ∣∣ 𝓓 ), where 
+
+𝓓  denotes the available measurement or target data used for Bayesian estimation. Thus, VI 
+
+estimates the posterior distributions of the selected variables and parameters that define regions 
+
+of the design space capable of predicting outputs consistent with available experimental or market -
+
+derived data. Furthermore, unlike conventional sampling -based Bayesian UQ approaches, such as 
+
+MCMC, that can be computationally intractable for nonlinear process models requiring repeated 
+
+model evaluations , VI provides a scalable alternative by reformulating posterior estimation as an 
+
+optimization problem. 
+
+Specifically, the posterior distribution is approximated using a parameterized variational 
+
+distribution  𝑞 ( 𝜽 𝑁 𝑡𝑜𝑝 ∣∣ 𝝓 ), where  𝝓  denotes the variational parameters. The optimal variational 
+
+parameters (𝝓 ∗) are obtained by minimizing the Kullback -Leibler (KL) divergence (Blei et al., 2017; 
+
+Thompson et al., 2026) between the variational approximation and the true posterior , given by 
+
+𝝓 ∗ = argmin 
+
+> 𝝓
+
+𝐾𝐿 [𝑞 ( 𝜽 𝑁 𝑡𝑜𝑝 ∣∣ 𝝓 ) || 𝑝 ( 𝜽 𝑁 𝑡𝑜𝑝 ∣∣ 𝓓 )] (14 )
+
+where 𝐾𝐿 [𝑞 ( 𝜽 𝑁 𝑡𝑜𝑝 ∣∣ 𝝓 ) || 𝑝 ( 𝜽 𝑁 𝑡𝑜𝑝 ∣∣ 𝓓 )] = ∫ 𝑞 ( 𝜽 𝑁 𝑡𝑜𝑝 ∣∣ 𝝓 ) log [𝑞 ( 𝜽 𝑁 𝑡𝑜𝑝 ∣∣ 𝝓 )
+
+𝑝 ( 𝜽 𝑁 𝑡𝑜𝑝 ∣∣ 𝓓 )] 𝑑 𝜽 𝑁 𝑡𝑜𝑝  (15 )
+
+The KL -divergence minimization formulation as described in Eq. ( 14 ) can be equivalently expressed 
+
+as negative evidence lower bound (ELBO) objective comprising three competing contributions. 
+
+Specifically, the VI objective function can be defined as 
+
+𝐽 (𝝓 ) = 𝔼 𝑞 [− log 𝑝 ( 𝓓 ∣∣ 𝜽 𝑁 𝑡𝑜𝑝 )] − 𝔼 𝑞 [log 𝑝 (𝜽 𝑁 𝑡𝑜𝑝 )] − 𝐻 [𝑞 ( 𝜽 𝑁 𝑡𝑜𝑝 ∣∣ 𝝓 )] (16 )
+
+where the entropy of the variational distribution is represented as 
+
+𝐻 [𝑞 ( 𝜽 𝑁 𝑡𝑜𝑝 ∣∣ 𝝓 )] = −𝔼 𝑞 [log 𝑞 ( 𝜽 𝑁 𝑡𝑜𝑝 ∣∣ 𝝓 )] (17 )
+
+The entropy, as defined in Eq. ( 17 ), preserves uncertainty in regions of the input space where limited 
+
+or no experimental / market data are available, thus allowing broader predictive spreads when the 
+
+data do not strongly constrain the posterior (Blei et al., 2017; Wang et al., 2023) .
+
+Therefore, the VI objective function as defined in Eq. ( 16 ), can be updated as 
+
+𝐽 (𝝓 ) = 𝔼 𝑞 [− log 𝑝 ( 𝓓 ∣∣ 𝜽 𝑁 𝑡𝑜𝑝 )] + 𝔼 𝑞 [− log 𝑝 (𝜽 𝑁 𝑡𝑜𝑝 )] + 𝔼 𝑞 [log 𝑞 ( 𝜽 𝑁 𝑡𝑜𝑝 ∣∣ 𝝓 )] (18 )
+
+The first term in Eq. (18 ) minimizes the error between model predictions and available 
+
+process/economic target data, the second term penalizes deviation from the prior distribution, and 
+
+the third term maximizes the entropy of the variational distribution while promoting a non -
+
+degenerate posterior approximation. Thus, VI enables simultaneous estimation and UQ of the 
+
+Sobol -selected parameters and variables. 
+
+In this work, a diagonal Gaussian variational distribution is considered for the Sobol -selected 
+
+variables and parameters. For each selected variable or parameter  𝜃 𝑗  , the reparameterized 
+
+representation is defined as 
+
+𝜃 𝑗 = 𝜇 𝑗 + 𝜎 𝑗 𝑧 𝑗 , 𝑗 = 1, 2, … , 𝑁 𝑡𝑜𝑝  (19a )
+
+𝑧 𝑗 ~ 𝒩 (0,1) (19b )where  𝜇 𝑗  and  𝜎 𝑗  are the variational mean and standard deviation associated with the  𝑗 𝑡 ℎ selected 
+
+variable or parameter, and  𝑧 𝑗  is a standard normal (Gaussian) random variable. Therefore, the 
+
+variational parameters are given by  𝝓 = [𝝁 , 𝝈 ]. To improve the numerical stability of VI, a warm -
+
+start initialization strategy is implemented. Let the bank of successful model evaluations generated 
+
+during the Sobol GSA screening stage be denoted as 
+
+𝓓 ∗ = {(𝜽 𝑁 𝑡𝑜𝑝  
+
+> (𝑟 )
+
+,𝒚 (𝑟 ) )}𝑟 =1
+
+> 𝑁 𝑏𝑎𝑛𝑘
+
+(20 )
+
+where  𝑁 𝑏𝑎𝑛𝑘  represents the number of successful model simulations available from the Sobol 
+
+sampling stage,  𝜽 𝑁 𝑡𝑜𝑝  
+
+> (𝑟 )
+
+contains the Sobol -selected variables and parameters for the  𝑟 𝑡 ℎ successful 
+
+model simulation, and  𝒚 (𝑟 ) denotes the corresponding simulated process and economic output 
+
+vector s. Subsequently, the output misfit for each stored sample can be computed as 
+
+ℰ(𝑟 ) = ∑ ‖𝒚 𝑚  
+
+> (𝑟 )
+
+− 𝒚 𝑚  
+
+> 𝑜𝑏𝑠
+
+‖2
+
+> 𝑀
+> 𝑚 =1
+
+, 𝑟 = 1, 2, … , 𝑁 𝑏𝑎𝑛𝑘  (21 )
+
+where  𝒚 𝑚  
+
+> 𝑜𝑏𝑠
+
+is the vector of mean observed or target value s of the  𝑚 𝑡 ℎ output. Out of all  𝑁 𝑏𝑎𝑛𝑘 
+
+samples, the  𝑃  samples with the smallest misfit values are selected as 
+
+𝒫 = argmin 
+
+> 𝑃
+
+{ℰ(𝑟 )}𝑟 =1
+
+> 𝑁 𝑏𝑎𝑛𝑘
+
+(22 )
+
+where  𝒫  denotes the indices corresponding to the  𝑃  lowest misfit values. The means and standard 
+
+deviations of these  𝑃  samples are then used to initialize the corresponding variational parameters 
+
+𝝁  and  𝝈 , respectively. This warm -start strategy reuses information already generated during the 
+
+screening stage and initializes VI near regions of the reduced input space that produce model 
+
+outputs close to the available experimental or market target s. In addition, the Sobol -sampled 
+
+model simulation with the smallest output misfit is defined as the base case 
+
+𝑟 𝑏𝑎𝑠𝑒 = argmin 
+
+> 𝑟
+
+ℰ(𝑟 ) , 𝜽 𝑏𝑎𝑠𝑒 = 𝜽 (𝑟 𝑏𝑎𝑠𝑒 ) (23 )
+
+where  𝜽 𝑏𝑎𝑠𝑒  denotes the complete input vector corresponding to the model simulation whose 
+
+predicted outputs are closest to the experimental or observed data  𝒚 𝑜𝑏𝑠  .During the final posterior predictive uncertainty propagation step, the Sobol -screened variables 
+
+and parameters are sampled from the optimized variational posterior, while the non -selected 
+
+variables and parameters are fixed at their corresponding base -case values  𝜽 𝑏𝑎𝑠𝑒  . This allows the 
+
+posterior uncertainty to be propagated through the high -fidelity model while maintaining a 
+
+consistent and target -informed reference point for the variables and parameters that were not 
+
+included in the reduced VI space. For the specific implementation used in this work, the likelihood, 
+
+prior, and variational distributions are assumed to be Gaussian. Let  𝐾  denote the number of 
+
+samples used to estimate the stochastic VI objective. Therefore, the samples from the variational 
+
+distribution are obtained using the reparameterization, defined as 
+
+𝜽 𝑁 𝑡𝑜𝑝  
+
+> (𝑘 )
+
+= 𝝁 + 𝝈 ⊙ 𝒛 (𝑘 ) , 𝒛 (𝑘 ) ~ 𝒩 (𝟎 , 𝑰 ), 𝑘 = 1, … , 𝐾  (24 )
+
+where  ⊙ denotes element -wise multiplication. Subsequently, the corresponding model 
+
+predictions for the  𝑘 𝑡 ℎ variational sample can be represented as: 
+
+𝒚 ̂ (𝑘 ) = 𝑓 (𝜽 𝑁 𝑡𝑜𝑝  
+
+> (𝑘 )
+
+) (25 )
+
+where  𝑓 (⋅) represents the process model or its differentiable surrogate during parameter estimation 
+
+through VI. Under these assumptions , the simplified negative -ELBO objective function (Zhang et al., 
+
+2019) as defined in Eq. ( 20 ), after removal of all terms independent of  𝝓 , can be expressed as 
+
+𝐽 (𝝁 , 𝝈 ) = 1
+
+𝐾 ∑ ∑ ‖𝒚 ̂ 𝑚 (𝜽 𝑁 𝑡𝑜𝑝  
+
+> (𝑘 )
+
+) − 𝒚 𝑚  
+
+> 𝑜𝑏𝑠
+
+‖
+
+> 𝑀
+> 𝑚 =1
+> 2𝐾
+> 𝑘 =1
+
++ ∑ 𝜇 𝑗  
+
+> 2
+
++ 𝜎 𝑗 2
+
+2𝛼 𝑗  
+
+> 2
+> 𝑁 𝑡𝑜𝑝
+> 𝑗 =1
+
+− ∑ log 𝜎 𝑗  
+
+> 𝑁 𝑡𝑜𝑝
+> 𝑗 =1
+
+(26 )
+
+where  𝛼 𝑗  represents the prior standard deviation of the  𝑗 𝑡 ℎ Sobol -selected variable or parameter. 
+
+Thus, minimizing  𝐽 (𝝁 , 𝝈 ) simultaneously improves model fit against target data, regularizes the 
+
+inferred variables and parameters, and promotes a non -degenerate posterior uncertainty 
+
+representation. 
+
+The optimization of the VI objective is carried out using stochastic gradient descent (SGD) based 
+
+optimization. When the underlying process model is differentiable and derivative information can 
+
+be accessed directly, AD or solver -provided derivative information may be used to compute gradients of the VI objective with respect to the variational parameters. However, many process 
+
+simulators, techno -economic models, and external software platforms do not provide gradients in 
+
+a form directly compatible with modern AD libraries. In such cases, a differentiable surrogate model 
+
+can be trained using process -model evaluations over the Sobol -selected reduced input space. The 
+
+trained surrogate provides a differentiable approximation of the input -output mapping over the 
+
+reduced space, enabling JAX -based AD (Alves et al., 2025; Lin, 2024) during VI. After the surrogate 
+
+model is trained, the VI objective is minimized using Adam over the variational parameters  𝝓 =
+
+[𝝁 , 𝝈 ]. At each iteration, samples are drawn from the standard normal distribution, transformed into 
+
+samples of the Sobol -selected variables and parameters through the reparameterization, passed 
+
+through the differentiable surrogate, and used to estimate the stocha stic VI loss. Gradients of this 
+
+loss with respect to the variational parameters are computed using automatic differentiation and 
+
+used to update  𝝓 .
+
+The proposed approach eventually yields the optimized variational parameters  𝝓 ∗ = [𝝁 ∗, 𝝈 ∗] which 
+
+define the approximate posterior distribution over the selected variables and parameters, given by 
+
+𝑞 ( 𝜽 𝑁 𝑡𝑜𝑝 ∣∣ 𝝓 ∗ ) ≈ 𝑝 ( 𝜽 𝑁 𝑡𝑜𝑝 ∣∣ 𝓓 ) (27 )
+
+Finally, posterior samples are generated from the optimized variational distribution and propagated 
+
+through the high -fidelity model to evaluate posterior predictive uncertainty. During this final 
+
+propagation step, the Sobol -selected variables and parameters are sam pled from  𝑞 ( 𝜽 𝑁 𝑡𝑜𝑝 ∣∣ 𝝓 ∗ ),
+
+while the non -selected variables and parameters are fixed at their corresponding base -case values ,
+
+as shown in Eq. ( 23 ). The resulting predictive distribution can be expressed as  𝑝 (𝒚 ̂ | 𝜽 𝑁 𝑡𝑜𝑝 , 𝓓 ),
+
+where  𝒚 ̂ denotes the model predicted process and /or economic outputs. Although a differentiable 
+
+surrogate is used to enable scalable VI during posterior estimation, final posterior predictive 
+
+uncertainty is evaluated using the high -fidelity model. This allows VIBES to exploit the fidelity of the 
+
+underlying process simulator f or UQ in process and economic performance metrics, while retaining 
+
+the scalability (Mukherjee and Zavala, 2026) of surrogate assisted VI. 2.3. Multi -Software Integration Platform 
+
+The VIBES methodology is independent of a specific process modeling or computational 
+
+environment. When the process and/or economic model, sensitivity analysis, and Bayesian UQ 
+
+tools are all available within a common software ecosystem, the framework can be implemented 
+
+without constructing a multi -software computational platform. For example, a process model 
+
+developed directly in Python (e.g., using BioSTEAM (Cortes -Peña et al., 2020) ) can be coupled 
+
+directly with scientific computing tools for data analytics, ML, and Bayesian estimation . In many 
+
+practical process systems engineering applications, however, different software platforms are 
+
+better suited for different components of the computational workflow. It may be more convenient 
+
+to undertake rigorous process simulation, flowsheet development, thermodynamic modeling, 
+
+physical property estimation, and equipment -level calculations in commercial process simulation 
+
+software like Aspen Plus, Aspen Custom Modeler, gPROMS, Chemcad, AVEVA, etc . Likewise, TEA 
+
+may be performed using specialized tools such as Aspen Process Economic Analyzer (APEA) or 
+
+other economic -analysis platforms. In contrast, scientific computing environments such as Python 
+
+provide flexible access to modern packages for GSA , ML , differentiable programming, stochastic 
+
+optimization, Bayesian estimation, and visualization. 
+
+Selection of software platform(s) can lead to challenge s for scalable end -to -end uncertainty -aware 
+
+process systems engineering tools . From the perspective of Bayesian UQ, it is necessary to have 
+
+derivative information available from the external process simulator , if used for process/economic 
+
+modeling, in a form compatible with AD tools . However , for many leading process simulation 
+
+software, this may be challenging to obtain the desired information in the desired form. Overall , an 
+
+integration platform is desired to facilitate automate d data transfer, repeated model evaluation, 
+
+output extraction, surrogate model development when required , and posterior predictive 
+
+uncertainty propagation. VIBES facilitates a multi -software integration platform that can 
+
+accomplish these desired objectives .
+
+In the present work, the proposed platform is implemented through a Windows Component Object 
+
+Model (COM) interface using the ‘win32com ’ package, enabling communication between Aspen 
+
+Plus (v14.0 ) and Python (3.12.5 ). Although several studies have used COM -based interfaces to connect the Aspen ecosystem with Python, either through Aspen tree nodes (Nikkhah et al., 2024) 
+
+or MS Excel add -ins (Urm et al., 2023) , these approaches have generally been limited to separate 
+
+sampling and optimization workflows. In contrast, this work implements a multi -software 
+
+integration platform that automates techno -economic model simulations within an end -to -end 
+
+framework for simu ltaneous parameter estimation and Bayesian UQ . Specifically, the plant -wide 
+
+process model for manufacturing KL -SPI bioadhesive is developed in Aspen Plus. Although the 
+
+corresponding economic analysis can be performed using APEA, for computational flexibility, the 
+
+economic evaluation is also conducted within the Aspen Plus environment using a cost model 
+
+implemented through Fortran codes within Calculator blocks (Das and Bhattacharyya, 2026b; 
+
+Turton et al., 2018) . This design choice enables process simulation and economic evaluation to be 
+
+performed within the same executable process modeling environment (i.e., Aspen Plus) , thereby 
+
+allowing automated extraction of both process and economic outputs through a multi -software 
+
+integration platform represented as the Python -Aspen interface in this paper . The subsequent Sobol 
+
+GSA, surrogate -assisted VI , posterior estimation, and uncertainty propagation are performed in 
+
+Python. Thus , the Python -Aspen interface serves as the central computational layer for automated 
+
+sampling, process simulation, economic model evaluation, sensitivity analysis, Bayesian 
+
+estimation, and posterior predictive UQ in this work. 
+
+The integrated VIBES framework developed in this work is shown in Fig. 1. Fig. 1. Overall computational workflow for the proposed VIBES algorithm. 
+
+## 3. Case Study: Bioadhesive Production Process 
+
+The proposed VIBES framework is demonstrated on a lignocellulosic biomass derived 
+
+formaldehyde -free adhesive production process involving BCD of kraft lignin followed by 
+
+crosslinking with SPI (Das and Bhattacharyya, 2026; Jiang et al., 2023). The steady -st ate plant -wide 
+
+process model is developed in Aspen Plus (v14.0), and a simplified process flow diagram is 
+
+presented in Fig. 2. The extensive plant -wide modeling and techno -economic optimization 
+
+framework for the KL -SPI bioadhesive production process under consideration has been discussed 
+
+by Das and Bhattacharyya (Das and Bhattacharyya, 2026), while the relevant experimental details 
+
+can be found in the study reported by Jiang et al. (Jiang et al., 2023). 
+
+In this process, kraft lignin is first mixed with 0.37 wt.% NaOH (aq) solution at 25 °C and atmospheric 
+
+pressure in M -101. The resulting mixture is then pumped to 18 atm to facilitate BCD of kraft lignin at 
+
+140 to 200 °C while maintaining solvent (i.e., water) in the liquid phase. The pressurized feed is 
+
+heated to the desired reaction temperature in a shell -and -tube heat exchanger (E -101) using high 
+
+pressure (HP) steam before entering the depolymerization reactor (R -101). The reactor outlet, containing D -lignin, monomers, small organic compounds (SOCs), and repolymerized species, is 
+
+cooled to 55 °C in E -102 using cooling water (CW) and sent to a flash drum (D -101), where gaseous 
+
+by -products are separated from the liquid stream. On the other ha nd, SPI is dissolved in water at 25 
+
+°C and ambient pressure in M -102 and heated to 55 °C in E -103 using low pressure (LP) steam. The 
+
+D-lignin -rich stream from D -101 is then mixed with the heated SPI solution in an agitated vessel (R -
+
+102) to facilitate crosslinking reactions and form the KL -SPI bioadhesive. Excess water is removed 
+
+from the bioadhesive mixture through controlled heating and flash evap oration in D -102, reducing 
+
+the solution volume by 75%. Finally, the product stream is cooled to 25 °C in E -107 using CW. 
+
+Fig. 2. Simplified process flow diagram for KL -SPI bioadhesive manufacturing process considered 
+
+for implementation of the VIBES framework. 
+
+As discussed before, for computational flexibility, the economic evaluation is also implemented 
+
+within the Aspen Plus environment using a simplified cost model that can generate results 
+
+consistent with conventional APEA estimates (Das and Bhattacharyya, 2026b; Mevawala et al., 
+
+2019; Ogunniyan et al., 2024) . The empirical correlations, equipment -specific correction factors, 
+
+cost equations, and inflation factors required to calculate capital and operating costs are incorporated directly in Aspen Plus using Fortran codes within Calculator blocks (Das and 
+
+Bhattacharyya, 2026b; Turton et al., 2018) . This implementation enables process simulation and 
+
+economic evaluation to be performed within the same Aspen workflow, thereby facilitating 
+
+automated output extraction and downstream uncertainty analysis through the Python -Aspen 
+
+interface. Further detail s of this economic evaluation framework are discussed extensively in the 
+
+work by Das and Bhattacharyya (Das and Bhattacharyya, 2026b) .
+
+In this work, t he proposed VIBES framework requires repeated simulation of th e bioadhesive 
+
+manufacturing process (shown in Fig. 2) in Aspen Plus under different combinations of uncertain 
+
+kinetic, design/operating, and economic variables and parameters. Therefore, the multi -software 
+
+integration platform, as discussed in Section 2.3, becomes significantly crucial for integration and 
+
+automation of Aspen Plus simulations with Python -based sensitivity analysis and Bayesian 
+
+inference. Thus , the Python -Aspen interface forms the computational backbone of VIBES. As noted 
+
+earlier, t he Python -Aspen interface is implemented via the Windows COM framework. First, the 
+
+Aspen Plus variable paths to the uncertain inputs and outputs are identified from the Aspen variable 
+
+explorer. These paths, in turn, allow the workflow to assign sampled inputs, run Aspen simulations, 
+
+extract model outputs, and save successful simulated results for downstream sensi tivity analyses 
+
+and Bayesian estimation. For example, Code Snippet 1 shows the basic helper functions for 
+
+establishing the Python -Aspen interaction, such as, accessing Aspen tree nodes ( get_node ), 
+
+initializing the Aspen Plus archive file from Python ( open_aspen ), and closing the Aspen session 
+
+(close_aspen ) after simulation. 
+
+Since large -scale sampling analyses may include several input combinations that lead to non -
+
+converged Aspen simulations, additional functions are defined to reinitialize or restart Aspen during 
+
+the automated workflow. As shown in Code Snippet 2, Aspen Plus is reinitialized after each run. The 
+
+interface first attempts to reinitialize Aspen using available COM methods. However, if 
+
+reinitialization is insufficient after repeated simulation failures, the Aspen session is closed and 
+
+restarted from the original archive file. This restart mechanism is helpful to the automated sampling 
+
+algorithm. After each Aspen simulation, the required process and economic outputs, such as D -lignin mass flow rate and LCOA, are extracted from the corresponding Aspen tree paths and stored 
+
+for subsequent analysis. 
+
+Code Snippet 1 : Helper functions for developing the Python -Aspen interaction framework. 
+
+def get_node (aspen, path: str ): 
+
+node = aspen. Tree .FindNode (path) 
+
+if node is None :
+
+raise ValueError( f“Could not find Aspen node: {path} ”)
+
+return node 
+
+def open_aspen (aspen_file: str ): 
+
+aspen = win32. Dispatch (“Apwn.Document” )
+
+aspen. InitFromArchive2 (os. path .abspath (aspen_file)) 
+
+return aspen 
+
+def close_aspen (aspen) -> None :
+
+try :
+
+aspen. Close () 
+
+except Exception: 
+
+pass 
+
+Code Snippet 2 : Reinitialization and restart functions defined for automated Aspen simulations. 
+
+def reset_aspen_simulation (aspen) -> None :
+
+try :
+
+aspen. Reinit () 
+
+return 
+
+except Exception: 
+
+pass 
+
+try :
+
+aspen. Engine.Reinit () 
+
+return 
+
+except Exception: 
+
+pass 
+
+try :
+
+aspen. Engine.Reset () 
+
+return 
+
+except Exception: 
+
+pass 
+
+def restart_aspen (aspen, aspen_file: str ): 
+
+close_aspen(aspen) 
+
+return open_aspen(aspen_file) The proposed approach then proceeds iteratively by passing each sampled input combination to 
+
+Aspen Plus, followed by simulating the model, extracting outputs, and saving successful runs, while 
+
+failed simulations are logged separately for diagnostics. The a utomated simulation approach 
+
+implemented through the Python -Aspen interface is summarized in Algorithm 1. 
+
+The proposed algorithm provides sufficient flexibility to accommodate alternate variance -based 
+
+sampling methods other than Sobol GSA . Although , the overall computational workflow is 
+
+demonstrated in Section 2. 3 using Sobol GSA (Saltelli et al., 2019, 2010) as the screening step , the 
+
+proposed approach holds true only w hen all Aspen Plus generated samples converge . However, if 
+
+failed Aspen evaluations prevent completion of the structured Sobol design, alternative variance -
+
+based screening methods such as the random balance design Fourier amplitude sensitivity test 
+
+(Goffart and Woloszyn, 2021) (RBD -FAST) can be utilize d. 
+
+In the present work, the Sobol GSA stage, a total of 20 uncertain input variables and parameters are 
+
+initially considered, ranging across kinetic, design/operating, and economic sources of uncertainty, 
+
+as summarized in Table 1. These include feed flow rates, reactor operating conditions, activation 
+
+energies for the BCD reaction network, raw material prices, utility prices, and other economi c
+
+parameters. However, among these 20 quantities, three process variables are not treated as 
+
+independent Sobol variables because they are constrained through design assumptions to ensure 
+
+process convergence and practical operation , as given by 
+
+𝐹 ̇𝑆𝑃𝐼 = 2 ∗ 𝐹 ̇𝐾𝐿  (28a) 
+
+𝐹 ̇𝑊 1 = 20 ∗ 𝐹 ̇𝐾𝐿  (28b) 
+
+𝐹 ̇𝑊 2 = 10 ∗ 𝐹 ̇𝑆𝑃𝐼  (28c) 
+
+where  𝐹 ̇𝐾𝐿 , 𝐹 ̇𝑆𝑃𝐼  , 𝐹 ̇𝑊 1, and  𝐹 ̇𝑊 2 represents the mass flow rates of kraft lignin, SPI, kraft lignin solvent 
+
+(W1), and SPI solvent (W2), respectively. As a result, the effective number of independent uncertain 
+
+variables and parameters used for Sobol screening becomes  𝐷 = 17 . Therefore, for  𝑁 = 128  quasi -
+
+random Sobol samples per variable in each base matrix, the total number of Aspen Plus model 
+
+evaluations  (𝑁 𝑠𝑖𝑚 ) required for this Sobol GSA stage can be calculated as 
+
+𝑁 𝑠𝑖𝑚 = 𝑁 ∗ (𝐷 + 2) = 128 ∗ (17 + 2) = 2432  (29) Algorithm 1 : Automated Python -Aspen simulation workflow for variance -based sampling. 
+
+Given : Aspen Plus .bkp file, uncertain input bounds, Aspen variable paths, total number of samples 
+
+𝑁 𝑠𝑎𝑚 , and maximum allowable consecutive convergence failures  𝑁 𝑓𝑎𝑖𝑙 , 𝑚𝑎𝑥 
+
+Define the uncertain kinetic, design / operating, and economic variables and parameters 
+
+Generate input samples using a variance -based sampling method, e.g., Sobol, RBD -FAST, etc. 
+
+Access the Aspen Plus model through the Python -Aspen COM interface 
+
+Initialize : 𝑛 𝑠𝑎𝑚 = 1, 𝑛 𝑓𝑎𝑖𝑙 = 0
+
+while  𝑛 𝑠𝑎𝑚 ≤ 𝑁 𝑠𝑎𝑚  do 
+
+Select the  𝑛 𝑠𝑎𝑚  -th sampled input combination 
+
+Assign sampled input values to the corresponding Aspen Plus input nodes 
+
+Run the Aspen Plus simulation 
+
+if Aspen simulation converges successfully then 
+
+Extract process and economic outputs from the Aspen Plus output nodes 
+
+Store sampled inputs and extracted outputs as a successful simulation run 
+
+Reinitialize Aspen Plus 
+
+𝑛 𝑓𝑎𝑖𝑙 = 0
+
+else 
+
+Store sampled inputs and failure message in the failed simulation log 
+
+Reinitialize Aspen Plus 
+
+𝑛 𝑓𝑎𝑖𝑙 = 𝑛 𝑓𝑎𝑖𝑙 + 1
+
+if  𝑛 𝑓𝑎𝑖𝑙 ≥ 𝑁 𝑓𝑎𝑖𝑙 , 𝑚𝑎𝑥  then 
+
+Close the current Aspen Plus session and restart Aspen Plus from original .bkp file 
+
+𝑛 𝑓𝑎𝑖𝑙 = 0
+
+end if 
+
+end if 
+
+𝑛 𝑠𝑎𝑚 = 𝑛 𝑠𝑎𝑚 + 1
+
+end while 
+
+Save the successful simulation dataset and failed simulation log 
+
+Close the Aspen Plus session 
+
+Return : successful simulation dataset (model inputs and outputs), failed simulation log Ideally, Bayesian estimation requires measured experimental data or market -based target data for 
+
+the process and economic outputs of interest. However, the KL -SPI bioadhesive process 
+
+considered in this work is an emerging biomass valorization technology, for which practical 
+
+implementation at pilot or commercial scale remains limited (Das and Bhattacharyya, 2026b) .
+
+Table 1 
+
+List of uncertain i nput variables and parameters considered for Sobol GSA. 
+
+No.  Input Variables / Parameters  Range  Unit 
+
+1 Kraft lignin mass flow rate (𝐹 𝐾𝐿 ) [400, 600]  kg/h 
+
+2 W1 / Kraft lignin solvent mass flow rate (𝐹 𝑊 1) constrained (Eq. 28b ) kg/h 
+
+3 SPI mass flow rate (𝐹 𝑆𝑃𝐼 ) constrained (Eq. 28a ) kg/h 
+
+4 W2 / SPI solvent mass flow rate (𝐹 𝑊 2) constrained (Eq. 28c ) kg/h 
+
+5 BCD reactor pressure (𝑃 𝑟 ) [15, 25]  atm 
+
+6 BCD reaction 1 activation energy (𝐸 𝑎 ,𝑅 1) [30, 70]  kJ/mol 
+
+7 BCD reaction 2 activation energy (𝐸 𝑎 ,𝑅 2) [25, 45]  kJ/mol 
+
+8 BCD reaction 3 activation energy (𝐸 𝑎 ,𝑅 3) [25, 45]  kJ/mol 
+
+9 BCD reaction 4 activation energy (𝐸 𝑎 ,𝑅 4) [25, 45]  kJ/mol 
+
+10  BCD reaction 5 activation energy (𝐸 𝑎 ,𝑅 5) [25, 45]  kJ/mol 
+
+11  BCD feed temperature (𝑇 𝐾𝐿 ) [140, 200]  ° C
+
+12  SPI temperature (𝑇 𝑆𝑃𝐼 ) [50, 60]  ° C
+
+13  Kraft lignin price (𝐶𝑜𝑠 𝑡 𝐾𝐿 ) [0.15, 0.75]  $/kg 
+
+14  SPI price (𝐶𝑜𝑠 𝑡 𝑆𝑃𝐼 ) [1.5, 3.0]  $/kg 
+
+15  𝑁𝑎𝑂𝐻  price (𝐶𝑜𝑠 𝑡 𝑁𝑎𝑂𝐻 ) [0.20, 0.65]  $/kg 
+
+16  process water price (𝐶𝑜𝑠 𝑡 𝑊 ) [1e -4, 3e -4]  $/kg 
+
+17  high pressure (HP) steam price (𝐶𝑜𝑠 𝑡 𝐻𝑃𝑆 ) [5.0, 12.0]  $/GJ 
+
+18  low pressure ( LP ) steam price (𝐶𝑜𝑠 𝑡 𝐿𝑃𝑆 ) [4.0, 7.0]  $/GJ 
+
+19  cooling water (CW) price (𝐶𝑜𝑠 𝑡 𝐶𝑊 ) [0.1, 0.5]  $/GJ 
+
+20  electricity price (𝐶𝑜𝑠 𝑡 𝐸 ) [0.05, 0.10]  $/kWh Although a few studies have reported the production and evaluation of lignocellulosic biomass -
+
+based adhesive s (Chen et al., 2024, 2021; Yang and Rosentrater, 2019a, 2019b) , available data are 
+
+not necessarily specific to the KL -SPI bio adhesive production pathway considered here, nor do they 
+
+provide sufficient process -level and economic target data for the outputs used in this study. 
+
+In summary, to the best of our knowledge, there is a very limited availability of experimental and/or 
+
+market data for directly specifying target values or distributions for D -lignin mass flow rate and 
+
+LCOA . Therefore, in this work, two data -generation approaches are considered to demonstrate the 
+
+VI -based inverse UQ workflow. In the first approach, the measured data are represented as single -
+
+value target outputs for both D -lignin mass flow rate and LCOA, obtai ned from the high -fidelity 
+
+process model and techno -economic optimization framework reported by Das and Bhattacharyya 
+
+(Das and Bhattacharyya, 2026b) for this specific novel technology, with additional Gaussian noise 
+
+imposed to represent measurement and market uncertainty. In the second approach, a synthetic -
+
+data generation strategy is adopted, where multiple observations are generated to mimic 
+
+experimental or market data for use during optimization. These synthetic data serve as relevant 
+
+target data for demonstrating the inverse UQ workflow and can be directly replaced by measured 
+
+experimental data, pilot -plant data, or market -derived targets when this information becomes 
+
+available. Specifically, t he second strategy involving generation of synthetic measured data is 
+
+based on propagating uncertainty in the kinetic, design/ operating, and economic input variables 
+
+and parameters through the Aspen Plus process model. 
+
+First, feasible ranges are assigned to uncertain inputs based on available literature information for 
+
+similar systems, raw material and utility price ranges, process operating windows, and kinetic or 
+
+design assumptions. For instance , the kraft lignin mass flow rate for commercial -scale plants has 
+
+been reported to be approximately 500 –530 kg /h (Ahire et al., 2024; Das and Bhattacharyya, 2026b) .
+
+Similarly, the ranges for kraft lignin and SPI price s consistent with commercial chemical -market 
+
+information platforms are approximately 0.25 -0.50 $ /kg (Abdelaziz et al., 2020; Das and 
+
+Bhattacharyya, 2026b; Kulas et al., 2021) and 1.8 -2.4 $ /kg (ChemAnalyst, 2026; Das and 
+
+Bhattacharyya, 2026b; Elchemy Chemical Market, 2026) , respectively . Kinetic uncertainty can be 
+
+characterized using reported ranges for activation energies of the major reaction steps; for example, published values for lignin depolymerization commonly span approximately 49 -55 kJ /mol (Das and 
+
+Bhattacharyya, 2026b; Forchheim et al., 2014) . These ranges for the input variables and parameters 
+
+consistent with the literature and/or commercial databases provide a basis for defining a plausible 
+
+design space while generating synthetic data. Representative input samples are then generated 
+
+from these ranges, for example using Gaussian distributions centered around nominal or literature -
+
+informed values, and the corresponding process/economic outputs are obtained from Aspen Plus 
+
+simulations using the Python -Aspen interface . In this way, synthetic output data are generated 
+
+systematically from physically meaningful combinations of uncertain input variables and 
+
+parameters. The underlying premise is that, in the absence of direct experimental or market 
+
+observations for the output variables, uncertainty in the outputs can be attributed to uncertainty in 
+
+the underlying input space. Accordingly, the inverse UQ problem seeks to estimate posterior 
+
+distributions of the dominant variables and parameters that are most consistent with the observed 
+
+or synthetically generated output targets. This formulation allows the VIBES framework to iden tify 
+
+plausible regions of the design and uncertainty space, reduce predictive uncertainty in process and 
+
+economic metrics, and provide guidance for future experiments or data collection by identifying the 
+
+variables and parameters that most strongly influen ce the target outputs. 
+
+## 4. Results and Discussions 
+
+This section first presents the results of the Sobol GSA used to characterize the uncertainty 
+
+structure of the bioadhesive production process and identify the dominant set of variables and 
+
+parameters that govern the target process and economic performance metrics. The resulting 
+
+reduced input space is subsequently used for VI -based Bayesian inference and posterior predictive 
+
+UQ, corresponding to both data generation approaches described in Section 3. 
+
+4.1. Results from Sobol Sensitivity Screening 
+
+As discussed in Eq. ( 29 ), Sobol GSA is performed over  𝐷 = 17 -dimensional independent uncertain 
+
+input space, thus leading to 2432 Aspen Plus model evaluations generated through the automated 
+
+Python -Aspen interface. As noted earlier, although Table 1 lists 20 uncertain input variables and 
+
+parameters, 3 mass flow rates are determined through the design constraints as defined in Eqs. 
+
+(28a )–(28c ) and are therefore not independently sampled during Sobol screening. Overall , Fig . 3illustrates the sampled values of all 20 input variables and parameters including 17 independent 
+
+inputs sampled from Sobol GSA , and 3 dependent inputs corresponding to the design constraints 
+
+under consideration . These samples define the prior uncertainty bounds of the input variables and 
+
+parameters before Bayesian estimation. 
+
+Fig . 3. Prior samples of all 20 uncertain input variables and parameters obtained from Sobol GSA ,
+
+labeled according to the respective numbering defined in Table 1. 
+
+The corresponding economic and process output results obtained from the successful Aspen Plus 
+
+simulations are shown in Fig. 4. These result s of the output variables, namely the LCOA (that 
+
+characterizes economic performance of the KL -SPI production pathway) and D -lignin mass flow 
+
+rate (that characterizes process performance), are used to generate the prior predictive uncertainty 
+
+bounds of model outputs before Bayesian inference. Using the successful Sobol samples, the 
+
+average total -order Sobol indices (𝑆 ̅ 𝑇 𝑗 ) defined in Eq. (11) are computed with respect to both model 
+
+outputs. Since the cumulative contribution of the top 5 highest -ranked input variables and parameters based 
+
+on  𝑆 ̅ 𝑇 𝑗  captures more than  99%  of the total averaged output variance, in this work, the reduced input 
+
+space dimension is selected as  𝑁 𝑡𝑜𝑝 = 5. Table 2 lists this sequence of 5 dominant variables and 
+
+parameters ranked according to their respective  𝑆 ̅ 𝑇 𝑗  values. Accordingly, the reduced input vector, 
+
+as defined in Eq. (13), to be considered for the subsequent VI stage is given by 
+
+𝜽 𝑁 𝑡𝑜𝑝 = 𝜽 5 = {𝐹 𝐾𝐿 , 𝐶𝑜𝑠 𝑡 𝑆𝑃𝐼 , 𝐶𝑜𝑠 𝑡 𝐾𝐿 , 𝐸 𝑎 ,𝑅 1, 𝐸 𝑎 ,𝑅 2 }𝑇  (30 )
+
+Fig . 4. Prior predictive results of model outputs represented by (a) KL -SPI bioadhesive levelized cost 
+
+and (b) D-lignin mass flow rate obtained from Sobol GSA. 
+
+The results obtained from Sobol GSA confirm that a relatively small subset of uncertain variables 
+
+and parameters governs the majority of uncertainty in the selected process and economic outputs. 
+
+This sensitivity -driven reduction avoids performing Bayesian estimation over the full input space 
+
+and provides a computationally tractable basis for subsequent posterior estimation a nd predictive 
+
+uncertainty propagation. 
+
+4.2. Results from VI 
+
+This section presents the VI -based Bayesian estimation and posterior predictive UQ results 
+
+obtained after Sobol screening. In this work, the surrogate is constructed as a feedforward neural 
+
+network (NN) model with two hidden layers, eight neurons per hidden layer, and hyperbolic tangent activation functions (Mukherjee and Bhattacharyya, 2023) . The input and output data are 
+
+normalized before training, and the surrogate parameters are optimized using the Adam optimizer. 
+
+Table 2
+
+List of top 5 dominant uncertain input variables and parameters identified through Sobol GSA, 
+
+ranked as per their respective averaged total -order Sobol indices. 
+
+Rank  Selected Input Variable / Parameter  𝑺 ̅𝑻 𝒋 
+
+1 KL mass flow rate (𝐹 𝐾𝐿 ) 0.508 
+
+2 SPI price (𝐶𝑜𝑠 𝑡 𝑆𝑃𝐼 ) 0.445 
+
+3 KL price (𝐶𝑜𝑠 𝑡 𝐾𝐿 ) 0.018 
+
+4 BCD reaction 1 activation energy (𝐸 𝑎 ,𝑅 1) 0.014 
+
+5 BCD reaction 2 activation energy (𝐸 𝑎 ,𝑅 2) 0.009 
+
+As discussed in Section 4.1, Sobol GSA identifies the dominant uncertain variables and parameters 
+
+governing the D -lignin mass flow rate and KL -SPI bioadhesive LCOA. Within the proposed 
+
+framework, variability in process and economic performance is interpreted as the combined effect 
+
+of uncertainty in kinetic, design/operating, and economic variables and parameters. Accordingly, 
+
+the inverse UQ problem seeks posterior distributions of the Sobol -selected inputs that are 
+
+consistent with the observed ranges of the target model outputs. The warm -start strategy described 
+
+in Section 2. 2 is implemented for both data -generation approaches considered in the VI -based 
+
+inverse UQ workflow. For the single -value -target approach, the warm -start samples are selected 
+
+according to their residuals relative to the specified (true) target outputs obtained from literature -
+
+reported simulation of the novel high -fidelity process model for the bioadhesive production 
+
+technology (Das and Bhattacharyya, 2026b) considered in this work . However, for the synthetic -
+
+data approach, the base case is identified using the residual with respect to the mean value of the 
+
+corresponding generated (measurement) output s mimicking experimental or market data . This 
+
+base case provides the fixed values of non -selected variables and parameters during final posterior 
+
+predictive uncertainty propagation through the high -fidelity Aspen Plus model. Additionally, for the 
+
+second approach (i.e., synthetic data generation), the dominant uncertain variables and 
+
+parameters are sampled from normal distributions whose means and variances are selected using ranges reported in available literature and public databases (Ahire et al., 2024; ChemAnalyst, 2026; 
+
+Das and Bhattacharyya, 2026b; Forchheim et al., 2014; Kulas et al., 2021) . In this work, a total of 30 
+
+synthetic observation samples is used for Bayesian estimation and UQ. 
+
+For both the approaches considered in this paper, sensitivity analyses are performed to quantify 
+
+and contrast the relative uncertainty reductions in both posterior parameter / variable and 
+
+predictive distributions with respect to the dimensionality of the reduced input space, i.e.,  𝑁 𝑡𝑜𝑝 .
+
+Corresponding to each value of  𝑁 𝑡𝑜𝑝 = 1, 2, …, 5 , the surrogate NN model described in at the 
+
+beginning of this section is trained for the Sobol -sampled simulation data for 5000 epochs. The 
+
+respective training computational (CPU) times remain approximately consistent at 70 –80 seconds 
+
+across the different reduced input space dimensionality values. For instance, the surrogate NN 
+
+model trained for the reduced input vector defined in Eq. ( 30 ), i.e.,  𝜽 5 for  𝑁 𝑡𝑜𝑝 = 5, yields root mean 
+
+squared error (RMSE) values of around 0.009  $/kg  (approximately 1.15 % ) and 27.5  kg /h
+
+(approximately 0.26 % ) for LCOA and D -lignin mass flow rate, respectively. These results indicate 
+
+that the surrogate model provides an accurate approximation of the high -fidelity Aspen Plus model 
+
+for gradient -based VI optimization. For all cases, VI is performed over the Sobol -screened reduced 
+
+input space using mini -batch SGD with the Adam optimizer. In this work, 5 variational samples are 
+
+used per mini -batch, and optimization is conducted for 1000 epochs subject to the same 
+
+initialization using gradients obtained through JAX -based AD of the trained surrogate model. After 
+
+convergence, 500 samples are drawn from the learned variational distribution and propagated 
+
+through the original Aspen Plus model using the Python -Aspen interface to quantify posterior 
+
+predictive uncertainty. The corresponding results obtained from both the approaches considered 
+
+in this work are discussed in subsequent sections. 
+
+4.2.1. Approach 1: Single -Value Target Data 
+
+The first approach considers a single value each for the output economic and process performance 
+
+metrics. Based on the simulation of the high -fidelity process model developed by Das and 
+
+Bhattacharyya (Das and Bhattacharyya, 2026b) for the same KL -SPI bioadhesive production 
+
+technology considered in this work, the target (true) data for the model outputs, namely LCOA and 
+
+D-lignin mass flow rate, respectively can be represented as 𝒚 𝑡𝑟𝑢𝑒 = [0.785 , 10686 .013 ]𝑇  (31 )
+
+In addition, a Gaussian m easurement noise is added to  𝑦 𝑡𝑟𝑢𝑒  to represent experimental and market 
+
+uncertainty. For the reduced input space defined in Eq. ( 30 ), i.e.,  𝑁 𝑡𝑜𝑝 = 5, Fig. 5 compares the prior 
+
+and posterior predictive distributions of the two output variables. 
+
+Fig . 5. Prior and posterior predictive distributions of (a) economic (i.e., levelized cost of KL -SPI 
+
+bioadhesive) and (b) process (i.e., D -lignin mass flow rate) outputs for Approach 1 with  𝑁 𝑡𝑜𝑝 = 5.
+
+The horizontal limits indicate the range of prior predictive output results obtained from Sobol GSA. 
+
+The prior samples are obtained by propagating the Sobol -screened input uncertainty through the 
+
+Aspen Plus model, whereas the posterior samples are obtained by propagating samples from the 
+
+optimized variational distribution s. The posterior predictive distributions in Fig s. 5(a) and 5(b) 
+
+exhibit substantial contractions relative to the corresponding prior predictive distributions. 
+
+Specifically, the uncertainty bounds for LCOA, and D -lignin mass flow rate are reduced by 
+
+approximately  86 .3 % and  85 .5 %, respectively. These results indicate that Bayesian estimation 
+
+over the Sobol -selected reduced space can substantially reduce uncertainty in both economic and 
+
+process output variables while retaining the high -fidelity Aspen Plus model for final uncertainty 
+
+propagation. Fig . 6 presents the corresponding prior and posterior distributions of the 5 Sobol -
+
+selected variables and parameters , as discussed in Eq. ( 30 ). These results illustrate how the 
+
+available target information updates the initial uncertainty characterization and identifies posterior 
+
+regions of the reduced input space that are consistent with the specified output targets. To evaluate the influence of reduced input -space dimension on posterior contraction, Table 3 summarizes the 
+
+percentage reduction in uncertainty bounds for the Sobol -selected variables and parameters 
+
+across  𝑁 𝑡𝑜𝑝 = 1, …, 5 .
+
+Fig . 6. Prior and posterior distributions of (a) KL mass flow rate, (b) SPI cost, (c) KL cost, (d) BCD 
+
+reaction 1 activation energy, and (e) BCD reaction 2 activation energy for Approach 1 .
+
+As additional variables and parameters are incorporated into the VI space, the dominant variables 
+
+continue to exhibit appreciable posterior contraction. In contrast, the less influential variables and 
+
+parameters added at larger  𝑁 𝑡𝑜𝑝  values generally show comparatively smaller uncertainty 
+
+reductions, as expected from their lower averaged total -order Sobol indices (𝑆 ̅ 𝑇 𝑗 ) and limited 
+
+contributions to the total output variance. The VI loss trajectory for Approach 1 corresponding to 
+
+𝑁 𝑡𝑜𝑝 = 5 is presented in Fig. A.1(a) in Appendix A. The comparison among the prior and posterior 
+
+parameter/variable and predictive results obtained from the proposed framework for this case ,
+
+along with the respective means and variances, are shown in Figs. A.2 and A.3, in Appendix A. Table 3
+
+Percentage reduction in uncertainty bounds of the Sobol -selected variables and parameters for 
+
+Approach 1 across different reduced -space dimensions .
+
+Variable / Parameter  𝑵 𝒕𝒐𝒑 = 1 𝑵 𝒕𝒐𝒑 = 2 𝑵 𝒕𝒐𝒑 = 3 𝑵 𝒕𝒐𝒑 = 4 𝑵 𝒕𝒐𝒑 = 5
+
+𝐹 𝐾𝐿  88.8 %  82.4 %  85.8 %  85.0 %  84.6 % 
+
+𝐶𝑜𝑠𝑡 𝑆𝑃𝐼  -- 76.8 %  81.0 %  81.6 %  77.9 % 
+
+𝐶𝑜𝑠𝑡 𝐾𝐿  -- -- 50.4 %  68.8 %  54.2 % 
+
+𝐸 𝑎 ,𝑅 1 -- -- -- 71.9 %  57.8 % 
+
+𝐸 𝑎 ,𝑅 2 -- -- -- -- 9.2 % 
+
+Additionally, Table 4 compares the reduction in posterior predictive uncertainty for LCOA and D -
+
+lignin mass flow rate across different values of  𝑁 𝑡𝑜𝑝 , together with the corresponding computational 
+
+(CPU) time associated with VI optimization. The last row of Table 4 reports the results obtained 
+
+when Bayesian estimation is performed over the full uncertain input space, i.e.,  𝑁 𝑡𝑜𝑝 = 𝐷 = 17 .
+
+Table 4
+
+Posterior predictive UQ and computational expense comparison for Approach 1 across different 
+
+reduced -space dimensions .
+
+Reduced -space 
+
+dimension 
+
+Uncertainty reduction in 
+
+LCOA of KL -SPI 
+
+Uncertainty reduction in D -
+
+lignin mass flow rate 
+
+Computational 
+
+time for VI 
+
+𝑁 𝑡𝑜𝑝 = 1 98.8 %  88.9 %  4.8 min 
+
+𝑁 𝑡𝑜𝑝 = 2 84.2 %  83.6 %  4.7 min 
+
+𝑁 𝑡𝑜𝑝 = 3 90.7 %  83.1 %  4.6 min 
+
+𝑁 𝑡𝑜𝑝 = 4 93.0 %  85.2 %  4.7 min 
+
+𝑁 𝑡𝑜𝑝 = 5 86.3 %  85.5 %  4.6 min 
+
+𝑁 𝑡𝑜𝑝 = 𝐷 = 17  82.3 %  85.4 %  6.7 min 
+
+In summary , these results demonstrate that the Sobol -selected reduced variable and parameter 
+
+space can achieve substantial computational savings relative to the full uncertain input space 
+
+while still accurately representing uncertaint ies in the outputs. In particular, the five -dimensional reduced space, i.e.,  𝑁 𝑡𝑜𝑝 = 5, captures more than  99 % of the average output variance while 
+
+significantly reducing the computational expense by approximately  31 .3 % relative to the full -space 
+
+case, i.e.,  𝑁 𝑡𝑜𝑝 = 𝐷 = 17 .
+
+For additional comparison, the posterior parameter /variable and predictive distributions for  𝑁 𝑡𝑜𝑝 =
+
+2, which captures approximately 95 % of the average output variance, are provided in Figs . A. 4 and 
+
+A. 5 respectively, in Appendix A. It is worth noting that for this case study, selecting  𝑁 𝑡𝑜𝑝 = 1 is not 
+
+sufficient to adequately represent the reduced input -output relationship, likely because the single 
+
+highest -ranked screened variable (i.e.,  𝐹 𝐾𝐿 ) accounts for only approximately  51 % of the average 
+
+output variance, as evident from Table 2. Moreover, the corresponding optimal surrogate NN model 
+
+yields RMSE values of around  13 .1 % for LCOA and  0.6 % for D -lignin mass flow rate. Consequently, 
+
+although Table 4 indicates significant posterior uncertainty reduction for  𝑁 𝑡𝑜𝑝 = 1, the resulting 
+
+posterior predictions are not satisfactorily consistent with the target data, as illustrated in Fig . A. 6
+
+in Appendix A . This limitation /inadequacy is more pronounced for the synthetic -data generation 
+
+approach discussed in the next subsection, where the posterior predictions should ideally be 
+
+capable of reproduc ing the variability across multiple representative measurements. 
+
+4.2.2. Approach 2: Synthetic Measurement Data 
+
+The second approach considers multiple synthetic measurements of the economic and process 
+
+outputs to mimic the availability of experimental or market data. Following simulation of the high -
+
+fidelity Aspen model using literature -reported values of the dominant inputs, as discussed in 
+
+Section 3, additional measurement noise is introduced before optimization. The noise is modeled 
+
+as zero -mean Gaussian distributions with standard deviations corresponding to 0.5% of the mean 
+
+simulated LCOA and 1.0% of the mean simulated D -lignin mass flow rate. For the five -dimensional 
+
+reduced input space defined in Eq. ( 30 ), Fig . 7 compares the prior and posterior predictive 
+
+distributions for LCOA and D -lignin mass flow rate , respectively . The posterior predictive 
+
+distributions for both the output s are compared with the distribution of synthetic data used during 
+
+VI . It is observed that the inferred reduced -space distributions provide output predictions 
+
+consistent with the available measurement variability. Similar to Approach 1, t he posterior predictive distributions exhibit substantial contraction relative 
+
+to the prior uncertainty ranges while remaining informed by the synthetic observations. Specifically, 
+
+for  𝑁 𝑡𝑜𝑝 = 5, the uncertainty bounds of LCOA and D -lignin mass flow rate are reduced by 90.6 % and 
+
+93.9 % respectively, as summarized in Table 6. This result indicates that the availability of multiple 
+
+measurements provides a more informative inverse UQ workflow than the single -value -target case, 
+
+thus enabling the posterior distributions to be constrained by the observed variability of both 
+
+process and economic outputs. Fig. 8 presents the corresponding prior and posterior distributions 
+
+of the five Sobol -selected variables and parameters. The posterior distributions exhibit significant 
+
+contraction relative to their prior ranges, indicating how such measurements , if available, can 
+
+provide valuable information to update the dominant kinetic, design/operating, and economic 
+
+variables and parameters . The VI loss trajectory corresponding to  𝑁 𝑡𝑜𝑝 = 5 for Approach 2 is shown 
+
+in Fig. A.1(b) in Appendix A. Similar to Approach 1, the comparison among the prior and posterior 
+
+parameter/variable and predictive results obtained from the proposed VIBES framework for this 
+
+case, along with the respective means and variances, are shown in Figs. A.7 and A.8, in Appendix A. 
+
+Fig . 7. Prior and posterior predictive distributions of (a) economic (i.e., levelized cost of KL -SPI 
+
+bioadhesive) and (b) process (i.e., D -lignin mass flow rate) outputs , along with the distribution of 
+
+synthetic measured data used for VI in Approach 2 with  𝑁 𝑡𝑜𝑝 = 5. The horizontal limits indicate the 
+
+range of prior predictive output results obtained from Sobol GSA. Fig . 8. Prior and posterior distributions of (a) KL mass flow rate, (b) SPI cost, (c) KL cost, (d) BCD 
+
+reaction 1 activation energy, and (e) BCD reaction 2 activation energy for Approach 2 .
+
+Table 5 summarizes the percentage reduction in uncertainty bounds of the Sobol -selected 
+
+variables and parameters for different reduced -space dimensions (𝑁 𝑡𝑜𝑝 ). Availability of multiple 
+
+measurements results in a more informed inverse UQ problem, and the posterior uncertainty 
+
+reductions are observed to be consistently higher than those obtained using the single -value -target 
+
+formulation in Approach 1. For example, in the  𝑁 𝑡𝑜𝑝 = 5 scenario, the uncertainty bounds of  𝐹 𝐾𝐿 ,
+
+𝐶𝑜𝑠 𝑡 𝑆𝑃𝐼  , 𝐶𝑜𝑠 𝑡 𝐾𝐿 , 𝐸 𝑎 ,𝑅 1 , and  𝐸 𝑎 ,𝑅 2 are reduced by 94.5 %, 90.6 %, 79.7 %, 58.6 %, and 44.6 %, 
+
+respectively. 
+
+Table 6 compares posterior predictive uncertainty reduction and VI computational time across the 
+
+different values of  𝑁 𝑡𝑜𝑝 . Across all reduced -space dimensionalities under consideration , the 
+
+uncertainty reduction in LCOA ranges from 85.9 % to 99.2 %, while the corresponding reduction in 
+
+D-lignin mass flow rate ranges from 91.2 % to 95.6 %. In addition, for the  𝑁 𝑡𝑜𝑝 = 5 case, the VI records an approximate computational (CPU) time of  4.1 min, as compared to  6.3 min for the full -
+
+space case with  𝑁 𝑡𝑜𝑝 = 𝐷 = 17 .
+
+Table 5
+
+Percentage reduction in uncertainty bounds of the Sobol -selected variables and parameters for 
+
+Approach 2 across different reduced -space dimensions .
+
+Variable / Parameter  𝑵 𝒕𝒐𝒑 = 1 𝑵 𝒕𝒐𝒑 = 2 𝑵 𝒕𝒐𝒑 = 3 𝑵 𝒕𝒐𝒑 = 4 𝑵 𝒕𝒐𝒑 = 5
+
+𝐹 𝐾𝐿  95.5 %  93.8 %  93.7 %  91.5 %  94.5 % 
+
+𝐶𝑜𝑠 𝑡 𝑆𝑃𝐼  -- 82.8 %  83.4 %  79.6 %  90.6 % 
+
+𝐶𝑜𝑠 𝑡 𝐾𝐿  -- -- 83.7 %  79.9 %  79.7 % 
+
+𝐸 𝑎 ,𝑅 1 -- -- -- 73.5 %  58.6 % 
+
+𝐸 𝑎 ,𝑅 2 -- -- -- -- 44.6 % 
+
+Table 6
+
+Posterior predictive UQ and computational expense comparison for Approach 2 across different 
+
+reduced -space dimensions .
+
+Reduced -space 
+
+dimension 
+
+Uncertainty reduction in 
+
+LCOA of KL -SPI 
+
+Uncertainty reduction in D -
+
+lignin mass flow rate 
+
+Computational 
+
+time for VI 
+
+𝑁 𝑡𝑜𝑝 = 1 99.2 %  95.6 %  4.2 min 
+
+𝑁 𝑡𝑜𝑝 = 2 86.3 %  94.3 %  4.0 min 
+
+𝑁 𝑡𝑜𝑝 = 3 87.9 %  94.1 %  3.9 min 
+
+𝑁 𝑡𝑜𝑝 = 4 85.9 %  91.2 %  4.0 min 
+
+𝑁 𝑡𝑜𝑝 = 5 90.6 %  93.9 %  4.1 min 
+
+𝑁 𝑡𝑜𝑝 = 𝐷 = 17  85.7 %  92.0 %  6.3 min 
+
+Thus, the Sobol -selected five -dimensional space, that captures more than 99 % of the mean output 
+
+variance, reduces the VI computational expense by approximately 34.9 % relative to the full 
+
+uncertain input space while retaining substantial posterior predictive uncertainty reduction. For 
+
+clarity, additional posterior parameter/variable and predictive distributions for  𝑁 𝑡𝑜𝑝 = 2 are also 
+
+provided in Figs. A.9 and A.10 respectively, in Appendix A. Finally, similar to Approach 1, it is worth noting that the  𝑁 𝑡𝑜𝑝 = 1 case is not sufficient to accurately represent the inverse UQ problem 
+
+because the highest -ranked variable alone accounts for only approximately 51 % of the mean 
+
+output variance. Although Table 6 reports substantial posterior uncertainty reduction for this case, 
+
+the resulting posterior predictions do not adequately accommodate the available synthetic 
+
+measurement distribution , as illustrated in Fig . A. 11 in Appendix A . This result further demonstrates 
+
+that down -selection of t he input space must be appropriately done with due consideration of the 
+
+resulting output variance. 
+
+## 5. Conclusions and Future Work 
+
+This work developed VIBES, a two -stage scalable Bayesian framework that integrates Sobol GSA 
+
+with VI for simultaneous estimation and UQ of uncertain input variables and parameters in high -
+
+dimensional process systems. VIBES combines Sobol GSA with VI to first identify a subset of 
+
+uncertain inputs that most strongly influence target process and economic outputs, followed by 
+
+estimating their pos terior distributions within a scalable reduced dimensional space. By avoiding 
+
+Bayesian estimation over the full uncertain input space, the framework improves computational 
+
+tractability while retaining the dominant sources of predictive uncertainty. The lea rned posterior 
+
+distributions are subsequently propagated through the high -fidelity process model to quantify 
+
+posterior predictive uncertainty in process and economic performances. 
+
+The proposed framework is demonstrated for a KL -SPI bioadhesive production process, 
+
+considering D -lignin mass flow rate and LCOA as the process and economic outputs of interest. The 
+
+framework is implemented through an automated Python -Aspen interface, enabling structured 
+
+input sampling, high -fidelity process simulatio n, output extraction, sensitivity screening, Bayesian 
+
+estimation, and final posterior predictive uncertainty propagation through the Aspen Plus model. 
+
+Sobol screening of the 17 -dimensional independent uncertain input space identified kraft lignin 
+
+mass flow rate, SPI price, kraft lignin price, and the activation energies of BCD reactions 1 and 2 as 
+
+the five dominant variables and parameters. Collectively, these quantities captured more than 
+
+(99%) of the mean output variance, thereby providing a substantially lower -dimensional yet 
+
+informa tive space for Bayesian estimation. Subsequently, VI -based Bayesian estimation is undertaken by using both single -value target data 
+
+and multiple synthetic measurements due to limited experimental and market information. In both 
+
+approaches, posterior propagation through the high -fidelity Aspen Plus model produces 
+
+substantial reductions in predictive uncertainty for LCOA and D -lignin mass flow rate. For the five -
+
+dimensional (𝑁 𝑡𝑜𝑝 = 5) reduced space, the single -value -target approach reduces predictive 
+
+uncertainty by 86.3 % for LCOA and 85.5 % for D -lignin mass flow rate, while reducing VI 
+
+computational time by approximately 31.3 % relative to inference over the full ( 𝑁 𝑡𝑜𝑝 = 𝐷 =17) 
+
+uncertain input space. When multiple synthetic measurements are considered, the posterior 
+
+estimates are more strongly informed by the available output variability, yielding uncertainty 
+
+reductions of 90.6 % for LCOA and 93.9 % for D -lignin mass flow rate, together with an 
+
+approximately 34.9 % reduction in VI computational time relative to the fu ll -space scenario. As 
+
+expected, t hese results demonstrate that multiple measurements can provide a more informative 
+
+inverse estimation and UQ than single -value targets. The results also highlight that posterior 
+
+uncertainty contraction alone is not sufficient indicator of satisfactory UQ. In particular, the  𝑁 𝑡𝑜𝑝 =
+
+1 case exhibit s substantial apparent uncertainty reduction but does not adequately represent the 
+
+available target or measurement data, because the highest -ranked variable alone accounted for 
+
+approximately 51 % of the mean output variance. Thus, selecting an appropriate reduced -space 
+
+dimension is essential to balance computational efficiency with the ability to represent the coupled 
+
+process and economic output variability. 
+
+Future work will investigate additional Aspen -Python interface strategies that may reduce or 
+
+eliminate reliance on differentiable surrogate models during Bayesian estimation. In particular, the 
+
+use of derivative information available through Aspen EO sensi tivity analysis, or related gradient -
+
+based optimization capabilities, could enable more direct scalable optimization using the high -
+
+fidelity process model. Further work will also extend VIBES to larger and more highly interconnected 
+
+process flowsheets. Alt hough demonstrated here for KL -SPI bioadhesive production, the proposed 
+
+framework is generic and readily extendable to other complex process systems. More broadly, 
+
+VIBES provides a scalable pathway for integrating GSA, Bayesian estimation, and posterior 
+
+predictive UQ with rigorous process simulation and techno -economic analysis to support 
+
+uncertainty -aware process design, model calibration, and decision -making. Code Availability Statement 
+
+All codes and data required to implement the proposed VIBES algorithm can be accessed through 
+
+a public repository on GitHub , which will be made available upon acceptance of the paper. 
+
+## Acknowledgements 
+
+The project is funded by the USDA -National Institute of Food & Agriculture through the project titled 
+
+“Mid -Atlantic Sustainable Biomass for Value -Added Products Consortium (MASBio)” (Grant #2020 -
+
+68012 -31881). The USDA financial support is gratefully acknow ledged .Appendix 
+
+This section contains additional results obtained from the VIBES algorithm proposed in this work .
+
+Appendix A 
+
+Fig . A.1 . VI loss trajectories corresponding to  𝑁 𝑡𝑜𝑝 = 5 for (a) Approach 1 and (b) Approach 2. 
+
+Fig. A.2 : Prior and posterior predictive results of (a1) -(a2) economic (i.e., levelized cost of KL -SPI 
+
+bioadhesive) and (b1) -(b2) process (i.e., D -lignin mass flow rate) outputs for Approach 1 with  𝑁 𝑡𝑜𝑝 =
+
+5.
+
+Fig. A.3 : Prior and posterior means and variances of (a) KL mass flow rate, (b) SPI cost, (c) KL cost, 
+
+(d) BCD reaction 1 activation energy, and (e) BCD reaction 2 activation energy for Approach 1 .Fig . A. 4. Prior and posterior distributions of (a) KL mass flow rate and (b) SPI cost for Approac h 1
+
+with  𝑁 𝑡𝑜𝑝 =2.
+
+Fig . A. 5. Prior and posterior predictive distributions of (a) economic (i.e., levelized cost of KL -SPI 
+
+bioadhesive) and (b) process (i.e., D -lignin mass flow rate) outputs for Approach 1 with  𝑁 𝑡𝑜𝑝 = 2.
+
+The horizontal limits indicate the range of prior predictive output results obtained from Sobol GSA. Fig . A. 6. Prior and posterior predictive distributions of (a) economic (i.e., levelized cost of KL -SPI 
+
+bioadhesive) and (b) process (i.e., D -lignin mass flow rate) outputs for Approach 1 with  𝑁 𝑡𝑜𝑝 = 1.
+
+The horizontal limits indicate the range of prior predictive output results obtained from Sobol GSA. 
+
+Fig. A. 7. Prior and posterior predictive results of (a1) -(a2) economic (i.e., levelized cost of KL -SPI 
+
+bioadhesive) and (b1) -(b2) process (i.e., D -lignin mass flow rate) outputs for Approach 2 with  𝑁 𝑡𝑜𝑝 =
+
+5.
+
+Fig. A. 8. Prior and posterior means and variances of (a) KL mass flow rate, (b) SPI cost, (c) KL cost, 
+
+(d) BCD reaction 1 activation energy, and (e) BCD reaction 2 activation energy for Approach 2 .Fig . A. 9. Prior and posterior distributions of (a) KL mass flow rate and (b) SPI cost for Approach 2 
+
+with  𝑁 𝑡𝑜𝑝 = 2.
+
+Fig . A.10 . Prior and posterior predictive distributions of (a) economic (i.e., levelized cost of KL -SPI 
+
+bioadhesive) and (b) process (i.e., D -lignin mass flow rate) outputs , along with the distribution of 
+
+synthetic measured data used for VI in Approach 2 with  𝑁 𝑡𝑜𝑝 = 2. The horizontal limits indicate the 
+
+range of prior predictive output results obtained from Sobol GSA. Fig . A. 11 . Prior and posterior predictive distributions of (a) economic (i.e., levelized cost of KL -SPI 
+
+bioadhesive) and (b) process (i.e., D -lignin mass flow rate) outputs , along with the distribution of 
+
+synthetic measured data used for VI in Approach 2 with  𝑁 𝑡𝑜𝑝 = 1. The horizontal limits indicate the 
+
+range of prior predictive output results obtained from Sobol GSA. References 
+
+Abdelaziz, O.Y., Al -Rabiah, A.A., El -Halwagi, M.M., Hulteberg, C.P., 2020. Conceptual Design of a 
+
+Kraft Lignin Biorefinery for the Production of Valuable Chemicals via Oxidative 
+
+Depolymerization. ACS Sustainable Chem. Eng. 8, 8823 –8829. 
+
+https://doi.org/10. 1021/acssuschemeng.0c02945 
+
+Ahire, J.P., Mousavi -Avval, S.H., Rajendran, N., Bergman, R., Runge, T., Jiang, C., Hu, J., 2024. 
+
+Techno -economic and life cycle analyses of bio -adhesives production from isolated soy 
+
+protein and kraft lignin. Journal of Cleaner Production 447, 141474. 
+
+htt ps://doi.org/10.1016/j.jclepro.2024.141474 
+
+Alves, V., Laird, C.D., Lima, F.V., Kitchin, J.R., 2025. Mapping uncertainty using differentiable 
+
+programming. AIChE Journal 71, e18940. https://doi.org/10.1002/aic.18940 
+
+Bardsley, J.M., Hansen, P.C., 2020. MCMC Algorithms for Computational UQ of Nonnegativity 
+
+Constrained Linear Inverse Problems. SIAM J. Sci. Comput. 42, A1269 –A1288. 
+
+https://doi.org/10.1137/18M1234588 
+
+Blei, D.M., Kucukelbir, A., McAuliffe, J.D., 2017. Variational Inference: A Review for Statisticians. 
+
+Journal of the American Statistical Association 112, 859 –877. 
+
+https://doi.org/10.1080/01621459.2017.1285773 
+
+ChemAnalyst, 2026. Soy protein isolate price trend and forecast. Chemical Market Advisory 
+
+Service. 
+
+Chen, H., Wu, Q., Ren, X., Zhu, X., Fan, D., 2024. A fully bio -based adhesive with high bonding 
+
+strength, low environmental impact, and competitive economic performance. Chemical 
+
+Engineering Journal 494, 153198. https://doi.org/10.1016/j.cej.2024.153198 
+
+Chen, S., Chen, Y., Wang, Z., Chen, H., Fan, D., 2021. Renewable bio -based adhesive fabricated 
+
+from a novel biopolymer and soy protein. RSC Adv. 11, 11724 –11731. 
+
+https://doi.org/10.1039/D1RA00766A 
+
+Cortes -Peña, Y., Kumar, D., Singh, V., Guest, J.S., 2020. BioSTEAM: A Fast and Flexible Platform for 
+
+the Design, Simulation, and Techno -Economic Analysis of Biorefineries under Uncertainty. 
+
+ACS Sustainable Chem. Eng. 8, 3302 –3310. 
+
+https://doi.org/10.1021/a cssuschemeng.9b07040 
+
+Das, P., Bhattacharyya, D., 2026a. Plant -Wide Modeling and Techno -Economic Analysis of 
+
+Concentrated Acid Hydrolysis for Platform Sugar Production from Lignocellulosic Biomass. 
+
+ChemRxiv. https://doi.org/10.26434/chemrxiv.15002823/v1 
+
+Das, P., Bhattacharyya, D., 2026b. Kinetic modeling, parameter estimation, and techno -economic 
+
+optimization for producing kraft lignin -isolated soy protein bio -adhesive. Journal of Cleaner 
+
+Production 560, 148312. https://doi.org/10.1016/j.jclepro.2026.1483 12 
+
+Elchemy Chemical Market, 2026. Soy protein isolate supplier quality certifications sourcing guide. 
+
+Forchheim, D., Hornung, U., Kruse, A., Sutter, T., 2014. Kinetic Modelling of Hydrothermal Lignin 
+
+Depolymerisation. Waste Biomass Valor 5, 985 –994. https://doi.org/10.1007/s12649 -014 -
+
+9307 -6
+
+Goffart, J., Woloszyn, M., 2021. EASI RBD -FAST: An efficient method of global sensitivity analysis 
+
+for present and future challenges in building performance simulation. Journal of Building 
+
+Engineering 43, 103129. https://doi.org/10.1016/j.jobe.2021.103129 Hughes, R., Kotamreddy, G., Bhattacharyya, D., Omell, B., Matuszewski, M., 2022. Modeling and 
+
+Bayesian Uncertainty Quantification of a Membrane -Assisted Chilled Ammonia Process for 
+
+CO 2 Capture. Ind. Eng. Chem. Res. 61, 4001 –4016. 
+
+https://doi.org/10.1021/acs.iecr.1c04601 
+
+Jiang, C., Hu, J., Zhang, C., Hota, G., Wang, J., Akhmedov, N.G., 2023. Lignin oligomers from mild 
+
+base -catalyzed depolymerization for potential application in aqueous soy adhesive as 
+
+phenolic blends. React. Chem. Eng. 8, 2455 –2465. https://doi.org/10.1039 /D3RE00224A 
+
+Kalyanaraman, J., Kawajiri, Y., Lively, R.P., Realff, M.J., 2016. Uncertainty quantification via 
+
+bayesian inference using sequential monte carlo methods for CO 2 adsorption process. 
+
+AIChE Journal 62, 3352 –3368. https://doi.org/10.1002/aic.15381 
+
+Kennedy, M.C., O’Hagan, A., 2001. Bayesian Calibration of Computer Models. Journal of the Royal 
+
+Statistical Society Series B: Statistical Methodology 63, 425 –464. 
+
+https://doi.org/10.1111/1467 -9868.00294 
+
+Kirchner, M., Mitter, H., Schneider, U.A., Sommer, M., Falkner, K., Schmid, E., 2021. Uncertainty 
+
+concepts for integrated modeling - Review and application for identifying uncertainties and 
+
+uncertainty propagation pathways. Environmental Modelling & Softwa re 135, 104905. 
+
+https://doi.org/10.1016/j.envsoft.2020.104905 
+
+Kulas, D.G., Thies, M.C., Shonnard, D.R., 2021. Techno -Economic Analysis and Life Cycle 
+
+Assessment of Waste Lignin Fractionation and Valorization Using the ALPHA Process. ACS 
+
+Sustainable Chem. Eng. 9, 5388 –5395. https://doi.org/10.1021/acssuschemeng.1c0026 7
+
+Lin, M., 2024. AUTOMATIC FUNCTIONAL DIFFERENTIATION IN JAX. International Conference of 
+
+Learning Representations 8139 –8159. 
+
+Mevawala, C., Jiang, Y., Bhattacharyya, D., 2019. Techno -economic optimization of shale gas to 
+
+dimethyl ether production processes via direct and indirect synthesis routes. Applied 
+
+Energy 238, 119 –134. https://doi.org/10.1016/j.apenergy.2019.01.044 
+
+Minh, L.Q., Duong, P.L.T., Lee, M., 2018. Global Sensitivity Analysis and Uncertainty Quantification 
+
+of Crude Distillation Unit Using Surrogate Model Based on Gaussian Process Regression. 
+
+Ind. Eng. Chem. Res. 57, 5035 –5044. https://doi.org/10.1021/acs.iecr .7b05173 
+
+Monteiro, A.F., Bhattacharyya, D., 2026. Uncertainty Quantification of Solid Sorbent ‐Based CO 2
+
+Capture Processes, in: Li, C. (Ed.), Optimization of Sustainable Process Systems. Wiley, pp. 
+
+349 –369. https://doi.org/10.1002/9781394205646.ch13 
+
+Morgan, J.C., Bhattacharyya, D., Tong, C., Miller, D.C., 2015. Uncertainty quantification of property 
+
+models: Methodology and its application to CO 2 ‐loaded aqueous MEA solutions. AIChE 
+
+Journal 61, 1822 –1839. https://doi.org/10.1002/aic.14762 
+
+Morgan, J.C., Soares Chinen, A., Omell, B., Bhattacharyya, D., Tong, C., Miller, D.C., Buschle, B., 
+
+Lucquiaud, M., 2018. Development of a Rigorous Modeling Framework for Solvent -Based 
+
+CO 2 Capture. Part 2: Steady -State Validation and Uncertainty Quantification with Pilot Plant 
+
+Data. Ind. Eng. Chem. Res. 57, 10464 –10481. https://doi.org/10.1021/acs.iecr.8b01472 
+
+Mukherjee, A., Bhattacharyya, D., 2023. Hybrid Series/Parallel All -Nonlinear Dynamic -Static 
+
+Neural Networks: Development, Training, and Application to Chemical Processes. Ind. Eng. 
+
+Chem. Res. 62, 3221 –3237. https://doi.org/10.1021/acs.iecr.2c03339 
+
+Mukherjee, A., Gupta, D., Bhattacharyya, D., 2025a. Mass -Constrained hybrid Gaussian radial 
+
+basis neural networks: Development, training, and applications to modeling nonlinear dynamic noisy chemical processes. Computers & Chemical Engineering 197, 109080. 
+
+https://doi.org/10.1016/j.compchemeng.2025.109080 
+
+Mukherjee, A., Saini, V., Adeyemo, S., Bhattacharyya, D., Purdy, D., Parker, J., Boohaker, C., 2025b. 
+
+Development of hybrid first principles – artificial intelligence models for transient modeling 
+
+of power plant superheaters under load -following operation. Applied Thermal Engineering 
+
+262, 124795. https://doi.org/10.1016/j.applthermaleng.2024.124795 
+
+Mukherjee, A., Zavala, V.M., 2026. Physics -constrained machine learning for chemical 
+
+engineering. Current Opinion in Chemical Engineering 51, 101228. 
+
+https://doi.org/10.1016/j.coche.2026.101228 
+
+Nikkhah, A., Nikkhah, H., Shahbazi, A., Zarin, M.K.Z., Beykal Iz, D., Ebadi, M. -T., Fakhroleslam, M., 
+
+Beykal, B., 2024. Cumin and eucalyptus essential oil standardization using fractional 
+
+distillation: Data -driven optimization and techno -economic analysis. Food and 
+
+Bioproducts Processing 143, 90 –101. https://doi.org/10.1016/j.fbp.2023.10.005 
+
+Ogunniyan, O., Haque, M.E., Wang, Y., Hu, J., Bhattacharyya, D., 2024. Plant -wide modeling and 
+
+techno -economic optimization of a low -pressure microwave -assisted ammonia synthesis 
+
+process with adsorption separation. International Journal of Hydrogen Energy 86, 300 –315. 
+
+https://doi.org/10.1016/j.ijhydene.2024.08.383 
+
+Oladokun, O., Nyakuma, B., Luing, W.S., Oladimeji, E., Abatan, O., Ayeni, A.O., Agboola, O., 
+
+Ayoola, A.A., Ojewunmi, M.O., Efeovbokhan, V.E., Olagoke -Oladokun, L., Odunlami, O.A., 
+
+2022. Gasific: A Python Tool for Biomass Gasification Process, in: Ayeni, Au gustine O., 
+
+Oladokun, Olagoke, Orodu, O.D. (Eds.), Advanced Manufacturing in Biological, Petroleum, 
+
+and Nanotechnology Processing, Green Energy and Technology. Springer International 
+
+Publishing, Cham, pp. 335 –353. https://doi.org/10.1007/978 -3-030 -95820 -6_ 28 
+
+Ostace, A., Kocan, K.X., Mebane, D.S., Schmal, J.P., Bhattacharyya, D., 2020. Probabilistic Model 
+
+Building with Uncertainty Quantification and Propagation for a Dynamic Fixed Bed CO 2
+
+Capture Process. Energy Fuels 34, 2516 –2532. 
+
+https://doi.org/10.1021/acs.energyfuels.9b03250 
+
+Ou, L., Luo, G., Ray, A., Li, C., Hu, H., Kelley, S., Park, S., 2018. Understanding the Impacts of 
+
+Biomass Blending on the Uncertainty of Hydrolyzed Sugar Yield from a Stochastic 
+
+Perspective. ACS Sustainable Chem. Eng. 6, 10851 –10860. 
+
+https://doi.org/10.10 21/acssuschemeng.8b02150 
+
+Pan, I., Pandey, D.S., 2016. Incorporating uncertainty in data driven regression models of fluidized 
+
+bed gasification: A Bayesian approach. Fuel Processing Technology 142, 305 –314. 
+
+https://doi.org/10.1016/j.fuproc.2015.10.027 
+
+Park, J.W., Sim, G., Lee, K.B., 2026. Techno -economic optimization and cycle schedule analysis of 
+
+poly -bed VPSA process for CO2 capture from natural gas combustion emissions using 
+
+parallel Bayesian optimization with ANN ensembles. Chemical Engineering Jour nal 536, 
+
+175829. https://doi.org/10.1016/j.cej.2026.175829 
+
+Puy, A., Becker, W., Piano, S.L., Saltelli, A., 2022. A COMPREHENSIVE COMPARISON OF TOTAL -
+
+ORDER ESTIMATORS FOR GLOBAL SENSITIVITY ANALYSIS. Int. J. UncertaintyQuantification 
+
+12, 1 –18. https://doi.org/10.1615/Int.J.UncertaintyQuantification.2021038133 
+
+Salam, K.K., Aremu, M.O., Oke, E.O., Babatunde, K.A., Oluwole, T.D., Ibrahim, S.O., Oke, A.B., 
+
+2024. Lignin extraction from sawdust: optimization of experimental studies, computer -
+
+aided simulation and techno -economic analysis of scale -up process design wit huncertainty quantification. Syst Microbiol and Biomanuf 4, 750 –765. 
+
+https://doi.org/10.1007/s43393 -023 -00197 -w
+
+Saltelli, A., Aleksankina, K., Becker, W., Fennell, P., Ferretti, F., Holst, N., Li, S., Wu, Q., 2019. Why 
+
+so many published sensitivity analyses are false: A systematic review of sensitivity analysis 
+
+practices. Environmental Modelling & Software 114, 29 –39. 
+
+https://doi.org/10.1016/j.envsoft.2019.01.012 
+
+Saltelli, A., Annoni, P., Azzini, I., Campolongo, F., Ratto, M., Tarantola, S., 2010. Variance based 
+
+sensitivity analysis of model output. Design and estimator for the total sensitivity index. 
+
+Computer Physics Communications 181, 259 –270. 
+
+https://doi.org/1 0.1016/j.cpc.2009.09.018 
+
+Shi, R., Guest, J.S., 2020. BioSTEAM -LCA: An Integrated Modeling Framework for Agile Life Cycle 
+
+Assessment of Biorefineries under Uncertainty. ACS Sustainable Chem. Eng. 8, 18903 –
+
+18914. https://doi.org/10.1021/acssuschemeng.0c05998 
+
+Soares Chinen, A., Morgan, J.C., Omell, B., Bhattacharyya, D., Tong, C., Miller, D.C., 2018. 
+
+Development of a Rigorous Modeling Framework for Solvent -Based CO 2 Capture. 1. 
+
+Hydraulic and Mass Transfer Models and Their Uncertainty Quantification. Ind. Eng. Chem. 
+
+Res. 57, 10448 –10463. https://doi.org/10.1021/acs.iecr.8b01471 
+
+Strunge, T., Renforth, P., Van Der Spek, M., 2023. Uncertainty quantification in the techno -
+
+economic analysis of emission reduction technologies: a tutorial case study on CO2 
+
+mineralization. Front. Energy Res. 11, 1182969. 
+
+https://doi.org/10.3389/fenrg.202 3.1182969 
+
+Thompson, J., Connors, B.M., Zavala, V.M., Venturelli, O.S., 2026. Physics -constrained neural 
+
+ordinary differential equation models to discover and predict microbial community 
+
+dynamics. Proc. Natl. Acad. Sci. U.S.A. 123, e2517661123. 
+
+https://doi.org/10.107 3/pnas.2517661123 
+
+Tian, Y., Zhang, Y., Zhang, H., 2023. Recent Advances in Stochastic Gradient Descent in Deep 
+
+Learning. Mathematics 11, 682. https://doi.org/10.3390/math11030682 
+
+Tosin, M., Côrtes, A.M.A., Cunha, A., 2020. A Tutorial on Sobol’ Global Sensitivity Analysis Applied 
+
+to Biological Models, in: Da Silva, F.A.B., Carels, N., Trindade Dos Santos, M., Lopes, F.J.P. 
+
+(Eds.), Networks in Systems Biology, Computational Biology. Springer International 
+
+Publishing, Cham, pp. 93 –118. https://doi.org/10.1007/978 -3-030 -51862 -2_6 
+
+Turton, R., Shaeiwitz, J.A., Bhattacharyya, D., Whiting, W.B., 2018. Analysis, synthesis, and design 
+
+of chemical processes, Fifth edition. ed, Prentice Hall international series in the physical 
+
+and chemical engineering sciences. Prentice Hall, Boston Colum bus Indianapolis New 
+
+York San Francisco Amsterdam. 
+
+Urm, J.J., Choi, J.H., Kim, C., Lee, J.M., 2023. Techno -economic analysis and process optimization 
+
+of a PET chemical recycling process based on Bayesian optimization. Computers & 
+
+Chemical Engineering 179, 108451. https://doi.org/10.1016/j.compchemeng.2023. 108451 
+
+Van Der Spek, M., Fout, T., Garcia, M., Kuncheekanna, V.N., Matuszewski, M., McCoy, S., Morgan, 
+
+J., Nazir, S.M., Ramirez, A., Roussanaly, S., Rubin, E.S., 2020. Uncertainty analysis in the 
+
+techno -economic assessment of CO2 capture and storage technologies. Critical review 
+
+and guidelines for use. International Journal of Greenhouse Gas Control 100, 103113. 
+
+https://doi.org/10.1016/j.ijggc.2020.103113 Vicari, K.J., Tallam, S.S., Shatova, T., Joo, K.K., Scarlata, C.J., Humbird, D., Wolfrum, E.J., Beckham, 
+
+G.T., 2012. Uncertainty in techno -economic estimates of cellulosic ethanol production due 
+
+to experimental measurement uncertainty. Biotechnol Biofuels 5, 23. 
+
+https://doi.org/10.1186/1754 -6834 -5-23 
+
+Wang, C., Wu, X., Xie, Z., Kozlowski, T., 2023. Scalable Inverse Uncertainty Quantification by 
+
+Hierarchical Bayesian Modeling and Variational Inference. Energies 16, 7664. 
+
+https://doi.org/10.3390/en16227664 
+
+Wang, Y., Liu, C., Tao, C., Law, C.K., Yang, B., 2024. Efficient combustion kinetic parameter 
+
+optimization via variational inference. Proceedings of the Combustion Institute 40, 105550. 
+
+https://doi.org/10.1016/j.proci.2024.105550 
+
+Yang, M., Rosentrater, K.A., 2019a. Life Cycle Assessment and Techno -Economic Analysis of 
+
+Pressure Sensitive Bio -Adhesive Production. Energies 12, 4502. 
+
+https://doi.org/10.3390/en12234502 
+
+Yang, M., Rosentrater, K.A., 2019b. Techno -economic analysis of the production process of 
+
+structural bio -adhesive derived from glycerol. Journal of Cleaner Production 228, 388 –398. 
+
+https://doi.org/10.1016/j.jclepro.2019.04.288 
+
+Zhang, C., Butepage, J., Kjellstrom, H., Mandt, S., 2019. Advances in Variational Inference. IEEE 
+
+Trans. Pattern Anal. Mach. Intell. 41, 2008 –2026. 
+
+https://doi.org/10.1109/TPAMI.2018.2889774 
+
+Zhang, J., 2021. Modern Monte Carlo methods for efficient uncertainty quantification and 
+
+propagation: A survey. WIREs Computational Stats 13, e1539. 
+
+https://doi.org/10.1002/wics.1539 
+
+Zhang, X., Trame, M., Lesko, L., Schmidt, S., 2015. Sobol Sensitivity Analysis: A Tool to Guide the 
+
+Development and Evaluation of Systems Pharmacology Models. CPT Pharmacom & Syst 
+
+Pharma 4, 69 –79. https://doi.org/10.1002/psp4.6
