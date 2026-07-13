@@ -1,0 +1,811 @@
+Title: LLM-Guided Measurement Credibility Correction for Trustworthy Industrial Process Inference
+
+URL Source: https://arxiv.org/pdf/2607.06111v1
+
+Published Time: Wed, 08 Jul 2026 01:03:33 GMT
+
+Number of Pages: 11
+
+Markdown Content:
+> PREPRINT, JULY 2026 1
+
+# LLM-Guided Measurement Credibility Correction for Trustworthy Industrial Process Inference 
+
+Youcheng Zong , Student Member, IEEE , Runda Jia ,and Dakuo He 
+
+Abstract — Industrial prediction and soft sensing depend on credible input measurements. In field deployment, a predictor may receive biased, delayed, stale, or derived measurements that still look plausible. Prediction can then fail before the forecasting backbone becomes the main lim-itation, because the input window no longer represents the real process. Sensor reconstruction, data reconciliation, and fault-tolerant soft sensing reduce this risk, but they often rely on numerical correlation, alarms, fault labels, or explicit process equations. These assumptions are not al-ways available. A correlated variable can also be an unsafe reference when variables share instruments, derived formu-las, soft-sensing chains, or control actions. The key issue is to decide before prediction which external measurements can credibly support the current measurement. To address this issue, this article proposes LLM-Guided Measurement Credibility Correction (MCC). MCC converts measurement meanings in process documents into measurement seman-tics usable by numerical models. It builds independent pro-cess references from semantically qualified external mea-surements and corrects local measurement conflicts before prediction. The predictor therefore receives a more credible input window. Across multiple complex industrial forecast-ing and soft-sensing tasks, +MCC achieves average relative MAE reductions of 30.7% on real-test protocols and 80.3% on controlled-corruption protocols. It adds only 0.5–2.0k online parameters, with the slowest +MCC inference time at 0.089 ms/step. These results show that measurement semantics can turn process documents into lightweight pre-inference credibility correction and improve prediction accuracy. 
+
+Index Terms — large language models, measurement credibility correction, industrial process inference, soft sensing, measurement semantics. 
+
+I. I NTRODUCTION 
+
+Process industries rely on online prediction and soft sensing for monitoring, scheduling, optimization control, and operator decisions. These models usually receive multivariate measure-ment windows and infer product indicators, process indicators, or equipment states that cannot be measured fast enough or directly. Studies on soft sensing and transfer soft sensing have improved how data-driven models learn industrial dynamics 
+
+This work was supported by the Fundamental Research Funds for the Central Universities, China (N26GFZ006). (Corresponding author: Runda Jia.) 
+
+Youcheng Zong, Runda Jia, and Dakuo He are with the Col-lege of Information Science and Engineering, Northeastern University, Shenyang 110004, China (e-mail: youchengzong@stumail.neu.edu.cn; jiarunda@ise.neu.edu.cn; hedakuo@ise.neu.edu.cn). 
+
+and transfer across operating conditions [1], [2]. In real deployment, a predictor does not receive abstract numerical columns. It receives on-site measurements with measurement sources, units, sampling modes, and process roles. Thus, the reliability of industrial prediction also depends on the credibility of the input measurements themselves. This need is most visible when a measurement is distorted without triggering an alarm. The measured value may look normal but no longer represent the real process. Flow-meter drift, temperature lag, upstream instrument errors, derived calculations, and sampling delays can locally distort the input window. Sensor reconstruction and fault-tolerant soft sensing have used external variables to recover abnormal channels or improve model tolerance to abnormal inputs [3], [4]. The predictor, however, still needs a credible input window. Thus, prediction should start from credible inputs. The model must identify unreliable measurements before inference and correct distorted inputs only when reliable evidence is available. The key question is what evidence can be trusted. Acorrelated variable is not always a credible reference. Two variables may be correlated because of a real process relation, but they may also be jointly distorted by a shared instru-ment, a derived formula, a soft-sensing chain, or a control action. Separating these two cases requires knowing how each variable is measured and how it is used in the process. Variable tables and process documents record variable names, units, measurement modes, sampling periods, and process descriptions, but this information is usually open-text and semi-structured. Ordinary numerical models cannot directly use it. LLMs can use world knowledge and logical reasoning to extract auditable measurement semantics from these texts. These semantics allow the model to decide which variables can provide credible references for another variable. Studies on LLM-based time series show that language information can provide useful priors for time-series modeling and support more flexible numerical-sequence modeling interfaces [5], [6]. This ability moves measurement credibility judgment from purely numerical correlation toward semantically qualified external references. This article proposes LLM-Guided Measurement Credibility Correction (MCC). Before training, MCC uses an LLM’s world knowledge and logical reasoning to turn variable docu-ments and process text into frozen measurement semantics. These semantics guide the numerical observer in selecting external references. In the online stage, the observer selects arXiv:2607.06111v1 [eess.SY] 7 Jul 2026 2 PREPRINT, JULY 2026 (a) Conventional Process Inference use as given Raw measurement window Inference output Process inference model Transformer PatchTST GRU (b) Neighboring numerical routes Numerical inconsistency check Alarm Reconstructed channel Reconciled measurement      
+
+> (c) MCC route Offline Process side information Semantic cards role unit task process LLM
+> External reference check Selective correction Corrected window Supported local conflict?
+> Yes
+> frozen No keep raw window
+> Fig. 1. MCC problem setting and neighboring routes. (a) Raw mea-surement windows are fed directly to the predictor. (b) Neighboring numerical routes handle inconsistency through alarms, reconstruction, or reconciliation. (c) MCC builds measurement semantics offline and uses LLM-free external references online to decide whether to correct local conflicts.
+
+qualified external evidence for each correctable variable and builds a process reference that does not use the variable itself. If the current measurement has a local conflict with a reliable reference, MCC corrects it before prediction. If the reference is unreliable, or if many variables jointly reflect a real operating change, MCC remains conservative. Fig. 1 illustrates this setting. The main contributions are as follows.  
+
+> •
+
+We propose MCC, which uses LLM-derived measure-ment semantics to judge before prediction whether input measurements still credibly represent the current process.  
+
+> •
+
+We introduce measurement-semantic references, which allow the model to find independent evidence from qual-ified external measurements and conservatively correct supported local input conflicts before prediction.  
+
+> •
+
+On multiple complex industrial forecasting and soft-sensing tasks, MCC improves performance across differ-ent backbones, with negligible additional online inference overhead. The remainder of this paper is organized as follows. Section II reviews related work. Section III presents the method. Sec-tion IV reports the experiments. Section V concludes the paper. 
+
+II. R ELATED WORK 
+
+A. Measurement Credibility in Industrial Prediction 
+
+Industrial prediction usually starts from historical measure-ment windows. Recurrent networks and Transformers have been used to model nonlinear temporal relations in indus-trial dynamics [7], [8], and data-driven models have also been applied to industrial tasks such as material-pressure prediction [9]. Process-graph-constrained soft sensing further introduces structural priors into the predictor, so that the model does not rely only on anonymous numerical channels [10]. These studies show that suitable models can learn temporal dynamics and process structures from multivariate windows. These advances mainly improve how the model uses the measurement window, but they rarely check whether the win-dow still represents the current process. In field deployment, the measurement chain may first distort part of the input, and the model then predicts from that input. A stronger temporal model may still infer from wrong evidence. MCC therefore places measurement credibility before prediction, so that the input window is checked before it enters the forecasting model. 
+
+B. Measurement Validation and Reconstruction 
+
+Inconsistent measurements have long been central to mea-surement validation, process monitoring, and fault diagnosis. Process fault detection and diagnosis [11], data-driven process monitoring [12], sensor reconstruction [3], and data reconcil-iation [13] address this problem through fault detection and diagnosis, process history, external variables, and constraint consistency, respectively. Sensor reconstruction recovers ab-normal readings from other variables, while data reconciliation and gross error detection usually use process equations or balance constraints to correct inconsistent measurements. These routes show that measurement correction needs inde-pendent evidence and cannot rely only on the channel being corrected. Pre-inference correction also requires an output that can serve downstream prediction, rather than only an alarm, a fault type, or an offline diagnosis conclusion. When explicit process equations, fault labels, or alarm information are unavailable, usable evidence must come from other on-line measurements. MCC organizes these measurements into credible external references and uses them for input correction before prediction. 
+
+C. Variable Relations and Measurement Semantics 
+
+Deep models for multivariate monitoring can learn statistical relations among sensors. Graph neural networks explicitly model variable dependencies and have been used for multi-variate anomaly detection [14], [15]. Such relations are useful for monitoring and reconstruction, but correlation itself does not show that one variable can serve as a credible reference for another. In an industrial measurement chain, correlation may come from real process coupling, but it may also come from a shared instrument, a derived formula, a control action, or a sampling delay. Reference construction therefore needs to judge whether a variable is qualified to provide independent support. Deciding whether a variable is qualified requires informa-tion beyond the numerical window, including variable names, units, measurement sources, sampling modes, derived rela-tions, and process roles. LLM-based and text-enhanced time-series studies provide interfaces for using language infor-mation, including pre-trained model reprogramming, cross-modal matching, and text prototypes [5], [16], [17]. Industrial studies also use LLMs or knowledge structures for causal ZONG et al. : LLM-GUIDED MEASUREMENT CREDIBILITY CORRECTION 3
+
+representation, human-AI decision support, zero-shot diagno-sis, and knowledge-graph-assisted diagnosis [18]–[22]. These studies show that textual or semantic knowledge can supply context missing from purely numerical models. However, directly placing an LLM inside the forecasting loop adds cost and does not always bring stable gains [23]. MCC uses a lighter interface: measurement semantics are constructed before training, while online reference construction and input correction remain numerical. 
+
+III. M ETHOD 
+
+A. Problem Formulation 
+
+Let the multivariate industrial series be X1: T = {xt}Tt=1 ,where xt = [x1(t), . . . , x N (t)] ⊤. At time t, the predictor receives a measurement window Wt = Xt−L+1: t of length 
+
+L and predicts the next target yt+1 .
+
+xt = [ x1(t), . . . , x N (t)] ⊤, Wt = Xt−L+1: t. (1) Continuous measurement variables are standardized with the training-set mean μi and standard deviation σi. For the i-th variable, the standardized measurement is 
+
+¯xi(t) = xi(t) − μi
+
+σi
+
+. (2) The window formed by these standardized measurements is denoted by ¯Wt. Here, xi(t) is not assumed to be a reliable observation of the process state; it is measurement evidence that should be checked before prediction. MCC first corrects 
+
+¯Wt into ¯W ct and then sends it to the downstream predictor. Not every input column is a proper correction target. Let 
+
+M ⊆ { 1, . . . , N } denote the set of correctable measurement variables, which is fixed before training from variable types and metadata. Time indices, stage indicators, and other pure context variables may provide evidence for other variables, but they are not correction targets. For each i ∈ M , MCC checks whether the current measurement ¯xi(t) is still credible. When the external evidence is reliable enough, MCC corrects this measurement toward an independent process reference ¯x∗ 
+
+> i
+
+(t)
+
+before prediction. 
+
+B. Offline Measurement Semantics 
+
+Before training, MCC calls the LLM to convert the in-dustrial scenario and variable information into measurement semantics. The side information is denoted by D. It consists of available scenario descriptions, variable names, units, sam-pling periods, measurement sources, and process descriptions. If process documents are unavailable, MCC uses the existing variable information. Based on D, the LLM analyzes each variable xi and generates its measurement-semantic descrip-tion zi:
+
+zi = Φ LLM (D, i ), i = 1 , . . . , N. (3) The description zi records the measurement source, pro-cess role, control or observation attribute, sampling relation, upstream or downstream position, and derived relation. It also records redundant variables that can provide independent references. MCC uses these semantics to judge which external measurements are qualified to support the target variable. A fixed text renderer R and a fixed embedding model E
+
+convert zi into a measurement-semantic direction ui:
+
+ui = norm( E(R(zi))) ∈ Rk. (4) Stacking all directions in input-column order gives the frozen semantic matrix U :
+
+U =
+
+u⊤
+
+> 1
+
+· · · 
+
+u⊤
+
+> N
+
+ ∈ RN ×k. (5) 
+
+U remains fixed during training, calibration, and inference. The LLM does not receive the online window Wt, and it does not output credibility scores, fault labels, rules, thresholds, or correction values. Fig. 2 gives an overview of the MCC method. 
+
+C. Measurement-Semantic Reference 
+
+For the target variable xi, the independent process reference is built only from other variables and does not access xi(t)
+
+itself. Let H ≤ L denote the number of lags used by the observer. For a candidate variable xj and lag τ , the semantic activation is 
+
+ej,τ (t) = ¯ xj (t − τ )uj , j̸ = i, τ = 0 , . . . , H − 1. (6) Here, ¯xj (t − τ ) gives the current numerical strength, and uj
+
+gives the measurement-semantic direction of that variable. MCC learns a semantic weight matrix Ωτ for each lag, where ωτ is learned from nominal training data and shared by all variables at the same lag: 
+
+Ωτ = diag( ωτ ). (7) The semantic compatibility between the target variable xi and the candidate variable xj at lag τ is 
+
+cij,τ = u⊤ 
+
+> i
+
+Ωτ uj , j̸ = i. (8) The routing weights are determined by the target semantic direction, the candidate semantic directions, and the lags: 
+
+(αij,τ )j̸ =i, τ = ρi(( |cij,τ |)j̸ =i, τ ) , αij,τ ≥ 0,
+
+> H−1
+
+X 
+
+> τ=0
+
+X 
+
+> j̸=i
+
+αij,τ = 1 .
+
+(9) Here, ρi is a sparse normalization map over candidate variable–lag pairs. It maps nonnegative compatibilities to non-negative weights and enforces the unit-sum constraint. When top-k support sparsity is used, the sparsity level is applied by 
+
+ρi before normalization. This routing does not use the current value of xi(t), so the checked measurement cannot support itself. The external semantic support strength is 
+
+gi =
+
+> H−1
+
+X 
+
+> τ=0
+
+X 
+
+> j̸=i
+
+αij,τ |cij,τ |. (10) The independent reference of variable xi is 
+
+¯x∗ 
+
+> i
+
+(t) = 
+
+> H−1
+
+X 
+
+> τ=0
+
+X 
+
+> j̸=i
+
+αij,τ βij,τ cij,τ ¯xj (t − τ ). (11) 4 PREPRINT, JULY 2026 Offline semantics Online correction Semantic description Renderer 
+
+> R
+> Embedding
+> E
+> 
+
+Observer fitting and calibration Process information         
+
+> variables units sampling sources descriptions Offline LLM LLM 
+> iu
+> Semantic directions Semantic matrix Nominal training data Clean calibration set Observer parameters Calibration quantities calibrate references fit observer reference scale reference reliability nominal coverage nominal inconsistency distribution
+> isi
+> 
+> 
+> ˆiF
+> semantic metric weights
+> ω
+> readout coefficients ,i j
+> 
+> tW
+> Standardized window Measurement-semantic observer
+> ctW
+> Forecast Predictor
+> 1ˆty
+> Corrected window
+> G
+> 
+> Independent reference Supported local inconsistency Correction strength
+> Uiz
+> *( ) ixt
+> Inconsistency
+> ( ) ir t
+> ( ) it
+> 
+> ( ) iat
+> ˆiF
+> ω,i j
+> 
+> isi
+> 
+> MCC Adapter Frozen semantics Fitted parameter Fixed after calibration
+
+Fig. 2. MCC method overview. Left: offline LLM processing builds the frozen measurement semantics U from D. Middle: nominal training fits the observer, and clean calibration fixes si, ηi, and bFi. Right: online correction computes independent references and correction strengths without LLM calls before sending ¯W ct to Gθ .
+
+The coefficient βij,τ is an unbiased numerical readout co-efficient. Semantic compatibility and routing decide which external measurements are qualified to support xi; βij,τ only aligns these qualified sources to the standardized scale of xi
+
+and does not introduce a free bias. Equivalently, the observer first aggregates semantic activations into mi(t) ∈ Rk and then reads out along the target direction: 
+
+mi(t) = 
+
+H−1X
+
+τ =0 
+
+X
+
+j̸ =i
+
+αij,τ βij,τ Ωτ ej,τ (t), ¯x∗
+
+i (t) = u⊤
+
+i mi(t).
+
+(12) This form preserves leave-one-out independence: the target semantics ui query and read out external evidence, but the current target measurement itself does not enter the reference construction. On the clean calibration set, MCC estimates the nominal residual scale si of each reference by the median of |¯xi(t) −
+
+¯x∗
+
+i (t)| and obtains the reference reliability 
+
+ηi = 11 + si
+
+. (13) The support weight considers both semantic support and numerical reliability: 
+
+pi = giηi. (14) A smaller si gives a larger ηi, indicating that the reference is more stable on nominal data. A smaller pi means that the current variable lacks a stable external reference, so the later correction is naturally weakened. The same ηi also limits the correction magnitude in the final update. 
+
+D. Supported Inconsistency and Correction 
+
+The standardized inconsistency between the current mea-surement and its independent reference is 
+
+ri(t) = |¯xi(t) − ¯x∗
+
+i (t)|
+
+si
+
+, i ∈ M . (15) The support-weighted inconsistency is 
+
+di(t) = piri(t). (16) Raw inconsistency alone is not enough to trigger correction. A real operating change may make many variables deviate from their references at the same time. MCC therefore subtracts the background inconsistency from the target inconsistency: 
+
+χi(t) = di(t) − median ℓ∈M , ℓ ̸=i dℓ(t). (17) 
+
+χi(t) denotes supported local inconsistency. It increases when one variable conflicts with a reliable external reference, and it is suppressed by the background term when many variables change together. Let C be the set of clean calibration time indices. The empirical distribution of nominal inconsistency for variable 
+
+xi is 
+
+bFi(s) = 1
+
+|C| 
+
+X
+
+n∈C 
+
+1{χi(n) ≤ s}. (18) The position of the current inconsistency in this nominal distribution is 
+
+qi(t) = bFi(χi(t)) . (19) Let κ ∈ (0 , 1) denote nominal coverage. It sets the intended fraction of clean calibration states that should not trigger correction. The default experiment setting is κ = 0 .95 . The correction strength is 
+
+ai(t) = 
+
+ qi(t) − κ
+
+1 − κ
+
+10
+
+, [z]10 = min(max( z, 0) , 1) . (20) If qi(t) ≤ κ, then ai(t) = 0. When the local conflict is sufficiently rare under the calibration distribution, ai(t)
+
+increases with its nominal rarity. For i ∈ M , the corrected standardized input is 
+
+¯xci (t) = (1 − ηiai(t))¯ xi(t) + ηiai(t)¯ x∗
+
+i (t). (21) ZONG et al. : LLM-GUIDED MEASUREMENT CREDIBILITY CORRECTION 5Calibration gate Supported local inconsistency Current target measurement                     
+
+> ( ) ixt
+> External evidence Independent reference Clean calibration Corrected input
+> (), jxtji
+> 
+> *( ) ixt
+> Support weight
+> ip
+> ( ) it
+> 
+> Background median
+> ( ) iat
+> ˆ ,iF
+> 
+> ( ) cixtmedian ( ) idt
+> 1
+> 2
+> L
+> 
+> 1x
+> 2x
+> 1ix
+> 1ix
+> mxix
+> ( ) idt
+> 10
+> 
+> 1w
+> 2w
+> 3wMw
+> ( ) ir t
+
+Fig. 3. Measurement-semantic reference and local correction path. The target measurement ¯xi(t) is excluded from the evidence set, so ¯x∗ 
+
+> i
+
+(t)
+
+is built only from external variables and their lags. The right side shows how support weighting, background subtraction, and calibration convert 
+
+ri(t) into a mixing weight. 
+
+For i / ∈ M , MCC keeps ¯xci (t) = ¯ xi(t). These variables may enter the observer as evidence, but they are not continuously corrected. Thus, when the measurement lies in the nominal range, ai(t) ≈ 0 and ¯xci (t) ≈ ¯xi(t). When a local distortion is supported by a reliable external reference, ¯xci (t) moves toward 
+
+¯x∗ 
+
+> i
+
+(t). Variables without such references are not forced to be corrected. Fig. 3 gives the corresponding local update path. 
+
+E. Training and Inference 
+
+Training has three ordered steps. MCC first learns the measurement-semantic observer, then calibrates the inconsis-tency distribution, and finally trains the downstream predictor with the observer and calibrated quantities fixed. The semantic matrix U remains frozen during all three steps. The observer parameters are Θobs = {ωτ , β ij,τ }. Let Tobs denote the nominal observer-training index set. The observer is learned by fitting the independent references of correctable measurement variables: 
+
+Θ∗ 
+
+> obs
+
+= arg min 
+
+> Θobs
+
+X
+
+> t∈T obs
+
+X
+
+> i∈M
+
+(¯ x∗ 
+
+> i
+
+(t) − ¯xi(t)) 2 . (22) This objective uses only nominal data and does not require fault labels. After fitting, MCC estimates si, ηi, and bFi on the clean calibration set C, and keeps them fixed during the later predictor training and inference stages. The downstream predictor is denoted by Gθ . It receives the corrected window and outputs the prediction: 
+
+ˆyt+1 = Gθ ( ¯W ct ). (23) Let Tpred denote the predictor-training index set. During train-ing, the fitted and calibrated MCC module generates ¯W ct from 
+
+¯Wt. Given the supervised loss Lpred , the predictor parameters are learned by empirical risk minimization: 
+
+θ∗ = arg min 
+
+> θ
+
+1
+
+|T pred |
+
+X
+
+> t∈T pred
+
+Lpred 
+
+ Gθ ( ¯W ct ), y t+1 
+
+ . (24) The predictor can be any time-series model that accepts a multivariate window. MCC and the baseline use the same data split, normalization statistics, prediction model, and supervised loss. The only difference is that the baseline receives ¯Wt,whereas MCC receives ¯W ct . At inference, the LLM is not called. MCC computes the semantic references, inconsistency, 
+
+TABLE I COMMON TRAINING , EVALUATION , AND MCC SETTINGS . T HE TABLE SEPARATES THE SHARED BACKBONE PROTOCOL FROM MCC-SPECIFIC SEMANTICS , OBSERVER , AND CORRECTION -GATE SETTINGS .                             
+
+> Name Setting Optimizer AdamW Learning rate 10 -3 Loss MSE Max epochs 300 Early stopping patience 40 LR scheduler type ReduceLROnPlateau decay factor 0.5 patience 15 Weight decay 10 -4 Gradient clipping 1.0 Batch size 64 Measurement semantics LLM DeepSeek-v4-pro reasoning effort max Embedding model text-embedding-v4 Semantic dimension k128 Observer lags H3Support sparsity top-k6Observer fitting epochs 3learning rate 5×10 -3 Correction coverage κ0.95
+
+correction strength, and corrected window in order. The predictor Gθ then predicts yt+1 . The test set is used only for final evaluation. It is not used to construct semantics, estimate normalization statistics, fit the observer, or select the calibration distribution. 
+
+IV. E XPERIMENTS 
+
+This section evaluates MCC on three industrial process-inference tasks. 
+
+A. Experimental Settings 
+
+All methods are evaluated in the same implementation and under the same training protocol. For each dataset and backbone, Base and +MCC share the same split, normalization statistics, backbone configuration, training budget, and model-selection rule. The test set is not used for tuning, observer fitting, or calibration. Measurement semantics are constructed offline before training and then fixed for training and in-ference. The construction protocol uses available industrial-scenario information, variable names, and metadata to form the measurement meaning and process role of each variable. All experiments are run on a workstation with an Intel Xeon 8470Q CPU, 90 GB RAM, and a single NVIDIA RTX 5090 GPU (32 GB). The implementation uses Python 3.14, PyTorch 2.11.0, and CUDA 13.0. Quantitative results are averaged over three independent runs. The code repository is available at https://github.com/mituan-ai/MCC open. Table I summarizes the common experimental settings. Prediction performance is evaluated by mean absolute error (MAE), root mean squared error (RMSE), and coefficient of determination (R2). Online cost is evaluated by per-step inference time, parameter count, and peak RSS mem-ory. The comparison covers eight common time-series back-bones: GRU, LSTM, Transformer, Informer, Mamba, iTrans-former, PatchTST, and ModernTCN. Among them, Trans-former, Mamba, iTransformer, PatchTST, and ModernTCN represent classical and recent sequence-modeling routes [24]– [28]. Base and +MCC receive the same measurement window; +MCC additionally uses the fixed pre-training measurement 6 PREPRINT, JULY 2026 
+
+TABLE II DATASET PROTOCOLS FOR THE MCC EXPERIMENTS . E ACH BLOCK GIVES THE INPUT WINDOW , PREDICTION TARGET , FIXED SPLITS , AND 
+
+CORRUPTED TEST SIZE FOR ONE PROCESS .                                                       
+
+> Item Description
+> Ladle Preheating
+> Input Variables 14 Sampling interval 5minutes Input window 60 steps Target Ladle temperature over the next 5 steps Splits 24 training processes 15,236 samples 5 validation processes 2,500 samples 3 held-out test processes 2,104 samples 14 corrupted test cases 29,456 samples
+> Thickener Dewatering
+> Input Variables 5Sampling interval 1minute Input window 30 steps Target Underflow concentration at the current step Splits 5 training mild-jitter scenarios 1,355 samples 1 validation mild-jitter scenario 271 samples 1 near-domain test scenario 271 samples 12 far-domain test scenarios 3,252 samples 9 corrupted test cases 2,439 samples
+> IndPenSim
+> Input Variables 23 Sampling interval 12 minutes Input window 120 steps Target Assay-time penicillin concentration Splits 24 training recipe-controlled batches 451 samples 5 validation recipe-controlled batches 90 samples 1 same-family recipe-controlled test batch 19 samples 2 near-domain operator-controlled test batches 38 samples 12 far-domain advanced process control (APC) or fault test batches 220 samples 43 corrupted test cases 817 samples
+
+semantics to construct the observer and correct the input window before prediction. 
+
+B. Datasets 
+
+The experiments use three industrial process datasets, covering ladle-preheating temperature forecasting, thickener underflow-concentration estimation, and fed-batch penicillin-concentration estimation. Each dataset contains two test proto-cols. Real Test is the original fixed test split without additional artificial measurement corruption. Corrupted Test injects con-trolled measurement corruption into specified real-test subsets to evaluate pre-inference measurement correction. All training, validation, and test splits are fixed before training at the process, scenario, or batch level. Table II summarizes the inputs, targets, splits, and Corrupted Test scale for each dataset. Real Test covers industrial deployment cases such as complete-process holdout, far-domain regimes, and fault batches. The ladle preheating dataset comes from a steel-metallurgy plant process that has also been used in variable ladle-preheating trend prediction [29]. The task predicts future ladle inner temperature from fuel-gas, air-side, combustion-state, and historical-temperature variables. The main difficulty is complete-process holdout: each test process is an independent preheating run, so the model cannot rely on neighboring windows from the same process. The dataset has no curated regime or variable descriptions, so it also tests whether MCC can form usable measurement semantics under weak documen-tation. The thickener dewatering dataset comes from a tailings thickening dewatering process. The task estimates current underflow concentration from feed, pressure, and operating-phase variables. Training data come from mild-jitter scenarios, while Real Test contains both a same-family near-domain scenario and far-domain scenarios. The far-domain scenar-ios cover visible measurement changes and hidden process 
+
+TABLE III TEST -TIME MEASUREMENT -CORRUPTION TYPES FOR CORRUPTED 
+
+TEST .       
+
+> Corruption type Measurement meaning Bias Constant offset in a selected measurement channel Drift Gradual calibration drift within the input window Gain Multiplicative scaling error in a selected measurement channel Spike Transient impulse at the current step Dropout Missing or zeroed measurement values Global shift Simultaneous offset of all correctable input variables in the window
+
+TABLE IV QUANTITATIVE COMPARISON ON THE LADLE PREHEATING DATASET .BASE AND +MCC ARE EVALUATED UNDER THE SAME REAL TEST AND 
+
+CORRUPTED TEST PROTOCOLS .                                                                                                                
+
+> Backbone Setting Real Test Corrupted Test MAE ↓RMSE ↓R2↑MAE ↓RMSE ↓R2↑
+> GRU Base 0.0209 0.0311 0.990 0.2285 0.2358 0.087 +MCC 0.0158 0.0307 0.991 0.0175 0.0293 0.992 LSTM Base 0.0196 0.0324 0.990 0.1912 0.2028 0.283 +MCC 0.0110 0.0208 0.996 0.0142 0.0245 0.994 Transformer Base 0.0269 0.0431 0.983 0.1828 0.1971 0.398 +MCC 0.0155 0.0293 0.992 0.0186 0.0303 0.991 Informer Base 0.0290 0.0458 0.979 0.2902 0.3508 -0.333 +MCC 0.0154 0.0235 0.994 0.0191 0.0289 0.992 Mamba Base 0.0235 0.0374 0.986 0.1693 0.1957 0.492 +MCC 0.0148 0.0252 0.994 0.0184 0.0293 0.992 iTransformer Base 0.0229 0.0385 0.986 0.1885 0.2079 0.338 +MCC 0.0115 0.0180 0.997 0.0137 0.0208 0.996 PatchTST Base 0.0519 0.0878 0.924 0.1535 0.1845 0.530 +MCC 0.0227 0.0361 0.987 0.0243 0.0385 0.985 ModernTCN Base 0.0270 0.0427 0.983 0.1724 0.1895 0.508 +MCC 0.0240 0.0379 0.987 0.0259 0.0379 0.986
+
+changes, such as sensor bias, signal delay, load changes, slurry-property changes, and actuator-response changes. The IndPenSim dataset is drawn from the public IndPenSim V3 penicillin fed-batch fermentation simulator [30]. The task es-timates offline penicillin concentration from the online process window before each assay time. Training batches use recipe-controlled operation, while Real Test extends to same-family recipe, operator control, APC control, and fault batches. Thus, this dataset mainly tests soft-sensing stability under control-policy changes and fault conditions. Corrupted Test is constructed separately from Real Test. It corrupts only the test subsets listed in Table II and does not change the training set, validation set, observer fitting, calibration, or predictor training. Single-variable corruptions are applied to selected correctable input variables, while global shift offsets all correctable input variables in the window. Table III defines the corruption types. 
+
+C. Main Results 
+
+Table IV, Table V, and Table VI report Base and +MCC on the three datasets. Real Test corresponds to the fixed real-test split, while Corrupted Test corresponds to the test subsets with controlled measurement corruption. Across the 24 dataset–backbone pairs, +MCC reduces MAE relative to Base on both Real Test and Corrupted Test. Av-eraged over individual pairs, the relative MAE reduction is 30.7% on Real Test and 80.3% on Corrupted Test. Because Real Test contains no injected corruption, the gain is not restricted to synthetic recovery; MCC also remains useful on fixed industrial test splits. At the dataset level, ladle preheating, thickener dewatering, and IndPenSim obtain average relative MAE reductions of 89.9%, 85.9%, and 64.9% on Corrupted ZONG et al. : LLM-GUIDED MEASUREMENT CREDIBILITY CORRECTION 7
+
+Fig. 4. Industrial processes used in the experiments. (a) Tailings thickening dewatering site in Nanjing, China. (b) Ladle preheating site at a steel plant in Maanshan, China. TABLE V QUANTITATIVE COMPARISON ON THE THICKENER DEWATERING DATASET . B ASE AND +MCC ARE EVALUATED UNDER THE SAME REAL 
+
+TEST AND CORRUPTED TEST PROTOCOLS .
+
+Backbone Setting Real Test Corrupted Test MAE ↓ RMSE ↓ R2↑ MAE ↓ RMSE ↓ R2↑
+
+GRU Base 0.0147 0.0312 0.211 0.0080 0.0081 0.621 +MCC 0.0144 0.0314 0.201 0.0017 0.0020 0.943 LSTM Base 0.0148 0.0312 0.213 0.0086 0.0087 0.571 +MCC 0.0145 0.0314 0.202 0.0004 0.0005 0.998 Transformer Base 0.0159 0.0315 0.198 0.0100 0.0104 0.363 +MCC 0.0144 0.0301 0.209 0.0022 0.0027 0.933 Informer Base 0.0147 0.0315 0.195 0.0082 0.0095 0.426 +MCC 0.0136 0.0304 0.201 0.0004 0.0005 0.999 Mamba Base 0.0161 0.0318 0.184 0.0073 0.0077 0.652 +MCC 0.0153 0.0316 0.190 0.0008 0.0010 0.991 iTransformer Base 0.0156 0.0318 0.181 0.0048 0.0062 0.772 +MCC 0.0138 0.0305 0.195 0.0011 0.0014 0.977 PatchTST Base 0.0155 0.0317 0.188 0.0068 0.0083 0.589 +MCC 0.0140 0.0304 0.198 0.0004 0.0006 0.997 ModernTCN Base 0.0159 0.0316 0.194 0.0060 0.0065 0.756 +MCC 0.0125 0.0292 0.238 0.0012 0.0014 0.977 
+
+Test, respectively. The larger corrupted-test gains match the role of MCC: pre-inference correction is most valuable when local measurement distortion enters the input window. The smaller but consistent Real Test gains point to a conservative correction step rather than a tradeoff that sacrifices real-test performance for corruption recovery. 
+
+D. Qualitative Analysis 
+
+Fig. 5 shows representative prediction trajectories of Trans-former and Transformer+MCC on Real Test and Corrupted 
+
+TABLE VI QUANTITATIVE COMPARISON ON THE IND PEN SIM DATASET . B ASE AND 
+
++MCC ARE EVALUATED UNDER THE SAME REAL TEST AND 
+
+CORRUPTED TEST PROTOCOLS .
+
+Backbone Setting Real Test Corrupted Test MAE ↓ RMSE ↓ R2↑ MAE ↓ RMSE ↓ R2↑
+
+GRU Base 2.714 4.128 0.779 3.020 3.549 0.448 +MCC 1.716 2.295 0.941 0.823 1.123 0.948 LSTM Base 2.327 3.437 0.842 2.496 3.169 0.530 +MCC 1.283 1.783 0.929 0.925 1.373 0.921 Transformer Base 2.566 3.726 0.698 2.937 3.963 0.292 +MCC 1.184 1.603 0.954 0.658 0.878 0.968 Informer Base 4.021 4.906 0.363 7.363 7.940 -2.512 +MCC 2.045 2.471 0.823 1.635 1.963 0.833 Mamba Base 3.118 4.623 0.742 3.548 4.445 0.055 +MCC 1.353 1.813 0.923 1.156 1.506 0.906 iTransformer Base 4.781 6.309 -0.087 5.317 6.629 -0.804 +MCC 3.634 5.358 0.647 3.826 4.688 0.100 PatchTST Base 2.708 3.971 0.795 2.758 3.458 0.471 +MCC 1.801 2.473 0.751 1.067 1.416 0.913 ModernTCN Base 2.714 3.941 0.811 3.278 3.802 0.324 +MCC 1.173 1.584 0.938 0.927 1.225 0.938 
+
+Test. On Real Test, the main effect of MCC is to reduce offsets rather than reshape the target trajectory. In ladle processes 13 and 23, MCC reduces deviations near stage transitions and local peaks; in process 33, the two prediction curves remain close, which suggests that MCC does not introduce a clear extra disturbance when no strong local conflict is present. In the three IndPenSim fault batches, Transformer tends to keep a persistent overestimation after the peak, while MCC pulls the trajectory back toward the decreasing trend and reduces the 8 PREPRINT, JULY 2026 0 25 50                                   
+
+> 400
+> 600
+> 800
+> 1000
+> Real test - Ladle process 13
+> 025 50
+> 400
+> 600
+> 800
+> 1000
+> Real test - Ladle process 23
+> 020 40
+> 400
+> 600
+> 800
+> 1000
+> Real test - Ladle process 33
+> 025 50
+> 500
+> 750
+> 1000
+> Corrupted test - Drift temperature
+> 025 50
+> 500
+> 750
+> 1000
+> Corrupted test - Bias temperature
+> 025 50
+> 400
+> 600
+> 800
+> 1000
+> Corrupted test - Spike gas valve opening
+> 24 72 120 168 216
+> 0.0
+> 4.0
+> 8.0
+> 12.0
+> Real test - Feed anomaly I
+> 24 72 120 168 216
+> 0.0
+> 6.0
+> 12.0
+> 18.0
+> Real test - Aeration anomaly I
+> 24 72 120 168 216
+> 0.0
+> 5.0
+> 10.0
+> 15.0
+> Real test - Aeration anomaly II
+> 24 72 120 168 216
+> 0.0
+> 8.0
+> 16.0
+> Corrupted test - Bias vessel volume
+> 24 72 120 168 216
+> 0.0
+> 6.0
+> 12.0
+> 18.0
+> Corrupted test - Drift vessel volume
+> 24 72 120 168 216
+> 0.0
+> 5.0
+> 10.0
+> 15.0
+> Corrupted test - Gain oxygen uptake rate
+
+Ladle preheating dataset 
+
+IndPenSim dataset 
+
+> Temperature (°C) Penicillin concentration
+
+Time (h) 
+
+Ground truth Transformer Transformer + MCC 
+
+Fig. 5. Representative Transformer prediction trajectories. The panels compare Base, +MCC, and target curves under the same Real Test and Corrupted Test protocols as the main tables. 
+
+soft-sensing offset under fault operation. On Corrupted Test, the difference follows the injected channel errors. Temperature drift and temperature bias shift the ladle baseline prediction upward, and MCC reduces this erroneous offset; the spike in gas valve opening is suppressed, so the prediction returns closer to the true temperature trajectory. In IndPenSim, vessel-volume bias, vessel-volume drift, and oxygen-uptake-rate gain cause the baseline to overestimate penicillin concentration over a long horizon, whereas MCC keeps the trajectory closer to the ground truth within the batch. This pattern is consistent with the Corrupted Test gains in the main results and points to the main role of MCC: weakening the propagation of local measurement distortion to the output trajectory. 
+
+E. Ablation Studies 
+
+Table VII compares full MCC with key variants that weaken measurement semantics, variable–semantic match, reference routing, support and reliability, shared-shift suppression, and the correction rule. Full MCC obtains the lowest MAE in all representative dataset–backbone–protocol combinations, so the main gain is not tied to a single backbone or a single test protocol. The advantage is clearest on IndPenSim. On the thickener Real Test, the baseline error is already small; full MCC still ranks first, but with a narrower margin. The semantic ablations separate the role of measurement semantics from observer capacity. Shuffling the semantic match or replacing LLM cards with metadata weakens the result, and correlation-based references do not consistently replace semantic references. The conclusion is that external evidence should be qualified by measurement meaning rather than selected only by numerical association. The correction-rule ablations show that the gain comes from constrained local correction rather than a looser repair strategy. Residual triggering, removing reliable support, removing shift suppression, and direct reference replacement all underperform the full design. Direct replacement is close to full MCC on the thickener Real Test, but it is unstable on corrupted tests and on IndPenSim. Thus, full MCC does not pull every deviation toward a reference. It applies calibrated and conservative local correction when reliable external evidence supports the conflict. 
+
+F. MCC Correction Mechanism Visualization 
+
+Fig. 6 examines the internal correction mechanism of MCC on the IndPenSim Transformer run, focusing on qualified ex-ternal evidence, local measurement conflicts, and conservative behavior under shared operating movement. For volume , the main supporting entries come from 
+
+weight , air head pressure , and aeration , rather ZONG et al. : LLM-GUIDED MEASUREMENT CREDIBILITY CORRECTION 9
+
+TABLE VII ABLATION STUDY ON MCC DESIGN CHOICES . E ACH ROW REMOVES OR REPLACES ONE COMPONENT ; MAE IS REPORTED FOR MODERN TCN AND 
+
+TRANSFORMER , WITH LOWER VALUES PREFERRED .
+
+Ablation setting IndPenSim Thickener Dewatering Semantics Semantic match Reference Reliable support Shift suppression Correction mode ModernTCN Transformer ModernTCN Transformer Real Corrupted Real Corrupted Real Corrupted Real Corrupted – – – – – Raw input 2.7144 3.2785 2.5669 2.9372 0.0159 0.0060 0.0159 0.0100 LLM cards Shuffled Semantic ✓ ✓ Calibrated 2.3263 2.6363 1.4393 1.5591 0.0146 0.0020 0.0152 0.0031 Metadata ✓ Semantic ✓ ✓ Calibrated 2.2234 2.0917 1.2743 0.9902 0.0139 0.0015 0.0150 0.0027 LLM cards ✓ Correlation ✓ ✓ Calibrated 1.7589 1.8221 1.7640 1.2721 0.0135 0.0019 0.0150 0.0035 LLM cards ✓ Semantic ✓ ✓ Residual 1.6750 1.9202 1.3027 1.3346 0.0137 0.0016 0.0151 0.0032 LLM cards ✓ Semantic – ✓ Calibrated 1.8181 1.3542 1.7661 1.6538 0.0133 0.0014 0.0151 0.0026 LLM cards ✓ Semantic ✓ – Calibrated 2.0405 1.3740 1.5222 1.1816 0.0142 0.0013 0.0153 0.0027 LLM cards ✓ Semantic ✓ ✓ Direct 2.4432 1.8126 2.1188 1.9880 0.0129 0.0024 0.0148 0.0024 LLM cards ✓ Semantic ✓ ✓ Calibrated 1.1738 0.9276 1.1841 0.6583 0.0125 0.0012 0.0144 0.0022 A. Event execution      
+
+> Strong Weak Execution window
+> Weight Air head Aeration
+> Start End
+> Reference conflict
+> Gate activation
+> Correction applied
+> Remaining error
+> Volume reference
+
+Reference evidence 
+
+Conflict trigger 
+
+Correction outcome 
+
+B. Credibility state field      
+
+> 0.0 0.2 0.4 0.6 0.8 1.0
+
+Target gate activation 
+
+> 0.0
+> 0.1
+> 0.2
+> 0.3
+> 0.4
+> 0.5
+> 0.6
+> 0.7
+> Background inconsistency
+> 95% clean gate
+> Clean
+> Shared shift
+> Local conflict
+
+C. Replay execution spectrum   
+
+> Reference conflict Gate activation
+> Start End
+> Stronger
+> Weaker
+> Remaining error
+> Gate activation
+> Correction recovery
+
+D. Variable evidence circuit 
+
+> Support strength
+> Gate activation
+> Reference reliability
+> Correction recovery
+> Acid
+> pH
+> Ammonia shots
+> CO2 evolution rate
+> Agitator rpm
+> Weight
+> Aeration
+> Air head pressure
+> Effective
+> support link
+> Volume
+> MAE = 2
+> MAE = 4
+> MAE = 6
+> Volume
+> CO2
+> Evolution
+> PAA
+> Feed
+> Ammonia
+> Shots
+> Aeration
+> Oil
+> Flow
+> Agitator
+> Speed
+> Dissolved
+> Oxygen
+> Weight
+> Sugar
+> Feed
+> Cooling
+> Water
+> Outlet
+> CO2
+> WFI
+> Flow
+> pH
+> Outlet
+> O2
+> Acid
+> Flow
+> Headspace
+> Pressure
+> Temperature
+> Volume
+> CO2
+> Evolution
+> PAA
+> Feed
+> Ammonia
+> Shots
+> Oil
+> Flow
+> Aeration
+> Dissolved
+> Oxygen
+> Agitator
+> Speed
+> Weight
+> Outlet
+> CO2
+> WFI
+> Flow
+> pH
+> Headspace
+> Pressure
+> Acid
+> Flow
+> Aeration
+> Oxygen
+> Uptake
+> WFI
+> Flow
+> Weight
+> PAA
+> Feed
+> Volume
+> Dissolved
+> Oxygen
+> CO2
+> Evolution
+> Dissolved
+> Oxygen
+> WFI
+> Flow
+> CO2
+> Evolution
+> pH
+> Volume
+> Oxygen
+> Uptake
+> 22 Variables
+> MCC
+
+E. Response wheel 
+
+> Baseline
+> MCC
+> Gate activation
+> Correction recovery
+> Bias
+> Drift
+> Gain
+> Dropout
+> Global shift
+
+Fig. 6. MCC correction mechanism on IndPenSim with Transformer. (a) Event replay for a local volume bias. (b) Gate activation versus background inconsistency for clean, local-conflict, and shared-shift windows. (c) Replay spectrum for local volume corruptions, with remaining error in the heatmap and gate activation/recovery on the side rails. (d) Evidence circuit for volume . (e) Controlled-corruption response wheel comparing Base and MCC MAE. 
+
+than from the target measurement itself. Under local volume 
+
+bias, the measurement error decreases from 1.500 to 0.545, and the prediction MAE decreases from 6.322 for the baseline to 1.634 for MCC. The event is driven by an externally supported reference, not by mean regression or unconstrained reconstruction. The figure also gives the boundary of selective correction. For volume , the mean gate activation is only 0.002 on clean windows, and both the mean gate activation and correction gain are 0.000 under the shared 22-variable shift; shared op-erating movement is not treated as a local volume distortion. Across 47 non-clean controlled corruption cases, the average MAE decreases from 2.363 to 1.047, and MCC outperforms the baseline in 46 cases; the only non-improved case is the local temp bias. 
+
+G. Sensitivity Analysis 
+
+Fig. 7 evaluates the sensitivity of MCC to key design choices, including calibration coverage, observer lag order, support sparsity, semantic-card generator, and embedding model. The sensitivity results do not show a narrow single-point operating region. Calibration coverage, observer lag order, and support sparsity remain stable around the default point; after changing the LLM generator or the embedding model, the relative MAE also stays mostly close to 1.0. The main gain of MCC appears to come from measurement-semantic structure rather than one specific model output or a finely tuned single setting. 10 PREPRINT, JULY 2026 0.50 
+
+> 0.75
+> 1.00
+> 1.25
+> 1.50
+> Relative Real
+> Test MAE
+
+Coverage Observer lags Support sparsity Semantic-card generator Embedding model           
+
+> 0.90 0.95 0.99
+> 0.50
+> 0.75
+> 1.00
+> 1.25
+> 1.50
+> Relative Corrupted
+> Test MAE
+> 123536all DeepSeek
+> V4 Pro
+> GPT-5.5 Claude
+> Opus 4.7
+> Gemini
+> 3.1 Pro
+> text-
+> embedding
+> -v4
+> text-
+> embedding
+> -3-large
+> gemini-
+> embedding
+> -2-preview
+
+IndPenSim-ModernTCN IndPenSim-Transformer Thickener-ModernTCN Thickener-Transformer 
+
+Fig. 7. Sensitivity of MCC to main design choices. Values are normalized by the default setting; horizontal and vertical dashed lines mark default performance and configurations. TABLE VIII ONLINE DEPLOYMENT COST OF MCC. T HE TABLE COUNTS ONLY ONLINE PARAMETERS , INFERENCE TIME , AND PEAK RSS; OFFLINE 
+
+LLM SEMANTIC GENERATION AND EMBEDDING CONSTRUCTION ARE EXCLUDED FROM PER -STEP INFERENCE .                      
+
+> Model Size Deployment Cost Backbone Backbone ( × 10 3)MCC Inc. ( × 10 3)Base Inference Time (ms/step) +MCC Inference Time (ms/step) Peak RSS Increase (MB)
+> IndPenSim
+> ModernTCN 78.8 2.0 0.015 0.088 284.8 Transformer 188.4 2.0 0.015 0.089 299.2
+> Thickener
+> ModernTCN 77.1 0.5 0.013 0.041 289.1 Transformer 178.0 0.5 0.013 0.041 303.6
+
+H. Computational Efficiency 
+
+To evaluate deployment cost, Table VIII separates offline semantic construction from online inference and reports model size, per-step inference time, and peak-memory change after adding MCC to the same backbone. The table reports the online part of MCC; LLM semantic generation and embedding construction are completed before deployment. Online, the observer adds only 0.5–2.0k param-eters; the slowest +MCC inference time is 0.089 ms/step, the largest added latency is 0.074 ms/step, and the Peak RSS increase stays below 304 MB. These costs are small relative to the 1–12 minute sampling intervals in the datasets. Overall, MCC adds the credibility-correction step with a small online cost. 
+
+V. C ONCLUSION 
+
+This article presented MCC for pre-inference measurement credibility correction in industrial process inference. MCC uses LLM-derived measurement semantics to decide which external variables can provide credible evidence for a target measurement. It then corrects supported local measurement conflicts before prediction, so the downstream predictor re-ceives a more credible input window. Across multiple complex industrial forecasting and soft-sensing tasks, MCC reduces prediction error, with average relative MAE reductions of 30.7% and 80.3% on real-test and controlled-corruption pro-tocols, respectively. MCC works with different backbones and keeps strong performance. Online, it adds only 0.5–2.0k parameters, with the slowest inference time at 0.089 ms/step, making it lightweight for deployment. The main boundary of MCC is whether available process documents correctly reflect the field measurement chain. When variable descriptions are incomplete, outdated, or inconsistent, measurement semantics should be validated with field records. Future work will study long-term semantic validation and credibility-correction updates when measurement chains change. 
+
+REFERENCES 
+
+[1] Q. Sun and Z. Ge, “A survey on deep learning for data-driven soft sensors,” IEEE Transactions on Industrial Informatics , vol. 17, no. 9, pp. 5853–5866, 2021. [2] Y. Liu, J. Zhu, C. Yang, T. Chen, D. S. H. Wong, and Y. Yao, “Transfer learning for soft sensors in process industries: A review and future perspectives,” Industrial & Engineering Chemistry Research , vol. 65, no. 16, pp. 8103–8125, 2026. [3] H. H. Yue and S. J. Qin, “Reconstruction-based fault identification using a combined index,” Industrial & Engineering Chemistry Research ,vol. 40, no. 20, pp. 4403–4414, 2001. [4] X. Zhang, C. Song, J. Zhao, and B. Huang, “Fault-tolerant soft sensor modeling based on a two-dimensional group distributionally robust optimization framework,” IEEE Transactions on Automation Science and Engineering , vol. 22, pp. 14 396–14 406, 2025. [5] M. Jin, S. Wang, L. Ma, Z. Chu, J. Y. Zhang, X. Shi, P.-Y. Chen, Y. Liang, Y.-F. Li, S. Pan, and Q. Wen, “Time-LLM: Time series forecasting by reprogramming large language models,” in Proceedings of the International Conference on Learning Representations (ICLR) ,2024. [Online]. Available: https://arxiv.org/abs/2310.01728 [6] Y. Liu, G. Qin, X. Huang, J. Wang, and M. Long, “AutoTimes: Autoregressive time series forecasters via large language models,” in 
+
+Advances in Neural Information Processing Systems 37 , 2024. [Online]. Available: https://arxiv.org/abs/2402.02370 [7] X. Yuan, L. Li, and Y. Wang, “Nonlinear dynamic soft sensor modeling with supervised long short-term memory network,” IEEE Transactions on Industrial Informatics , vol. 16, no. 5, pp. 3168–3176, 2020. [8] Z. Geng, Z. Chen, Q. Meng, and Y. Han, “Novel transformer based on gated convolutional neural network for dynamic soft sensor modeling of industrial processes,” IEEE Transactions on Industrial Informatics ,vol. 18, no. 3, pp. 1521–1529, 2022. [9] Y. Zong, Y. Nian, C. Zhang, X. Tang, L. Wang, and L. Zhang, “Hybrid grid search and Bayesian optimization-based random forest regression for predicting material compression pressure in manufacturing processes,” Engineering Applications of Artificial Intelligence , vol. 141, ZONG et al. : LLM-GUIDED MEASUREMENT CREDIBILITY CORRECTION 11 
+
+p. 109580, 2025. [Online]. Available: https://www.sciencedirect.com/ science/article/pii/S095219762401738X [10] R. Zhai, J. Zheng, Z. Song, and Z. Ge, “Reliable soft sensors with an inherent process graph constraint,” IEEE Transactions on Industrial Informatics , vol. 20, no. 6, pp. 8798–8806, 2024. [11] V. Venkatasubramanian, R. Rengaswamy, K. Yin, and S. N. Kavuri, “A review of process fault detection and diagnosis,” Computers & Chemical Engineering , vol. 27, no. 3, pp. 293–311, 2003. [12] S. J. Qin, “Survey on data-driven industrial process monitoring and diagnosis,” Annual Reviews in Control , vol. 36, no. 2, pp. 220–234, 2012. [13] S. Narasimhan and C. Jordache, Data Reconciliation and Gross Error Detection: An Intelligent Use of Process Data . Gulf Professional Publishing, 1999. [14] A. Deng and B. Hooi, “Graph neural network-based anomaly detection in multivariate time series,” in Proceedings of the AAAI Conference on Artificial Intelligence , vol. 35, no. 5, 2021, pp. 4027–4035. [15] B. Zheng, L. Ming, K. Zeng, M. Zhou, X. Zhang, T. Ye, B. Yang, X. Zhou, and C. S. Jensen, “Adversarial graph neural network for multivariate time series anomaly detection,” IEEE Transactions on Knowledge and Data Engineering , vol. 36, no. 12, pp. 7612–7626, 2024. [16] C. Liu, Q. Xu, H. Miao, S. Yang, L. Zhang, C. Long, Z. Li, and R. Zhao, “TimeCMA: Towards LLM-empowered multivariate time series forecasting via cross-modality alignment,” in Proceedings of the AAAI Conference on Artificial Intelligence , 2025, pp. 18 780–18 788. [Online]. Available: https://mlanthology.org/aaai/2025/ liu2025aaai-timecma/ [17] C. Sun, H. Li, Y. Li, and S. Hong, “TEST: Text prototype aligned embedding to activate LLM’s ability for time series,” in Proceedings of the International Conference on Learning Representations (ICLR) ,2024. [Online]. Available: https://arxiv.org/abs/2308.08241 [18] F. Yao, J. Liu, Y. Tao, J. Qiu, H. H.-C. Iu, G. Chen, and Z. Y. Dong, “Causality-aware LLM-enhanced graph representation learning for adaptive power system control,” IEEE Transactions on Industrial Informatics , vol. 22, no. 5, pp. 3681–3692, 2026. [19] Y. Zong, R. Jia, K. Li, D. Xue, L. Zhang, and D. He, “LLM-driven human-AI collaborative decision support system for complex industrial processes: A case study in metallurgy,” Neural Networks , vol. 202, p. 109055, 2026. [Online]. Available: https: //www.sciencedirect.com/science/article/pii/S0893608026005150 [20] H. Han, X. Gao, H. Han, H. Gao, and Y. Qi, “Zero-shot fault diagnosis via LLM-guided complexity-aware fuzzy boundary learning,” IEEE Transactions on Industrial Informatics , pp. 1–12, 2026. [21] P. Liu, L. Qian, X. Zhao, and B. Tao, “Joint knowledge graph and large language model for fault diagnosis and its application in aviation assembly,” IEEE Transactions on Industrial Informatics , vol. 20, no. 6, pp. 8160–8169, 2024. [22] W. Su, Y. Zong, R. Jia, J. Qin, and M. Li, “Zero-shot capillary segmentation in dermoscopy images via SAM2: A case study on oral mucosa,” IEEE Journal of Biomedical and Health Informatics , vol. 30, no. 5, pp. 4376–4387, 2026. [23] M. Tan, M. A. Merrill, V. Gupta, T. Althoff, and T. Hartvigsen, “Are language models actually useful for time series forecasting?” in Advances in Neural Information Processing Systems 37 , vol. 37, 2024, pp. 60 162–60 191. [Online]. Available: https://proceedings.neurips.cc/paper files/paper/2024/hash/ 6ed5bf446f59e2c6646d23058c86424b-Abstract-Conference.html [24] A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, Ł. Kaiser, and I. Polosukhin, “Attention is all you need,” in Advances in Neural Information Processing Systems 30 (NeurIPS 2017) , 2017, pp. 5998–6008. [Online]. Available: https://papers.neurips.cc/paper/7181-attention-is-all-you-need [25] A. Gu and T. Dao, “Mamba: Linear-time sequence modeling with selective state spaces,” in The First Conference on Language Modeling (COLM) , 2024. [Online]. Available: https://openreview.net/forum?id= tEYskw1VY2 [26] Y. Liu, T. Hu, H. Zhang, H. Wu, S. Wang, L. Ma, and M. Long, “iTransformer: Inverted transformers are effective for time series forecasting,” in Proceedings of the International Conference on Learning Representations (ICLR) , 2024. [Online]. Available: https://openreview.net/forum?id=JePfAI8fah [27] Y. Nie, N. H. Nguyen, P. Sinthong, and J. Kalagnanam, “A time series is worth 64 words: Long-term forecasting with transformers,” in Proceedings of the International Conference on Learning Representations (ICLR) , 2023. [Online]. Available: https://openreview.net/forum?id=Jbdc0vTOcol [28] D. Luo and X. Wang, “ModernTCN: A modern pure convolution structure for general time series analysis,” in Proceedings of the International Conference on Learning Representations (ICLR) , 2024. [Online]. Available: https://openreview.net/forum?id=vpJMJerXHU [29] Y. Zong, R. Jia, S. Wu, L. Zhang, and D. He, “A meta-contrastive learning hybrid model for adaptive temperature trend prediction in variable ladle preheating,” Engineering Applications of Artificial Intelligence , vol. 162, p. 112750, 2025. [Online]. Available: https://www.sciencedirect.com/science/article/pii/S0952197625027812 [30] S. Goldrick, A. S ¸ tefan, D. Lovett, G. Montague, and B. Lennox, “The development of an industrial-scale fed-batch fermentation simulation,” 
+
+Journal of Biotechnology , vol. 193, pp. 70–82, 2015.
