@@ -6,72 +6,62 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-13
-- 运行时间：2026-07-13 21:32:08 UTC
+- 最新运行日期：2026-07-14
+- 运行时间：2026-07-14 20:38:27 UTC
 - 运行状态：成功
-- 本次总论文数：16
+- 本次总论文数：14
 - 精读区：6
-- 速读区：10
+- 速读区：8
 
 ### 今日简报（AI）
-今日推荐16篇论文，精读两篇高分工作：大规模数据智能体轨迹合成系统TOFFEE，以及基于深度学习和LLM的智能安全控制框架Neuro-Agentic。
-
-最值得看的方向：TOFFEE实现从示例学习自动生成高质量数据智能体轨迹，Neuro-Agentic将LLM与持续学习结合用于自动化安全控制决策。
-
-下一步建议：若关注模型效率，可关注激活稀疏化方向（如敏感度阈值路由和稀疏微调），它们在保持性能的同时显著降低计算开销。
-- 详情：[/202607/13/README](/202607/13/README)
+今日推荐14篇论文，精选6篇精读，聚焦电化学建模与材料设计前沿。最值得关注的是《Atomistic Modeling for Electro-chemical Reactions》和《Large language model agents accelerate inverse design of metal-organic frameworks for gas separation》两篇9分高分工作。普通读者可优先关注AI驱动的材料逆向设计与电化学原子模拟的融合趋势。
+- 详情：[/202607/14/README](/202607/14/README)
 
 ### 精读区论文标签
-1. [Demonstrating TOFFEE: A Learned System for Synthesizing Data Agent Trajectories at Scale](/202607/13/2607.06233v1-demonstrating-toffee-a-learned-system-for-synthesizing-data-agent-trajectories-at-scale)  
-   标签：评分：9.0/10、query:llm-dm
-   evidence：利用LLM合成数据代理轨迹
-2. [Neuro-Agentic Control: A Deep Learning-based LLM-Powered Agentic AI Framework for Controlling Security Controls](/202607/13/2607.09076v1-neuro-agentic-control-a-deep-learning-based-llm-powered-agentic-ai-framework-for-controlling-security-controls)  
+1. [Atomistic Modeling for Electro-chemical Reactions](/202607/14/2607.07933v1-atomistic-modeling-for-electro-chemical-reactions)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：基于LLM的自主AI框架用于工业物联网安全控制
-3. [KV-PRM: Efficient Process Reward Modeling via KV-Cache Transfer for Multi-Agent Test-Time Scaling](/202607/13/2607.09153v1-kv-prm-efficient-process-reward-modeling-via-kv-cache-transfer-for-multi-agent-test-time-scaling)  
+   evidence：化工电化学反应的原子建模
+2. [Large language model agents accelerate inverse design of metal-organic frameworks for gas separation](/202607/14/2607.10559v1-large-language-model-agents-accelerate-inverse-design-of-metal-organic-frameworks-for-gas-separation)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：通过重用LLM的KV缓存实现高效过程奖励建模
-4. [Entropy-Constrained Machine Learning with Residual Data Augmentation for Modeling Chemical Kinetics](/202607/13/2607.09582v1-entropy-constrained-machine-learning-with-residual-data-augmentation-for-modeling-chemical-kinetics)  
+   evidence：LLM智能体用于气体分离MOF的逆设计，化工应用
+3. [Modernizing HEBO: a robust Bayesian optimization baseline for practical heteroskedastic and non-stationary problems](/202607/14/2607.10669v1-modernizing-hebo-a-robust-bayesian-optimization-baseline-for-practical-heteroskedastic-and-non-stationary-problems)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：物理约束机器学习用于湍流反应流中的化学动力学
-5. [LLM-Guided Measurement Credibility Correction for Trustworthy Industrial Process Inference](/202607/13/2607.06111v1-llm-guided-measurement-credibility-correction-for-trustworthy-industrial-process-inference)  
+   evidence：用于化学和材料的贝叶斯优化
+4. [Demonstrating TOFFEE: A Learned System for Synthesizing Data Agent Trajectories at Scale](/202607/14/2607.06233v1-demonstrating-toffee-a-learned-system-for-synthesizing-data-agent-trajectories-at-scale)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：基于LLM的数据代理轨迹合成用于数据挖掘
+5. [A hierarchical memory architecture overcomes context limits in long-horizon multi-agent computational modeling](/202607/14/2607.07666v2-a-hierarchical-memory-architecture-overcomes-context-limits-in-long-horizon-multi-agent-computational-modeling)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：LLM引导的工业过程测量校正，适用于化学工业
-6. [BlockServe: Block-Grained Continuous Batching for High-Throughput Diffusion LLM Serving](/202607/13/2607.08930v1-blockserve-block-grained-continuous-batching-for-high-throughput-diffusion-llm-serving)  
+   evidence：大型语言模型架构用于长期多智能体建模
+6. [Unlocking Parallelism in Autoregressive Language Models via Speculative Decoding with Progressive Tree Drafting](/202607/14/2607.10661v1-unlocking-parallelism-in-autoregressive-language-models-via-speculative-decoding-with-progressive-tree-drafting)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：高吞吐扩散大语言模型服务
+   evidence：渐进树草稿推测解码加速自回归语言模型
 
 ### 速读区论文标签
-1. [Sensitivity-Aware Thresholding and Token Routing for Activation Sparsification in Large Language Models](/202607/13/2607.08991v1-sensitivity-aware-thresholding-and-token-routing-for-activation-sparsification-in-large-language-models)  
+1. [Autonomous Transition State Search with Soft Actor-Critic Reinforcement Learning](/202607/14/2607.10854v1-autonomous-transition-state-search-with-soft-actor-critic-reinforcement-learning)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：大语言模型激活稀疏化高效推理
-2. [Super-Tuning: From Activation-Aware Pruning to Sparse Fine-Tuning](/202607/13/2607.09287v1-super-tuning-from-activation-aware-pruning-to-sparse-fine-tuning)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：大语言模型稀疏微调方法
-3. [Multimodal Molecular Representation Learning with Graph Neural Networks, Deep & Cross Networks, and SMILES Embeddings](/202607/13/2607.05736v1-multimodal-molecular-representation-learning-with-graph-neural-networks-deep--cross-networks-and-smiles-embeddings)  
+   evidence：强化学习应用于化学工程中的过渡态搜索
+2. [LLM-Driven Evolutionary Generation of Multi-Objective Bayesian Optimization Algorithms](/202607/14/2607.08791v1-llm-driven-evolutionary-generation-of-multi-objective-bayesian-optimization-algorithms)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：使用图神经网络、SMILES和深度交叉网络的多模态分子表示
-4. [Toward Auditable AI Scientists: A Hypothesis Evolution Protocol for LLM Agents](/202607/13/2607.09195v1-toward-auditable-ai-scientists-a-hypothesis-evolution-protocol-for-llm-agents)  
+   evidence：大语言模型，贝叶斯优化，算法生成，工程问题
+3. [GAE: Graph-Augmented Evolution for Scientific Discovery via Reinforcement Optimization](/202607/14/2607.10127v1-gae-graph-augmented-evolution-for-scientific-discovery-via-reinforcement-optimization)  
+   标签：评分：7.0/10、query:llm-dm
+   evidence：大语言模型，进化搜索，科学发现，强化优化
+4. [Distributed Agent System: Fault-Tolerant Collaboration Among Embodied Agents](/202607/14/2607.10811v1-distributed-agent-system-fault-tolerant-collaboration-among-embodied-agents)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：大语言模型智能体可审计科学发现协议
-5. [Progressive Crystallization: Turning Agent Exploration into Deterministic, Lower-Cost Workflows in Production](/202607/13/2607.07052v1-progressive-crystallization-turning-agent-exploration-into-deterministic-lower-cost-workflows-in-production)  
+   evidence：基于LLM的分布式代理容错协作系统
+5. [Are LLMs Ready for Scientific Discovery? A Capability-Oriented Benchmark for AI Scientists](/202607/14/2607.11079v1-are-llms-ready-for-scientific-discovery-a-capability-oriented-benchmark-for-ai-scientists)  
+   标签：评分：7.0/10、query:llm-dm
+   evidence：LLM在科学数据分析上的能力基准，与LLM数据挖掘相关
+6. [Reinforcement Learning with Verifiable Physics: Post-training LLMs with Continuous Rewards](/202607/14/2607.10474v1-reinforcement-learning-with-verifiable-physics-post-training-llms-with-continuous-rewards)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：提出LLM Agent的生命周期管理，降低推理成本，适用于LLM数据挖掘工作流
-6. [Physics-Audited Agentic Discovery in Scientific Machine Learning](/202607/13/2607.07379v1-physics-audited-agentic-discovery-in-scientific-machine-learning)  
+   evidence：用强化学习后训练大语言模型求解偏微分方程，可应用于化工过程优化
+7. [Opti-Agent-Bench: Benchmarking End-to-End Optimization R&D Agents on Real-World Business Problems](/202607/14/2607.10768v1-opti-agent-bench-benchmarking-end-to-end-optimization-rd-agents-on-real-world-business-problems)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：使用LLM代理进行科学模型发现并辅以物理审计
-7. [LLM-Driven Evolutionary Generation of Multi-Objective Bayesian Optimization Algorithms](/202607/13/2607.08791v1-llm-driven-evolutionary-generation-of-multi-objective-bayesian-optimization-algorithms)  
-   标签：评分：6.0/10、query:llm-dm
-   evidence：LLM驱动的多目标贝叶斯优化算法生成
-8. [Model Agnostic Graph Prompt Learning for Crystal Property Prediction](/202607/13/2607.08996v1-model-agnostic-graph-prompt-learning-for-crystal-property-prediction)  
+   evidence：LLM代理在优化pipeline中的端到端基准测试
+8. [AutoMatBench: An Automatic Optimization Toolkit for the Acceleration of Material Properties Prediction Benchmarking](/202607/14/2607.11526v1-automatbench-an-automatic-optimization-toolkit-for-the-acceleration-of-material-properties-prediction-benchmarking)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：图提示学习用于晶体性质预测，化学工程中的人工智能应用
-9. [Attention to Detail: Evaluating Energy, Performance, and Accuracy Trade-offs Across vLLM Configurations](/202607/13/2607.09172v1-attention-to-detail-evaluating-energy-performance-and-accuracy-trade-offs-across-vllm-configurations)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：评估vLLM推理引擎配置对性能和能耗的影响
-10. [LLM for EDA in Front-End Design: Challenges and Opportunities](/202607/13/2607.09616v1-llm-for-eda-in-front-end-design-challenges-and-opportunities)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：LLM在电子设计自动化中的应用综述，展示LLM通用能力
+   evidence：材料性质预测的AI基准
 
 
 <div class="dpr-home-promo-card">
