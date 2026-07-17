@@ -1,0 +1,879 @@
+Title: Ripple: An Open, AI-Formalized Lean 4 Framework for Computing with CRNs
+
+URL Source: https://arxiv.org/pdf/2607.13531v1
+
+Published Time: Thu, 16 Jul 2026 00:56:11 GMT
+
+Number of Pages: 28
+
+Markdown Content:
+# Ripple: An Open, AI-Formalized Lean 4 Framework for Computing with CRNs 
+
+Ho-Lin Chen ∗1 and Xiang Huang †21Department of Electrical Engineering, National Taiwan University, Taiwan, 
+
+holinchen@ntu.edu.tw orcid 0000-0002-6171-9962 
+
+> 2
+
+Department of Computer Science, University of Illinois Springfield, USA, xhuan5@uis.edu 
+
+orcid 0000-0002-4815-6130 
+
+Abstract 
+
+We present Ripple , an open, AI-formalized Lean 4 framework for the mathematics of computing real numbers with chemical reaction networks (CRNs). Ripple formalizes the full ladder of models — the GPAC / CRN continuum and the CRN-computable reals, the large-population-protocol (LPP) compilation pipeline, and a continuous-time Markov chain (CTMC) layer bridged to the deterministic mean-field limit by three machine-checked versions of Kurtz’s theorem, and two Turing-completeness results — the Bournez–Gra¸ ca–Pouly GPAC Turing-completeness construction and the Soloveichik–Cook–Winfree–Bruck stochastic-CRN universality theorem. The development is reliable (its core constructions are verified to depend on exactly the three Mathlib foundational axioms, with no sorry ); it exposed genuine, fixable gaps in published proofs (the approximate-majority convergence argument and the LPP main theorem); and it proves new results — a fully machine-checked construction of Ap´ ery’s constant ζ(3) as a CRN-computable number via its holonomic generating function, the same recipe turning the modular 1 /π series of Ramanujan into a sharp open problem. The formalization was carried out predominantly by AI agents using only publicly available models, so the workflow is reproducible. 
+
+Keywords: formal verification, Lean 4, chemical reaction networks, analog computation, GPAC, computable real numbers, population protocols, Kurtz’s mean-field theorem. 
+
+# 1 Introduction 
+
+Interactive theorem provers have lately moved from a curiosity at the edge of mathematics to a working tool inside it. Lean 4 and its library Mathlib now carry machine-checked proofs once thought out of reach — the Liquid Tensor Experiment [ 20 ] and the polynomial Freiman–Ruzsa conjecture [ 11 ] — and AI agents have begun proving theorems autonomously, settling open Erd˝ os and OEIS problems [ 24 ] and disproving the Erd˝ os unit-distance conjecture [ 18 ]. Those breakthroughs used proprietary internal models; the work here was done entirely with publicly available ones (Claude Opus 4.6–4.8, Claude Fable 5, GPT-5.4–5.6), so the AI-assisted workflow is reproducible by anyone. We bring this to molecular programming. Ripple (https://github.com/zinan-huang/Ripple )is an open, AI-formalized Lean 4 framework for the mathematics of computing with chemical reaction 
+
+> ∗Supported in part by NSTC (Taiwan) grant 113-2221-E-002-204-MY3.
+> †Supported in part by Department of Energy EXPRESS grant DE-SC0024278.
+
+1arXiv:2607.13531v1 [cs.LO] 15 Jul 2026 networks, covering the theory of CRN-computable real numbers, the population-protocol majority algorithms, the Turing-completeness of both the deterministic (GPAC/BGP) and stochastic (SCWB) models, and the supporting mathematical infrastructure — continuous-time Markov chains, Kurtz’s mean-field theorem, Frobenius regular-singular theory, and concentration inequalities. These are exact, layered, and spread across many papers — the kind of mathematics where formalization earns its place by catching gaps that informal proofs leave behind. 
+
+The formalized theory. As an initial thread Ripple formalizes the theory of CRN-computable real numbers , building on three prior papers [14, 13, 9] and covering the full ladder of models: 
+
+• Continuous / deterministic. The GPAC / polynomial-IVP form, CRN mass-action dynamics, the CRN-computable reals, dual-rail compilation, and the large-population-protocol (LPP) refinement, under one shared Lean definition of “CRN computes α”. 
+
+• Stochastic / discrete. The Angluin–Aspnes–Eisenstat 3-state approximate majority protocol with its full O(n log n) convergence proof [ 2 ], and the deterministic correctness chain of the Doty et al. optimal exact majority protocol [10]. 
+
+• Turing completeness. The Bournez–Gra¸ ca–Pouly (BGP) construction [ 6 ] showing that polynomial IVPs can simulate arbitrary Turing machines ( ≈ 170 Lean files), and the Soloveichik– Cook–Winfree–Bruck stochastic CRN universality theorem [ 23 ] — the encoding of Turing machines into stochastic CRNs ( ≈ 90 Lean files). 
+
+• Kurtz’s theorem. The mean-field limit theorem linking the two regimes, making precise how the deterministic ODE is the N → ∞ limit of the stochastic CRN [16]. 
+
+Four things formalization buys. Formalizing this theory does four things informal mathematics cannot. 1. It is reliable. A machine-checked proof leaves no step for a reader to fill in: every inference is checked by Lean’s small trusted kernel, so trust reduces to that kernel plus three foundational axioms. We verified, via Lean’s axiom-dependency check, that the core constructions ( π/ 4, 
+
+ζ(3), Catalan, LPP, Kurtz) depend on exactly those and nothing more — no sorry , no hidden hypotheses ( §10). 2. It exposes gaps. The formalization uncovered genuine, fixable gaps in published constructions — in the original approximate-majority convergence proof and in the LPP main theorem among them — each caught as a Lean compile error or explicit counterexample ( §6). 3. It is open and extensible. Adding a computable number is a plug-in; more broadly the foundation — the GPAC core, the CTMC/Kurtz layer, the compilation pipelines — is a base others can build new threads on ( §2). 4. It proves new things — and finds new problems. Ripple gives a fully machine-checked construction of ζ(3) as a CRN-computable number via its holonomic generating function ( §7); the same recipe applied to the modular 1 /π series of Ramanujan surfaces a sharp open problem, its series anchor being a fixed point of the drive ( §8). 2Organization. §2 is an overview of what the Lean development contains — a map of the framework and the threads it carries. §3 then develops the model ladder in full, from the GPAC / CRN continuum, through the foundational constants and the LPP compilation pipeline, to the CTMC layer, Kurtz’s theorem, and the LPP →Kurtz bridge from finite-horizon convergence to readout correctness. §6 records the gaps the formalization exposed; §7 and §8 then give the new ζ(3) and π
+
+constructions in detail, with both the informal arguments and the shape of the Lean proofs. Finally 
+
+§9 reports how the formalization was actually done, and §10 delimits the trust footprint. 
+
+# 2 An Open Framework: Foundations, Threads, and Extension 
+
+Ripple is built to be open : a reusable foundation that others can extend, or borrow from to build their own developments. It is best read not as a closed result but as an initiative — an attempt that carries multiple threads of research forward, on infrastructure deliberately made general. Two layers make this concrete. Figure 1 is a map of the repository — each pillar with its size and what it formalizes — showing both the reusable foundation and the threads (completed and in progress) built on it. 
+
+Foundational infrastructure (reusable, and new to Lean). A large part of Ripple is general-purpose and independent of any particular target number. It includes the GPAC/PIVP core and the single CertifiedBoundedTimeComputable type ( §3) that pins down what “computes α”means; the dual-rail compiler; the four-stage LPP compilation pipeline; and—built from the ground up—a continuous-time Markov chain layer ( DTMC , CTMC , the density process) together with three machine-checked versions of Kurtz’s mean-field theorem . These are foundational definitions and theorems: a verified CTMC theory and a formal Kurtz limit did not previously exist in Mathlib, and they are reusable far beyond this paper — by anyone formalizing stochastic chemical kinetics, population dynamics, or mean-field limits, whether or not they care about computable numbers. 
+
+Built to extend. Because the CRN-computable class is a Lean type, adding a new computable number is a plug-in: supply a PIVP, prove boundedness and an exponential modulus, invoke the pipeline; a definition proved once is reused everywhere, the type system guaranteeing the meaning never silently drifts between theorems written years apart. More broadly, the framework is open in the strong sense: the foundational layer (the GPAC core, the CTMC/Kurtz theory, the compilation pipelines) is a base on which others can mount entirely new threads of research, or which they can take piecemeal for their own. 
+
+# 3 The Model Ladder 
+
+This section develops the model ladder sketched in the introduction into a self-contained account of what Ripple formalizes and how the pieces connect: the analog model ( §3.1), CRN-computability (§3.2), the foundational constants and Catalan ( §3.3), the LPP compilation pipeline ( §3.4), the stochastic CTMC layer with Kurtz’s mean-field theorem ( §3.5), and the LPP →Kurtz connection (§3.6). Throughout: a CRN in its mass-action limit is a polynomial ODE system ˙xi = pi(x) − xi di(x)with pi, d i having non-negative coefficients; dropping the sign structure gives a PIVP ˙y = p(y); and “α is CRN-computable” means a coordinate satisfies |yk(t) − α| ≤ Ce −t.3Ripple/ pillar files / lines / defs what it formalizes                                                         
+
+> Core/ 15 / 7.2k / 152 GPAC/PIVP, bounded-time complexity, CRN pipeline
+> ODE/ 1 / 0.3k / 5 Lyapunov / scalar convergence barriers
+> DualRail/ 18 / 14k / 358 dual-rail encoding of polynomial dynamics
+> LPP/ 43 / 95k / 2.1k large-population protocols [ 13 ]; algebraic construc-tion; QBee pipeline; compilation stages
+> Number/ 21 / 14k / 565 e, π, ln 2, γ ,Catalan G,Dottie, ζ(3) (Fermi/Ap´ ery)
+> Number/Frobenius/ 23 / 57k / 2.1k Frobenius regular-singular theory; Ap´ ery conifold
+> Number/Modular/ 30 / 27k / 1.3k modular forms, Φ 41 , CM-163, j(τ163 )
+> Number/Hypergeom./ 3 / 5k / 173 Clausen, Picard–Fuchs Wronskian, Chowla– Selberg; Ramanujan reduction
+> CTMC/ 11 / 35k / 1.2k DTMC/CTMC, density process, Doob bound, ab-sorbing states
+> Kurtz/ 9 / 3.6k / 78 Kurtz’s mean-field theorem (three versions); log-horizon tube
+> Probability/ 3 / 1.1k / 28 Bennett exponential-moment lemma; discrete Freedman inequality
+> sCRNUniv./ 92 / 45k / 3.4k stochastic CRN Turing completeness [23]
+> BoundedUniv./ 214 / 161k / 3.6k GPAC Turing completeness [ 6]; bounded exten-sions (in preparation)
+> Analysis/ 1 / 0.3k / 5 stable Gr¨ onwall lemma
+> population-protocol formalizations (majority)
+> PopulationProtocol/ 435 / 303k / 8.3k exact majority (Doty et al.); approximate majority
+> [2] (drift gap found and fixed); self-stabilizing [15 ]
+> Total ≈920 / ≈768k / ≈23.4k
+
+Figure 1: Map of the Ripple framework. “defs” counts top-level theorem /lemma /def declarations. The upper block is the core development; the lower block groups the population-protocol majority for-malizations. Notable additions since submission: Probability/ (Bennett/Freedman), sCRNUniv./ 
+
+(the Soloveichik–Cook–Winfree–Bruck stochastic CRN universality theorem), BoundedUniv./ (the Bournez–Gra¸ ca–Pouly GPAC Turing completeness construction, plus bounded extensions in prepa-ration), and a substantially expanded PopulationProtocol/ pillar now incorporating all three majority formalizations (Doty et al., Angluin–Aspnes–Eisenstat with the drift-gap fix of §6(A), and Kanaya et al.). 
+
+3.1 The analog model: GPAC, PIVP, and the mass-action CRN 
+
+The continuous model underneath everything is Shannon’s General Purpose Analog Computer 
+
+(GPAC), a circuit of constant, adder, multiplier, and integrator elements. Shannon proved a GPAC computes exactly the differentially algebraic functions; equivalently, the components of a solution to a polynomial initial value problem (PIVP) ˙y = p(y), y(0) = y0 ∈ Qd, p ∈ Q[y1, . . . , y d]d.
+
+Long believed strictly weaker than Turing computation (the Gamma function is not differentially algebraic), the GPAC was shown by Bournez, Campagnolo, Gra¸ ca, and Hainry (2007) to compute all computable functions on computable compact intervals, polynomial-time equivalent to the Turing machine: the polynomial vector field is universal. A chemical reaction network is the same mathematics with “concentration” for “voltage”: a reaction A + B → C + D under mass-action kinetics fires at a rate proportional to the product of reactant concentrations, so each species’ rate of change is a polynomial. The mass-action CRN is a 4PIVP wearing a sign constraint — production terms are non-negative, and every negative monomial in ˙xi must carry xi as a factor (the H´ ars–T´ oth “lack of negative cross-effects” condition). H´ ars and T´ oth (1981) proved this condition is exactly what makes a polynomial ODE realizable by a mass-action CRN, with an explicit one-reaction-per-monomial mechanism. For Ripple only the easy direction matters: every bounded PIVP below splits into production pi and degradation di with the right signs, which is what Lean’s PolyCRNDecomposition structure records. 
+
+3.2 CRN-computability 
+
+A real number α is CRN-computable if some PIVP with rational data has a coordinate yk(t) that stays bounded and satisfies 
+
+|yk(t) − α| ≤ C e −t for all t ≥ 0.
+
+This is the single notion of computability used throughout: a bounded polynomial system whose output coordinate converges to the target with a certified exponential modulus. The source papers use “bounded CRN computes α” in subtly different informal senses; in Lean there is exactly one carrier, 
+
+CertifiedBoundedTimeComputable (d : N) ( α : R)(Ripple/Core/BoundedTime.lean ), bundling a PIVP of dimension d, a designated output coordi-nate, a boundedness witness, and an explicit exponential-convergence modulus. Every theorem in the project — constant constructions, dual-rail compiler, LPP pipeline — consumes or pro-duces this one structure, so “computes α” is type-checked to be identical across results written years apart. A forgetful coercion drops the certificate when only the weaker existence statement (BoundedTimeComputable ) is wanted. 
+
+3.3 Foundational constants and Catalan’s constant G
+
+Ripple re-formalizes the elementary constants — e, π (through π/ 4 = arctan 1), ln 2, 12 e−1, the Euler–Mascheroni γ (through γ = 1 −Γ′(2)), and the Dottie number — each as a bounded PIVP with an explicit exponential modulus, all axiom-free [ 14 ]; the only reciprocal any needs is the bounded state 1 /(1 + t) (satisfying r′ = −r2), which keeps them inside the polynomial-PIVP class. The worked example of the integral-to-PIVP recipe is Catalan’s constant G = P
+
+> n≥0
+
+(−1) n/(2 n + 1) 2 ≈
+
+0.9160, with the Laplace-type representation G = R ∞ 
+
+> 0
+> s e −s
+> 1+ e−2s
+
+ds . Its only non-polynomial factor is 1 /(1 + e−2s); carrying it as a state W := 1 /(1 + e−2t), which satisfies a quadratic ODE ([ 13 ,Cor. 19]), turns the whole integral into the four-state polynomial PIVP 
+
+
+
+E′ = −E, R′ = E − R, W ′ = 2 E2 W 2,G′ = R · W, 
+
+(E, R, W, G )(0) =  1, 0, 12 , 0,
+
+with closed forms E = e−t, R = t e −t, W = 1 /(1+ e−2t), so G(t) → G with modulus |G(t)−G| ≤ (t+1) e−t. This is the theorem catalan is lpp computable (Ripple/Number/CatalanCertified.lean ), verified clean on the same generic bounded-PIVP-plus-modulus machinery every target uses. 53.4 The LPP compilation pipeline 
+
+The large-population protocol (LPP) model is the CRN model with bounded populations: instead of arbitrary real concentrations, one tracks fractions xi = ni/N of a fixed population of size N . The cen-tral result is bounded crn is lpp computable unconditional (Ripple/LPP/BoundedLPP.lean ), verified clean: every bounded certified PIVP compiles into an LPP computing the same number. It is strictly stronger than [ 13 ], which implicitly assumed the certified computation stays inside [0 , 1] at all times — a hypothesis the formalization showed can fail, since the output may tran-siently overshoot while converging from above (see §6(B)). The repair is a saturating low-pass filter 
+
+y′ = ( x − y)( U − y) with U ∈ (α, 1) ∩ Q, which clamps the output into a user-chosen interval without changing the limit. The compiler is a four-stage pipeline, each stage a separately verified transformation: 
+
+(i) Quadraticization. Reduce an arbitrary-degree polynomial vector field to degree ≤ 2 via auxiliary product variables z = xixj ; preserves the solution and modulus, adds coordinates. 
+
+(ii) Bound-to-small-λ closure. Rescale time/rate so all reaction rates fit under the LPP budget (“small-λ”), using the boundedness certificate to control the rescaling. 
+
+(iii) Triple-product discretization. Realize the continuous quadratic dynamics by population-level interactions, matching mass-action products to the bimolecular rates of a population of size N .
+
+(iv) Pure-LPP embedding. Embed the discretized system into the formal LPP model, producing the IsLPPComputable witness. A corollary: every algebraic α ∈ [0 , 1] is LPP-computable, via the quadratic ˙x1 = ε(a0 + a1x1 + a2x21)with the target root as a stable fixed point. The formalization also repaired a gap in the Bournez– Fraigniaud–Koegler conservation trick (another instance of §6): the balancing variable ˙xδ = − P 
+
+> j
+
+˙xj
+
+is not CRN-implementable as written, and Ripple’s balancing-dilation repair recovers it. 
+
+3.5 The CTMC layer and Kurtz’s mean-field theorem 
+
+A real CRN with N molecules is a stochastic CTMC; the deterministic ODE is the N → ∞ limit (Kurtz, 1970). Ripple’s CTMC/ and Kurtz/ layers formalize this sorry -free. The density process ¯XN (t) = X(t)/N admits the martingale decomposition ¯XN (t) = ¯XN (0) + 
+
+Z t
+
+> 0
+
+F   ¯XN (s) ds + M N (t), Esup 
+
+> s≤t
+
+∥M N (s)∥2 ≤ Ct/N. 
+
+Three sorry -free versions of the limit are proved: weak (convergence in probability, sup t≤T ∥ ¯XN −
+
+x∥ → 0), strong (a.s. rate O(log N/ √N ) via Azuma–Hoeffding + Borel–Cantelli), and CLT-scale (E[sup ∥ ¯XN − x∥2] ≤ C/N ). 
+
+3.6 The LPP →Kurtz connection: from finite-horizon convergence to readout correctness 
+
+An LPP computes α through two limits in a definite order :stochastic PP at size N| {z }
+
+> finite, random Kurtz
+
+−−−−−→  
+
+> N→∞
+
+mean-field ODE x(t)
+
+| {z }
+
+> deterministic
+
+−−−−→ 
+
+> t→∞
+
+α|{z} 
+
+> the target
+
+.
+
+6Kurtz gives the first arrow on compact intervals; it says nothing as T → ∞ . Passing to a genuine readout guarantee requires two additional hypotheses: (1) exponential stability of the limit ODE (the CRN-computability certificate), and (2) uniform-in-N late-time concentration (a Foster–Lyapunov bound forbidding late escape). Ripple establishes (1) and the compact-interval Kurtz step sorry -free; hypothesis (2) is not discharged but bracketed as an explicit modeling assumption via the 
+
+Computes definition, which is stated on the post-N → ∞ ODE. The order-of-limits content is encoded structurally — Computes is defined on the post -population-limit ODE, so the file factors the claim into these three links rather than asserting a monolithic lim t lim N = lim N lim t. Of the two hypotheses above, Ripple discharges (1); hypothesis (2), the uniform-in-N late-time concentration, it does not , and Computes is stated on the post-N → ∞ ODE precisely so this bound is bracketed as an explicit modeling assumption rather than silently asserted. A companion result ( Ripple/Kurtz/MeanFieldLogHorizon.lean ) takes a first quantitative step past this barrier: composing a stable-Gr¨ onwall shadowing bound, a Freedman martingale tail, and a lifted-stability certificate, it proves a tube estimate on the growing horizon [0 , log N/ (2 η)] — 
+
+P sup t≤log N/ (2 η)∥ ¯XN (t) − ψ(t)∥∞ > C K log N/ √N  ≤ N −p — with a Lipschitz-readout corollary bounding |R( ¯XN (TN )) − ν| at the endpoint. It is stated modulo those three named inputs rather than fully unconditionally, but it is precisely the finite-N readout guarantee the compact-interval theorem does not by itself provide. 
+
+The upshot. The deterministic constructions ( §3.3) and the LPP pipeline ( §3.4) live entirely on the ODE side; the CTMC/Kurtz layer ( §3.5) connects that side back to the physical stochastic CRN with finitely many molecules. This subsection is the seam: the formal statement that the number an LPP computes — defined through finite-N stochastic dynamics — is exactly the number the corresponding PIVP converges to, with the order of the population and time limits controlled. Without it, “the LPP computes α” and “the PIVP converges to α” would be two unrelated assertions; with it, they are the same assertion, type-checked. 
+
+# 4 Population-Protocol Majority Formalizations 
+
+Alongside the CRN-computability thread, Ripple formalizes three landmark majority protocols from the population-protocol literature — approximate, exact, and self-stabilizing exact majority — together making up the largest pillar of the repository ( ≈ 435 files, ≈ 303k lines; Figure 1). 
+
+Approximate majority (Angluin–Aspnes–Eisenstat, 2008). The classic 3-state protocol [2]: blanks adopt the opinion they meet, opposing opinions cancel into a blank, and with high probability the population reaches consensus on the initial majority in O(n log n) interactions. Ripple formalizes the full probabilistic convergence theorem — not just stable correctness but the O(n log n)high-probability time bound — in ≈ 6,650 lines of Lean, zero sorry . This is the formalization in which Gap A was found: the central-region multiplicative drift inequality of the original proof sketch is false, with an explicit n = 4 counterexample, and the Lean proof carries a corrected argument (§6). 
+
+Exact majority (Doty et al., 2021). The time- and space-optimal exact majority protocol [10 ], which decides the majority correctly with certainty using O(log n) states per agent. Ripple formalizes the deterministic correctness chain — the protocol’s phase structure, its invariants, and the stable-correctness main theorem — along with the O( log n) state-count bound. At ≈ 184k lines 7across ≈ 300 files it is the largest single formalization in the repository, reflecting the intricacy of the protocol’s cancellation, doubling/halving, and clock phases. 
+
+Self-stabilizing exact majority (Kanaya et al., 2025). The time- and space-optimal silent self-stabilizing exact majority protocol [ 15 ], which must reach a correct, unchanging consensus from an arbitrary initial configuration. Ripple formalizes the paper’s four theorems: the impossibility of self-stabilizing majority without knowledge of n (impossibility without n ), the space lower bound ( space lower bound ), convergence, and the time upper bound. The protocol composes with the Optimal-Silent-SSR ranking subprotocol of Burman, Chen, Chen, Doty, Nowak, Severson, and Xu [ 7 ], whose deterministic convergence proof Ripple formalizes in full ( ≈ 16k lines in BurmanConvergenceFinal.lean ): the ranking field construction, the phase-2 propagation/reset, and the epidemic-timer branch to consensus are all machine-checked. The top-level theorem for the concrete composed protocol ( P EM solves SSEM final ) is unconditional — no external hypotheses — for all n ≥ 4. The development is ≈ 111k lines across ≈ 99 files. 
+
+# 5 Turing-Completeness Formalizations 
+
+Ripple formalizes two classical universality results, one on each side of the model ladder: the deterministic GPAC/polynomial-IVP construction of Bournez–Gra¸ ca–Pouly, and the stochastic-CRN construction of Soloveichik–Cook–Winfree–Bruck. Both show that a molecular-computation model is Turing-complete, and both are machine-checked with the standard three-axiom footprint. 
+
+Deterministic: polynomial IVPs simulate Turing machines (BGP, 2017). Bournez, Gra¸ ca, and Pouly proved that a polynomial initial-value problem — equivalently, a GPAC — can simulate an arbitrary Turing machine, so the class of polynomial ODEs is Turing-complete [ 6 ]. Ripple formalizes the BGP construction in ≈ 173 Lean files under BoundedUniversality/BGP/ : the smooth encoding of a machine configuration into real coordinates, the rational periodic clock, the single-step transition map, and their composition into one polynomial vector field whose trajectory tracks the machine’s computation. The headline theorem bounded pivp turing complete states that a single rational bounded PIVP eventually-threshold-simulates an undecidable machine; its 
+
+#print axioms footprint is exactly propext , Classical .choice , Quot .sound and nothing more (“clean-3”), with no sorry and no custom axiom. The bounded-analog-complexity extensions built on this construction are in preparation. 
+
+Stochastic: Turing machines encode into stochastic CRNs (SCWB, 2008). Solove-ichik, Cook, Winfree, and Bruck showed that finite stochastic chemical reaction networks are Turing-universal: any Turing machine can be encoded into a stochastic CRN that simulates it with arbitrarily small error probability [ 23 ]. Ripple formalizes this in ≈ 92 Lean files under 
+
+sCRNUniversality/ , covering three layers: (i) the deterministic Turing-machine-to-CRN encod-ing, in which a four-phase bimolecular refinement network reproduces each machine step as a reachability fact ( statePairTransfer crn reaches of ctm steps ); (ii) the mass-action stochastic bridge, which constructs the path-space probability measure from the mass-action step kernels via Mathlib’s Ionescu–Tulcea theorem and bounds the per-step error probability; and (iii) the decidability of Petri-net coverability, obtained through the backward coverability algorithm with termination proved from a well-quasi-order argument (Dickson’s lemma). The paper-facing theorems are machine-checked with the same three-axiom footprint. 86 Gaps Exposed by Formalization 
+
+A machine-checked proof has no human reader to fill in the routine steps. Every logical step must be justified, every case covered, every interaction pattern analyzed. In the course of formalizing the constructions that make up the Ripple pipeline — both new constructions and the published results they build on — this discipline has surfaced a number of genuine gaps. In each case the published 
+
+theorem is correct; the gap lives in a proof sketch, an intermediate construction, or an unstated hypothesis, and surfaces in Lean as a compile error or as an explicit counterexample rather than as a footnote. We document three representative gaps in detail below — the mathematics of the original claim, the precise reason it fails or is incomplete, the explicit counterexample where one exists, and the fix the formalization carries — and note that the formalization turned up others beyond these (for instance an interior-saddle counterexample to a 2024 algebraic-CRN basin-entry step, and an atomic-initialization subtlety in the exact-majority error-jump paths). 
+
+The three gaps detailed here. (A) §6.1 — Angluin–Aspnes–Eisenstat (2008) approximate majority: the central-region multiplica-tive drift inequality is false ; explicit n = 4 counterexample; product-form supermartingale fix. (The final O(n log n) theorem is correct.) 
+
+(B) §6.2 — the large-population-protocol [ 13 ] main theorem: the certified CRN output can transiently leave [0 , 1]; saturating low-pass filter fix. 
+
+(C) §6.3 — reaching algebraic numbers of arbitrary degree in the urn model needs the non-existence of solutions to the Catalan equation xp−yq = 1 (Catalan’s conjecture); the classical Cassels (1960) descent supplies only divisibility , pinning down exactly which case the argument must still close. 
+
+6.1 (A) The approximate-majority central-region drift inequality is false 
+
+This is the headline gap. The 3-state approximate majority protocol of Angluin, Aspnes, and Eisenstat ( Distributed Computing , 2008) is one of the most studied population protocols, and its O(n log n) convergence proof is a classic. Formalizing that proof in Lean 4 (the pp-proof 
+
+development, ≈ 6,650 lines, zero sorry , now part of the PopulationProtocol/ pillar of Figure 1) revealed that one intermediate step in the original proof sketch does not hold as stated. The final theorem is correct; the central region needs a different argument from the one the sketch suggests. 
+
+The protocol. There are n agents, each in one of three states: x (opinion A), y (opinion B), or b
+
+(blank/undecided). At each step two agents are chosen uniformly at random and updated by 
+
+xb → xx, yb → yy, xy → xb or xy → yb. 
+
+Blanks adopt the opinion they meet; opposing opinions cancel into a blank. The theorem is that the protocol reaches consensus in O(n log n) interactions with high probability, matching the information-theoretic lower bound. 
+
+The potential and the four-region partition. The proof uses the potential function 
+
+f = u2 + 2 n, u = x − y (the opinion gap) .
+
+The configuration space is partitioned into four regions by which count is large (threshold 7 n/ 8): Large-x (x ≥ 7n 
+
+> 8
+
+), Large-y (y ≥ 7n 
+
+> 8
+
+), Large-b (b ≥ 7n 
+
+> 8
+
+), Central (no count ≥ 7n 
+
+> 8
+
+).
+
+9For the three corner regions the proof establishes a multiplicative drift: the expected value of 1/f contracts by a factor (1 − δ) per step, δ = Θ(1 /n ), which gives geometric decay by standard arguments. 
+
+The suggested inequality. The paper’s Lemma 4 concerns the central region. The surrounding proof sketch implicitly carries the same multiplicative-drift framework into the central region, i.e. it needs, for f ′ = f (Ct+1 ) the potential after one step, 
+
+E
+
+h 1  
+
+> f′
+
+Ft
+
+i
+
+≤ (1 − δ) 1 
+
+> ft
+
+(central region) . (1) 
+
+Inequality (1) does not hold in general. 
+
+The counterexample (n = 4) . Take n = 4, with counts x = 1, b = 0, y = 3. This is a central configuration: the threshold is 7 · 4/8 = 3 .5, and the largest count is y = 3 < 3.5. The opinion gap is u = x − y = −2, so the potential is 
+
+f = (1 − 3) 2 + 2 · 4 = 4 + 8 = 12 .
+
+There are three outcomes: a null yy draw (probability 12 , f ′ = 12); xy → xb (probability 14 , giving (1 , 1, 2) with u = −1, f ′ = 9); and xy → yb (probability 14 , giving (0 , 1, 3) with u = −3, f ′ = 17). Hence E[1 /f ′] = 12 · 112 + 14 · 19 + 14 · 117 = 103 1224 , so 
+
+E[1 /f ′]1/f = 103 102 > 1. (2) So 1 /f increases on average from this configuration — the opposite of the contraction (1) requires (which would need the ratio ≤ 1 − δ < 1). Truncating to the active central region does not rescue the estimate: all transitions out of (1 , 0, 3) remain in the central region, so there is no absorption boundary to provide the missing correction. The counterexample is not an artifact of small n: it was verified computationally to persist for every n from 4 through 50. 
+
+The reason it fails: Jensen runs the wrong way. The function x 7 → 1/x is convex on (0 , ∞), so Jensen’s inequality gives 
+
+E
+
+h 1 
+
+> f′
+
+i
+
+≥ 1
+
+E[f ′] , (3) with a gap between the two sides of second order — of size Var (f ′)/E[f ′]3 up to constants. Afavorable mean drift E[∆ f ] ≥ 0 therefore controls only the right-hand side of (3) ; the quantity that (1) needs to contract is the left-hand side, which sits above it by the convexity correction. The inequality one wants is fighting the convexity of 1 /x . In the corner regions the step size of f is small relative to f itself, so the convexity (second order) error is negligible and the first-order drift wins. In the central region this is no longer true: a single xy interaction changes u by ±1, moving f by an amount of order 
+
+|∆f | ∼ | (u ± 1) 2 − u2| = |2u ± 1| ≈ 2|u| + 1 ,
+
+which is comparable to f = u2 + 2 n itself (in the example, a step of order 2 · 2 + 1 = 5 against 
+
+f = 12). When the step size is comparable to the value, the convexity term in (3) dominates and the naive drift estimate is simply false. 10 The fix — a product-form supermartingale. The correct argument — which is in fact the content of the paper’s own Lemma 4, though the sketch never makes the link to the drift framework explicit — works with an augmented state that tracks cumulative interaction counts rather than reciprocals of the potential. Let Svb t and Sxy t count, up to time t, the cumulative number of vb -type interactions (a blank adopting an opinion) and xy -type interactions (two opinions cancelling). On the augmented state ( Ct, S vb t , S xy t ) define 
+
+Mt = α Svb t 
+
+> vb
+
+α Sxy t
+
+> xy
+
+f (Ct) , αvb = 16 n + 7 16 n , αxy = 16 n − 516 n . (4) The point of the multiplicative weights αvb , α xy is that the per-step requirement on 1 /f is down-graded from contraction to compensation : the condition never asks E[1 /f ′] itself to shrink (the counterexample shows it need not), only that, interaction type by interaction type, the change in 1 /f 
+
+is paid for by that type’s fixed factor. Clearing denominators turns this into pointwise polynomial inequalities in the configuration — no expectation of a reciprocal survives, which is what sidesteps the convexity problem entirely. The per-step supermartingale condition E[Mt+1 | F t] ≤ Mt reduces, after clearing denominators, to two purely algebraic inequalities (here v = x + y is the total opinion count): (VB) (16 n + 7) f  v(f + 1) − 2u2 ≤ 16 n v  (f + 1) 2 − 4u2, (5) (XY) (16 n − 5) f (f + 1) ≤ 16 n  (f + 1) 2 − 4u2. (6) Both hold for all n ≥ 1 — not merely for “sufficiently large n” — and both were verified formally. From the supermartingale (4) the geometric decay then follows in every region by the optional-stopping / drift machinery, with the central region now correctly handled. 
+
+The formalized fix. The pp-proof development encodes the entire chain from these algebraic lemmas to the final geometric-decay bound. The two regional theorems read, in Lean, with a uniform decay rate 1 − 1/(15000 n): 
+
+prob in activeCentral le , prob in activeLargeX le 
+
+(and analogues for Large-y, Large-b), each bounding ( kernel t c0)( active region ) by C · ofReal  (1 −
+
+1/(15000 n)) t·potentialTrunc (c0). Two engineering points are worth recording. First, the probability bounds live in R∞≥0 (Mathlib’s ENNReal ) while the algebraic core lives in R; bridging the two is delicate because ENNReal is not a field — one must use ENNReal.mul inv with explicit finiteness/nonzero side conditions, ENNReal.inv pow in place of the generic inv pow , and route natural-number casts through ENNReal.ofReal natCast . Second, the constant 15000 is deliberately looser than the paper’s tighter implicit constants: the extra margin lets the formal inequalities (5) and (6) close without razor-thin case analysis, at no cost to the asymptotic O(n log n) bound. The development is roughly 6 ,650 lines across 23 files, axiom-free. 
+
+Honest scope. The gap is in the proof sketch, not in the result: the published O(n log n) theorem is correct. The repair is already implicit in the authors’ own Lemma 4; formalization made the disconnect between Lemma 4 and the surrounding drift narrative explicit, and supplied the all-n
+
+algebraic inequalities that the central region needs. 11 6.2 (B) The LPP main theorem can leave [0 , 1] 
+
+This gap is in the large-population-protocol (LPP) main theorem [ 13 ]. The LPP model is a natural weakening of the CRN model in which populations are bounded, and the main theorem states that every bounded certified PIVP can be compiled into an LPP computing the same real number. 
+
+The unstated assumption. As originally written, the theorem assumed that the certified CRN computation stays inside [0 , 1] at all times . This is the natural setting for a population protocol: a coordinate is read as a fraction of the population, so it must lie in [0 , 1]. The trouble is that “the certified CRN converges to α ∈ [0 , 1] with exponential rate” does not imply “the output coordinate never leaves [0 , 1].” A coordinate converging to α from above can transiently overshoot 1 (or, symmetrically, dip below 0) by a small amount before settling. In paper form this is at most a footnote; in Lean it is a genuine compile error, because the embedding step requires the coordinate to be a valid population fraction at every time, not merely in the limit. 
+
+The fix — a saturating low-pass filter. The repair is to post-process the (possibly overshooting) output coordinate x through a saturating low-pass filter 
+
+y′ = ( x − y) ( U − y), U ∈ (α, 1) ∩ Q. (7) The factor ( x − y) is the ordinary low-pass tracking term — y relaxes toward x — and the additional factor ( U − y) is a saturation gate: as y approaches the user-chosen ceiling U < 1, the gate ( U − y)shrinks the drive to zero, so y cannot cross U . The floor is handled separately: the input x is a mass-action CRN concentration and therefore non-negative at all times; since y(0) ≥ 0 and y′ ≥ 0whenever y = 0 and x ≥ 0, the filter output stays in [0 , U ] ⊂ [0 , 1]. Since U > α , the equilibrium of the filtered system still has y → α: the saturation never engages near the limit, so it clamps the output into a user-chosen interval without changing the value computed . The ceiling U is rational, keeping the filtered system inside the rational-coefficient PIVP category. 
+
+The formalized fix. The formalized compilation theorem ( §3.4) incorporates the filter (7) and is strictly stronger than the original paper statement: it drops the always-in-[0 , 1] hypothesis and proves the compilation unconditionally for every bounded certified PIVP. The compilation itself is the four-stage pipeline — quadraticization, bound-to-small-λ closure, triple-product discretization, and pure-LPP embedding — and the filter is what makes the final embedding step go through in all cases. This is the cleanest illustration in the project of formalization turning an implicit modeling assumption into an explicit, provable, and generically applicable repair. 
+
+6.3 (C) Arbitrary-degree algebraic numbers in the urn model: a Catalan-conjecture dependency 
+
+This last item situates a population-protocol construction against a classical number-theoretic lemma, and is about being honest about exactly what that lemma supplies. The connection to population protocols is direct. The urn model (Albenque–Gerin, 2012) is a population protocol in the strict sense: n agents each carry one of two colours, at each step a fixed number k of them are sampled and all recoloured by a majority-type rule, and the proportion of one colour converges, as 
+
+n → ∞ , to a fixed point of a Bernstein polynomial — exactly the large-population-protocol notion of 
+
+computing a number in [0 , 1] ( §3.4), specialized to a single two-colour species and k-way interactions. This submodel computes a dense set of algebraic numbers (while excluding almost every rational), and the headline claim is that it reaches algebraic numbers of arbitrary degree . That claim is what 12 carries the gap: its proof runs, at one step, into a Catalan-type Diophantine question — it needs the non-existence of solutions to the Catalan equation xp − yq = 1 in prime exponents p, q (beyond the lone Catalan exception 3 2 − 23 = 1), i.e. Catalan’s conjecture (Mih˘ ailescu’s theorem). To pin down exactly what is available toward that, we formalized the classical Cassels (1960) elementary descent for the equation: 45 kernel-clean declarations, zero sorry .The formalization clarified a point easy to blur in prose, and the point is not small. Cassels’ elementary descent does not prove non-existence of solutions; what it yields is a divisibility conclusion — in a putative solution xp − yq = 1 with odd prime exponents, each exponent prime divides the 
+
+opposite base: p | y and q | x. Promoting that divisibility to outright non-existence is exactly the strength of Catalan’s conjecture , settled only in 2002 by Mih˘ ailescu’s theorem [ 17 ]; the elementary descent does not deliver it. By formalizing the descent we pinned down precisely the residual case — the step from “the primes divide as stated” (which Cassels gives) to “no solution exists” (which the urn-model argument needs) — and showed it to be that deep theorem, not a routine lemma. The urn model’s arbitrary-degree result is therefore sound (Catalan’s conjecture is now a theorem), but it rests, at this one step, on a genuinely hard result that the elementary presentation hides — a dependency only the formalization made explicit. 
+
+# 7 The ζ(3) Constructions 
+
+This section develops the ζ(3) constructions in detail. Ap´ ery’s constant 
+
+ζ(3) = X
+
+> k≥1
+
+1
+
+k3 = 1 .2020569031595942 . . . 
+
+is first certified as CRN-computable via its Fermi–Dirac integral representation (routine, but unconditional and machine-checked); the rest of the section then develops the methodologically novel 
+
+series-encoding route and the formalization-discovered obstruction that prevents it from delivering an exact rational-data construction. 
+
+CRN-computability via the Fermi integral. ζ(3) has the integral representation 
+
+Z ∞
+
+> 0
+
+x2
+
+1 + ex dx = 32 ζ(3) , (8) which Ripple encodes by the same integral-to-ODE move used for e, π, ln 2, γ and Catalan’s G: a five-state bounded polynomial PIVP with rational initial data ( Ripple/Number/AperyFermi.lean ). The theorem apery fermi is crn computable is unconditional, axiom-free, 0 sorry . Methodologically this adds nothing new; it settles CRN-computability so the rest of the section can ask the harder question. 
+
+The series-encoding question. Can ζ(3) be read off the coefficient sequence an and its holonomic generating function A(z) = P anzn, encoded as a polynomial ODE? The recipe — take a holonomic sequence, encode the generating function’s linear ODE as a polynomial vector field, recover the target from a connection coefficient at a regular singular point — is not specific to ζ(3); it is the seed of a research program ( §7.7). Ap´ ery’s accelerated series is the cleanest first place to exhibit it. We develop the full series-encoding pipeline below, with Frobenius analysis machine-checked end to end ( ≈ 57k lines, 0 sorry ), and then report the obstruction: a one-dimensional neutral symmetry that the formalization exposed ( §7.6), which shows that rational truncated seeding yields ζ(3) + c rather than ζ(3) exactly — the same barrier that fully blocks the 
+
+π/Ramanujan construction of §8. 13 7.1 The Meaning of “CRN-computable,” and the ζ(3) Difficulty 
+
+Recall ( §3) that a polynomial initial value problem (PIVP) of dimension d is an autonomous system ˙y = p(y), y(0) = y0 ∈ Qd, p ∈ Q[y1, . . . , y d]d,
+
+and that this is the mass-action form of a chemical reaction network (CRN) once the sign structure ˙xi = pi(x) − xidi(x) is respected. A real α is CRN-computable if some coordinate yk(t) of such a system stays bounded on [0 , ∞) and satisfies |yk(t) − α| ≤ Ce −t — the same notion as in §3. The elementary constants e, π, ln 2 , γ and the algebraic numbers are all CRN-computable this way. The constant ζ(3) is a genuinely interesting target. Unlike ζ(2) = π2/6 or the even zeta values, it has no elementary closed form : it is not a known rational multiple of π3, and its arithmetic nature beyond irrationality (Ap´ ery 1978) is still open. The series encoding we develop below starts from Ap´ ery’s accelerated series , whose generating function is holonomic, and encodes that generating function’s ODE as a polynomial vector field. The Frobenius analysis is fully machine-checked; the obstruction to exact rational seeding is reported in §7.6. 
+
+7.2 The Ap´ ery Recurrence and Generating Function 
+
+This route formalizes the combinatorial and differential-algebraic spine of Ap´ ery’s irrationality proof. The deepest piece — the conifold connection-coefficient analysis, which leans on Frobenius theory of regular singular points — is machine-checked; the residual obstacle is a neutral symmetry in the polynomial encoding, reported in §7.6. 
+
+The two Ap´ ery sequences. The Ap´ ery numbers are defined combinatorially by 
+
+an =
+
+> n
+
+X
+
+> k=0
+
+nk
+
+2n + kk
+
+2
+
+, a0 = 1 , a 1 = 5 , a 2 = 73 , a 3 = 1445 ,
+
+and a companion sequence bn (the “harmonic companion”) is pinned by b0 = 0, b1 = 6. Both satisfy the three-term recurrence 
+
+(n + 1) 3 un+1 = (2 n + 1)(17 n2 + 17 n + 5) un − n3 un−1, n ≥ 1. (9) Ap´ ery’s fundamental fact is that 
+
+bn
+
+an
+
+−→ ζ(3) , bn
+
+an
+
+− ζ(3) = O (√2 − 1) 8n = O (17 − 12 √2) 2n,
+
+exponentially fast (roughly three correct digits per term), which is precisely the rate that drives the irrationality criterion. 
+
+F1 — the recurrence via a pointwise Zeilberger witness. The first Lean target, F1 , is the recurrence (9) itself for the combinatorial an. The proof is a creative-telescoping (Zeilberger) certificate: one exhibits a rational witness W (n, k ) such that the summand c(n, k ) =  nk
+
+2 n+kk
+
+2
+
+obeys a pointwise telescoping identity 
+
+P2(n) c(n + 1 , k ) + P1(n) c(n, k ) + P0(n) c(n − 1, k ) = W (n, k + 1) − W (n, k ),
+
+where P2(n) = ( n + 1) 3, P1(n) = −(2 n + 1)(17 n2 + 17 n + 5), P0(n) = n3. Summing over k collapses the right-hand side telescopically to boundary terms, yielding (9) . In Lean the subtlety is the 14 case analysis on the summation regime: the binomial supports differ between c(n − 1, k ), c(n, k ), 
+
+c(n + 1 , k ), so the witness identity must be checked separately in the three regimes 
+
+k ≤ n − 2, k = n − 1, k = n, 
+
+(plus the trivially-zero tail). Crucially, once the algebraic identities are assembled, each regime closes by a single linear combination call — the polynomial certificate is exact, so no inequality or limiting argument is needed — and the whole of F1 is axiom-free. 
+
+F1 ′ — the harmonic-correction companion recurrence. The companion bn is not given by a single binomial sum but by a harmonic-weighted one. Ripple formalizes this as F1 ′ via the decomposition 
+
+bn = H3(n) an + dn, H3(n) = 
+
+> n
+
+X
+
+> m=1
+
+1
+
+m3 ,
+
+where H3 is the order-3 harmonic number and dn is the correction term. F1 ′ proves that dn satisfies its own companion recurrence (the same left-hand operator as (9) with an explicit harmonic forcing), which is what makes bn a solution of (9) for n ≥ 1 while b0 = 0 , b 1 = 6 encodes the irrationality data. This is the discrete shadow of the inhomogeneity that appears in F2 below. 
+
+F2 — the formal Ap´ ery ODE for the generating functions. Form the ordinary generating functions A(z) = P 
+
+> n≥0
+
+anzn and B(z) = P 
+
+> n≥0
+
+bnzn. Because the coefficients are P -recursive, the generating functions are holonomic (D-finite): they satisfy a linear ODE with polynomial coefficients, obtained from (9) by the Euler operator θ = z d/dz (which acts as θz n = nz n,converting polynomial-in-n recurrences into polynomial-in-θ operators). The result is the third-order 
+
+Ap´ ery differential operator 
+
+L[u] = p(z) u′′′ + q(z) u′′ + r(z) u′ + s(z) u, (10) with p(z) = z2(1 − 34 z + z2), q(z) = z(3 − 153 z + 6 z2),r(z) = 1 − 112 z + 7 z2, s(z) = −5 + z. 
+
+F2 states the two formal identities 
+
+L[A] = 0 , L[B] = 6 . (11) The A-series solves the homogeneous equation; the B-series solves the inhomogeneous one with constant term 6. This asymmetry is not a bug: an and bn obey the same recurrence for n ≥ 1, but the initial data ( b0, b 1) = (0 , 6) violates the n = 0 instance (which would require u1 = 5 u0), and the defect b1 − 5b0 = 6 propagates as a constant forcing term. The action of L on B telescopes to a boundary term determined by b0, b 1, yielding exactly the constant 6. In Lean, F2 is a statement about formal power series: L[A] and L[B] − 6 are shown to have all coefficients zero, by reducing each coefficient identity back to the recurrence (9) and the F1 ′ companion. No analysis (convergence, radius) enters F2; it is pure coefficient algebra, and it is sorry -free. 
+
+7.3 The Frobenius Infrastructure (Framework-Level Investment) 
+
+What F2 does not supply is the analytic passage from the formal identities (11) to the exponential-rate convergence of the coefficient ratio bn/a n → ζ(3). That passage requires the Frobenius theory of regular singular points, which Mathlib currently lacks. We explain the mathematics, then state what is and is not formalized. 15 Singular structure of the Ap´ ery operator. The leading coefficient p(z) = z2(1 − 34 z + z2)vanishes at 
+
+z = 0 and z = 17 ± 12 √2,
+
+so the singular points of (10) are 0, the conifold point z1 = 17 − 12 √2 ≈ 0.0294, its conjugate 17 + 12 √2 , and ∞. Since an ∼ C α nn−3/2 with α = 1 /z 1 = 17 + 12 √2, the radius of convergence of 
+
+A (and B) is z1, and z1 is the dominant singularity. At a regular singular point, Frobenius theory predicts a basis of solutions of the form ( z1 − z)ρ · ( analytic ) or with an added log factor, where the exponents ρ are roots of the indicial polynomial .
+
+Indicial analysis at the conifold. Substituting y = ( z1 − z)ρ into the leading part of (10) near 
+
+z1 gives the indicial equation 
+
+ρ(2 ρ − 1)( ρ − 1) = 0 , roots ρ ∈ { 0, 12 , 1},
+
+with the corresponding local solutions 
+
+φ0(z) = c0 + c1(z1 − z) + · · · (ρ = 0 , analytic) ,φ1(z) = √z1 − z  d0 + d1(z1 − z) + · · ·  (ρ = 12 , branch point) ,φ2(z) = ( z1 − z)  e0 + e1(z1 − z) + · · ·  (ρ = 1 , analytic) .
+
+The decisive object is φ1, the √z1 − z solution, whose second derivative diverges, φ′′  
+
+> 1
+
+(z) ∼ − 14 (z1 −
+
+z)−3/2 → ∞ , while φ0, φ 2 and their derivatives stay bounded. 
+
+Connection coefficients: bn/a n → ζ(3) . Writing A = α0φ0 + α1φ1 + α2φ2 and B = β0φ0 +
+
+β1φ1 + β2φ2 in the local basis, the error function E(z) = B − ζA = P(bn − ζa n)zn has its singular (φ1) component (β1 − ζ α 1) φ1
+
+vanish precisely when ζ = β1/α 1. At that value, E is a combination of the analytic φ0, φ 2 only, hence analytic at z1; its radius of convergence jumps to the next singular point z2 = 17 + 12 √2 ≈ 34 ≫ z1.The arithmetic content of Ap´ ery’s proof is exactly the statement that this connection coefficient 
+
+equals the target, β1
+
+α1
+
+= ζ(3) .
+
+Equivalently, since both A′′ and B′′ are dominated by the same φ′′  
+
+> 1
+
+∼ (z1 − z)−3/2 blow-up, 
+
+B′′ (z)
+
+A′′ (z) = ζ(3) + E′′ (z)
+
+A′′ (z)
+
+> z→z1
+
+−−−−→ ζ(3) ,
+
+the second-derivative ratio converging at rate O (z1 − z)3/2. This is also the analytic reason the 
+
+coefficient ratio bn/a n converges exponentially: the gap between the two radii of convergence forces 
+
+bn − ζ(3) an = O (17 − 12 √2) n.
+
+The formalized content. The combinatorial and differential-algebraic layers (F1, F1 ′, F2) are sorry -free, and so is the analytic step that completes the route. The passage from the formal ODE (11) to the connection-coefficient identity β1/α 1 = ζ(3) and the resulting exponential rate is carried by the lemma apery conifold frobenius witness , which is proved (it is not a 
+
+sorry ): together with the scalar conifold-convergence input it yields the exponential modulus 16 |ρ(t) − ζ(3) | ≤ Ke −κt along trajectories entering the conifold basin, and the whole chain feeds the top-level apery is crn computable , which is verified axiom-free. This analytic content is genuinely deep: it is the same Frobenius / monodromy analysis of the Ap´ ery operator at {0, z 1, ∞} that Beukers and others study in connection with irrationality measures of ζ(3), which is what makes the machine-checked version a substantial result rather than a routine lemma. (The reusable payoff is correspondingly broad: the same conifold-Frobenius machinery applies to the bulk analog-computability of holonomic generating functions, not merely to ζ(3).) 
+
+The origin obstruction. A complementary feature explains why the bare series route is awkward to run, and why the construction Lean actually certifies takes a different form. The point z = 0 is a maximally unipotent monodromy (MUM) point: all three indicial exponents at the origin coincide ( ρ = 0 , 0, 0 for the operator normalized at z = 0), producing logarithmic solutions. When the ODE is lifted to an autonomous polynomial system by the time reparametrization dz/dτ = p(z), the origin — which would carry the rational initial data — becomes a fixed point of ˙z = p(z), so the flow cannot leave it. Seeding from a nearby rational z0 > 0 with truncated-Taylor data works numerically (machine precision; see below), but the arrival time diverges like τ ∼ Θ(1 /z 0) and the convergence is correspondingly slow. The x = τ 2 uniformization absorbs the √z Puiseux branch (indicial roots become {0, 0, 1}) but neither removes the double root / log term nor unfreezes the origin. This is why the clean, certified construction is the conifold route below: it reads ζ(3) off a ratio of blow-ups at a non-fixed point, needs no truncation, and is exactly what the axiom-free 
+
+apery is crn computable proves. 
+
+7.4 The Derivative-Ratio PIVP and the Periods Connection 
+
+Although the series route is awkward to seed, the analysis above yields an explicit, fully polynomial PIVP that computes ζ(3) from rational initial data — a construction worth recording because it is the concrete object the Frobenius witness would certify, and because it generalizes to the entire class of periods. 
+
+The adaptation law and the unbounded system. The mechanism that extracts ζ(3) is an 
+
+adaptation law : introduce a state ζ(τ ) and drive it toward the instantaneous ratio B′′ /A ′′ ,˙ζ = ε A ′′  B′′ − ζ A ′′ ,
+
+a gradient-style update whose stable equilibrium is ζ⋆ = B′′ /A ′′ → ζ(3) (the linearization at equilibrium is −ε(A′′ )2 < 0). To make every right-hand side polynomial we reparametrize time by the drive dz/dτ = p(z) — so z → z1 exponentially in τ , giving the adaptation law unbounded time to converge — and eliminate the third derivatives using (11) , i.e. A′′′ = ( −qA ′′ − rA ′ − sA )/p and 
+
+B′′′ = ( −qB ′′ − rB ′ − sB + 6) /p , the leading p cancelling. The result is the explicit unbounded 
+
+eight-state polynomial system ˙A = A′ p, ˙A′ = A′′ p, ˙A′′ = −qA ′′ − rA ′ − sA, 
+
+˙B = B′ p, ˙B′ = B′′ p, ˙B′′ = −qB ′′ − rB ′ − sB + 6 ,
+
+˙z = p, ˙ζ = ε A ′′ (B′′ − ζA ′′ ),
+
+(12) with rational initial data A(j)(z0), B (j)(z0) (truncated Taylor evaluations at z0 = 1 /1000) and 
+
+ζ(0) = 0 — no prior knowledge of the target. This system computes ζ(3), but A′, A ′′ , B ′, B ′′ all diverge as z → z1, so it is not yet a bounded CRN. 17 From the derivative ratio to a bounded polynomial system. The naive function-value ratio B(z)/A (z) does not tend to ζ(3) (numerically it tends to ≈ 0.35, contaminated by the analytic 
+
+E(z1)̸ = 0); the ζ(3) information lives in the singular part, which is subdominant in B/A but dominant in the derivative ratios. Accordingly we divide the unbounded system (12) through by the fastest-growing variable A′′ , tracking R = B′′ /A ′′ ; this gives the bounded ratio variables 
+
+α = A′
+
+A′′ , σA = AA′′ , β = B′
+
+A′′ , ρ = B′′ 
+
+A′′ , σB = BA′′ , w = 1
+
+A′′ ,
+
+all of which stay order-1 ( α, σ A, β, σ B , w → 0, ρ → ζ(3)). With the reparametrization dz/dτ = p(z)and the abbreviation Q = q + rα + sσ A, the quotient rule produces a fully polynomial system (degree ≤ 4, eight variables including an adaptation variable ζ): ˙z = p(z),
+
+˙α = p + qα + rα 2 + s σ A α, 
+
+˙σA = α p + σA Q, 
+
+˙β = ρ p + β Q, 
+
+˙ρ = r(ρα − β) + s(ρ σ A − σB ) + 6 w, 
+
+˙σB = β p + σB Q, 
+
+˙w = w Q, 
+
+˙ζ = ε (ρ − ζ).
+
+The forcing constant 6 — the same inhomogeneity from L[B] = 6 — enters the ˙ρ equation explicitly as +6 w and is what drives ρ (hence ζ) toward ζ(3) rather than a meaningless number. All right-hand sides are polynomial, all initial conditions (truncated Taylor evaluations of A, B at a rational z0
+
+such as 1 /1000) are rational, and all variables are bounded. Integrating from ζ0 = 0, the adaptation variable converges to ζ(3) at machine precision ( ≈ 4.4×10 −16 , Radau solver), establishing numerically that ζ(3) is CRN-computable. 18 0 250 500 750 1000 1250 1500     
+
+> time
+> 0.00
+> 0.01
+> 0.02
+> 0.03
+> 0.04
+> state value
+> zz1= 17 12 2
+
+(a) the GPAC state flows to a conifold equilibrium                  
+
+> z(drive)
+> =A′/A′′
+> =B′/A′′
+> w= 1/ A′′
+> A=A/A′′
+> B=B/A′′
+> 0250 500 750 1000 1250 1500
+> time
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> 1.2
+> readout value
+> =(), (0) = 0
+
+(b) the adaptation variable ( ) (3)     
+
+> readout ()
+> =B′′ /A′′ (tracked)
+> (3) = 1.2020569
+
+Figure 2: The ζ(3) GPAC as an ODE system — the bounded eight-variable polynomial PIVP of §7.4, integrated (DOP853) from rational data at z0 = 10 −3. (a) the projective state flows to a conifold equilibrium: the drive z relaxes to z1 = 17 − 12 √2 while the bounded coordinates α = A′/A ′′ ,
+
+β = B′/A ′′ , w = 1 /A ′′ , σA = A/A ′′ and σB = B/A ′′ settle. (b) the dedicated readout variable ζ(τ ), seeded at ζ(0) = 0 with no prior knowledge of the target, climbs to ζ(3) = 1 .2020569 . . . under the gradient adaptation law ˙ζ = ε(ρ − ζ), tracking the conifold ratio ρ = B′′ /A ′′ . (Behind the scenes A′′ 
+
+and B′′ both blow up like ( z1 − z)−3/2; the ratio ρ stays pinned at ζ(3), which is what ζ locks onto.) Proving that this readout converges to ζ(3) exactly — not merely that the trajectory converges — is the hard, machine-checked content of the route ( apery conifold frobenius witness ). 
+
+7.5 The Lean Development 
+
+It is worth being concrete about what this ζ(3) result contains, because the engineering is as much the point as the theorem. Certifying that Ap´ ery’s constant is real-time CRN-computable was not a transcription of a known proof: it required building, in Lean 4 and from scratch, mathematics that Mathlib does not contain — a Frobenius theory of regular singular points, the indicial and connection-coefficient analysis at the Ap´ ery conifold, and the holonomic generating-function machinery for the Ap´ ery operator. The Ripple/Number/Frobenius/ development alone runs to roughly 57,000 lines and 2,000 declarations (Figure 1), none of which previously existed in a proof assistant, on top of the Number/ constant library and the hypergeometric layer. All of it — the three-term recurrence (F1), the harmonic companion (F1 ′), the formal Ap´ ery ODE (F2: L[A] = 0, L[B] = 6), and the conifold-Frobenius convergence witness ( apery conifold frobenius witness ) — feeds the single top-level theorem apery fermi is crn computable (the integral route) settles CRN-computability of ζ(3) unconditionally. The series route’s Frobenius infrastructure — recurrence, generating function ODE, conifold analysis, connection coefficient β1/α 1 = ζ(3) — is machine-checked end to end. But the series route does not deliver a rational-data PIVP that converges to ζ(3) exactly; the next subsection explains why. 
+
+7.6 The Neutral Mode 
+
+The 8-variable bounded PIVP of §7.4 is the projectivization of the linear jet ( A, A ′, A ′′ , B, B ′, B ′′ ) by 
+
+A′′ : each variable is a ratio with denominator A′′ (for instance α = A′/A ′′ , ρ = B′′ /A ′′ , w = 1 /A ′′ ). Because A solves the homogeneous equation L[A] = 0 while B solves the inhomogeneous L[B] = 6, the transformation B 7 → B + cA (for any constant c) preserves the inhomogeneous equation and 19 hence all eight ODEs. Under it 
+
+ρ 7 → ρ + c, ζ 7 → ζ + c, 
+
+while α, σ A, z, w are unchanged. The consequence: two rational seeds in the same symmetry orbit produce trajectories whose limits differ by exactly c. The initial data at z0 = 1 /1000 are truncated Taylor evaluations of A
+
+and B — rational, but not exact . The truncation introduces a component along A of size c ≈ zN
+
+> 0
+
+(exponentially small in the truncation order N , but nonzero), so ρ(t) → ζ(3) + c, not ζ(3). This is not a deficiency of the Frobenius analysis (which is fully proved) but a structural property of the encoding: ζ(3) enters the system as a connection coefficient — a two-point scattering datum linking the maximally unipotent monodromy (MUM) point z = 0 ( §7.3) to the conifold z1 — and the neutral mode is the degree of freedom that carries it. At z = 0 the true data is rational (A(0) = 1, B(0) = 0), which pins c = 0; but z = 0 is a double zero of the polynomial drive 
+
+p(z) = z2(1 − 34 z + z2), so no trajectory can depart from it. This is the same MUM barrier 
+
+that fully blocks the π/Ramanujan construction of §8 — for both series, the obstruction is the gap between exact (transcendental) initial values at a regular basepoint and the rational data the PIVP definition requires. Numerics at 4 .4 × 10 −16 residual said the construction works; formalization said the limit is 
+
+ζ(3) + c. This single discovery is the clearest illustration in the project of formalization as an instrument that finds structure informal mathematics overlooks. 
+
+7.7 Outlook: ζ(3) as the Seed of a Research Program 
+
+The construction above does more than certify one constant; it fixes a recipe for turning an infinite series into a chemical reaction network, and it is worth stating the recipe abstractly because that is what generalizes. Given a sequence ( an) whose ordinary generating function A(z) = P anzn is 
+
+holonomic (satisfies a linear ODE with polynomial coefficients), the pipeline is: 1. Holonomic ODE. Obtain the linear ODE P 
+
+> i
+
+pi(z) A(i)(z) = 0 from the recurrence for ( an)(creative telescoping / Zeilberger), as in F1–F2 for the Ap´ ery sequences. 2. Polynomial vector field. Realize A and its derivatives, the monomials zi, and the auxiliary quotients as coordinates of a polynomial initial value problem — a GPAC, hence (after the dual-rail sign discipline) a CRN. 3. Read-off. Recover the target real number as a limiting value or a connection coefficient of the trajectory, and certify the convergence rate. Nothing in steps 1–3 used special features of ζ(3) beyond holonomicity. This suggests three concrete directions, which we state as future work , not as results: 
+
+• A general holonomic-series theorem. Identify hypotheses on a holonomic ( an) under which P an (or lim bn/a n) is provably CRN-computable at a stated convergence rate. The 
+
+ζ(3) case is proved ( apery conifold frobenius witness ); the general theorem would abstract that conifold-Frobenius argument into reusable hypotheses on ( an), ideally backed by a general Frobenius theory of regular singular points in Mathlib. 
+
+• Multiple and nested series. Sums such as multiple zeta values ζ(s1, . . . , s k) are governed by holonomic systems in several variables; the natural question is whether the same encode-the-ODE move lifts to D-finite functions of several variables. 20 • Multiple integrals. Period integrals (e.g. the Beukers triple integral for ζ(3), or higher-dimensional periods) admit Picard–Fuchs ODEs; encoding those Picard–Fuchs ODEs would bring period integrals and series under the same generating-function mechanism used here. In this sense ζ(3) is not the destination but the entry point: it is the smallest target that cannot be reached by the elementary integral move and therefore the first that exercises the full series-encoding machinery. The current status is that the machinery is built and fully proved on ζ(3) (axiom-free, no sorry ); the generalizations above are open. 
+
+The recipe stalls here (a lead-in to π). The recipe is not universal, and the next section makes the limitation concrete. Ramanujan’s 1 /π series encodes into an equally elegant polynomial system — the holonomic-ODE step goes through beautifully — yet the construction stalls for a sharp structural reason: the series’ natural anchor is the point z = 0, which is at once a singular point of the generating-function ODE and a fixed point of the polynomial drive, so the flow cannot leave it and exact rational seeding is impossible. ζ(3) escaped this only because it reads off a ratio 
+
+of blow-ups at a non-fixed conifold. Whether the MUM-anchored 1 /π series admits a comparable truncation-free device is, as far as we know, open — an inviting problem that §8 lays out, and that sits squarely on the holonomic-series program above. 
+
+# 8 The π Construction 
+
+This section is about a single, sharply posed question: can the fast modular 1/π series of Ramanujan be turned into an exact GPAC/CRN construction? It is worth separating cleanly what is classical 
+
+from what this paper does. That the Ramanujan (1914) series equals 1 /π is a classical theorem; the molecular-programming community needs no re-proof of it, and Ripple takes that identity as given (in Lean it is carried as one explicit complex-multiplication hypothesis, with the surrounding reduction machine-checked and 0-sorry ). What we contribute is the analog-computation reading: a clear derivation that encodes the series into a clean six-state polynomial PIVP ( §8.1), followed by an account of why the encoding nonetheless does not compute π exactly — its readout series is anchored at z = 0, a singular point of the holonomic ODE at which the compiled system cannot be seeded: the reciprocal state blows up there, and the drives that avoid the blow-up stall there ( §8.2). One point should be made and then set aside: that π is CRN-computable, exactly and un-conditionally, is not in question and is not new. Like e, ln 2, and the Euler–Mascheroni γ, it is an elementary, linearly computable target settled in Huang et al.’s earlier work [ 14 ] (in Ripple, 
+
+π/ 4 = arctan 1 is re-formalized axiom-free as pi quarter is lpp computable ). The modular-series question of this section is a different and harder one — not whether π can be computed at all, but whether this particular fast series admits an exact, truncation-free encoding. Throughout, “computes α” means a polynomial initial-value problem (PIVP) — the GPAC normal form ˙y = p(y), y(0) ∈ Qd, p ∈ Q[y]d — with a designated coordinate yk(t) such that 
+
+|yk(t) − α| ≤ Ce −t, exactly the CRN-computability definition of §3. The decisive criterion, applied without exception below, is binary: the continuous-time limit must equal the exact target constant. A family parametrized by a truncation order whose limit is π + δ with δ̸ = 0 does not compute π,however small δ may be. 21 8.1 Encoding Ramanujan’s 1914 series as a six-state GPAC 
+
+The identity. In 1914 Ramanujan published a list of seventeen series for 1 /π ; the simplest is 1
+
+π = 2√29801 
+
+> ∞
+
+X
+
+> k=0
+
+(4 k)! (k!) 4 · 1103 + 26390 k
+
+396 4k . (13) The first term alone already gives 1 /π to eight decimal places, and each further term adds about another eight. The goal is to read the right-hand side off the attractor of a polynomial vector field, step by step. 
+
+Step 1 — the coefficients are holonomic. Write the Ramanujan coefficient ak := (4 k)! /(k!) 4.A direct computation on the ratio of consecutive coefficients gives the P-recurrence (k + 1) 3 ak+1 = 4 (4 k + 1)(4 k + 2)(4 k + 3) ak, (14) so ak+1 /a k is a rational function of k — the sequence is holonomic , and its generating function 
+
+gπ(z) := P 
+
+> k
+
+akzk satisfies a linear ODE with polynomial coefficients. 
+
+Step 2 — the generating function’s ODE. With the Euler operator θ := z d/dz , (14) translates into the Clausen-type hypergeometric equation 
+
+θ3gπ = 256 z  θ + 14
+
+  θ + 12
+
+  θ + 34
+
+gπ, (15) i.e. gπ(z) = 3F2( 14 , 12 , 34 ; 1 , 1; 256 z), with singular points z = 0, z = 1 /256, z = ∞. Converting to ordinary derivatives and clearing one factor of z gives the form we actually integrate, 
+
+z2(1 − 256 z) g′′′  
+
+> π
+
+= 3 z(384 z − 1) g′′  
+
+> π
+
++ (816 z − 1) g′ 
+
+> π
+
++ 24 gπ. (16) At z = 0 the indicial polynomial is ρ3 — a triple root, the point of maximally unipotent monodromy 
+
+(MUM); two coefficients of (16) vanish there, the third at z = 1 /256. 
+
+Step 3 — the readout. A short manipulation expresses Ramanujan’s series at the evaluation point z0 := 1 /396 4 as a linear combination of gπ and zg ′
+
+> π
+
+:1
+
+π = 2√29801 
+
+ 1103 gπ(z0) + 26390 z0 g′
+
+> π
+
+(z0) . (17) So once the machine can evaluate gπ(z0) and g′
+
+> π
+
+(z0), (17) hands us 1 /π .
+
+Step 4 — rescale away from the MUM point. Because z0 ≈ 4.1 × 10 −11 sits awkwardly close to the singularity at 0, set w := z/z 0 ∈ [0 , 1] and g(w) := gπ(z0w), so g(1) = gπ(z0) and 
+
+g′(1) = z0g′
+
+> π
+
+(z0). The chain rule converts (16) into an ODE of the same shape on [0 , 1], 
+
+w2(1 − 256 z0w) g′′′ = 3 w(384 z0w − 1) g′′ + (816 z0w − 1) g′ + 24 z0 g, (18) the second regular singular point now pushed out to w = 99 4 ≈ 10 8, far outside [0 , 1]; the MUM at 
+
+w = 0 is unchanged. The readout (17) becomes 1 
+
+> π
+
+= 2√29801 [1103 g(1) + 26390 g′(1)]. 22 Step 5 — polynomialize. Equation (18) solved for g′′′ carries the non-polynomial factor 1/[w2(1 − 256 z0w)], which the GPAC model forbids. Two standard moves remove it. (i) Carry the reciprocal Q := 1 /[w2(1 − 256 z0w)] as a new state; by the quotient rule Q′ = −2w(1 − 384 z0w)Q2,which is polynomial in ( w, Q ). (ii) Drive w from the seed to 1 by the linear relaxation ˙w = 1 − w,which multiplies every g-derivative by the polynomial drift (1 − w). Finally a closed-loop inverter ˙P = 1 − I P , with I = 2√29801 (1103 g + 26390 g′) → 1/π , converts 1 /π to π with no division. 
+
+The six-state system. Collecting everything, the encoding is the six-dimensional PIVP with state X = ( w, Q, g, g ′, g ′′ , P ): 
+
+
+
+˙w = 1 − w, 
+
+˙Q = − 2 w (1 − 384 z0w) Q2 (1 − w),
+
+˙g = g′ (1 − w),
+
+˙g′ = g′′ (1 − w),
+
+˙g′′ = Q  3w(384 z0w − 1) g′′ + (816 z0w − 1) g′ + 24 z0 g (1 − w),
+
+˙P = 1 − 2√29801 
+
+ 1103 g + 26390 g′ P. 
+
+(19) Every right-hand side is polynomial in the six states; the readout is lim τ →∞ P (τ ) = π, with w → 1and I → 1/π at rate 1 and P relaxing at rate 1 /π ≈ 0.318. The result is a polynomial vector field whose only attractor has π in its last coordinate. 
+
+Removing the √2. The lone irrational coefficient is the 2 √2/9801 in the inverter. The clean way to remove it is not to carry √2 as an auxiliary state and multiply at the end — a product of two approximations compounds their errors — but to read off π2 with a rational-coefficient inverter and then take one square root, handling the inversion and the de-squaring together (the faster-inverter device of [ 9]). Writing T = 1103 g + 26390 g′, which is rational in the states, the readout (17) squares to 1 /π 2 = (8 /9801 2) T 2
+
+> ∞
+
+, i.e. π2 = 9801 2/(8 T 2
+
+> ∞
+
+). The squared inverter ˙Psq = 9801 2 − 8 T 2 Psq −→ π2
+
+has rational coefficients throughout and relaxes fast (rate 8 T 2
+
+> ∞
+
+), and a Newton-style square-root ODE ˙y = c (Psq − y2) → π recovers π. No irrational constant and no error-compounding product appears anywhere; every coefficient of the system is rational. 
+
+Lean status. Ripple’s Ramanujan1914.lean verifies the recurrence (14) and the coefficient form of the ODE (15) . The identity (13) rests on a chain of modular-forms machinery that Ripple formalizes in substantial depth: the Klein j-invariant, the Legendre λ-function, theta-quartic identities, the Φ41 modular polynomial with a Sturm certificate ( ≈ 3500 coefficients), and the CM evaluation 
+
+j  1+ √−163 2
+
+ = −640320 3 (KleinJCM163Statement , ≈ 27k lines across 30 files, 0 sorry ). The one residual hypothesis is hcm58 , a Chowla–Selberg normalization step connecting the CM evaluation to the specific series coefficients of (13) . We claim the encoding of (13) into the polynomial system (19) is explicit and verified; the series identity is conditional only on hcm58 .
+
+8.2 The singular-seed obstruction 
+
+The six-state system (19) falls short of the standard met by ζ(3), and the reason is instructive rather than fatal. The seed of the construction is the value of g and its derivatives near w = 0 — 23 equivalently z = 0. But z = 0 is exactly the bad point: it is simultaneously 
+
+• a singular point of the holonomic ODE (16) , the MUM point where two leading coefficients vanish; and 
+
+• a singular seed of the compiled system: the reciprocal state Q = 1 /[w2(1 − 256 z0w)] of (19) is infinite at w = 0, so the six-state flow cannot be initialized there. Compiling instead through the Euler form θ = w d/dw keeps every state finite at w = 0, but at the price of a drive ˙w ∝ w
+
+for which w = 0 is a fixed point and a trajectory started there never leaves. The construction must therefore start not at the singularity but at a nearby rational w1 = ε > 0, seeding g(w1), g ′(w1), g ′′ (w1) from a truncated Taylor polynomial of the series. The exact seed values are transcendental, so rational data forces truncation, and the continuous-time limit becomes π + δ
+
+with δ rigorously bounded (driven below any target by taking more Taylor terms) but not exactly zero . By the strict criterion of this paper — the limit must equal the target on the nose — the encoding (19) approximates π to arbitrary precision but does not compute it. This is not a defect of the encoding; it is an open problem : can the modular 1 /π series be realized by a polynomial PIVP with rational data whose continuous-time limit is exactly π, without seeding away from the singular point? The obstruction is the same one the ζ(3) series route encounters ( §7.6): in both cases, the target constant enters the system as a connection coefficient — a two-point scattering datum linking the MUM point to a conifold — and the polynomial drive has a zero at the MUM point, making exact rational data dynamically inaccessible. For ζ(3) the conifold ratio device gets within one neutral direction of the target ( ρ → ζ(3) + c, c exponentially small); for π there is no companion solution and no conifold ratio, so the MUM barrier is complete. One barrier, two positions on it: ζ(3) nearly escapes because Ap´ ery’s companion sequence exists; π’s Ramanujan series has no such companion. Whether a comparable device exists for MUM-anchored 1 /π series is, to our knowledge, unresolved. 
+
+# 9 The Formalization Method 
+
+It is worth describing, plainly, how this body of Lean was actually produced, because the method is itself part of what we wish to report. 
+
+An AI-driven workflow. The formalization was carried out predominantly by AI agents. The workflow was: the agents read the source papers directly; the human authors occasionally supplied a curated reference or a key mathematical idea; and the bulk of the Lean 4 development — stating the definitions, discharging the goals, refactoring, and debugging against the kernel — was performed autonomously by the models, iterating against lake build until each file compiled cleanly. 
+
+The division of labor. The human authors contributed the mathematical constructions — for instance the ζ(3) adaptation law of §7, the bounded-analog-complexity stratification, and the large-population-protocol compilation pipeline. The formalization of these into machine-checked Lean, and notably the discovery of the gaps documented in §6 (which surfaced as Lean compile errors and explicit counterexamples), was largely the work of the AI agents. On the Lean side, the CRN-computability / LPP compilation thread drew on the human authors’ own prior constructions and required specific mathematical input at key steps; the remaining threads — the population-protocol formalizations, the CTMC/Kurtz layer, the Frobenius/modular infrastructure, and the universality formalizations — were driven almost entirely by the AI agents, with human contribution limited to direction and review. 24 Publicly available models — the methodological point. All of this was done with publicly available large language models (Anthropic’s Claude Opus 4.6–4.8 and Fable 5, and OpenAI’s GPT-5.4–5.6), not the proprietary internal systems behind recent AI-mathematics milestones such as the autonomous Lean proof search that settled open Erd˝ os and OEIS problems [ 24 ] or the AI disproof of the Erd˝ os unit-distance conjecture [ 18 ]. The significance is reproducibility: the workflow described here can be run by anyone with access to these public models. Formalizing a substantial body of analog-computability theory — the GPAC/CRN ladder, the LPP pipeline, the CTMC/Kurtz bridge, and the number constructions — is now within reach of a standard, publicly available toolchain, not only of closed in-house systems. 
+
+Setup, scale, and how much was human. For reproducibility we record the concrete configu-ration. Hardware: development and orchestration ran on a desktop workstation (a 24 GB Mac mini, Apple M4, 10 cores); the Lean builds, which are memory-intensive, ran on a shared Linux server (128 cores, ≈ 503 GB RAM, cgroup quota 256 GB per user). Agents: the work was driven by two publicly available agentic coding tools — Claude Code (Anthropic, running Claude Opus 4.6–4.8 and Fable 5) and Codex (OpenAI, running GPT-5.4–5.6) — which read the papers, write and edit Lean, run lake build , and iterate on the errors. Duration: the formalization has been under active development for roughly four months (late March to mid-July 2026). Scale: the repository is about 768k lines of Lean 4 across ≈ 920 files; the largest pillars are the population-protocol majority formalizations ( ≈ 303k lines), the bounded-universality / BGP construction ( ≈ 161k), the Number pillar including Frobenius and modular machinery ( ≈ 103k), the LPP pipeline ( ≈ 95k), and the stochastic CRN universality ( ≈ 45k). Human intervention: on the mathematical side, the CRN-computability / LPP compilation thread drew on the human authors’ own prior con-structions and required specific mathematical input at key steps. The remaining threads — the population-protocol majority formalizations ( ≈ 303k lines), the bounded-universality / BGP and stochastic CRN universality constructions ( ≈ 206k lines combined), the CTMC/Kurtz layer, and the Frobenius/modular infrastructure — required no human mathematical input : the AI agents read the source papers directly and produced the formalizations autonomously, with the human contribution limited to direction and review. On the Lean side, the humans wrote essentially none of the ≈ 768k lines by hand. 
+
+# 10 Trust Footprint 
+
+The axiom audit. Ripple has no axiom declarations and no sorry . Across the headline results — π/ 4, ζ(3), Catalan’s G, the LPP compilation theorem, the three Kurtz mean-field theorems, the BGP and SCWB universality theorems — we verified with Lean’s axiom-dependency check (#print axioms ) that each depends on exactly the three Mathlib foundational axioms propext ,
+
+Classical .choice , Quot .sound and nothing more. Two deeper statements are explicitly conditional, each on a single named hypothesis carried as a Prop argument: the ζ(3) conifold convergence-rate theorem (modulo the neutral-mode bound of §7.6), and the Ramanujan 1 /π identity (modulo one CM-normalization, §8). 
+
+Acceptance criteria and LLM escape prevention. Because the formalization was produced predominantly by AI agents, a recurring concern is escape : the model finds a formally valid proof that is mathematically vacuous — an axiom that makes the goal trivial, a sorry hidden behind an import chain, a native decide that trusts the compiler on a statement the kernel cannot check, a spurious hypothesis smuggled into a theorem statement (the model adds a Prop argument that 25 quietly assumes the conclusion, making the proof trivially true — a pattern especially common with GPT-5.4-era agents), or a definition that is technically inhabited but degenerately so (e.g. 
+
+def A := B when A was supposed to be an independent construction of B). The formalization playbook enforces three gates against these: 1. The #print axioms gate. Every deliverable theorem is audited: #print axioms T must list exactly the three Mathlib foundations. Any appearance of sorryAx or a custom axiom name fails the gate. This catches sorry and axiom escapes anywhere in the transitive import closure, not just in the file being reviewed — a grep sorry misses sorry-free files that import sorry-carrying dependencies. Textual grep is used only as a coarse upper bound (it false-positives on docstrings containing the word “sorry”); the authoritative signal is always #print axioms .2. The cold-build gate. A full lake build from a clean state (no cached .olean files) is the only reliable compilation test. Warm builds reuse stale objects and can mask broken imports, namespace collisions, dangling opens after refactoring, and cross-file definition drift. Single-file lake env lean passes are necessary but not sufficient: a file can compile alone while its downstream consumers break. Every merge into the main branch requires a cold build to pass. 3. The non-vacuity check. A clean-3 theorem can still be vacuous if its hypotheses are unsatisfiable or its conclusion is trivially true. The playbook requires a concrete witness : for a computability theorem, a numerical integration that matches the certified limit; for a universality theorem, a specific machine instance. Spec files for AI agents explicitly list banned identifiers to prevent the shortest-path escape of defining the target in terms of itself. 4. The version-proliferation ban. AI agents frequently produce versioned copies of the same file ( V3 , V4 , Final , Capstone ) rather than fixing the original. Each version may carry its own 
+
+sorry s, polluting the import closure; a “clean” capstone that transitively imports a sorry-carrying predecessor is not clean. The playbook enforces: one theorem, one live file; when a new version lands, the old one is deleted or quarantined in the same commit. 5. The counterexample-before-attack rule. Before assigning an agent to prove a residual goal, the playbook requires an independent attempt to disprove it — concretely, by searching for counterexamples at degenerate and boundary configurations. A false residual (produced by over-generalization during reduction) can never be discharged; without this check, agents spend unbounded effort on an impossible target. Cross-verification by a second, independent model is the most reliable method. No native decide enters any headline construction. It survives only in auxiliary sites (a modular-form Sturm certificate and a compiled-example index check), on which no result above depends. 
+
+# 11 Conclusion 
+
+Ripple brings the molecular-programming theory of CRN-computable real numbers into a proof assistant for the first time, and carries it across the full ladder of models — the GPAC / CRN continuum, the large-population-protocol compilation pipeline, and the continuous-time Markov chain layer bridged to the deterministic limit by Kurtz’s mean-field theorem. The development is large: roughly 768k lines of Lean 4 across more than 900 files, much of it foundations Mathlib did not previously have — a verified CTMC and Kurtz mean-field theory, a Frobenius regular-singular analysis built from scratch, and complete formalizations of the BGP and SCWB Turing-completeness 26 theorems. The core constructions are verified axiom-free, and wherever a result is conditional or a published argument has a gap, the paper says so precisely. Two things stand out. First, formalization did real mathematical work. It exposed genuine, fixable gaps in published proofs — the approximate-majority drift inequality, the LPP main theorem, and the Catalan-conjecture dependency hidden in an urn-model argument — and it proved new results, notably that Ap´ ery’s constant ζ(3) is real-time CRN-computable through its holonomic generating function, while sharpening the modular 1 /π question into a clean open problem. Second, essentially all of this Lean was written by AI agents running publicly available models (Claude Opus/Fable, GPT-5.x), with the human contribution limited to direction and review — evidence that AI-assisted formalization at this scale is now practical and reproducible. We offer Ripple as an open foundation for others to build on. 
+
+# References 
+
+[1] Marie Albenque and Lucas Gerin. On the algebraic numbers computable by some generalized Ehrenfest urns. Discrete Mathematics & Theoretical Computer Science , 14(2):271–284, 2012. [2] Dana Angluin, James Aspnes, and David Eisenstat. A simple population protocol for fast robust approximate majority. Distributed Computing , 21(2):87–102, 2008. [3] Roger Ap´ ery. Irrationalit´ e de ζ(2) et ζ(3). Ast´ erisque , 61:11–13, 1979. [4] Frits Beukers. A note on the irrationality of ζ(2) and ζ(3). Bulletin of the London Mathematical Society ,11(3):268–272, 1979. [5] Olivier Bournez, Pierre Fraigniaud, and Xavier Koegler. Computing with large populations using interactions. In Proceedings of the 37th International Symposium on Mathematical Foundations of Computer Science (MFCS) , pages 234–246. Springer, 2012. [6] Olivier Bournez, Daniel S. Gra¸ ca, and Amaury Pouly. Polynomial time corresponds to solutions of polynomial ordinary differential equations of polynomial length. Journal of the ACM , 64(6):38:1–38:76, 2017. [7] Janna Burman, Ho-Lin Chen, Hsueh-Ping Chen, David Doty, Thomas Nowak, Eric Severson, and Chuan Xu. Time-optimal self-stabilizing leader election in population protocols. In Proceedings of the 2021 ACM Symposium on Principles of Distributed Computing (PODC) , pages 47–57. ACM, 2021. [8] J. W. S. Cassels. On the equation ax − by = 1, II. Mathematical Proceedings of the Cambridge Philosophical Society , 56(2):97–103, 1960. [9] Ho-Lin Chen and Xiang Huang. Bounded analog complexity of real numbers. In Proceedings of the 32nd International Conference on DNA Computing and Molecular Programming (DNA) , LIPIcs, 2026. To appear. [10] David Doty, Mahsa Eftekhari, Leszek Gasieniec, Eric E. Severson, Przemyslaw Uznanski, and Grzegorz Stachowiak. A time and space optimal stable population protocol solving exact majority. In Proceedings of the 62nd IEEE Annual Symposium on Foundations of Computer Science (FOCS) , pages 1044–1055, 2021. [11] W. T. Gowers, Ben Green, Freddie Manners, and Terence Tao. On a conjecture of Marton. Annals of Mathematics , 201(2):515–549, 2025. Formalized in Lean 4 (the PFR project), December 2023. [12] Vera H´ ars and J´ anos T´ oth. On the inverse problem of reaction kinetics. In Qualitative Theory of Differential Equations , volume 30 of Colloquia Mathematica Societatis J´ anos Bolyai , pages 363–379. North-Holland, 1981. 
+
+27 [13] Xiang Huang and Rachel N. Huls. Computing real numbers with large-population protocols having a continuum of equilibria. In 28th International Conference on DNA Computing and Molecular Pro-gramming (DNA 28) , volume 238 of LIPIcs , pages 7:1–7:22. Schloss Dagstuhl – Leibniz-Zentrum f¨ ur Informatik, 2022. [14] Xiang Huang, Titus H. Klinge, and James I. Lathrop. Real-time equivalence of chemical reaction networks and analog computers. In International Conference on DNA Computing and Molecular Programming ,pages 37–53. Springer, 2019. [15] Haruki Kanaya, Ryota Eguchi, Taisho Sasada, Fukuhito Ooshita, and Michiko Inoue. Time- and space-optimal silent self-stabilizing exact majority in population protocols. In Proceedings of the 27th International Symposium on Stabilization, Safety, and Security of Distributed Systems (SSS) , pages 270–286, 2025. arXiv:2503.17652. [16] Thomas G. Kurtz. Solutions of ordinary differential equations as limits of pure jump Markov processes. 
+
+Journal of Applied Probability , 7(1):49–58, 1970. [17] Preda Mih˘ ailescu. Primary cyclotomic units and a proof of Catalan’s conjecture. Journal f¨ ur die reine und angewandte Mathematik , 572:167–195, 2004. [18] OpenAI. Planar point sets with many unit distances, 2026. [19] Srinivasa Ramanujan. Modular equations and approximations to π. Quarterly Journal of Mathematics ,45:350–372, 1914. [20] Peter Scholze. Liquid tensor experiment. Experimental Mathematics , 31(2):349–354, 2022. Formalized in Lean by J. Commelin and the Lean community, completed July 2022. [21] Atle Selberg and Sarvadaman Chowla. On Epstein’s zeta-function. Journal f¨ ur die reine und angewandte Mathematik , 227:86–110, 1967. [22] Claude E. Shannon. Mathematical theory of the differential analyzer. Journal of Mathematics and Physics , 20(1-4):337–354, 1941. [23] David Soloveichik, Matthew Cook, Erik Winfree, and Jehoshua Bruck. Computation with finite stochastic chemical reaction networks. Natural Computing , 7(4):615–633, 2008. [24] George Tsoukalas et al. Advancing mathematics research with AI-driven formal proof search, 2026. arXiv:2605.22763. [25] Alfred van der Poorten. A proof that Euler missed: Ap´ ery’s proof of the irrationality of ζ(3). The Mathematical Intelligencer , 1(4):195–203, 1979. 
+
+28

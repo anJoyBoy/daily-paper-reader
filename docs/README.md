@@ -6,55 +6,49 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-16
-- 运行时间：2026-07-16 21:08:20 UTC
+- 最新运行日期：2026-07-17
+- 运行时间：2026-07-17 21:07:22 UTC
 - 运行状态：成功
-- 本次总论文数：11
-- 精读区：4
-- 速读区：7
+- 本次总论文数：9
+- 精读区：5
+- 速读区：4
 
 ### 今日简报（AI）
-今日推荐11篇论文，精读4篇、速读7篇，聚焦LLM与物理信息网络的前沿应用。  
-最值得关注的两篇高分精读：LLM用于化学反应机理推理（9.0分）和物理信息图神经网络加速气体网络筛选（9.0分）。  
-建议优先精读这两篇，快速把握LLM在科学和工程领域的新突破。
-- 详情：[/202607/16/README](/202607/16/README)
+1) 今日精读1篇满分论文《Learning Mechanistic Reasoning for Chemical Reactions with Large Language Models》，并速读3篇关于进化算法与AI科学发现的文章。  
+2) 最值得关注的是LLM在化学反应机理推理中的突破性应用，以及规划引导的启发式进化方法。  
+3) 建议优先精读该LLM论文，后续可结合《An Autonomous Scientific Knowledge Generation Framework》探索AI驱动的知识生成。
+- 详情：[/202607/17/README](/202607/17/README)
 
 ### 精读区论文标签
-1. [Learning Mechanistic Reasoning for Chemical Reactions with Large Language Models](/202607/16/2607.12771v1-learning-mechanistic-reasoning-for-chemical-reactions-with-large-language-models)  
+1. [Learning Mechanistic Reasoning for Chemical Reactions with Large Language Models](/202607/17/2607.12771v1-learning-mechanistic-reasoning-for-chemical-reactions-with-large-language-models)  
+   标签：评分：10.0/10、query:chemical-llm
+   evidence：用大语言模型进行化学反应机理推理
+2. [Learning Mechanistic Reasoning for Chemical Reactions with Large Language Models](/202607/17/2607.12771v2-learning-mechanistic-reasoning-for-chemical-reactions-with-large-language-models)  
+   标签：评分：10.0/10、query:chemical-llm
+   evidence：用大语言模型进行化学反应机理推理
+3. [Explaining Process Control Optimisation Recommendations via GradientSHAP and Implicit Differentiation](/202607/17/2607.14970v1-explaining-process-control-optimisation-recommendations-via-gradientshap-and-implicit-differentiation)  
+   标签：评分：10.0/10、query:chemical-llm
+   evidence：大语言模型生成解释用于化学工程过程控制优化
+4. [RetroAgent: Harnessing LLMs to Search Over Structured Memory for Agentic Retrosynthesis Planning](/202607/17/2607.14512v1-retroagent-harnessing-llms-to-search-over-structured-memory-for-agentic-retrosynthesis-planning)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：在化学工程中利用大语言模型进行化学反应机理推理
-2. [Accelerating gas-network feasibility screening with a physics-informed graph neural network surrogate](/202607/16/2607.13610v1-accelerating-gas-network-feasibility-screening-with-a-physics-informed-graph-neural-network-surrogate)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：物理信息图神经网络用于气体网络可行性筛选
-3. [Gene Expression-Informed Jointly Controlled Generative Modeling for Precision Molecular Design](/202607/16/2607.11978v1-gene-expression-informed-jointly-controlled-generative-modeling-for-precision-molecular-design)  
+   evidence：在化学工程中利用大语言模型进行逆合成规划
+5. [Harnessing Machine Learning for Hybrid Constitutive Modelling of Viscoelastic Fluid Flows in Computational Rheology](/202607/17/2607.14944v1-harnessing-machine-learning-for-hybrid-constitutive-modelling-of-viscoelastic-fluid-flows-in-computational-rheology)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：使用生成建模进行精准分子设计
-4. [How Well Can Frontier Large Language Models Generate Structures? High Quality Prediction of Molecular Geometries with Help from Fine-Tuning](/202607/16/2607.13350v1-how-well-can-frontier-large-language-models-generate-structures-high-quality-prediction-of-molecular-geometries-with-help-from-fine-tuning)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：微调LLM用于化学分子几何结构预测
+   evidence：机器学习用于化工中粘弹性流体的混合本构建模
 
 ### 速读区论文标签
-1. [LLM-PDESR: Robust PDE Discovery via Subdomain Weighted Residuals and LLM-Guided Symbolic Hypothesis Generation](/202607/16/2607.10546v1-llm-pdesr-robust-pde-discovery-via-subdomain-weighted-residuals-and-llm-guided-symbolic-hypothesis-generation)  
+1. [RefineEvo: Planning-Guided Heuristic Evolution with Bidirectional Experience](/202607/17/2607.11358v1-refineevo-planning-guided-heuristic-evolution-with-bidirectional-experience)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：LLM引导的符号假设生成用于PDE发现
-2. [PROBE: Benchmarking Code Generation in Large Language Models](/202607/16/2607.13820v1-probe-benchmarking-code-generation-in-large-language-models)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：大语言模型代码生成基准测试
-3. [How to Guide LLM Generation: Dual-Surrogate Guided Search for Automated Heuristic Design](/202607/16/2607.13911v1-how-to-guide-llm-generation-dual-surrogate-guided-search-for-automated-heuristic-design)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：LLM引导的启发式设计搜索
-4. [An Autonomous Scientific Knowledge Generation Framework for AI-Driven Scientific Discovery](/202607/16/2607.09806v1-an-autonomous-scientific-knowledge-generation-framework-for-ai-driven-scientific-discovery)  
+   evidence：基于LLM的自动启发式设计方法
+2. [An Autonomous Scientific Knowledge Generation Framework for AI-Driven Scientific Discovery](/202607/17/2607.09806v1-an-autonomous-scientific-knowledge-generation-framework-for-ai-driven-scientific-discovery)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：AI驱动的科学发现框架，从文献中混合知识提取
-5. [Extending LLM Context via Associative Recurrent Memory](/202607/16/2607.11614v1-extending-llm-context-via-associative-recurrent-memory)  
+   evidence：从科学文献自动生成结构化知识的AI框架，支持数据挖掘
+3. [Ripple: An Open, AI-Formalized Lean 4 Framework for Computing with CRNs](/202607/17/2607.13531v1-ripple-an-open-ai-formalized-lean-4-framework-for-computing-with-crns)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：使用关联循环记忆扩展LLM上下文
-6. [Deep Learning-based Surrogate Modelling of the LOD Method for Multiscale Problems](/202607/16/2607.12570v1-deep-learning-based-surrogate-modelling-of-the-lod-method-for-multiscale-problems)  
+   evidence：人工智能形式化的化学反应网络计算框架
+4. [VLT: A Vision-Language-Time Series Multimodal Foundation Model for Industrial Intelligence](/202607/17/2607.14510v1-vlt-a-vision-language-time-series-multimodal-foundation-model-for-industrial-intelligence)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：深度学习代理模型应用于包含化学过程的多尺度问题
-7. [Reliable isomorphic physics problem generation with large language models](/202607/16/2607.13190v1-reliable-isomorphic-physics-problem-generation-with-large-language-models)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：使用大语言模型生成问题
+   evidence：基于大语言模型的多模态工业时序模型
 
 
 <div class="dpr-home-promo-card">
