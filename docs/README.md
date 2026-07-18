@@ -6,49 +6,34 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-17
-- 运行时间：2026-07-17 21:07:22 UTC
+- 最新运行日期：2026-07-18
+- 运行时间：2026-07-18 20:22:44 UTC
 - 运行状态：成功
-- 本次总论文数：9
-- 精读区：5
-- 速读区：4
+- 本次总论文数：4
+- 精读区：2
+- 速读区：2
 
 ### 今日简报（AI）
-1) 今日精读1篇满分论文《Learning Mechanistic Reasoning for Chemical Reactions with Large Language Models》，并速读3篇关于进化算法与AI科学发现的文章。  
-2) 最值得关注的是LLM在化学反应机理推理中的突破性应用，以及规划引导的启发式进化方法。  
-3) 建议优先精读该LLM论文，后续可结合《An Autonomous Scientific Knowledge Generation Framework》探索AI驱动的知识生成。
-- 详情：[/202607/17/README](/202607/17/README)
+今日聚焦大模型推理优化与结构化生成，精读两篇高分论文。  
+最值得关注的是“结构化思维”提升上下文剪枝能力和“语法约束解码”增强企业级SQL生成。  
+普通读者建议优先精读《Structured Thoughts》和《GRID》，掌握高效推理与可控生成的核心思路。
+- 详情：[/202607/18/README](/202607/18/README)
 
 ### 精读区论文标签
-1. [Learning Mechanistic Reasoning for Chemical Reactions with Large Language Models](/202607/17/2607.12771v1-learning-mechanistic-reasoning-for-chemical-reactions-with-large-language-models)  
-   标签：评分：10.0/10、query:chemical-llm
-   evidence：用大语言模型进行化学反应机理推理
-2. [Learning Mechanistic Reasoning for Chemical Reactions with Large Language Models](/202607/17/2607.12771v2-learning-mechanistic-reasoning-for-chemical-reactions-with-large-language-models)  
-   标签：评分：10.0/10、query:chemical-llm
-   evidence：用大语言模型进行化学反应机理推理
-3. [Explaining Process Control Optimisation Recommendations via GradientSHAP and Implicit Differentiation](/202607/17/2607.14970v1-explaining-process-control-optimisation-recommendations-via-gradientshap-and-implicit-differentiation)  
-   标签：评分：10.0/10、query:chemical-llm
-   evidence：大语言模型生成解释用于化学工程过程控制优化
-4. [RetroAgent: Harnessing LLMs to Search Over Structured Memory for Agentic Retrosynthesis Planning](/202607/17/2607.14512v1-retroagent-harnessing-llms-to-search-over-structured-memory-for-agentic-retrosynthesis-planning)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：在化学工程中利用大语言模型进行逆合成规划
-5. [Harnessing Machine Learning for Hybrid Constitutive Modelling of Viscoelastic Fluid Flows in Computational Rheology](/202607/17/2607.14944v1-harnessing-machine-learning-for-hybrid-constitutive-modelling-of-viscoelastic-fluid-flows-in-computational-rheology)  
+1. [Structured Thoughts For Improved Reasoning And Context Pruning](/202607/18/2607.10386v1-structured-thoughts-for-improved-reasoning-and-context-pruning)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：机器学习用于化工中粘弹性流体的混合本构建模
+   evidence：通过结构化思维格式改进LLM推理
+2. [GRID: Grammar-Railed Decoding for Enterprise SQL Generation](/202607/18/2607.11951v1-grid-grammar-railed-decoding-for-enterprise-sql-generation)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：大语言模型语法约束解码用于企业SQL生成
 
 ### 速读区论文标签
-1. [RefineEvo: Planning-Guided Heuristic Evolution with Bidirectional Experience](/202607/17/2607.11358v1-refineevo-planning-guided-heuristic-evolution-with-bidirectional-experience)  
+1. [Descriptive Execution of HPC Applications and Workflows](/202607/18/2607.10081v1-descriptive-execution-of-hpc-applications-and-workflows)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：基于LLM的自动启发式设计方法
-2. [An Autonomous Scientific Knowledge Generation Framework for AI-Driven Scientific Discovery](/202607/17/2607.09806v1-an-autonomous-scientific-knowledge-generation-framework-for-ai-driven-scientific-discovery)  
-   标签：评分：6.0/10、query:llm-dm
-   evidence：从科学文献自动生成结构化知识的AI框架，支持数据挖掘
-3. [Ripple: An Open, AI-Formalized Lean 4 Framework for Computing with CRNs](/202607/17/2607.13531v1-ripple-an-open-ai-formalized-lean-4-framework-for-computing-with-crns)  
+   evidence：大语言模型用于HPC应用的描述性执行
+2. [Autoregressive latent diffusion for 3D molecule generation](/202607/18/2607.09277v1-autoregressive-latent-diffusion-for-3d-molecule-generation)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：人工智能形式化的化学反应网络计算框架
-4. [VLT: A Vision-Language-Time Series Multimodal Foundation Model for Industrial Intelligence](/202607/17/2607.14510v1-vlt-a-vision-language-time-series-multimodal-foundation-model-for-industrial-intelligence)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：基于大语言模型的多模态工业时序模型
+   evidence：化学领域中AI方法用于3D分子生成
 
 
 <div class="dpr-home-promo-card">
