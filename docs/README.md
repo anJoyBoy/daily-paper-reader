@@ -6,34 +6,26 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-18
-- 运行时间：2026-07-18 20:22:44 UTC
+- 最新运行日期：2026-07-19
+- 运行时间：2026-07-19 20:33:46 UTC
 - 运行状态：成功
-- 本次总论文数：4
-- 精读区：2
-- 速读区：2
+- 本次总论文数：2
+- 精读区：1
+- 速读区：1
 
 ### 今日简报（AI）
-今日聚焦大模型推理优化与结构化生成，精读两篇高分论文。  
-最值得关注的是“结构化思维”提升上下文剪枝能力和“语法约束解码”增强企业级SQL生成。  
-普通读者建议优先精读《Structured Thoughts》和《GRID》，掌握高效推理与可控生成的核心思路。
-- 详情：[/202607/18/README](/202607/18/README)
+今日精读LLM残差分布量化高分论文，速读数据湖问答基准论文。最值得关注RDQ量化方法，可高效压缩大模型。建议后续关注该量化方案在实际部署中的效果。
+- 详情：[/202607/19/README](/202607/19/README)
 
 ### 精读区论文标签
-1. [Structured Thoughts For Improved Reasoning And Context Pruning](/202607/18/2607.10386v1-structured-thoughts-for-improved-reasoning-and-context-pruning)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：通过结构化思维格式改进LLM推理
-2. [GRID: Grammar-Railed Decoding for Enterprise SQL Generation](/202607/18/2607.11951v1-grid-grammar-railed-decoding-for-enterprise-sql-generation)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：大语言模型语法约束解码用于企业SQL生成
+1. [RDQ: Residual Distribution Quantization for Large Language Models](/202607/19/2607.10137v1-rdq-residual-distribution-quantization-for-large-language-models)  
+   标签：评分：9.0/10、query:chemical-llm
+   evidence：大型语言模型的后训练量化
 
 ### 速读区论文标签
-1. [Descriptive Execution of HPC Applications and Workflows](/202607/18/2607.10081v1-descriptive-execution-of-hpc-applications-and-workflows)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：大语言模型用于HPC应用的描述性执行
-2. [Autoregressive latent diffusion for 3D molecule generation](/202607/18/2607.09277v1-autoregressive-latent-diffusion-for-3d-molecule-generation)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：化学领域中AI方法用于3D分子生成
+1. [LakeQuest: A Three-Domain Benchmark for Grounded Question Answering across Data Lakes](/202607/19/2607.12310v1-lakequest-a-three-domain-benchmark-for-grounded-question-answering-across-data-lakes)  
+   标签：评分：6.0/10、query:llm-dm
+   evidence：利用LLM在数据湖上进行问答的基准，与数据挖掘相关
 
 
 <div class="dpr-home-promo-card">
