@@ -1,0 +1,1368 @@
+Title: 2607.15420v1.pdf
+
+URL Source: https://arxiv.org/pdf/2607.15420v1
+
+Published Time: Mon, 20 Jul 2026 00:10:08 GMT
+
+Number of Pages: 6
+
+Markdown Content:
+Original Research Article 
+
+Peer Reviewed Conference Proceeding 
+
+FOCAPO -CPC 2027 
+
+Tucson, Arizona, USA , 10 -14 January 2027 
+
+[DOI_DoNotChange] Syst Control Trans V:XXXX -YYYY (202 7) 1
+
+# Harnessing GPU Acceleration in Large -Scale 
+
+# Process Optimization 
+
+Boxun Huang a, David Y. Shu ab , Michel Schanen c, Mihai Anitescu c, Rahul Gandhi d, and Sungho Shin a*  
+
+> a
+
+Massachusetts Institute of Technology, Department of Chemical Engineering, Cambridge, MA 021 39 , USA  
+
+> b
+
+Massachusetts Institute of Technology, MIT Energy Initiative, Cambridge, MA 021 39 , USA  
+
+> c
+
+Mathematics and Computer Science Division , Argonne National L aboratory, Lemont, IL 60439 , USA  
+
+> d
+
+Shell Technology Center, Houston, TX 77082, USA  
+
+> *
+
+Corresponding Author:  sushin@mit.edu 
+
+# ABSTRACT 
+
+This paper presents a proof -of -concept workflow for equation -oriented process optimization that 
+
+runs entirely on a GPU . Process optimization models often incorporate complex interconnected 
+
+unit operations, dynamics, and uncertainties , resulting in large nonlinear program s that can be 
+
+computationally demanding for conventional CPU -based solvers . Although emerging GPU -based 
+
+solvers offer substantial computational benefits, their application to process optimization has been 
+
+limited by the lack of GPU -compatible process modeli ng tools. We address this gap by prototyping 
+
+the GPU -compatible process optimization models using a n existing GPU -capable optimization 
+
+software stack , including ExaModels (algebraic modeling system), MadNLP (optimization solver), 
+
+and cuDSS (linear solver). ExaModels formulates the process optimization problem in a GPU -com-
+
+patible way by exposing its repeated algebraic structure, while MadNLP and cuDSS solve the re-
+
+sulting nonlinear program on the GPU. This workflow is demonstrated on a CO 2 absorber design 
+
+pro blem under feed uncertainty, in which a shared column diameter is minimized subject to equi-
+
+librium and hydraulic constraints in all scenarios . For the largest case with 5 ,000  scenarios and 
+
+1.5  million variables, the GPU workflow achieves a speedup of approximately 21 × over a single -
+
+threaded CPU baseline using JuMP, Ipopt, and MA57. 
+
+Keywords: Stochastic Optimization, CCS, Parallelization 
+
+# INTRODUCTION 
+
+Large -scale process design optimization is limited 
+
+by the scalability of current nonlinear optimization work-
+
+flows. After a fl owsheet has been specified, design opti-
+
+mization determines equipment sizes and operating de-
+
+cisions that satisfy process constraints while optimizing 
+
+economic or performance objectives  [1]. When uncer-
+
+tainty in feed conditions, product demand, prices, or op-
+
+erating conditions is present, the design must perform ef-
+
+fectively across multiple possible realization s. Scenario -
+
+based stochastic formulations address this challenge by 
+
+assigning scenario -dependent operating variables and 
+
+process constraints to each uncer tainty realization while 
+
+coupling all scenarios through shared design variables  [2, 
+
+3, 4]. This improves the robustness of the design, but 
+
+also causes the size of the problem to grow with the num-
+
+ber of uncertainty realizations. 
+
+Scalable stochastic process optimization in process 
+
+systems engineering has advanced through both im-
+
+proved formulations and improved solution methods. On 
+
+the formulation side, multistage and multiperiod models 
+
+represent recourse , nonanticipativity, and seq uential re-
+
+alization of uncertainty in process design, operation, and 
+
+planning  [3, 4, 5]. On the solution side, decomposition 
+
+methods, sample -average approximation, and scenario 
+
+generation and reduction have made these large struc-
+
+tured models more computati onally tractable  [6, 7, 8]. 
+
+However , fully GPU -resident nonlinear optimization re-
+
+mains unexplored for scenario -based chemical process 
+
+design problems .
+
+Equation -oriented process models are well suited to 
+
+GPU acceleration because the constraints exhibit a pr e-
+
+dictable repe ated structure . These models typically con-
+
+sist of material and energy balances, phase -equilibrium 
+
+relations, summation constraints, operating limits, and [LAPSE_ DoNotChange] Syst Control Trans V:XXXX -YYYY (202 7) 2
+
+process specifications  [9]. When repeated across col-
+
+umn stages, components, phases, and uncertainty sce-
+
+narios, these equations generate large sparse nonlinear 
+
+programs with substantial uniform structure. This struc-
+
+ture is well matched to GPU architectures, which are 
+
+most effective when function and derivative evaluations, 
+
+as well as linear al gebra operations , can be expressed as 
+
+regular, data -parallel workloads. 
+
+Recent advances in GPU nonlinear optimization now 
+
+make it possible to execute the entire nonlinear program-
+
+ming workflow on accelerator hardware, including model 
+
+evaluation, automatic d ifferentiation, sparse linear alge-
+
+bra, and nonlinear solver iterations. These capabilities 
+
+avoid time -consuming host -device data transfers and 
+
+have produced substantial speedups for large structured 
+
+nonlinear programs in applications such as optimal power 
+
+flow  [10], but they remain unexplored for scenario -struc-
+
+tured chemical process design. In this work, we exploit 
+
+the repeated structure of equation -oriented process op-
+
+timization under uncertainty using a fully GPU -resident 
+
+nonlinear optimization workflow. 
+
+The main contributions of this paper are twofold. 
+
+First, we develop a proof -of -concept GPU -resident im-
+
+plementation of a scenario -based equation -oriented 
+
+equilibrium absorber design problem using ExaModels.jl 
+
+and MadNLP.jl  [10]. The absorber diameter is a sh ared 
+
+design variable, while scenario -dependent operating 
+
+states satisfy replicated equilibrium process constraints. 
+
+Second, we demonstrate the scalability of this workflow 
+
+on problems with up to 5000  scenarios, approximately 
+
+1. 5 million variables, and 1. 05  million equality constraints, 
+
+achieving a GPU solution time of 33. 3 s compared with 
+
+695. 5 s for JuMP/Ipopt an d 707. 8 s for the CPU ExaMod-
+
+els.jl/MadNLP. jl configuration. Within the interior -point it-
+
+erations, the GPU workflow uses CuDSS to solve sparse 
+
+linear systems, whereas both CPU workflows use MA57. 
+
+These results demonstrate that GPUs are a viable and 
+
+scalable platform for scenario -structured process design 
+
+optimization under uncertainty. 
+
+The remainder of this paper proceeds as follows. We 
+
+first present the deterministic equilibrium process model. 
+
+We then formulate the scenario -based nonlinear program 
+
+and describe its ExaModels.jl construction and GPU -res-
+
+ident solution with MadNLP.jl. The c ase study applies the 
+
+workflow to a n absorber diameter minimization problem 
+
+under uncertain feed conditions and reports the numeri-
+
+cal results. The paper concludes with key findings and 
+
+directions for future work. 
+
+# EQUILIBRIUM PROCESS MODEL 
+
+This section defi nes the equilibrium stage model 
+
+used for process design under uncertainty. The model 
+
+consists of Material, Equilibrium, Summation, and Heat 
+
+(MESH) equations, with auxiliary pressure relations and 
+
+process specifications. 
+
+Let 𝒩 = {1, … , 𝑁 } denote the equilibri um stages, 
+
+numbered from bottom to top, let 𝒞 denote the chemical 
+
+components, and let ℛ denote the equilibrium reactions. 
+
+## Material balances 
+
+The material balance conserves component flow 
+
+across the stage: 
+
+𝐿 𝑛 𝑥 𝑖 ,𝑛 + 𝑉 𝑛 𝑦 𝑖 ,𝑛 = 𝐿 𝑛 +1𝑥 𝑖 ,𝑛 +1 + 𝑉 𝑛 −1𝑦 𝑖 ,𝑛 −1
+
++𝑓 𝑖 ,𝑛  
+
+> L
+
++ 𝑓 𝑖 ,𝑛  
+
+> V
+
++ ∑ 𝜈 𝑖 ,𝑟 𝑟 ∈ℛ 𝜀 ̇𝑟 ,𝑛 , ∀𝑖 ∈ 𝒞 , 𝑛 ∈ 𝒩 , (1) 
+
+where 𝑥 𝑖 ,𝑛 and 𝑦 𝑖 ,𝑛 are the liquid and vapor mole fractions 
+
+of component 𝑖 on stage 𝑛 , and 𝑥 𝑛 = {𝑥 𝑖 ,𝑛 }𝑖 ∈𝒞 and 𝑦 𝑛 =
+
+{𝑦 𝑖 ,𝑛 }𝑖 ∈𝒞 collect the correspo nding phase composition 
+
+vectors; 𝐿 𝑛 and 𝑉 𝑛 are the liquid and vapor molar flow 
+
+rates leaving stage 𝑛 . Thus, 𝐿 𝑛 +1 enters from the stage 
+
+above and 𝑉 𝑛 −1 enters from the stage below. Boundary 
+
+streams, such as 𝐿 𝑁 +1 and 𝑉 0, represent specified feeds 
+
+or neighboring unit operations. 𝑓 𝑖 ,𝑛  
+
+> L
+
+and 𝑓 𝑖 ,𝑛  
+
+> V
+
+are optional 
+
+liquid and vapor component feeds. 𝜈 𝑖 ,𝑟 is the stoichio-
+
+metric coefficient of component 𝑖 in reaction 𝑟 ∈ ℛ, and 
+
+𝜀 ̇𝑟 ,𝑛 are the reaction extent rate s.
+
+## Equilibrium relations 
+
+Phase equilibrium is enforced with equilibrium ra-
+
+tios: 
+
+𝑦 𝑖 ,𝑛 = 𝐾 𝑖 ,𝑛 𝑥 𝑖 ,𝑛 , ∀𝑖 ∈ 𝒞 , 𝑛 ∈ 𝒩 , (2a) 
+
+𝐾 𝑖 ,𝑛 = 𝐾 𝑖 (𝑇 𝑛 , 𝑃 𝑛 , 𝑥 𝑛 , 𝑦 𝑛 ), ∀𝑖 ∈ 𝒞 , 𝑛 ∈ 𝒩 , (2b) 
+
+where 𝑇 𝑛 and 𝑃 𝑛 are the temperature and pressure on 
+
+stage 𝑛 , 𝐾 𝑖 ,𝑛 is the equilibrium ratio, and 𝐾 𝑖 (⋅) is the ther-
+
+modynamic correlation that computes the equilibrium ra-
+
+tio from temperature, pressure, and composition. 
+
+Reaction equilibrium is written in terms of activities: 
+
+∑ 𝜈 𝑖 ,𝑟 𝑖 ∈𝒞 ln 𝑎 𝑖 ,𝑛 = ln 𝐾 𝑟 ,𝑛  
+
+> R
+
+, ∀𝑟 ∈ ℛ, 𝑛 ∈ 𝒩 , (3a) 
+
+𝑎 𝑖 ,𝑛 = 𝑎 𝑖 (𝑇 𝑛 , 𝑃 𝑛 , 𝑥 𝑛 , 𝑦 𝑛 ), ∀𝑖 ∈ 𝒞 , 𝑛 ∈ 𝒩 , (3b) 
+
+𝐾 𝑟 ,𝑛  
+
+> R
+
+= 𝐾 𝑟 
+
+> R
+
+(𝑇 𝑛 , 𝑃 𝑛 ), ∀𝑟 ∈ ℛ, 𝑛 ∈ 𝒩 , (3c) 
+
+where 𝑎 𝑖 ,𝑛 is the activity of component 𝑖 , and 𝑎 𝑖 (⋅) is the 
+
+chosen act ivity model. Likewise, 𝐾 𝑟 ,𝑛  
+
+> R
+
+is the reaction 
+
+equilibrium constant variable, and 𝐾 𝑟 
+
+> R
+
+(⋅) is its thermody-
+
+namic correlation. 
+
+## Summation constraints 
+
+The summation constraints normalize the liquid and 
+
+vapor compositions on each stage: 
+
+∑ 𝑥 𝑖 ,𝑛 𝑖 ∈𝒞 = 1, ∑ 𝑦 𝑖 ,𝑛 𝑖 ∈𝒞 = 1, ∀𝑛 ∈ 𝒩 . (4) 
+
+## Heat balances 
+
+The heat balance enforces enthalpy conservation. 
+
+The liquid and vapor molar enthalpies are computed from 
+
+phase enthalpy models  [11]: 
+
+ℎ𝑛  
+
+> L
+
+= ℎL(𝑇 𝑛 , 𝑃 𝑛 , 𝑥 𝑛 ), ℎ𝑛  
+
+> V
+
+= ℎV(𝑇 𝑛 , 𝑃 𝑛 , 𝑦 𝑛 ), ∀𝑛 ∈ 𝒩 , (5) [LAPSE_ DoNotChange] Syst Control Trans V:XXXX -YYYY (202 7) 3
+
+where ℎ𝑛  
+
+> L
+
+and ℎ𝑛  
+
+> V
+
+are liquid and vapor molar enthalpy, 
+
+while ℎL(⋅) and ℎV(⋅) are the corresponding enthalpy cor-
+
+relations. 
+
+The stage energy balance is 
+
+𝐿 𝑛 ℎ𝑛  
+
+> L
+
++ 𝑉 𝑛 ℎ𝑛  
+
+> V
+
+= 𝐿 𝑛 +1ℎ𝑛 +1 
+
+> L
+
++ 𝑉 𝑛 −1ℎ𝑛 −1
+
+> V
+
++𝐹 𝑛 
+
+> L
+
+ℎ𝑛  
+
+> F,L
+
++ 𝐹 𝑛 
+
+> V
+
+ℎ𝑛  
+
+> F,V
+
++ 𝑄 𝑛 , ∀𝑛 ∈ 𝒩 , (6) 
+
+where 𝑄 𝑛 is the heat duty, 𝐹 𝑛  
+
+> L
+
+and 𝐹 𝑛  
+
+> V
+
+are optional liquid 
+
+and vapor side feed molar flow rates, and ℎ𝑛  
+
+> F,L
+
+and ℎ𝑛  
+
+> F,V
+
+are 
+
+their molar enthalpies. For boundary stages, ℎ𝑁 +1 
+
+> L
+
+and ℎ0
+
+> V
+
+denote inlet stream enthalpies. 
+
+## Pressure relations 
+
+Stage pressures may be specified or computed from 
+
+pressure drop relations. For adjacent stages 𝑛 = 1, … , 𝑁 −
+
+1, one common form is 
+
+𝑃 𝑛 = 𝑃 𝑛 +1 + 𝛥 𝑃 𝑛 ; 𝑃 𝑁 = 𝑃 top , (7) 
+
+where 𝛥 𝑃 𝑛 is the pressure drop from stage 𝑛 + 1 to stage 
+
+𝑛 , and 𝑃 top is the specified top stage pressure. Depend-
+
+ing on the unit model, 𝛥 𝑃 𝑛 may be specified, set to zero, 
+
+or computed from a hydraulic correlation. 
+
+## Degrees of freedom 
+
+For a deterministic problem, (1) –(7) form a square 
+
+MESH block once the boundary streams, side feeds, heat 
+
+dut y and pressure specifications, as well as any material 
+
+property specifications are supplied. These specifica-
+
+tions close the material, equilibrium, summation, heat, 
+
+and pressure equations, leaving no degrees of freedom 
+
+for simulation. In an optimization problem, selected quan-
+
+tities that would otherwise be specified are instead left 
+
+free and bounded . These quantities become the design 
+
+and operating degrees of freedom and are optimi zed 
+
+subject to the MESH equations. 
+
+The deterministic MESH block is sparse because 
+
+each stage depends only on local variables and adjacent 
+
+interstage streams. 
+
+# SCENARIO -BASED NONLINEAR PROGRAM 
+
+# CONSTRUCTION AND GPU SOLUTION 
+
+The MESH block (1) –(7) is embedded in a two -stage, 
+
+scenario -based nonlinear program (NLP). Let 𝛺 denote a 
+
+finite scenario set with probabilities 𝑝 𝜔 ≥ 0 satisfying 
+
+∑ 𝑝 𝜔 𝜔 ∈𝛺 = 1. The deterministic -equivalent stochastic de-
+
+sign problem is 
+
+min 
+
+> 𝜃 ,𝑧 𝛺
+
+𝐶 des (𝜃 ) + ∑ 𝑝 𝜔 𝜔 ∈𝛺 𝐶 𝜔 
+
+> op
+
+(𝑧 𝜔 ; 𝜃 , 𝜉 𝜔 ) (8a) 
+
+s. t. 𝐹 𝜔 
+
+> MESH
+
+(𝑧 𝜔 ; 𝜃 , 𝜉 𝜔 ) = 0, ∀𝜔 ∈ 𝛺 , (8b) 
+
+𝐺 𝜔 (𝑧 𝜔 ; 𝜃 , 𝜉 𝜔 ) ≤ 0, ∀𝜔 ∈ 𝛺 , (8c) 
+
+𝜃 𝐿 ≤ 𝜃 ≤ 𝜃 𝑈 , (8d) 
+
+𝑧 𝜔  
+
+> 𝐿
+
+≤ 𝑧 𝜔 ≤ 𝑧 𝜔 
+
+> 𝑈
+
+, ∀𝜔 ∈ 𝛺 , (8e) 
+
+where 𝜉 𝜔 collects the uncertain data in scenario 𝜔 , in-
+
+cluding feed flow rates, feed compositions, tempera-
+
+tures, pressures, and other operating parameters. The 
+
+design vector 𝜃 is chosen before uncertainty is realized, 
+
+whereas the operating and state vector 𝑧 𝜔 is scenario -
+
+specific recourse. 
+
+The term 𝐶 des (𝜃 ) is the design or capital cost, and 
+
+𝐶 𝜔 
+
+> op
+
+(𝑧 𝜔 ; 𝜃 , 𝜉 𝜔 ) is the operating cost in scenario 𝜔 . The 
+
+equalities 𝐹 𝜔  
+
+> MESH
+
+= 0 impose the scenario -specific mate-
+
+rial balances, equilibrium relations, summation con-
+
+straints, energy balances, and pressure relations defined 
+
+above. Equation (8c) collect s scenario -dependent feasi-
+
+bility requirements, such as hydraulic capacity, pressure, 
+
+equipment, and process specification limits. The vectors 
+
+𝜃 𝐿 and 𝜃 𝑈 are lower and upper bounds on the shared de-
+
+sign variables, and 𝑧 𝜔  
+
+> 𝐿
+
+and 𝑧 𝜔  
+
+> 𝑈
+
+are lower an d upper bounds 
+
+on the scenario recourse variables. Relative to the square 
+
+deterministic MESH block described before, the degrees 
+
+of freedom in (8) are the elements of 𝜃 and 𝑧 𝜔 that are 
+
+not fixed as simulation specifications. 
+
+## Replicated scenario structur e
+
+Equations (8b) –(8c) are replicated for all scenarios. 
+
+Here, replication means that a common algebraic con-
+
+straint template relat is instantiated across scenarios, 
+
+stages, components, and reactions, with scenario -spe-
+
+cific variables, data, and bounds. The deterministic 
+
+equivalent is therefore block -separable by scenario, ex-
+
+cept for the shared design variables, which provide the 
+
+only cross -scenario coupling. If one deterministic MESH 
+
+model contains 𝑛 𝑧 recourse variables and 𝑛 𝑓 equality con-
+
+straints, then t he scenario model contains |𝛺 |𝑛 𝑧 recourse 
+
+variables and |𝛺 |𝑛 𝑓 MESH equalities, plus the shared de-
+
+sign variables and scenario -dependent inequalities. This 
+
+linear growth with |𝛺 | creates the scalability challenge 
+
+while also providing the exploitable p arallel structure. 
+
+## Structured model construction with ExaModels.jl 
+
+Equation (8) can be implemented in several alge-
+
+braic modeling systems, including JuMP, AMPL, CasADi, 
+
+and hand -coded callback interfaces. We use ExaMod-
+
+els.jl, a state -of -the -art platform fo r sparse NLPs with re-
+
+peated algebraic structure. Its generator -based syntax 
+
+declares objective and constraint equations over index 
+
+sets, exposing the single -instruction, multiple -dat a
+
+structure required for parallel function and automatic dif-
+
+ferentiatio n ( AD ) evaluation on CPUs and GPUs  [10]. 
+
+ExaModel s.jl represents each constraint family us-
+
+ing a generator: a single algebraic template followed by a 
+
+for  clause that specifies the index sets over which the 
+
+template is instantiated. A representative declaration for 
+
+the material -balance family is given below. 
+
+@add_con(core, 
+
+L[n,w]*x[i,n,w] + V[n,w]*y[i,n,w] 
+
+- L[n+1,w]*x[i,n+1,w] [LAPSE_ DoNotChange] Syst Control Trans V:XXXX -YYYY (202 7) 4
+
+- V[n -1,w]*y[i,n -1,w] 
+
+- fL[i,n,w] - fV[i,n,w] 
+
+- sum(nu[i,r]*eps[r,n,w] for r in R) 
+
+for i in C, n in N, w in W; 
+
+lcon = 0.0, ucon = 0.0) 
+
+In this declaration, the expression defines one scalar ma-
+
+terial -balance equation, while  for i in C, n in N, w 
+
+in W  instantiates it ov er all components, stages, and sce-
+
+narios. Other MESH constraint families are declared anal-
+
+ogously. Increasing the number of components, stages, 
+
+reactions, or scenarios changes only the index sets and 
+
+array dimensions, not the algebraic template for each 
+
+fa mily. 
+
+This generator -based formulation exposes the re-
+
+peated MESH structure directly to the AD and solver in-
+
+terfaces. Manually constructing scalar constraints in an 
+
+outer Julia loop should be avoided in this formulation be-
+
+cause it obscures the common template and limits GPU 
+
+kernel generation. 
+
+## GPU -resident solution with MadNLP.jl 
+
+By exposing the parallel sparse NLP structure, the 
+
+ExaModels .jl implementation above makes the resulting 
+
+problem suitable for a fully GPU -resident solution with 
+
+MadNLP.jl. In the GPU configuration, function evaluation, 
+
+AD, KKT assembly, and sparse linear algebra remain on 
+
+the device, avoiding repeated host -device transfers dur-
+
+ing solver callbacks  [10]. 
+
+# CASE STUDY: ABSORBER DIA METER 
+
+# MINIMIZATION 
+
+## Problem setup 
+
+Our case study considers the optimal sizing of an 
+
+absorber column for solvent -based carbon capture, a 
+
+mature technology that is applied on an industrial 
+
+scale  [12]. Specifically, we aim to find the minimum ab-
+
+sorber diameter that ensures feasible, non -flooding op-
+
+erat ion under all uncertain feed conditions (Fig.  1). For 
+
+each scenario 𝜔 ∈ 𝛺 , the inlet gas and liquid flow rates, 
+
+compositions, temperatures, and absorber operating 
+
+pressure 𝑃 𝜔  
+
+> abs
+
+are prescribed. The absorber diam eter 𝑑 is 
+
+the shared design variable, whereas stage flow rates, 
+
+compositions, temperatures, and reaction extents are 
+
+scenario -dependent recourse variables. 
+
+The physical absorber is a continuous contacting 
+
+column. In the optimization model, we approximate it by 
+
+an equilibrium -stage representation with 𝒩 = {1, … , 𝑁 abs }
+
+and 𝑁 abs = 10 . The scenario set is generated from seven 
+
+measured baseline operating cases by sampling random 
+
+convex combinations, so all sampled feed conditions lie 
+
+within the convex hull of the measurements. The objec-
+
+tive is to minimize the column diameter 𝑑 that satisfies 
+
+the gas superficial -velocity limit on every modeled stage 
+
+Figure 1. Absorber under feed uncertainty. 
+
+in every scenario. 
+
+The set of components and the five liquid -phase 
+
+eq uilibrium reactions are: 
+
+𝒞 = {MEA , MEA H+, H+, MEACO O−, HC O3
+
+> −
+
+, OH−, CO3
+
+> 2−
+
+,
+
+CO2, H2O, N2, O2}.
+
+MEAH + ↔
+
+> 𝐾 1
+
+MEA + H+ (R1) 
+
+HCO 3 
+
+> −
+
+↔
+
+> 𝐾 2
+
+H+ + CO 3 
+
+> 2−
+
+(R2) 
+
+H2O ↔
+
+> 𝐾 3
+
+H+ + OH − (R3) 
+
+MEACOO − + H2O ↔
+
+> 𝐾 4
+
+MEA + HCO 3 
+
+> −
+
+(R4) 
+
+H2O + CO 2 ↔
+
+> 𝐾 5
+
+H+ + HCO 3 
+
+> −
+
+(R5) 
+
+The temperature -dependent equilibrium constants 
+
+are computed with the Kent –Eisenberg correlation  [13]. 
+
+ln 𝐾 𝑟 (𝑇 ) = 𝐴 𝑟 + 𝐵 𝑟 
+
+𝑇 + 𝐶 𝑟 ln 𝑇 + 𝐷 𝑟 𝑇 , 𝑟 = 1, … ,5.
+
+The vapor phase is modeled as an ideal gas mixture 
+
+and the liquid phase as an ideal liquid mixture, so vapor 
+
+fugacities are repre sented by partial pressures and liquid 
+
+activities by mole fractions. 
+
+Water vapor –liquid equilibrium follows Raoult’s law, 
+
+and CO 2 vapor –liquid equilibrium follows Henry’s law. For 
+
+all 𝑛 ∈ 𝒩 and 𝜔 ∈ 𝛺 ,
+
+𝑃 𝜔 
+
+> abs
+
+𝑦 H2O,𝑛 ,𝜔 = 𝑥 H2O,𝑛 ,𝜔 𝑃 H2O 
+
+> sat
+
+(𝑇 𝑛 ,𝜔 ), (9a) 
+
+𝑃 𝜔 
+
+> abs
+
+𝑦 CO2,𝑛 ,𝜔 = 𝑐 CO2,𝑛 ,𝜔 𝐻 CO2 (𝑇 𝑛 ,𝜔 , 𝑥 MEA ,𝑛 ,𝜔  
+
+> app
+
+, 𝑥 H2O,𝑛 ,𝜔  
+
+> app
+
+) ,
+
+(9b) 
+
+where 𝑃 𝜔  
+
+> abs
+
+is the prescribed absorber pressure, 𝑃 H2O 
+
+> sat
+
+(𝑇 )
+
+is the water saturation -pressure correlation, 𝑐 CO2,𝑛 ,𝜔 is the 
+
+dissolved concentration, and 𝑥 MEA ,𝑛 ,𝜔  
+
+> app
+
+and 𝑥 H2O,𝑛 ,𝜔  
+
+> app
+
+are the 
+
+apparent liquid composition s [11, 14]. Pressure drop is 
+
+neglected, so all stages operate at the scenario absorber 
+
+pressure 𝑃 𝑛 ,𝜔 = 𝑃 𝜔 
+
+> abs
+
+.
+
+The energy balance uses ideal -mixture enthalpies. 
+
+The liquid and vapor enthalpy flow rates are [LAPSE_ DoNotChange] Syst Control Trans V:XXXX -YYYY (202 7) 5
+
+𝐻 ̇𝑛 ,𝜔  
+
+> L
+
+= 𝐿 𝑛 ,𝜔 ∑ 𝑥 𝑖 ,𝑛 ,𝜔 𝑖 ∈𝒞 L ℎ𝑖 
+
+> L
+
+(𝑇 𝑛 ,𝜔 ) and  𝐻 ̇𝑛 ,𝜔  
+
+> V
+
+= 𝑉 𝑛 ,𝜔 ∑𝑖 ∈𝒞 V
+
+𝑦 𝑖 ,𝑛 ,𝜔 ℎ𝑖 
+
+> V
+
+(𝑇 𝑛 ,𝜔 ), where 𝒞 L and 𝒞 V denote the liquid and va-
+
+por components. The component molar enthalpies are 
+
+computed from temperature -dependent heat ca pacities 
+
+with reference -state corrections  [11] :
+
+ℎ𝑖 
+
+> 𝜙
+
+(𝑇 ) = ℎ𝑖 
+
+> 𝜙
+
+(𝑇 ref ) + ∫ 𝐶 𝑝 ,𝑖 
+
+> 𝜙
+> 𝑇
+> 𝑇 ref
+
+(𝜏 ) 𝑑𝜏 + 𝛥 ℎ𝑖 
+
+> 𝜙
+
+(𝑇 ), 𝜙 ∈ {L, V}.
+
+The absorber diameter is constrained by the maxi-
+
+mum allowable superficial gas velocity. The hydraulic 
+
+constraint is written as 
+
+𝑉 𝑛 ,𝜔 𝑅 𝑇 𝑛 ,𝜔 
+
+𝑃 𝜔  
+
+> abs
+
+≤ 𝑢 max 
+
+𝜋 𝑑 2
+
+4 , 𝑛 ∈ 𝒩 , 𝜔 ∈ 𝛺 ,
+
+where 𝑢 max is the specified superficial velocity limit and 𝑅 
+
+is the ideal gas constant .
+
+Together with (1), (3a), (4), (6), and (9), the diame-
+
+ter -minimization problem is 
+
+min 
+
+> 𝑑 ,{𝑧 𝜔 }𝜔 ∈𝛺
+
+𝑑  (10a) 
+
+s. t. 𝑉 𝑛 ,𝜔 𝑅 𝑇 𝑛 ,𝜔  
+
+> 𝑃 𝜔
+> abs
+
+− 𝑢 max  
+
+> 𝜋 𝑑 2
+> 4
+
+≤ 0, 𝑛 ∈ 𝒩 , 𝜔 ∈ 𝛺 , (10b) 
+
+𝑑 𝐿 ≤ 𝑑 ≤ 𝑑 𝑈 , (10c) 
+
+𝑧 𝜔  
+
+> 𝐿
+
+≤ 𝑧 𝜔 ≤ 𝑧 𝜔 
+
+> 𝑈
+
+, 𝜔 ∈ 𝛺 . (10d) 
+
+## Numerical results 
+
+We solved the deterministic equivalent of (10) for 
+
+|𝛺 | ∈ {1,10 ,100 ,1000 ,5000 } scenarios. For the largest in-
+
+stance, with |𝛺 | = 5000 , the resulting nonlinear program 
+
+contains 1,500 ,001 variables, 1,050 ,000 MESH equality 
+
+constraints, 450 ,000 variable -fixing constraints, and 
+
+50 ,000 hydraulic inequality constraints. These dimensions 
+
+arise because each scenario introduces its own reco urse 
+
+variables and an instantiation of the stagewise MESH 
+
+constraints , while all scenarios share a single first -stage 
+
+absorber diameter. 
+
+All experiments were conducted on a system with 
+
+dual socket 48 -core Intel Xeon Platinum 8568Y+ CPU s
+
+(2.3 GHz base, 4.0 GHz max turbo) with 2  TB of system 
+
+memory and 4x NVIDIA H200  GPU s with 141  GB of VRAM 
+
+device memory each . For the linear solver, the 
+
+JuMP+Ipopt and the CPU ExaModels.jl+MadNLP.jl con-
+
+figuration used HSL MA57 v3.11.3; the GPU configuration 
+
+used cuDSS v0.7.1. CPU runs used one Julia thread and 
+
+one BLAS thread. All configurations used the same initial 
+
+point, variable bounds, and solver tolerances of 10 −8. The 
+
+runs used Julia 1.12.1 a nd CUDA v6.1.0; the implementa-
+
+tions are available at  https://github.com/mit -shin -
+
+group/FOCAPO_ExaProcess .
+
+We compare d three solution setups: CPU -based 
+
+JuMP/Ipopt, CPU -based ExaModels.jl /MadNLP.jl, and 
+
+GPU -based ExaModels.jl/MadNLP.jl. The CPU configura-
+
+tions we re executed in single -threaded mode to serve as 
+
+a sequential reference for performance comparison. For 
+
+small scenario sets, the GPU implementation wa s not 
+
+consistently faster becaus e fixed GPU launch and data -
+
+management overheads were comparable to the total so-
+
+lution time. As the number of scenarios increase d, how-
+
+ever, the instantiated MESH equations and hydraulic con-
+
+straints create d enough parallel work across scenarios 
+
+and stages t o amortize these overheads. At |𝛺 | = 5000 ,
+
+the GPU ExaModels.jl/MadNLP.jl configuration solve d the 
+
+problem in 33 .3 s, compared with 695 .5 s for JuMP/Ipopt 
+
+and 707 .8 s for the CPU ExaModels.jl/MadNLP.jl configu-
+
+ration (Table  1). These solve times correspond to
+
+speedups of 20 .9 × relative to JuMP/Ipopt and 21 .3 × rel-
+
+ative to the CPU ExaModels.jl/MadNLP.jl configuration. 
+
+The iteration counts in Table  1 distinguish convergence 
+
+behavior from per -iteration computational cost. For the 
+
+large instances, the GPU speedup was primarily at-
+
+tributed to lower per -iteration cost, as the scenario -rep-
+
+licated structure provide d sufficient parallel work to ex-
+
+ploit the device. 
+
+As a sanity check for this prototype problem, the 
+
+minimum hydraulic margin was within solver tolerance of 
+
+ze ro, indicating an active hydraulic constraint and sup-
+
+porting the validity of the optimal solution. 
+
+# CONCLUSION 
+
+This work presented a proof -of -concept, fully GPU -
+
+resident workflow for scenario -based equation -oriented 
+
+process design under uncertainty . ExaModel s exposes 
+
+replicated MESH constraint structure, while MadNLP and 
+
+cuDSS solve the resulting nonlinear program on the GPU. 
+
+The absorber prototype problem demonstrat ed that GPU 
+
+acceleration becomes beneficial once the scenario set is 
+
+lar ge enough to amortize fixed overheads, achieving an 
+
+order -of -magnitude speedup relative to single -threaded 
+
+CPU configuration at the largest tested problem . Future 
+
+work will extend the workflow to full -detail absorber and 
+
+flowsheet models and further exploi t scenario block 
+
+structure in GPU -based linear algebra and solution of the 
+
+KKT systems [1 5]. 
+
+# ACKNOWLEDGEMENTS 
+
+DS, BH, and SS received support from the Future 
+
+Energy Systems Center through the MIT Energy Initiative. 
+
+This publication is based on work support ed by the U.S. 
+
+Department of Energy under contract DE -AC02 -
+
+06CH11357. Funding was provided by the U.S. DOE Hy-
+
+drocarbons and Geothermal Energy Office under FWP -
+
+DOE -145 -SE -14205HPC4E -25. 
+
+# DECLARATION OF USE OF AI 
+
+Generative AI tools were used solely to assist with 
+
+language editing and to improve the clarity, concision, [LAPSE_ DoNotChange] Syst Control Trans V:XXXX -YYYY (202 7) 6
+
+and organization of the manuscript. All suggestions were 
+
+reviewed and edited by the authors, who take full re-
+
+sponsibility for the content. AI was no t used to produce 
+
+research results, models, data, or numerical experiments. 
+
+AI is not an author of this work. 
+
+# REFERENCES 
+
+1.  L. T. Biegler. Nonlinear Programming: Concepts, 
+
+Algorithms, and Applications to Chemical 
+
+Processes. MOS -SIAM Series on Optimization. 
+
+Philadelphia, PA: Society for Industrial and Applied 
+
+Mathematics, 2010. 
+
+2.  N. V. Sahinidis. “Optimization under uncertainty: 
+
+state -of -the -art and opportunities”. In: Computers 
+
+& Chemical Engineering (June 2004). 
+
+3.  C. Li and I. E. Grossmann. “A Review of Stochastic 
+
+Programming Methods for Optimization of Process 
+
+Systems Under Uncert ainty”. In: Frontiers in 
+
+Chemical Engineering (Jan. 2021). 
+
+4.  J. -H. Han and I. -B. Lee. “Multiperiod Stochastic 
+
+Optimization Model for Carbon Capture and 
+
+Storage Infrastructure under Uncertainty in CO₂ 
+
+Emissions, Product Prices, and Operating Costs”. 
+
+In: Indus trial & Engineering Chemistry Research 
+
+(Sept. 2012). 
+
+5.  S. Ahmed and N. V. Sahinidis. “Robust Process 
+
+Planning under Uncertainty”. In: Industrial & 
+
+Engineering Chemistry Research (May 1998). 
+
+6.  C. D. Laird and L. T. Biegler . “Large -Scale Nonlinear 
+
+Programming for Multi -scenario Optimization”. In: 
+
+Modeling, Simulation and Optimization of Complex 
+
+Processes. Ed. by H. G. Bock, E. Kostina, H. X. Phu, 
+
+and R. Rannacher. Berlin, Heidelberg: Springer, 
+
+2008. 
+
+7.  A. J. Kleywegt, A. Shapir o, and T. Homem -de -
+
+Mello. “The Sample Average Approximation Method 
+
+for Stochastic Discrete Optimization”. In: SIAM 
+
+Journal on Optimization (2002). 
+
+8.  B. Calfa, A. Agarwal, I. Grossmann, and J. Wassick. 
+
+“Data -driven multi -stage scenario tree generation 
+
+via sta tistical property and distribution matching”. 
+
+In: Computers & Chemical Engineering (Sept. 
+
+2014). 
+
+9.  A. W. Dowling and L. T. Biegler. “A Framework for 
+
+Efficient Large Scale Equation -Oriented Flowsheet 
+
+Optimization”. In: Computers & Chemical 
+
+Engineering (Jan. 2 015). 
+
+10.  S. Shin, F. Pacaud, and M. Anitescu. Accelerating 
+
+Optimal Power Flow with GPUs: SIMD Abstraction 
+
+of Nonlinear Programs and Condensed -Space 
+
+Interior -Point Methods. Feb. 2024. 
+
+11.  P. Akula, J. Eslick, D. Bhattacharyya, and D. C. 
+
+Miller. “Model Development, Validation, and 
+
+Optimization of an MEA -Based Post -Combustion 
+
+CO₂ Capture Process under Part -Load and Variable 
+
+Capture Operations”. Industrial & Engineering 
+
+Chemistry Research (Apr. 2021). 
+
+12.  A. Singh and K. Stéphenne. “Shell Cansolv CO₂ 
+
+capture technology: Achievement from First 
+
+Commercial Plant”. In: Energy Procedia (2014). 
+
+13.  R. L. Kent and B. Eisenberg. “Better Data for Amine 
+
+Treating”. Hydrocarbon Processing (Feb. 1976). 
+
+14.  Y. Jiru, D. A. Eimer, and Y. Wenjuan. 
+
+“Measurements and Correl ation of Physical 
+
+Solubility of Carbon Dioxide in (Monoethanolamine 
+
++ Water) by a Modified Technique”. In: Industrial & 
+
+Engineering Chemistry Research (May 2012). 
+
+15.  F. Pacaud, S. Shin, M. Schanen, D. A. Maldonado, 
+
+and M. Anitescu. “Accelerating Condensed Int erior -
+
+Point Methods on SIMD/GPU Architectures”. In: 
+
+Journal of Optimization Theory and Applications 
+
+(July 2024).  
+
+> © 202 7by the authors. Licensed to PSEcommunity.org and PSE
+> Press. This is an open access article under the creative com-
+> mons CC -BY -SA licensin g terms. Credit must be given to creator
+> and adaptations must be shared under the same terms. See
+> https://creativecommons.org/licenses/by -sa/4.0/
+
+Table 1. Solve time s and interior -point iteration count s for each solution setup. 
+
+JuMP/Ipopt /MA 57  ExaModels/MadNLP /MA 57 
+
+(CPU) 
+
+ExaModels/MadNLP /CuDSS 
+
+(GPU) 
+
+|Ω|  Solve (s)  Iterations  Solve (s)  Iterations  Solve (s)  Iterations 
+
+1 0.03  18  0.008  20  0.22  16 
+
+10  0.32  29  0.11  26  0.62  27 
+
+100  max iter exceeded  2.61  46  0.83  42 
+
+1000  91.9  52  369.4  599  15.8  78 
+
+5000  695.5  80  707.8  115  33.3  139
