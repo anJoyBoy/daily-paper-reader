@@ -1,0 +1,283 @@
+Title: ChemFusion: A Multimodal Cross-Attention Network for Reaction Yield Prediction
+
+URL Source: https://arxiv.org/pdf/2607.17033v1
+
+Published Time: Tue, 21 Jul 2026 00:53:24 GMT
+
+Number of Pages: 10
+
+Markdown Content:
+# ChemFusion: A Multimodal Cross-Attention Network for Reaction Yield Prediction 
+
+## Qiwei Han 1,2 and Chi Zhou 21Department of Chemistry, Duke University, Durham, NC 27708, USA 
+
+> 2
+
+Department of Computer Science, Georgia Institute of Technology, Atlanta, GA 30332, USA 
+
+Abstract 
+
+Forecasting the outcomes of transition-metal-catalyzed reactions is notoriously complex due to the interplay of diverse physical and chemical variables. A persistent computational bottleneck has been effectively merging broad electronic descriptors with the localized, three-dimensional geometry of the reactive site. To bridge this representation gap, we present ChemFusion, a hybrid neural network that fuses conventional electronic features with explicit 3D atomic coor-dinates. Using a cross-attention mechanism, the model enables global electronic states to dynamically attend to specific spatial constraints within un-pooled molecular point clouds. When benchmarked against a diverse library of cross-couplings, this approach delivers exceptional predictive performance, decisively surpassing traditional single-modality frameworks. Importantly, extracting the attention matrices reveals that the architecture autonomously learns to iden-tify and penalize restrictive steric hindrances. This provides a physically grounded interpretability, demonstrating that spatially aware networks can navigate complex reaction sterics that standard statistical models typically miss. 
+
+# 1 Introduction 
+
+The Challenge of Reaction Optimization. The discov-ery and optimization of catalytic reactions represent a fundamental bottleneck in chemical synthesis. Navigat-ing the vast and highly non-linear combinatorial space of substrates, catalysts, ligands, and additives has tra-ditionally relied on empirical intuition and resource-intensive screening. While High-Throughput Experimen-tation (HTE) has accelerated this empirical process [1, 2], the exhaustive screening of all possible reagent matrices remains physically and economically intractable. Conse-quently, the development of machine learning (ML) archi-tectures capable of accurately predicting reaction yields 
+
+in silico has emerged as a transformative frontier in the molecular sciences [3]. 
+
+The Buchwald-Hartwig Benchmark. Within this domain, Palladium-catalyzed Buchwald-Hartwig C–N cross-coupling serves as both a cornerstone transforma-tion in pharmaceutical manufacturing [4, 5] and a premier benchmark for chemical ML models. The intricate inter-play of macroscopic electronic parameters and localized steric effects in this reaction makes it notoriously difficult to model computationally. A landmark benchmark was established by the Doyle laboratory, which utilized high-throughput data from nearly 4,000 Buchwald-Hartwig re-actions to train classical ML algorithms [6]. By represent-ing reactions via a tabular matrix of density functional the-ory (DFT) computed physicochemical descriptors (e.g., HOMO/LUMO energies, atomic charges, and dipole mo-ments), a Random Forest model achieved a strong litera-ture baseline for out-of-sample predictions ( R2 = 0.9189, RMSE = 7.84%) [6]. 
+
+Limitations of Unimodal Baselines. However, while this purely tabular approach successfully captures the global electronic properties governing the catalytic cy-cle, it fundamentally relies on macroscopic descriptors that lack continuous spatial awareness. Since the re-lease of this dataset, numerous contemporary architec-tures have attempted to improve predictive performance using unimodal representations, such as SMILES-based Transformers [7] and topological message-passing graph neural networks (GNNs) [8]. While these models achieve strong statistical correlations, they suffer from an inherent informational bottleneck: 1D sequences, 2D graphs, and tabular arrays mathematically collapse three-dimensional space [9]. This loss of geometric fidelity inherently limits their capacity to resolve the complex steric environments of transition-metal catalytic pockets, often forcing them to operate as statistical “black boxes” that struggle to na-tively encode physical organic chemistry principles, such as ligand cone angles or spatial clashes. 
+
+The Spatial Bottleneck and Destructive Pooling. 
+
+Molecular geometries dictate the steric bulk and local-ized non-covalent interactions critical during transition state formation. Recently, 3D Graph Neural Networks, such as the continuous-filter convolutional neural net-work (SchNet), have been utilized to model continu-1arXiv:2607.17033v1 [cs.LG] 19 Jul 2026 ous spatial geometries directly from atomic coordinates [10, 11]. However, integrating these 3D networks into multimodal yield prediction introduces two critical bot-tlenecks. First, training a highly parameterized geomet-ric deep learning model from scratch on small-scale HTE datasets inevitably leads to representational collapse and severe overfitting. Second, standard late-fusion architec-tures attempt to combine modalities by applying global average pooling to the 3D graph before concatenation. This pooling mechanism irreversibly collapses the single-atom spatial resolution, often introducing mathematical noise that degrades predictive performance below that of purely tabular baselines. 
+
+The ChemFusion Architecture. To bridge the repre-sentation gap between global electronic parameters and un-pooled 3D spatial geometries, we propose a novel mul-timodal architecture: ChemFusion. We systematically de-couple structural feature extraction from electronic pro-cessing. To prevent spatial overfitting, we utilize a pre-trained SchNet backbone as a frozen geometric feature extractor to evaluate the 3D atomic point cloud. Concur-rently, a deep Multilayer Perceptron (MLP) processes the tabular DFT-derived quantum properties to establish the overarching macroscopic electronic context. 
+
+Cross-Attentive Fusion. Crucially, to bypass the in-formation bottleneck introduced by global pooling, we in-troduce a Multi-Head Cross-Attention Fusion Layer [12]. Inspired by the physical reality of chemical reactivity— where macroscopic electronic properties dictate how molecules dynamically interact within their localized spa-tial environments—our network utilizes the tabular elec-tronic MLP embeddings as “Queries” to directly attend to the un-pooled 3D structural embeddings (“Keys” and “Values”). This dynamic cross-attention mechanism ef-fectively maps the global electronic context directly onto specific steric active sites without sacrificing spatial reso-lution. 
+
+Contributions. In this work, we demonstrate that this spatio-electronic multimodal approach significantly advances predictive capabilities beyond traditional uni-modal paradigms. By preserving 3D spatial resolution, our cross-attentive model actively identifies and penalizes severe geometric steric clashes, achieving state-of-the-art predictive performance on the Buchwald-Hartwig bench-mark dataset (RMSE = 6.22%, R2 = 0.9455). Further-more, by extracting the learned attention weights post-training, we establish a robust framework for physical in-terpretability. We provide mathematical evidence detail-ing how the network autonomously bifurcates its attention to evaluate catalytic anchors and steric hindrance, demon-strating strong alignment with foundational human chem-ical intuition. 
+
+# 2 Architecture and Methodology 
+
+## 2.1 Dataset and Feature Representation 
+
+To rigorously train and evaluate our multimodal architec-ture, we utilized the high-throughput Buchwald-Hartwig C–N cross-coupling dataset originally published by Ahne-man et al. [6]. For our computational modeling, we em-ployed the standardized, fully characterized subset com-prising N = 3, 955 experimental reaction yields. To en-sure a direct and equitable comparison with prior litera-ture baselines, this dataset and its corresponding 92 den-sity functional theory (DFT)-derived electronic features were utilized exactly as originally reported, without sup-plementary mathematical modification or feature engi-neering. To facilitate the multimodal learning objective, each re-action is parameterized into two distinct data representa-tions: • Global Electronic Descriptors: A tabular matrix of 92 physicochemical features computed via standard DFT and cheminformatics protocols. These macro-scopic descriptors encapsulate broad thermodynamic and electronic properties—such as HOMO/LUMO energy gaps, electrostatic atomic charges, and molecular dipole moments—without natively encod-ing continuous spatial constraints. • Explicit Spatial Geometries: 3D atomic coordinate arrays extracted directly from the ground-state opti-mized geometries of the constituent substrates, lig-ands, bases, and additives. These arrays function as an un-pooled, mathematically continuous point cloud, providing a high-fidelity representation of the localized steric environment. This bifurcated representation establishes a rigorous data foundation for the parallel extraction pathways of the ChemFusion architecture. 
+
+## 2.2 Multimodal Feature Extraction 
+
+To accurately model the highly non-linear chemical space of these cross-coupling reactions, our architecture inde-pendently processes two parallel, decoupled data streams: explicit 3D molecular geometries and macroscopic elec-tronic descriptors, as illustrated in Figure 1. 
+
+Unified Spatial Complex Construction. A fundamen-tal challenge in modeling multi-component catalytic reac-tions is representing discrete molecular entities (e.g., sub-strates, catalysts, ligands, and additives) in a unified geo-metric space. Rather than processing these components independently—which precludes the network from na-tively learning inter-molecular physical interactions—we 23D Spatial Pathway         
+
+> (Frozen SchNet)
+> Un-pooled Matrix H3D
+> 1D Electronic Pathway
+> (Deep Tabular MLP)
+> Context Vector helec
+> Cross-Attention Layer
+> (Multi-Head + Add & Norm)
+> Fused Context hf used
+> Prediction Head
+> (Concatenation + Dense MLP)
+> Predicted Yield (ˆy)
+> Keys ( K), Values ( V)
+> Query ( Q)
+> hf used
+> Skip Connection: Original Global Context ( helec )
+
+Figure 1: The ChemFusion Architecture. The extraction pathways independently process the un-pooled 3D spatial geometries (blue) and global electronic descriptors (orange). The Cross-Attention layer explicitly queries the spatial atomic matrix using the global thermodynamic state, dynamically routing structural features to the predictive head without employing destructive average pooling. mathematically treat the entire reaction mixture as a sin-gle “reaction super-complex.” For a given reaction, the atomic numbers ( Z) and 3D Cartesian coordinates ( R) of all constituent molecules are concatenated along the se-quence dimension: 
+
+Zseq = [ Zsub ∥ Zcat ∥ Zlig ∥ Zadd ] (1) 
+
+Rseq = [ Rsub ∥ Rcat ∥ Rlig ∥ Radd ] (2) where ∥ denotes sequence concatenation. To accom-modate the variable number of total atoms across dis-parate reactions within standard batch processing, this concatenated sequence is zero-padded to a fixed maxi-mum length, Nmax . Concurrently, a localized binary mask 
+
+m ∈ { 0, 1}Nmax is generated, assigning a value of 1 to true physical atoms and 0 to padded indices. 
+
+Spatial Feature Extraction. This unified geometric sequence ( Zseq , Rseq , and mask m) is subsequently pro-cessed by a pre-trained continuous-filter convolutional neural network (SchNet) [10, 11]. To prevent severe overfitting and representational degradation on the rel-atively constrained high-throughput dataset, the SchNet backbone is frozen and utilized exclusively as a deter-ministic geometric feature extractor. Crucially, we bypass the standard global average pooling layer. By evaluating inter-atomic distance matrices via radial basis functions, the network natively outputs a continuous, un-pooled 3D spatial feature matrix, H3D ∈ RNmax ×dschnet , preserving the high-dimensional spatial and electronic representation of every individual atom in the reaction mixture. 
+
+Electronic Context Extraction. In parallel, the stan-dardized DFT-derived electronic features [6] are pro-cessed through a deep Multilayer Perceptron (MLP). This tabular processing branch incorporates Batch Normaliza-tion and Mish activation functions [13] to map the dis-crete physicochemical properties into a dense, macro-scopic electronic latent vector, helec ∈ Rdelec .
+
+## 2.3 Cross-Attentive Fusion Mechanism 
+
+The principal architectural advancement of the ChemFu-sion framework lies in circumventing conventional late-fusion paradigms through the implementation of a Multi-Head Cross-Attention mechanism [12]. Standard multi-modal approaches typically necessitate collapsing the spa-tial atomic matrix, H3D, into a singular continuous vector via global average pooling prior to concatenation. This reductive operation irreversibly degrades single-atom spa-tial resolution, rendering the network structurally un-equipped to evaluate the localized geometric constraints that define catalytic active sites. To overcome this funda-mental information bottleneck, we formulate the modal-ity fusion not as a static concatenation, but as a dynamic, attention-driven mapping across the un-pooled 3D atomic point cloud. Specifically, the cross-attention layer is formulated us-ing h parallel attention heads. This multi-head dimen-sional expansion is a critical architectural choice, as it provides the mathematical capacity for feature disentan-glement. Rather than forcing a single attention matrix to average all physical interactions, utilizing h distinct pro-jection spaces allows individual heads to autonomously specialize into specific chemical roles—such as anchor-ing to the catalytic center versus evaluating diffuse steric bulk. For mathematical clarity, the operation of a single atten-3tion head i is defined as follows. The mechanism projects the incoming latent representations into three distinct ma-trices: the Query ( Qi), the Key ( Ki), and the Value ( V i). In our cross-modal formulation, the macroscopic electronic context vector acts as the Query, while the un-pooled spa-tial atomic matrix serves as the Keys and Values: 
+
+Qi = helec W Qi (3) 
+
+Ki = H3DW Ki , V i = H3DWVi (4) where W Qi ∈ Rdelec ×dk , and W Ki ,WVi ∈ Rdschnet ×dk are the learnable projection weight matrices for head i.The contextualized spatial representation for the head is then computed using scaled dot-product attention: head i = softmax 
+
+ QiKTi√dk
+
+
+
+V i (5) where dk is the dimensionality of the Query and Key vec-tors. Division by √dk acts as a temperature scaling fac-tor to mitigate softmax saturation and prevent subsequent gradient vanishing. To ensure the network strictly evalu-ates physically meaningful geometries, the binary array m
+
+is applied as a key-padding mask prior to the softmax op-eration, forcing the attention weights of the zero-padded indices to zero. Physically, this masked softmax operation computes the dot-product similarity between the global electronic requirements ( Qi) and the individual atomic spatial en-vironments ( Ki), returning normalized attention weights exclusively for the true N atoms in the reaction complex. These localized weights are multiplied by the geometric values ( V i) to produce a dynamically weighted, context-aware 3D representation. The outputs of all h parallel heads are then concatenated and linearly projected. Finally, this multimodal output is stabilized via a residual connection and layer normaliza-tion, concatenated with the original overarching electronic vector, and passed through a final predictive MLP to yield the calculated reaction yield ( ˆ y): 
+
+h f used = LayerNorm 
+
+
+
+Concat (head 1, . . . , head h)W O + Q
+
+
+
+(6) ˆy = MLP ([ h f used ∥ helec ]) (7) where W O is the final output projection matrix, and ∥ de-notes vector concatenation. 
+
+## 2.4 Physical Justification of the Attentive Inductive Bias 
+
+While the mathematical formulation of cross-attention is well-established in deep learning, its application to cat-alytic yield prediction warrants a rigorous physical jus-tification. According to classical transition state theory, the activation energy barrier of a catalytic cycle is dic-tated simultaneously by the precise 3D steric alignment of the reactants and the stabilizing overlap of their fron-tier molecular orbitals [5, 14]. Crucially, these geometric and electronic factors are in-extricably linked. The steric penalty or advantage of a localized structural feature—such as the cone angle or bite angle of a bulky phosphine ligand—cannot be eval-uated independently of its overarching electronic con-text [15, 16]. Its impact on catalytic success fundamen-tally depends on the electronic demand of the transition-metal center and the nucleophilicity of the coupling part-ners. Standard unimodal or late-fusion architectures often struggle to natively capture this interdependence, as they traditionally process geometric and electronic represen-tations in decoupled mathematical spaces prior to a final linear aggregation. Our cross-attentive fusion mechanism addresses this representation gap by introducing a physically grounded inductive bias. By explicitly designating the global DFT-computed electronic parameters as the Query ( Q), the architecture structurally mandates that the localized 3D molecular graph (the Keys, K, and Values, V ) is evalu-ated strictly through the lens of the reaction’s overarching thermodynamic and kinetic requirements. Mechanistically, this framework mathematically mir-rors fundamental physical organic chemistry: the global electronic state dynamically evaluates the 3D spatial en-vironment to identify atomic configurations that will ei-ther sterically stabilize or destabilize the activated com-plex. The resulting attention weights act as a learned, continuous masking function. They autonomously am-plify the spatial features of the catalytic pocket when electronic conditions demand tight coordination, while gracefully attenuating remote spectator atoms (e.g., dis-tal aliphatic chains) that do not actively participate in the rate-determining step. The specific directionality of this cross-attention map-ping is highly intentional. By defining the macroscopic electronic state as the Query, the network utilizes a global thermodynamic context to continuously evaluate a local-ized atomic map, smoothly condensing the Nmax -atom spatial matrix into a fixed-size, contextually weighted vector. If the directionality were reversed—with localized spatial atoms independently querying global electronic constants—the model would mathematically imply that isolated spectator atoms possess the physical agency to evaluate macroscopic thermodynamic states. Such an in-verted approach lacks both physical justification and com-putational efficiency. Consequently, the resulting fused embedding, h f used , functions not as a standard statisti-cal concatenation of disparate datasets, but as an explic-itly contextualized, differentiable mathematical represen-tation of the transition state environment. 4Table 1: Model Performance and Ablation Study on Out-of-Sample Test Set 
+
+Model Category Architecture RMSE (%) R2
+
+Original Literature Benchmark Random Forest [6] 7.84 0.9189 Purely 3D (Spatial) SchNet (Global Pooling) 21.66 0.3376 Purely 2D (Tabular) Deep Tabular MLP 7.37 0.9232 Multimodal (Late Fusion) Simple Concatenation 7.92 0.9113 
+
+Multimodal (ChemFusion) Cross-Attention (Ours) 6.22 0.9455 
+
+## 2.5 Evaluation Protocol and Metrics 
+
+The target variable for all predictive modeling was the ex-perimentally recorded reaction yield, expressed as a con-tinuous percentage (0–100%). To rigorously evaluate the out-of-sample generalization capacity of the ChemFusion architecture, the dataset was randomly partitioned into a 70% training set and a 30% hold-out test set. This parti-tion was executed using a fixed deterministic seed to en-sure exact reproducibility and enable equitable compar-isons against literature baselines. Predictive performance was quantified using two stan-dard continuous metrics: the Root Mean Square Er-ror (RMSE) to measure the absolute predictive deviation from experimental observations, and the Coefficient of Determination ( R2) to assess the proportion of chemical variance successfully captured by the multimodal latent space. 
+
+## 2.6 Training Protocol and Optimization 
+
+The ChemFusion network was implemented using Py-Torch and trained end-to-end. Given the continuous na-ture of the target variable, the network weights were op-timized by minimizing a standard Mean Squared Error (MSE) loss function. To effectively navigate the highly non-convex loss land-scape characteristic of multimodal architectures, we em-ployed the AdamW optimizer [17]. A weight decay pa-rameter of 1 × 10 −4 was applied to serve as a continuous regularization mechanism against tabular overfitting. Fur-thermore, the learning rate was dynamically governed by a Cosine Annealing schedule with Warm Restarts ( T0 =
+
+10, Tmult = 2, ηmin = 1 × 10 −5) to prevent the model from converging into suboptimal local minima. Following stan-dard conventions for attention-based representations [12], the structural hyperparameter dictating the cross-attention dimensionality was fixed at h = 8 parallel heads. This configuration was selected to provide sufficient represen-tational capacity for the aforementioned chemical feature disentanglement, while preemptively mitigating the in-herent risk of over-parameterization on the constrained 
+
+N = 3, 955 sample size. Computationally, because the highly parameterized 3D SchNet feature extractor remained entirely frozen dur-ing training, memory overhead and processing times were significantly reduced. The active parameters— comprising the Tabular MLP, the Cross-Attention map-ping layer, and the final prediction MLP—were trained utilizing Automatic Mixed Precision (AMP) on a sin-gle CUDA-enabled GPU. This optimization enabled rapid convergence, with the optimal multimodal state typically achieved within 500 epochs. Model checkpoints were it-eratively saved based strictly on the minimization of the out-of-sample validation loss to ensure robust generaliza-tion. 
+
+# 3 Results and Discussion 
+
+## 3.1 Ablation Study and Baseline Compar-isons 
+
+To rigorously isolate the impact of distinct feature repre-sentations and modality fusion techniques, we performed a systematic ablation study on the out-of-sample test set. The predictive performance of all evaluated architectures is summarized in Table 1. 
+
+Unimodal Baselines. We first established performance floors utilizing strictly unimodal networks. For the spatial domain, we evaluated a purely geometric baseline utiliz-ing the SchNet architecture. Because standard continu-ous regression typically requires compressing the N × d
+
+atomic graph into a single latent vector, global average pooling was applied. As anticipated, this pooling mech-anism collapsed the localized single-atom spatial reso-lution, resulting in substantial performance degradation (R2 = 0.3376, RMSE = 21.66%). Conversely, our strictly tabular baseline—a Deep MLP trained exclusively on the 92 macroscopic electronic descriptors—achieved an R2 of 0.9232 and an RMSE of 7.37%. This unimodal electronic architecture successfully outperformed the original litera-ture benchmark established by the Random Forest model (R2 = 0.9189, RMSE = 7.84%) [6]. 
+
+Evaluating the Fusion Mechanism. To demonstrate that our ultimate performance gains were driven specif-ically by the cross-attention architecture rather than the mere combination of multimodal data, we tested a stan-50             
+
+> 20
+> 40
+> 60
+> 80
+> 100
+> Predicted Yield (%)
+> RMSE = 7.37%
+> R2= 0.9232
+> a) Deep Tabular MLP (2D Only)
+> 0
+> 20
+> 40
+> 60
+> 80
+> 100 RMSE = 6.22%
+> R2= 0.9455
+> b) ChemFusion (Multimodal Cross-Attention)
+> 020 40 60 80 100
+> Experimental Yield (%)
+> −40
+> −20
+> 0
+> 20
+> 40
+> Residuals
+> 020 40 60 80 100
+> Experimental Yield (%)
+> 10 0
+> 10 1
+> Log(Count)
+> 10 0
+> 10 1
+> Log(Count)
+
+Figure 2: Visual analysis of out-of-sample predictive performance on the test set ( N ≈ 1, 186). (a) The Deep Tabular MLP exhibits a diffuse predictive spread and a wide, heteroscedastic residual error band, struggling with structural out-liers. (b) The ChemFusion Cross-Attention network tightly bounds predictions along the y = x diagonal and features a highly compressed, zero-centered residual distribution, visually demonstrating the attenuation of systemic geometric errors. dard late-fusion baseline (Simple Concatenation). In this setup, the globally pooled 3D spatial vector was di-rectly concatenated with the macroscopic electronic la-tent vector before being passed to the final predictive MLP. This standard multimodal approach yielded an R2 of 0.9113 and an RMSE of 7.92%, performing slightly worse than the unimodal tabular baseline. This empirical drop demonstrates that simple concatenation can ultimately bottleneck performance; by relying on global pooling, it irreversibly collapses the spatial resolution necessary to evaluate localized steric constraints, effectively introduc-ing mathematical noise into the latent space rather than actionable geometric context. 
+
+Cross-Attentive Superiority. A significant architec-tural breakthrough occurred with the implementation of the Multi-Head Cross-Attention Fusion layer. By en-tirely circumventing the need for global spatial pooling and dynamically routing the macroscopic electronic query through the un-pooled 3D atomic landscape, the ChemFu-sion model achieved a state-of-the-art R2 of 0.9455 and an RMSE of 6.22%. This predictive performance significantly surpasses the original literature benchmark. Furthermore, the true ad-vantage of this multimodal framework extends beyond pure statistical accuracy into architectural robustness. While contemporary neural network approaches—such as SMILES-based Transformers [7] or topological 2D GNNs [8]—have achieved remarkable success by abstracting molecules into sequences and graphs, they are inher-ently constrained from natively evaluating the continu-ous 3D spatial coordinates required to explicitly model localized steric interactions. ChemFusion bridges this representation gap by actively linking global thermody-namic properties with exact 3D atomic coordinates. By utilizing cross-attention to dynamically map macroscopic property queries onto continuous spatial structures, our model maintains high predictive fidelity even in sterically constrained regimes where traditional unimodal networks systematically struggle. 
+
+## 3.2 Predictive Performance and Error Dis-tribution 
+
+To explicitly deconstruct the predictive advancements achieved by the cross-attention architecture, we analyzed the out-of-sample predictions via hexbin density parity 6and residual distributions (Figure 2). This multidimen-sional error analysis assesses whether the network’s low aggregate error is structurally consistent across all reac-tion regimes, actively guarding against systemic biases or localized failure modes [18]. For the strictly tabular MLP baseline (Figure 2a), the hexbin parity plot exhibits a distinctly diffuse predic-tive spread, particularly within the intermediate yield regime (20%–80%) where target variance is highest. The corresponding residual distribution displays notable het-eroscedasticity, with the vertical error band frequently ex-ceeding ±30%. This pronounced dispersion suggests in-herent limitations in relying exclusively on macroscopic electronic descriptors. Because it is structurally un-equipped to natively evaluate localized steric clashes, the unimodal network appears to systematically mispredict geometrically constrained reactions, resulting in a wide footprint of structural outliers. In contrast, the ChemFusion multimodal network (Fig-ure 2b) demonstrates high predictive fidelity. The den-sity mapping illustrates a strict concentration of predic-tions tightly bounded along the ideal y = x diagonal, ef-fectively attenuating the mid-yield dispersion. Crucially, the ChemFusion residual plot exhibits a highly com-pressed, zero-centered homoscedastic distribution. This suggests that by dynamically mapping electronic queries against the un-pooled 3D atomic landscape, the architec-ture successfully resolves the specific structural outliers that historically constrained unimodal baselines. Ulti-mately, this visual evidence strongly indicates that the re-duction in RMSE (from 7.37% to 6.22%) stems from a physically grounded resolution of complex reaction ge-ometries, rather than standard statistical smoothing. 
+
+## 3.3 Mechanistic Interpretability via Atten-tion Distributions 
+
+A persistent challenge in applying deep learning to chem-ical systems is the traditionally opaque nature of highly parameterized architectures. However, the ChemFusion framework offers a pathway to explicit physical inter-pretability through the analysis of its learned Multi-Head Attention matrices. To investigate whether the observed performance leap was driven by chemically grounded fea-ture extraction rather than uninterpretable statistical mem-orization, we analyzed the distribution of peak attention weights across the out-of-sample test set. Across all eight attention heads, the median peak atten-tion weight converged tightly toward 1.000 (with seven heads strictly at 1.0000 and one at 0.9992). This se-vere concentration indicates that the network success-fully avoided “attention collapse”—a common failure mode where weights diffuse uniformly across an en-tire representation—and instead developed a highly lo-Head 1 Head 2 Head 3 Head 4 Head 5 Head 6 Head 7 Head 8   
+
+> 0.800
+> 0.825
+> 0.850
+> 0.875
+> 0.900
+> 0.925
+> 0.950
+> 0.975
+> 1.000
+> Mean Peak Attention ( μ)
+> Mean Peak Attention
+> Variance ( σ2)
+> 0.00
+> 0.01
+> 0.02
+> 0.03
+> 0.04
+> 0.05
+> 0.06
+> Variance ( σ2)
+> Adaptive Steric Evaluator
+> (High Variance, Lower Mean)
+> Rigid Anchor
+> (Low Variance)
+> Attention Head Role Bifurcation on Test Set ( N≈1, 186 )
+
+Figure 3: Statistical distribution of peak attention weights across the eight attention heads on the out-of-sample test set. The network exhibits an unsupervised bifurcation of chemical roles: Heads 2 and 6 act as rigid spatial anchors with negligible variance, while Head 5 acts as an adap-tive steric evaluator, exhibiting significant spatial diffu-sion (high variance) to resolve complex geometric con-straints. calized Hard Attention strategy [12, 19]. By doing so, the model dynamically routes the macroscopic electronic query through specific, heavily weighted 3D spatial coor-dinates. Crucially, an analysis of the mean ( μ) and variance (σ 2) of these peak weights across the distinct heads sug-gests a sophisticated, unsupervised partitioning of chemi-cal roles. For instance, Heads 2 and 6 appear to function as ultra-rigid structural anchors ( μ = 0.9952 and 0 .9934; 
+
+σ 2 = 0.0015 and 0 .0017, respectively). Because atten-tion weights are bounded by a softmax probability distri-bution, a peak value approaching 1.0 mathematically dic-tates that the network has concentrated nearly all of its focus onto a single atomic node. Remarkably, these specific heads exhibit virtually zero statistical variance across the entire, structurally diverse test set. Mathematical logic dictates that to maintain a static, zero-variance focus across thousands of unique re-actions, these heads must be tracking a universally in-variant spatial feature. In the mechanistic context of Buchwald-Hartwig cross-couplings, substrates, ligands, and additives are continuously varied; the solitary struc-turally invariant node present across all reactions is the catalytic palladium center. Consequently, we strongly hy-pothesize that Heads 2 and 6 persistently isolate the tran-sition metal core, utilizing it as a static spatial reference coordinate regardless of the surrounding substrate’s geo-metric complexity. Conversely, Heads 5 and 3 exhibited significantly lower peak means ( μ = 0.8482 and 0 .9224) alongside the high-est test-set variances ( σ 2 = 0.0533 and 0 .0304, respec-tively). Mathematically, a reduction in the peak maximum requires the remaining softmax probability mass to be dis-tributed across multiple atomic nodes, indicating an adap-7tive spatial distribution. While these heads default to near single-atom localization for unhindered substrates, their high variance reveals a unique spatial diffusion capabil-ity. When queried with sterically hindered or complex coupling partners, Head 5 dynamically attenuates its peak focus, gracefully diffusing its attention probability across neighboring atoms to explicitly evaluate broader geomet-ric constraints, such as bulky ligand bite angles. 
+
+## 3.4 Mechanistic Case Studies: Steric Reso-lution in 3D Space 
+
+To qualitatively validate the impact of this spatial reso-lution, we examined specific out-of-sample predictions where the cross-attention model significantly outper-formed the unimodal baseline. Because both architectures share identical macroscopic electronic descriptors, any di-vergence in their predictive accuracy effectively isolates the cross-attention layer’s capacity to resolve 3D geomet-ric constraints [14]. Among the reactions exhibiting the greatest predic-tive divergence (Table 2), Cases A and B share an iden-tical core substrate and ligand (1-bromo-4-ethylbenzene and XPhos) while differing exclusively in their peripheral steric environments. This structural homology provides an ideal basis for a matched-pair analysis to explicitly evaluate the model’s mechanistic advantage. In Case A, the introduction of a bulky 3-phenylisoxazole additive creates a severe geometric clash within the congested catalytic pocket. The strictly tabular MLP, being structurally unequipped to natively encode this 3D constraint, significantly over-predicts the yield at 44.1% (True: 19.3%). Case B represents the inverse structural scenario: the base and additive are swapped for less sterically demanding alternatives (MTBD and ethyl-5-methylisoxazole-3-carboxylate, respectively), providing spatial relief and enabling a high experimental yield of 60.2%. Without access to these continuous spatial coordinates to evaluate the geometric relief, the tabular MLP significantly under-predicts the outcome at 30.0%. In contrast, the ChemFusion architecture accurately captures this structural divergence. By dynamically querying the continuous 3D point cloud, the cross-attention model actively evaluates both the geometric penalty in Case A (attenuating the prediction to 22.6%) and the structural relief in Case B (elevating the predic-tion to 53.6%). This observation suggests that the multi-modal fusion layer operates well beyond standard statis-tical aggregation. Rather, it appears to actively differenti-ate between sterically constrained and accessible reaction environments, mathematically adapting to localized geo-metric changes in regimes where macroscopic electronic descriptors alone are structurally insufficient. 
+
+## 3.5 Limitations and Future Directions 
+
+While the ChemFusion architecture provides a distinct ad-vantage in resolving 3D steric constraints, we acknowl-edge several physical and computational limitations inher-ent to the current framework. First, the model relies on static 3D atomic coordinates derived from ground-state optimizations. In experimental reality, bulky ligands such as XPhos are highly fluxional; their steric profiles exist as dynamic conformational en-sembles rather than single, rigid geometries. Future iter-ations of this architecture could integrate molecular dy-namics (MD) trajectories or multi-conformational point clouds to more accurately capture the temporal flexibility of the catalytic pocket. Second, the predictive advantages of the multimodal network inherently demand a higher computational over-head during the data generation phase. While unimodal baselines can be trained and deployed rapidly using com-putationally inexpensive 1D or 2D cheminformatics de-scriptors, ChemFusion requires the explicit geometric op-timization of 3D spatial matrices for all novel substrates prior to inference. This introduces a structural preprocess-ing bottleneck that must be addressed before the architec-ture can be seamlessly deployed for massive-scale high-throughput screening (HTS). Finally, the current evaluation of this spatial resolution is confined strictly to the domain of Buchwald-Hartwig C–N cross-couplings. Within this specific mechanistic regime, the statistical variance strongly suggests that the attention heads natively anchor onto the invariant Pal-ladium center to dynamically evaluate the surrounding steric bulk. Future studies should investigate whether this hypothesized bifurcation of attention roles generalizes to fundamentally different catalytic manifolds—such as photoredox catalysis or transition-metal-free couplings— where the definition of a structural “anchor” may be in-herently more diffuse. Despite these scope constraints, this framework establishes a robust computational foun-dation for actively bridging macroscopic electronic prop-erties with continuous three-dimensional spatial realities in chemical machine learning. 
+
+# 4 Conclusion 
+
+Accurately predicting transition-metal-catalyzed reaction yields remains a complex challenge. One of the most sig-nificant hurdles has been the historical difficulty of mean-ingfully linking global electronic properties with the 3D geometry of the catalytic pocket. To explicitly tackle this dimensional divide, we introduced ChemFusion, a multimodal deep learning architecture that bridges these distinct chemical representations via a cross-attention fu-sion mechanism. By systematically integrating global 8Case A   
+
+> (Steric Clash)
+> Case B
+> (Steric Relief)
+> Case C
+> (Complex Additive)
+> Case D
+> (Hindered Core)
+> Case E
+> (No Additive)
+> 0
+> 10
+> 20
+> 30
+> 40
+> 50
+> 60
+> 70
+> 80
+> Reaction Yield (%)
+> 19.3%
+> 60.2%
+> 65.7%
+> 14.4%
+> 45.6%
+> 44.1%
+> 30.0%
+> 35.0% 36.3%
+> 18.7%
+> 22.6%
+> 53.6% 55.8%
+> 16.3%
+> 35.6%
+
+Mechanistic Case Studies: Resolving 3D Spatial Constraints 
+
+> True Experimental Yield
+> Deep Tabular MLP (Unimodal)
+> ChemFusion (Ours)
+
+Figure 4: Mechanistic case studies demonstrating the cross-attention network’s capacity for 3D spatial resolution. Across a subset of sterically demanding reactions where the strictly tabular MLP baseline (orange) exhibits pro-nounced predictive dispersion, the ChemFusion architecture (green) consistently maintains high predictive fidelity. For example, in Case A (see Table 2), the unimodal model is structurally unequipped to evaluate the steric clash induced by a bulky additive, resulting in a significant over-prediction. By dynamically querying the continuous 3D spatial point cloud, ChemFusion successfully accounts for these localized geometric penalties and structural reliefs, reducing absolute error margins by over 20% on highly constrained substrates. Table 2: Top 5 Out-of-Sample Reactions Demonstrating Cross-Attention Superiority                                                
+
+> Case Aryl Halide Ligand Base Additive True Yield Tabular MLP Cross-Attn (Ours) A1-bromo-4-ethylbenzene XPhos BTMG 3-phenylisoxazole 19.3% 44.1% (+24.8%) 22.6% (+3.3%)
+> B1-bromo-4-ethylbenzene XPhos MTBD ethyl-5-methylisoxazole-3-carboxylate 60.2% 30.0% (-30.2%) 53.6% (-6.6%)
+> C1-bromo-4-methoxybenzene XPhos BTMG 3-methylisoxazole 65.7% 35.0% (-30.7%) 55.8% (-9.9%)
+> D1-chloro-4-(CF 3)benzene AdBrettPhos MTBD ethyl-5-methylisoxazole-3-carboxylate 14.4% 36.3% (+21.9%) 16.3% (+1.9%)
+> E3-bromopyridine XPhos P2Et None 45.6% 18.7% (-26.9%) 35.6% (-10.0%)
+
+electronic tabular data with structurally explicit 3D point clouds, we demonstrated a significant improvement in predictive accuracy over unimodal baselines, success-fully reducing out-of-sample error margins across com-plex Buchwald-Hartwig cross-couplings. Crucially, this performance enhancement extends be-yond opaque statistical parameterization. Through the ex-traction and analysis of the network’s multi-head atten-tion matrices, we provided compelling mathematical evi-dence that the model appears to autonomously partition chemical roles. The unsupervised bifurcation of atten-tion heads into rigid spatial anchors (tracking the catalytic center) and high-variance steric evaluators (probing lig-and and additive bulk) closely mirrors established physi-cal organic chemistry principles. Mechanistic case stud-ies further validated this spatial sensitivity, suggesting that the cross-attention layers actively map and resolve severe geometric clashes that purely global electronic models are inherently unequipped to evaluate. Ultimately, the ChemFusion architecture establishes a robust, physically grounded framework for chemical ma-chine learning. By moving beyond strictly "black-box" molecular representations and enabling networks to ac-tively reconcile global electronic properties with local-ized spatial constraints, this architecture not only yields highly accurate predictions but also extracts interpretable insights that align with foundational chemical principles. As the field accelerates toward AI-driven catalyst design and automated synthesis, multimodal architectures that natively encode 3D spatial realities will be essential for discovering the next generation of synthetically permissi-ble reactions. 9References 
+
+[1] M. Shevlin. Practical high-throughput experimenta-tion for chemists. ACS Med. Chem. Lett. , 8(6):601– 607, 2017. [2] D. Perera et al. A platform for automated nanomole-scale reaction screening and micromole-scale syn-thesis in flow. Science , 359(6374):429–434, 2018. [3] R. Gómez-Bombarelli et al. Automatic chemical de-sign using a data-driven continuous representation of molecules. ACS Cent. Sci. , 4(2):268–276, 2018. [4] R. Martin and S. L. Buchwald. Palladium-catalyzed suzuki–miyaura cross-coupling reactions employing dialkylbiaryl phosphine ligands. Acc. Chem. Res. ,41(11):1461–1473, 2008. [5] J. F. Hartwig. Evolution of a fourth generation cat-alyst for the amination and thioetherification of aryl halides. Acc. Chem. Res. , 41(11):1534–1544, 2008. [6] D. T. Ahneman et al. Predicting reaction perfor-mance in c–n cross-coupling using machine learn-ing. Science , 360(6385):186–190, 2018. [7] P. Schwaller et al. Mapping the space of chemical re-actions using attention-based neural networks. Nat. Mach. Intell. , 3(2):144–152, 2021. [8] C. W. Coley et al. A graph-convolutional neural net-work model for the prediction of chemical reactivity. 
+
+Chem. Sci. , 10(2):370–377, 2019. [9] S. Kearnes et al. Molecular graph convolutions: moving beyond fingerprints. J. Comput. Aided Mol. Des. , 30(8):595–608, 2016. [10] K. T. Schütt et al. Schnet: A continuous-filter con-volutional neural network for modeling quantum in-teractions. In Adv. Neural Inf. Process. Syst. , vol-ume 30, 2017. [11] K. T. Schütt et al. Schnet–a deep learning architec-ture for molecules and materials. J. Chem. Phys. ,148(24):241722, 2018. [12] A. Vaswani et al. Attention is all you need. In Adv. Neural Inf. Process. Syst. , volume 30, 2017. [13] D. Misra. Mish: A self regularized non-monotonic activation function. In Proc. Br. Mach. Vis. Conf. ,2020. [14] J. P. Reid and M. S. Sigman. Comparing quan-titative prediction methods for the discovery of small-molecule chiral catalysts. Nat. Rev. Chem. ,2(10):290–305, 2018. [15] C. A. Tolman. Steric effects of phosphorus ligands in organometallic chemistry and homogeneous cataly-sis. Chem. Rev. , 77(3):313–348, 1977. [16] L. Falivene et al. Sambvca 2. a web tool for analyz-ing catalytic pockets with topographic steric maps. 
+
+Organometallics , 35(13):2286–2293, 2016. [17] I. Loshchilov and F. Hutter. Decoupled weight decay regularization. In Int. Conf. Learn. Represent. , 2019. [18] A. Tropsha. Best practices for qsar model devel-opment, validation, and exploitation. Mol. Inform. ,29(6-7):476–488, 2010. [19] C. Ying et al. Do transformers really perform bad for graph representation? In Adv. Neural Inf. Process. Syst. , volume 34, pages 28877–28888, 2021. 10

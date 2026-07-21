@@ -1,0 +1,678 @@
+Title: Grounded verification of chemical and materials reasoning: detection is the bottleneck
+
+URL Source: https://arxiv.org/pdf/2607.17417v1
+
+Published Time: Tue, 21 Jul 2026 01:33:30 GMT
+
+Number of Pages: 31
+
+Markdown Content:
+> arXiv:2607.17417v1 [cs.LG] 19 Jul 2026
+
+# KURBAN I N T E L L I G E N C E L A B P R E P R I N T 
+
+Preprint 
+
+# Grounded verification of chemical and materials reasoning: detection is the bottleneck 
+
+Can Polat 1 Mustafa Kurban 2,3, Erchin Serpedin 1 Hasan Kurban 4,  
+
+> 1
+
+Department of Electrical and Computer Engineering, Texas A&M University, College Station, TX, USA  
+
+> 2
+
+Department of Electrical and Computer Engineering, Texas A&M University at Qatar, Doha, Qatar  
+
+> 3
+
+Department of Prosthetics and Orthotics, Ankara University, Ankara, Turkey  
+
+> 4
+
+College of Science and Engineering, Hamad Bin Khalifa University, Doha, Qatar Correspondence: kurbanm@ankara.edu.tr , hkurban@hbku.edu.qa 
+
+> A B S T R A C T
+
+Large language models confabulate chemical objects (molecular formulas, space groups, formation energies) in fluent reasoning traces, concentrated on long-tail entities where confidence is least trust-worthy. Deterministic, database-grounded verification can catch and repair such errors without the coverage cost of blanket retrieval; the binding constraint, we find, is detection, not repair. Our tiered verifier extracts each checkable claim, checks it against authoritative databases and physics, and feeds the reference into a gated correction loop. Across four models and 528 condition-pinned prompts, gated correction cuts committed-formula error from 22% to 4% at 3.2× fewer retrievals than blanket augmentation, beating a conversational oracle. Repair succeeds wherever a flag fires (80–97%); the bottleneck is in-loop detection recall. Grounding improves the final answer only when the verifier’s scope reaches the deliverable (83% to 90%), and the lift appears only where extractable long-tail error exists: absent on near-ceiling physical constants, large on isotope half-lives (11% to 0%).  
+
+> K E Y W O R D S
+
+large language models; grounded verification; scientific reasoning; materials science; halluci-nation detection; uncertainty calibration 
+
+1 Introduction 
+
+Large language models increasingly expose their intermediate reasoning, and that reasoning is fluent enough to be persuasive even when it is wrong. In chemistry and materials science the errors take a consequential form: the model states a specific object (a molecular formula, a space group, a formation energy) that is verifiable in principle but confabulated in fact, embedded in coherent prose that offers little signal it is fabricated. These errors concentrate on the long tail: rarely-seen entities are the ones models get wrong, a rarity–frequency dependence documented for factual recall [ 1 , 2 ] and which we observe across four rarity strata, precisely the regime where      
+
+> Preprint •Kurban Intelligence Lab •https://github.com/KurbanIntelligenceLab/grounded-matsci
+
+1GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab 
+
+model confidence is least trustworthy and an external check is most needed. Interventions that need no external truth do not fix it: prompting a model to critique and revise its own answer cannot supply a fact it never knew, and such loops often fail to improve or degrade accuracy [ 3 , 4 ]. What is missing is an external, authoritative signal. Retrieval-augmented generation (RAG) [ 5 ] supplies one unconditionally, but pays a coverage and abstention cost and cannot catch a self-contradiction whose entity is not known a priori; LLM-as-judge verification [6 ] is flexible but unauditable and itself prone to overconfidence. We take a third route: a tiered, deterministic verifier that grounds each extractable claim against authoritative databases (PubChem [7 ], Materials Project [ 8 ], CCCBDB [ 9]) and physics, issues a hard verdict where an extractor is reliable, and feeds the reference value back into a gated correction loop. The conceptual advance is a check that is deterministic and auditable rather than generative: it returns a hard verdict and, on a flagged claim, the reference value itself as the repair signal—so correction supplies a fact the model never knew rather than resampling the model’s own uncertainty, and every flag traces to a database record or a physical law. Studying this verifier in a five-condition with recent models, we make five contributions. (i) We decompose gated correction into detection and repair and show the loop is detection-limited : repair succeeds wherever a flag fires, so in-loop detection recall—not repair—differentiates surfaces and is the engineering target. A consistency-triggered second detection stage recovers most of the missed recall where values are extractable, yet the accuracy lift does not follow, because the stage flags without a reference to repair with; detection and repair are both necessary. (ii) Gated correc-tion outperforms a conversational oracle retriever on the intention-to-treat deployment metric at substantially lower retrieval cost, because conversational fact-provision often leaves the reference value unstated in an extractable, subject-bound form; an extraction-enforcing oracle variant is com-plementary, winning on copyable quantitative claims where gated correction is detection-limited. The gated lift concentrates where baseline error exists and is governed by detection recall, not by model openness or capability tier. (iii) We identify a scope boundary: object-level grounding improves object accuracy and calibration but improves the final, downstream answer only when the verifier’s scope extends to the deliverable itself (the derived quantity), which we demonstrate by extending the tier and restoring the lift. (iv) We show the method ports to two further domains by changing only its orchestration layer, and that the accuracy lift appears exactly where extractable long-tail error exists: none on physical constants, where models are already near ceiling, and a large one on long-tail isotope half-lives and materials formulas, together with a reference-frame-artifact analysis for quantitative properties that recurs across domains. (v) We release the corpus, frozen ground truth, and frozen pipeline with all registration hashes, so every headline number is reproducible under one-shot-holdout discipline. 
+
+2 Results  
+
+> 2.1 Confabulation exists and scales with rarity
+
+The verification architecture is summarized in Fig. 1. Molecular-formula error at baseline rises monotonically with compound rarity (PubChem-CID-ordered strata): S1 well-known 0%, S2 com-mon 3%, S3 rare 15%, S4 recent 58% (baseline run, pooled over models). Recent drugs (lenacapavir, sotorasib, ensitrelvir) are where models confabulate formulas most, exactly the long-tail objects a  
+
+> 2GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+## a Tiered external verification of a reasoning trace 
+
+reasoning trace   
+
+> name value
+> ampic. C16 ..O 4
+
+extract subject-bound claims 
+
+> claim vs ref
+> O4
+
+̸ = O4S
+
+adjudicate vs reference  
+
+> inject reference
+> C16 .. O4S
+> regenerate ⟲
+
+gated correction 
+
+regenerate only flagged claims 
+
+## b Cheapest-check-first ladder, sized by share of resolved checkable claims 
+
+Tier 0 · syntactic 40.9 % 
+
+Tier 1 · PubChem / MP 48.7 % 
+
+Tier 1.5 · MP / CCCBDB 10.4 % 
+
+Tier 3 · DFT 0.0 % 
+
+> compute cost
+
+escalate on miss 
+
+the DFT tier was never invoked 
+
+Adjudication 
+
+flag = 1[ |v − vref | > τ ]
+
+identity: exact match 
+
+τEf : 0 .15 eV/atom or 25% 
+
+Mode A 
+
+regenerate on flag 
+
+Optional do-no-harm 
+
+also iff σ(a s + b) < θ 
+
+s=trust score 
+
+(Platt; ECE 0.11 → 0.06 )
+
+## c When grounding lifts accuracy: extractability × headroom  
+
+> object not extractable
+> object extractable
+> high error (headroom)
+> near-ceiling
+> no detection
+> Unicode-subscript formulas
+> grounding lifts
+> materials formulas, isotope long tail
+> no change limited gain
+> physical constants
+
+Two prerequisites 
+
+• Extractable : the verifier can check the claim. • Headroom : the model carries error to remove. 
+
+∆ = e0 rdrp − (1 − e0) ϕρ (Prop. 1) 
+
+Figure 1 Method overview. a, Verify-and-correct loop (ampicillin schematic): extract (name, value) claims, check them against PubChem/MP/CCCBDB, and on flag re-inject the reference in verifier feedback and regenerate, repairing flagged claims only. b, Cheapest-first tier ladder with holdout resolution shares (40 .9/48 .7/10 .4/0.0% ; DFT tier unused). Quantitative flags use flag = 𝟏 [|𝑣 − 𝑣 ref | > 𝜏 ] (𝜏 𝐸 𝑓 = 0 .15 eV/atom or 
+
+25% ; identity exact match); Mode A regenerates on flag, with an evaluated Platt trust gate on the constants rerun. c, Lift requires extractability × headroom (materials formulas and isotope long tail); near-ceiling or unparseable cases show limited or no gain (Prop. 1). 
+
+database verifier is positioned to catch. The full error taxonomy (by model × claim type × stratum, with representative examples) is in Table S2 (Fig. 2a). 
+
+2.2 Gated grounding closes the gap and beats the oracle on the deployment metric 
+
+On molecular formula the in-loop verifier achieves 82% detection recall (aggregated units through-out; Methods), and gated correction (Mode A) drives error-given-commitment from 22% to 4% (McNemar 𝑝 = 7 .3 × 10 −22 ) while flagging only 31.5% of prompt ×model cells, 3.2× fewer retrievals than blanket RAG’s 100% (supplementary Table S4). On intention-to-treat (ITT) error (wrong or non-committal under the frozen extractor, the metric a user of the pipeline experiences), gated 
+
+3GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab 
+
+Mode A 25% (95% CI 21–28) beats conversational oracle RAG 43% (95% CI 40–46): handed the fact in the prompt but not told to restate it, the model frequently answers in prose without emitting an extractable, subject-bound value (42% no-commit under the frozen extractor), while Mode A’s direct correction question holds no-commit at the baseline level of 22% (Fig. 2b). To test whether that no-commit is intrinsic or an artifact of conversational phrasing, we ran a second oracle-RAG variant whose prompt forces explicit restatement of the retrieved value (constrained RAG; Meth-ods). The no-commit is largely recoverable: on molecular formula, 73% of the constrained variant’s frozen-extractor no-commits (and 65% of the conversational variant’s) are cells where the correct formula is present in the text but not bound to the subject in the pattern the frozen extractor requires. The molecular and space-group RAG-variant comparison is therefore confounded by the extractor’s name-binding rather than model behavior; we report those surfaces only as no-commit-under-the-frozen-extractor, not as a model-abstention claim, and note that the extractability limit it exposes is the same axis governing where grounding pays off. Where the deliverable is a single copyable number the confound vanishes and the comparison is decisive: on formation energy, constrained RAG reaches ITT error 1.0% (1200/1212 cells correct; 1201 committed, 11 no-commit), against conversational RAG 25% and gated Mode A 33%. Forcing restatement of a retrieved scalar solves the surface Mode A cannot, which is detection-limited there. Gated correction and con-strained retrieval are thus complementary: gated correction wins on cost and on identity claims, extraction-enforcing retrieval wins on copyable quantitative values, both against a retriever with perfect truth access by construction. A realistic retriever recovers the oracle gain only where entities are name-addressable. The RAG conditions above are an oracle upper bound: the retrieved facts are the same database records that define the ground truth, so coverage is complete and every fact is correct. To bound what a deployed system would see, we replaced the oracle with live entity resolution (molecular names to PubChem; crystal and formation-energy entities to their Materials Project most-stable polymorph) and re-ran RAG-in-prompt on the three surfaces (four models, triplicate, same frozen grader; retriever coverage and per-surface detail in Supplementary Note S5). On molecular formula, where every compound is name-addressable in PubChem, realistic retrieval matches the oracle on error given commitment (0.2% versus 0.3%, baseline 21.7%) and keeps abstention low (4.8% versus the oracle’s 42.0%). On the long-tail crystalline and formation-energy surfaces, where the retriever covers only about a fifth of entities and returns the most-stable polymorph rather than the named phase, it recovers almost none of the oracle gain: error given commitment stays at baseline (formation energy 33.9% versus 31.3%; space group 5.3% versus 5.8%) and abstention rises to 56–59% as the model, handed no usable fact, declines to commit. Imperfect retrieval degrades precisely where the named entity requires phase disambiguation, which is the regime in which the verifier’s claim-specific retrieval, keyed to the named phase rather than to bare composition, still succeeds. Per-model decomposition. The pooled formula effect is not uniform across models; reported per model (baseline to Mode A error-given-commitment; molecular 𝑛 = 141 units, formation energy 
+
+𝑛 = 101 units) in Table 1. The formation-energy column tells the complementary story: Qwen3-235B has the largest EF headroom of any model (59% baseline error-given-commitment) yet shows no EF lift (net +1 ,n.s.), because its in-loop EF detection recall is 0/57 = 0% . The verifier never catches Qwen3-235B’s formation-energy errors during generation, so there is nothing to repair; headroom without 
+
+> 4
+
+GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab S1  
+
+> well-known
+> S2
+> common
+> S3
+> rare
+> S4
+> recent
+> 0
+> 10
+> 20
+> 30
+> 40
+> 50
+> 60
+> Baseline Formula
+> Error | Commit (%)
+> 0% 3%
+> 15%
+> 58%
+
+Confabulation concentrates in the long tail 
+
+> Molecular
+> formula
+> Formation
+> energy
+> Crystalline
+> SG
+> 0
+> 20
+> 40
+> 60
+> 80
+> 100
+> Percent
+> 97%
+> 82%
+> 80%
+> 19%
+> 81%
+> 25%
+
+Repair is easy; detection is the bottleneck 
+
+> repair success (of detected)
+> detection recall
+> Molecular
+> formula
+> Formation
+> energy
+> Crystalline
+> SG
+> 0
+> 10
+> 20
+> 30
+> 40
+> 50
+> 60
+> ITT Error (%)
+
+Deployment error by surface and condition (clustered 95% CI, n=3 reps) 
+
+> baseline (no loop)
+> self-critique
+> RAG (oracle)
+> gated Mode A
+> Mode B N=8
+
+a c
+
+b
+
+Figure 2 The problem and the fix. a, Baseline molecular-formula error given commitment rises monotoni-cally with compound rarity (PubChem-CID-ordered strata; pooled over models), from 0% on well-known compounds to 58% on recent drugs, the regime where confabulation concentrates. b, Intention-to-treat error (wrong or no-commit) by surface and condition, prompt-clustered 95% confidence intervals ( 𝑛 = 3 replicates): gated Mode A and Mode B reduce molecular error, and Mode B additionally reduces formation-energy error. 
+
+c, Two-stage decomposition of gated correction: repair success is uniformly high wherever a flag fires, so in-loop detection recall is the bottleneck that differentiates the surfaces. 
+
+Table 1 Per-model lift on molecular formula and formation energy (baseline → Mode A err |commit; Mc-Nemar net corrections on aggregated units). Teal marks a significant gain; grey marks a non-significant change. Open-weights models, which carry both extractable formulas and real long-tail error, receive the lift. 
+
+Molecular formula Formation energy 
+
+model class err |commit net 𝑝 net 𝑝 
+
+Claude Sonnet 5 closed 10% → 8% +1 n.s. +5 n.s. GPT-5.5 closed 1% → 0% 0 n.s. +3 n.s. DeepSeek v4 Pro open 20% → 2% +23 5.6×10 −6 +18 7.6×10 −6 
+
+Qwen3-235B open 46% → 1% +58 6.9×10 −18 +1 n.s. net, McNemar net corrections (fixed − broken); err |commit, error-given-commitment; class, closed = frontier closed-weights, open = open-weights; n.s., not significant ( 𝑝 > 0.05 ). 
+
+5GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab 
+
+detection yields no lift. The molecular lift is concentrated in the two open-weights models, which carry real baseline formula error (20%, 46%) for the verifier to remove; the two frontier closed models start at 10% and 1% error-given-commitment and show no significant change: a verifier can only remove errors that exist, and the frontier models simply have little formula headroom. On a domain where they do carry long-tail error (isotope half-lives), the same loop lifts both frontier closed models significantly. The method is thus a reliability layer wherever a model is weakest on the long tail, frontier or open. The axis is detection recall, not model openness. To test whether the open-weights concen-tration is really about the open/closed distinction or about capability tier, we added two small closed frontier-family models (Claude Haiku 4.5, GPT-5.4 mini; verified live, full corpus, triplicate; registered ex ante). They do not reproduce the open-weights pattern: GPT-5.4 mini shows only a small non-significant molecular lift (33% to 29% err |commit, net +3 , 𝑝 = 0 .38 ), and Claude Haiku 4.5 carries a high baseline molecular error (50%) that the loop does not touch (net 0) because it emits formulas in Unicode subscripts the frozen deterministic extractor cannot parse, so in-loop recall ≈ 0 . The operative variable is therefore detection recall (whether the committed object is extractable, which interacts with output formatting) × baseline error, not open-versus-closed or capability tier per se: the open-weights models of Table 1 simply carry both extractable formulas and real long-tail error.  
+
+> 2.3 An error-reduction identity for gated correction
+
+Gated correction acts on a fixed population of committed, gradable claims, moving each through a two-outcome tree, so its effect on error-given-commitment decomposes exactly. Fix a surface and the population of claims committed and graded in both the baseline and Mode-A arms. Let 𝑒 0 be base-line error-given-commitment; 𝑟 𝑑 the in-loop detection recall, the probability that a baseline-wrong claim is flagged and regenerated during Mode-A generation (materials: on flag alone; constants gated rerun: flag conjoined with 𝜎 (𝑎𝑠 + 𝑏 ) < 𝜃 ); 𝑟 𝑝 the repair success, the probability that a flagged wrong claim becomes correct once the reference value is injected; 𝜙 the false-positive rate, the probability that a baseline-correct claim is flagged and regenerated; and 𝜌 the regeneration-break rate, the probability that such a regeneration turns a correct claim wrong. All five are conditional rates estimated directly from the runs; where a Platt do-no-harm gate is active, it is folded into 𝑟 𝑑 
+
+and 𝜙 . 
+
+> Proposition 1.
+
+On the committed population, the post-correction error-given-commitment is 
+
+𝑒 1 = 𝑒 0 (1 − 𝑟 𝑑 𝑟 𝑝 ) + (1 − 𝑒 0) 𝜙𝜌, (1) so the net reduction is 
+
+Δ = 𝑒 0 − 𝑒 1 = 𝑒 0 𝑟 𝑑 𝑟 𝑝 − (1 − 𝑒 0) 𝜙𝜌. (2) 
+
+Proof sketch. A baseline-wrong claim stays wrong unless it is both detected-and-gated and repaired, which occurs with probability 𝑟 𝑑 𝑟 𝑝 ; a baseline-correct claim turns wrong only if it is both falsely flagged-and-gated and broken on regeneration, probability 𝜙𝜌 . Summing the two contributions over the mass-𝑒 0 and mass-(1 − 𝑒 0) subpopulations gives (1) by the law of total probability. The complete argument, and the form that expresses the harm term through detector precision, are in Supplementary Note S2.  
+
+> 6GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+Equation (1) turns three descriptive findings into exact statements, using only quantities the experiments already report. Detection-limited: repair is high and near-uniform across surfaces (𝑟 𝑝 ∈ [0 .80 , 0.97] ) while recall varies widely ( 𝑟 𝑑 ∈ [0 .19 , 0.94] ), so the across-surface spread of Δ is carried by 𝑟 𝑑 , not 𝑟 𝑝 . Headroom-gated and do-no-harm: the gain term scales with 𝑒 0, so a near-ceiling surface ( 𝑒 0 → 0) can only lose, Δ = −(1 − 𝑒 0)𝜙𝜌 ≤ 0, vanishing only when 𝜙𝜌 = 0 ; this is why the frontier models incur small net harm on physical constants and why a calibrated gate that lowers 𝜙 
+
+is the natural do-no-harm instrument. Reference-necessity: a detector that flags without injecting a reference replaces 𝑟 𝑝 by the model’s unaided resample-correct rate, which for a long-tail identity the model never learned is near zero, so recall can climb with no accuracy lift in the consistency-stage result. Substituting the measured molecular-formula rates ( 𝑒 0 = 0 .22 , 𝑟 𝑑 = 0 .82 , 𝑟 𝑝 = 0 .97 ) predicts 
+
+𝑒 1 = 𝑒 0(1 − 𝑟 𝑑 𝑟 𝑝 ) = 4 .5% (harm term negligible) against the observed 4% , so the decomposition quantitatively accounts for the headline lift.  
+
+> 2.4 The mechanism is two-stage: repair is easy, detection is the bottleneck
+
+Gated correction is detect, then repair, and the two stages behave very differently. Wherever the verifier flags an error, the loop repairs it at 80–97% (molecular formula 97%, formation energy 80%, space group 81%): the model readily accepts an injected reference fact regardless of surface. The lift a surface receives is therefore set almost entirely by in-loop detection recall, the fraction of baseline-wrong prompt ×model units whose flaggable claim is caught during Mode A generation (formula 82%, formation energy 19%, space group 25%), not by the correction step (Fig. 2c). This in-loop recall is lower than the offline detection recall (where the same verifier scores frozen baseline claim text: formula 0.92, EF 0.31, SG 0.69), because in the loop the model must re-emit the flaggable claim during generation; generation variance, claim-binding context, and gating timing all reduce what the verifier ever sees. The in-loop number is the deployment-relevant one and is used throughout the results; the offline number bounds the extractor. Formation energy, even after we built a dedicated detection tier that raised in-loop recall from a tier-off 7% to 19% (the tier-off state is the rep-0 ablation), gets a small but significant lift (31% to 24%, 𝑝 = 7 .3 × 10 −4 ): the residual is precisely the undetected errors, not failed repairs. A hybrid detection stage raises recall but not accuracy, and localizes why. To test whether adding a detection path to the weakest surface (formation energy) closes the gap, we added a second, consistency-triggered detection stage to Mode A as a two-stage triage (the deterministic tier fires first; the sampling-consistency signal, at its dev-frozen threshold, is invoked only on units the deterministic tier does not flag, not a naive OR; registered and hashed ex ante). Graded with a subject-bound EF grader applied identically to both arms, the stage raises in-loop EF detection recall from 19% (deterministic only) to 94% (Claude Sonnet 5, 79/84) and 95% (Qwen3-235B, 163/171) where values are extractable, but the lift does not follow: err-given-commitment is flat-to-worse (Claude Sonnet 5 28% to 53%, Qwen3-235B 80% to 80%). Two mechanisms explain this and sharpen the paper’s thesis. First, the consistency signal on formation energy has poor precision: it flags 94% of Claude Sonnet 5’s EF cells including 94% of the correct ones (precision 28%), because EF values scatter across samples whether or not the committed value is right, so cross-sample disagreement is not specific to error on this surface. Second, the consistency-triggered path signals unreliability but injects no reference value (unlike the deterministic tier, which carries the MP/PubChem fact), so of the flagged cells that regenerate, only 46% become correct: the model resamples another  
+
+> 7GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+wrong formation energy it never learned. Detection and repair are both required: a detector that flags without a fact raises recall without raising accuracy. We therefore report the recall gain (the clean, measured quantity) and make no causal accuracy claim. (DeepSeek v4 Pro/GPT-5.5 emit terse, unit-less EF answers the extractor cannot bind in either arm, so their EF cells are ungradeable throughout.)  
+
+> 2.5 Rerank and correction are complementary, indexed by where the truth lives
+
+Best-of-8 rerank (Mode B) beats gated correction (Mode A) on formation energy (err |commit 21% vs 24%, ITT 22% vs 33%, 𝑝 = 1 .1×10 −5 ), the complement of the identity-claim result. For a property the model has seen but samples noisily, drawing eight samples surfaces the correct value from its own distribution; for a long-tail identity it never learned, no number of samples contains the fact and only external correction helps. Consistently, these long-tail identity errors surface as cross-sample disagreement (on rare S3–S4 molecular formulas the sampling-consistency detector catches 86% of errors, mean cross-sample agreement 0.21), but disagreement only signals that the model is unsure, not that any one sample is right; the eight samples scatter across wrong values with no correct one among them, so the disagreement is a reliable error flag that points to no correct answer. Across surfaces, Mode B is best-or-tied on ITT everywhere and wins crystalline (35% vs baseline 49%) and formation energy (22%), while Mode A wins molecular formula on err |commit and cost. Blanket RAG worsens crystalline ITT (56% vs baseline 49%): provided facts raise abstention rather than accuracy on a surface the models rarely commit on. An exploratory post-hoc composite (Mode A on identity claims, Mode B on properties) reaches pooled ITT 22% at 8% err |commit, between the two pure policies (labeled exploratory; no new runs). This formation-energy gain from Mode B carries a compute cost: best-of-8 rerank issues ∼8× the baseline generation calls (∼$212 and ∼92 min over the full evaluation) against gated Mode A’s ∼1 .75× (∼$46 , ∼20 min), the deployment trade quantified per condition (tokens, USD, wall-clock, calls, and retrieval rounds; supplementary Table S4, Supplementary Fig. S1).  
+
+> 2.6 Self-correction without tools does not help and marginally harms
+
+Self-critique (no tools) improved no surface (molecular formula 22 to 22%, crystalline 6 to 7%) and marginally harmed formation energy (31 to 38% err |commit; ITT 37 to 43%; McNemar 𝑝 = 4 .5×10 −2 :55 correct answers broken vs 35 fixed). Consistent with prior evidence that LLMs do not reliably self-correct reasoning without an external signal. A stronger tool-free baseline, Chain-of-Verification [10 ], in which the model plans and independently answers its own verification questions before revising, gives the same result and closes no surface (Supplementary Note S3). This is the negative control: the lift under tool-grounded conditions is attributable to external truth, not to the extra reasoning turn. We do not lead with this as a headline effect.  
+
+> 2.7 Naive single-frame property verification is dominated by reference-frame artifacts
+
+A verifier checking a quantitative property against a single reference systematically mislabels cor-rect answers when model and reference use different physical frames. Our MP band-gap ground truth is PBE-DFT, which underestimates experimental gaps by 1–2 eV; models report experimental gaps. A naive verifier flagged 116 band-gap “errors”, of which 107 (92%) were correct experimental gaps; under an accept-either-frame policy, band-gap error falls from 34.6% to 0% over 175 checkable  
+
+> 8GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+prompts: band gap is not an error surface for these models, it is a frame-mismatch detector. Forma-tion energy is the control: MP (0 K DFT) vs experimental Δ𝐻 ◦ 
+
+> 𝑓
+
+(298 K) differ by only 0.11 eV/atom mean, so accept-either-frame rescued just 9 cells (33.7% to 31.3%); formation energy remains a genuine, multi-model error surface. Property verification must register the reference frame ex ante, grade under accept-either-documented-frame where frames diverge, and never “correct” an exper-imental value to a DFT value. The same frame lesson recurred in the transfer domain for physical constants: the Sackur–Tetrode constant is tabulated at two standard-state pressures, and models reporting the modern 100 kPa value ( −1 .15171 ) were initially graded wrong against a reference us-ing the older 101.325 kPa convention ( −1 .16487 ), a reference version/convention acting as a frame, cured only by pinning the reference standard state in the ground truth. Accept-either-documented-frame thus collapses band gap to a non-error surface while barely moving formation energy, whose frames nearly coincide and which remains a genuine error surface, and leaves frame-insensitive surfaces unchanged (supplementary Table S5).  
+
+> 2.8 Deterministic verifier vs LLM-as-judge vs sampling-based detectors
+
+We contrast four detectors on the same baseline claims: the deterministic verifier, a frontier reasoning-class LLM-as-judge (no tools, pure parametric), a sampling-consistency baseline (SelfCheckGPT-style [ 11 ]) that flags a claim when the object extracted from Mode B’s 8 samples disagrees across samples (flag if modal-object agreement ≤ 0.25 , threshold frozen on a dev half, applied to the holdout half), and a semantic-entropy detector [ 12 ] that clusters those same 8 samples by meaning and flags high normalized cluster entropy (threshold 0.44 frozen on a dev half). Supplementary Table S6 reports the per-surface precision/recall of all four detectors and shows why the deterministic checker is used: only it returns a reference value to inject. These offline recalls, scored on frozen baseline claim text, upper-bound the extractor and are systematically higher than the in-loop recalls; the gap (largest for SG, 0.69 to 0.25) reflects generation variance and gating timing, not a different verifier. Each detector has a distinct strength. The deterministic verifier dominates recall where its extractor is reliable (formula 0.92, SG 0.69), and is auditable, improvable, and frozen. The judge is precise where symbolic extraction is hard, but is a fixed black box subject to the same confabulation it is meant to catch. Sampling-consistency is the strongest recall on formation energy (0.67), exactly where the deterministic verifier is weakest (0.31): noisy-sampling errors surface as cross-sample disagreement. The predicted failure mode (consistency should miss confidently-wrong long-tail formulas because all 8 samples agree) does not hold: on rare (S3–S4) molecular formulas consistency recall is 86% (mean agreement 0.21), i.e. models disagree across samples on long-tail objects rather than confabulating one value consistently. Semantic entropy behaves as a refinement of the consistency signal: it tracks consistency on molecular formula (recall 0.93) and improves formation-energy precision ( 0.51 versus 0.36 ) by clustering near-duplicate sampled values by meaning rather than by exact string, at slightly lower recall ( 0.57 versus 0.67 ). Like sampling-consistency it is detection-only and returns no reference value to inject. The signals are complementary: the deterministic verifier as the auditable backbone, the judge as a fallback where extraction is hard, and the sampling-based detectors as orthogonal error signals.  
+
+> 9GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+2.9 Trust-score calibration 
+
+The verifier’s trust score (fraction of checked claims passing) predicts committed-claim correct-ness on 𝑛 = 968 baseline items; on a held-out half ( 𝑛 = 484 , base correct rate 0.81) raw trust is overconfident (expected calibration error, ECE, 0.111) [ 13 ]. Platt scaling [ 14 ] reduces ECE to 0.060 (isotonic 0.088); Brier 0.121 to 0.111. The trust score is discrete (few checkable claims per trace), yielding a coarse reliability curve; ECE is the reportable summary and Platt is recommended for deployment thresholding. Against model verbalized confidence, each generating model asked to self-report P(its committed claim correct), the grounded trust score is better calibrated. On the identical paired population ( 𝑛 = 958 , items carrying both signals), raw uncalibrated: verbalized confidence ECE 0.139 (overconfident: mean 0.87, accuracy 0.83) vs verifier trust score ECE 0.093. Recalibrating the trust score by Platt on a separate holdout half drops it further to 0.060 ( 𝑛 = 484 ;not directly comparable to the paired set, which is uncalibrated). The models’ own confidence is a poorly-calibrated abstention signal; the external verifier’s grounded trust score is better even before recalibration and substantially better after. Eliciting confidence inline with the answer (a dedicated calibration arm, 𝑛 = 1 ,191 ) makes the model more confident (mean 0.91 vs 0.87 post-hoc) without improving calibration (ECE 0.108); both elicitation modes remain worse-calibrated than the grounded trust score (Fig. 3). 0.0 0.2 0.4 0.6 0.8 1.0 
+
+> Predicted P(correct)
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> Observed Fraction Correct
+> uncalibrated; paired subset (n=958): 0.139 vs 0.093
+
+a Model self-report vs veri fi er trust      
+
+> model verbalized, n=1086 (ECE 0.139)
+> veri fi er trust raw, n=484 (ECE 0.111)
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Predicted Trust Score
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0
+> Observed Fraction Correct
+
+b Veri fi er trust: raw vs Platt 
+
+> raw trust (ECE 0.111)
+> Platt-scaled (ECE 0.060)
+
+Figure 3 Two-panel reliability diagram. a, Model verbalized confidence ( 𝑛 = 1 ,086 ) vs verifier trust score, raw and uncalibrated ( 𝑛 = 484 ), each on its own population, with the paired-subset comparison ( 𝑛 = 958 ); the grounded trust score is the better-calibrated abstention signal on every population (ECE values in text). 
+
+b, Verifier trust score, raw vs Platt-scaled, on the 𝑛 = 484 trust-only holdout.   
+
+> 10 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+> 2.10 Downstream end-task propagation
+
+To test whether claim-level grounding translates into end-task accuracy, we registered 52 tasks (frozen and registered ex ante) whose final answer depends on a checkable object: molar-mass computation from formula (26), higher-molar-mass selection (14), and more-stable-phase selection from formation energy (12), weighted toward the rare strata. We ran baseline, gated Mode A, and Mode B (4 models, triplicate, McNemar) and grade the final answer against frozen ground truth. Object errors propagate at 9%, the fraction of baseline task-units whose final answer is wrong (12% for molar mass, 7% for molar comparison, 4% for stability). However, object-only gated grounding did not lift end-task accuracy: ITT accuracy was 83% at baseline, 80% under Mode A, and 85% under Mode B; the Mode-A change is not significant (McNemar net −2 per model, 𝑝 ≈ 0 .6) (Table 2). The mechanism is diagnostic: on these tasks the verifier detects objects but (a) fires on incidental SMILES/formula claims the system prompt elicits, (b) fixes only 28% of propagated errors because the final answer depends on downstream arithmetic and comparison the verifier does not check, and (c) adds regeneration noise that breaks 8% of already-correct answers. The (a) flags are largely task-irrelevant: a flag rate of 58%, of which an audit shows 203/205 are category (b) (a real or transient claim flag that does not bear on the answer, e.g. a SMILES for the molecule whose molar mass is asked) and only 2 are factually-incorrect flags, a grounding-scope mismatch rather than an extractor robustness failure. Closing the scope gap restores the lift. The diagnosis above makes a testable prediction: if end-task accuracy is limited because the verifier grounds the object but not the derived quantity the answer depends on, then extending grounding to that quantity should restore the lift. We added an orchestration-layer derived-quantity tier (registered ex ante) that computes the answer-bearing quantity from the verified object (molar mass as the sum of standard atomic weights over the verified formula, stability from the verified Materials Project formation energies) and injects it when the model’s final answer disagrees. Re-running the same 52 tasks (Mode A + derived tier, 4 models, triplicate): pooled end-task ITT accuracy increased from 83% to 90% (McNemar net +14 ,
+
+𝑏 = 5 /𝑐 = 19 , 𝑝 = 0 .0066 ), versus 80% under the null object-only Mode A condition. The lift is concentrated in a single open-weights model: per-model McNemar, Qwen3-235B 73% → 100% (net 
+
++14 , 𝑝 = 1 .2 × 10 −4 ) carries the entire pooled effect, while Claude Sonnet 5 (92 to 94%) and GPT-5.5 (71 to 73%) are not significant (no headroom) and DeepSeek v4 Pro shows a small non-significant harm (96% to 92%, net −2 ): regeneration on the derived-quantity prompt breaks 4 already-correct answers while fixing 2 (Table 2). By task type the lift is on molar-mass (86% to 95%); comparison tasks move little. These results identify grounding scope as the relevant boundary: verifying the checkable object improves object accuracy and calibration, whereas extending verification to the answer-bearing derived quantity improved pooled end-task accuracy, with the observed gain concentrated in Qwen3-235B.  
+
+> 2.11 Cross-domain transfer: a near-ceiling domain and a headroom domain
+
+To test whether the method template (extract checkable object → tiered identity lookup → gated repair) transfers beyond materials chemistry, we applied it to two further domains chosen to bracket the headroom axis: physical constants (where current models are near-ceiling, testing whether the mechanics port) and isotope half-lives (where a genuine long-tail error mass remains, testing whether the accuracy lift ports). Only the orchestration layer changed in each; the core extractor   
+
+> 11 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+> Table 2
+
+End-task grounding (52 registered tasks, frozen ex ante; 4 models, triplicate). Top , baseline error propagation by task type, and pooled ITT accuracy for object-only grounding: gated Mode A does not lift the end task because it grounds the object but not the answer-bearing derived quantity. Bottom , adding an orchestration-layer derived-quantity tier restores the lift, carried by Qwen3-235B. Shading marks statistically significant results.                                  
+
+> Baseline error propagation, by task type
+> task type 𝑛 propagated error molar-mass computation from formula 26 12% higher-molar-mass selection 14 7% more-stable-phase selection (formation energy) 12 4% overall 52 9%
+> Object-only vs. +derived-quantity tier (per model, end-task ITT accuracy)
+> model baseline +derived tier net ( 𝑝 )Claude Sonnet 5 92% 94% n.s. GPT-5.5 71% 73% n.s. DeepSeek v4 Pro 96% 92% −2 , n.s. Qwen3-235B 73% 100% +14 (1.2×10 −4 )pooled 83% 90% +14 (0.0066 )Object-only Mode A does not lift the end task (pooled baseline 83%, object-only Mode A 80%, 𝑝 ≈ 0 .6; Mode B 85%); the +derived-quantity tier restores it. net, McNemar net corrections (pooled: 5 broken / 19 fixed); ITT accuracy, the fraction of all evaluated task units with a correct final answer; n.s., not significant ( 𝑝 > 0.05 ).
+
+and verifier configuration were untouched. Near-ceiling domain: CODATA 2022 recommended values [ 15 ]; 35 constants, four rarity strata from famous ( 𝑐 , ℎ, 𝑒 ) to obscure (Josephson, von Klitzing, Sackur–Tetrode); ground truth frozen and hashed before grading, via a dedicated value-extraction and comparison tier. Grading follows a registered two-part tolerance policy (Methods): exact SI-defining and derived constants by sig-nificant figures, measured constants within the larger of the CODATA-2022 standard uncertainty and the 2018–2022 adjustment drift, so neither the adjustment version nor quoted-digit truncation can register as an error. A pre-registration audit of this domain is itself a finding: our first pass reported a large lift (84% to 99%) that a line-by-line audit traced almost entirely to an orchestration-layer value-parser artifact (full audit in Supplementary Note S1). After hardening the parser and re-grading under the tolerance policy, baseline ITT accuracy is 95.0% and gated Mode A accuracy is 95.7%; McNemar net 
+
++1 , 𝑝 = 1 .0, not significant (Table 3; no model changes significantly). Constants therefore show the method mechanics port cleanly but, being near-ceiling, do not on their own provide an independent accuracy-lift result; the 2018–2022 drift ( ≤ 4 × 10 −9 ) is far below model quoting precision, so zero flags were adjustment-version artifacts. This audit prompted a materials retro-audit for the same failure mode: the materials extractor abstains symmetrically on unparseable formulas (Methods), so the materials lift cannot be parse-manufactured. Headroom domain isotope half-lives against IAEA nuclear data. To obtain the independent accuracy-lift result the near-ceiling constants cannot provide, we applied the same template to  
+
+> 12 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+a domain with genuine long-tail error mass: half-lives of 63 rarity-stratified isotopes (famous radioisotopes → superheavy/exotic) graded against the IAEA NDS reference [ 16 ] (ground truth and the isotope tier frozen and hashed before grading; 4 models, triplicate). Applying the constants lesson pre-emptively, we hardened the value parser before grading and registered the unit policy ex ante (grade against half-life in seconds, any stated unit accepted). This mattered: a first-pass parser mis-read comma-grouped values (“76,000 years” → 0) and 𝑁 × 10 𝑀 forms, inflating baseline error to 40% and the effect to net +50 , a constants-class artifact the mandatory two-channel gate caught before it reached the paper. Baseline ITT accuracy was 81.0%, with error-given-commitment of 11.3%; under Mode A, ITT accuracy increased to 91.0% and err |commit fell to 0.0%; McNemar net 
+
++30 , 𝑝 = 2 .3 × 10 −7 , abstention symmetric (8.7% vs 9.0%), so the lift is not parse-manufactured. The lift follows the same rarity gradient as materials: near-ceiling on famous isotopes (S1 98% to 99%) and large on the long tail (S4 superheavy/exotic 44% to 76%, err |commit 41% to 0%); see Table 3.  
+
+> Table 3
+
+Transfer to two non-materials domains under orchestration-layer changes only (frozen core un-touched). Top , physical constants (CODATA 2022, post-audit) per model: near-ceiling, no headroom, no lift. Bottom , isotope half-lives (IAEA NDS, hardened parser) per rarity stratum: genuine long-tail error mass and a significant lift that follows the same rarity gradient as materials. Shading marks statistically significant results.                                             
+
+> baseline Mode A net ( 𝑝 )
+> Physical constants against CODATA 2022 (per model, ITT accuracy)
+> Claude Sonnet 5 frontier closed 100.0% 97.1% n.s. GPT-5.5 frontier closed 100.0% 94.3% n.s. DeepSeek v4 Pro open-weights 91.4% 97.1% n.s. Qwen3-235B open-weights 88.6% 94.3% n.s. overall 95.0% 95.7% +1 (1.0)
+> Isotope half-lives against IAEA NDS (per rarity stratum, ITT accuracy)
+> S1 famous 15 98% 99% –S2 common/applied 16 95% 99% –S3 rare 16 88% 90% –S4 superheavy/exotic 16 44% 76% –overall 63 81% 91% +30 (2.3×10 −7 )ITT accuracy is the fraction of all evaluated units scored correct, with non-committal outputs counted as incorrect; net denotes McNemar net corrections; n.s., not significant ( 𝑝 > 0.05 ). The second column gives model class in the top block and isotope count in the bottom block; “–” indicates that no per-row significance test was performed.
+
+A suggestive frontier-model lift. Per model, the isotope lift is nominally significant for both frontier-closed models: Claude Sonnet 5 88% to 99% (err |commit 11% to 0%, net +7 , 𝑝 = 0 .016 ) and GPT-5.5 82% to 93% (8% to 0%, net +8 , 𝑝 = 0 .021 ). These two per-model 𝑝 -values do not survive correction for multiple comparisons (Methods), so we treat the frontier-model lift as suggestive rather than confirmatory. Re-estimating this arm at five replicates rather than three leaves the net lifts unchanged and the framing suggestive (Supplementary Note S4). The open-weights lift on the same surface is stronger: Qwen3-235B 70% to 85% (net +11 , 𝑝 = 0 .001 ) survives correction, while DeepSeek v4 Pro is directional (83% to 87%, net +4 , 𝑝 = 0 .29 ). Isotope half-lives are nonetheless  
+
+> 13 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+the first surface in our study on which grounding lifts a frontier closed model at all: on materials formulas and physical constants the frontier models are at or near ceiling with no headroom, whereas isotope half-lives carry genuine long-tail error mass even for frontier models. The reading is that when a frontier model errs on the long tail and the committed value is extractable, gated correction can reach it, a hypothesis these data support but do not yet establish at corrected significance. The boundary, stated once. Across three transfer domains the pattern is consistent: the method mechanics port with orchestration-layer changes only, and the accuracy lift appears exactly where the base model carries extractable long-tail error: absent on near-ceiling constants, present and large on long-tail isotope half-lives and materials formulas. Portability is of the mechanism; the magnitude of benefit is set by headroom × detection recall (Proposition 1). Compute cost. The interventions differ sharply in cost, which bears on deployment. Gating is the cheap regime: gated Mode A retrieves on only the flagged fraction of prompt ×model cells— 3.2× 
+
+fewer retrievals than blanket RAG on molecular formulas, and 6.2× and 8.4× fewer on formation energy and space groups—at a modest generation-cost overhead, whereas best-of-8 rerank (Mode B) is the expensive regime; both magnitudes are quantified per condition above and in supplementary Table S4. The tier ladder keeps per-check cost low: 40.9% of checkable claims are resolved by the Tier-0 syntactic check, 48.7% by database identity lookups, 10.4% by tabulated references, and the DFT tier is invoked on no holdout claim because the tabulated tiers covered every property. 
+
+3 Discussion 
+
+The results reframe verifier-in-the-loop grounding as a detection-limited, not correction-limited problem, and place it against its two default alternatives. Against blanket RAG, gated correction is markedly cheaper on molecular formula and better on the intention-to-treat deployment metric, because it does not induce the abstention that conversational fact-provision does. Against LLM-as-judge, it is auditable and frozen where extraction is reliable. The selective-prediction view [17 ] unifies the metrics: err |commit and abstain trade error against coverage; we report both the ITT and selective views and never collapse them. Rerank and correction remain complementary tools. A deployment caveat follows directly from the near-ceiling models (Table 3): when the base answer is already correct, a flag that fires anyway triggers a regeneration that can break it, so Claude Sonnet 5 and GPT-5.5 show small net harm under gated correction on the constants domain. Decomposing that harm made the fix concrete: every frontier harm cell (Claude Sonnet 5 2, GPT-5.5 3) was a false-positive flag on an already-correct constant, while all open-model lift (DeepSeek v4 Pro +7 , Qwen3-235B +6 ) came from true-positive flags: the harm and lift populations are separable by flag correctness. A gated rerun on the constants domain (35 prompts, triplicate), using corrected reference values and the dev-frozen Platt-trust threshold, reduced frontier-model harm from five cells to zero while largely retaining the open-weights lift (DeepSeek v4 Pro: +7 
+
+unchanged; Qwen3-235B: +6 to +4 ). Overall harm fell from seven to two cells, yielding a net gain of +11 . This rerun is separate from the aggregated intention-to-treat analysis in Table 3: the counts reported here are raw prompt-by-model cells and are used only to diagnose the mechanism of harm. The two residual harm cells were DeepSeek v4 Pro outputs for the von Klitzing constant in which  
+
+> 14 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+the correct value was stated but the response was truncated before a parseable final commitment. More importantly, the frontier-model harm was eliminated by correcting the stale Sackur–Tetrode reference convention, not by the confidence gate, which suppressed no regenerations. On this single-claim surface, the trust score is binary and perfectly correlated with the verifier flag; therefore, validation of confidence-weighted suppression requires a multi-claim setting with non-binary trust scores. The calibrated trust score nevertheless remains a promising do-no-harm signal, given its better calibration than model self-reported confidence. 
+
+> Our verifier sits between three lines of work
+
+Retrieval-augmented generation prepends retrieved facts unconditionally; we retrieve only on a detected flag, which we show is both cheaper and, on the deployment metric, more accurate. Self-correction and self-critique [ 18 ] revise using the model’s own judgment; our no-tools condition reproduces this negative result and isolates the external signal as the active ingredient. Sampling-based hallucination detection flags low cross-sample agreement; we include it as a third detector and find it complementary, strongest exactly where symbolic extraction is weakest. Related recent uncertainty-based detectors, such as semantic entropy and internal-state probes, work from the same cross-sample or representational signal but, like it, report only that a claim is unreliable and return no reference value to inject; in our detect/repair decomposition they remain detection-only, and a direct comparison against them on the reference-carrying axis is a natural extension. Our two-stage triage relates to three specific lines: detector aggregation (combining complementary signals), which we implement not to maximize F1 but as a causal instrument that raises in-loop recall; two-stage uncertainty triage (a cheap deterministic screen gating a costlier check), which we invert to have the deterministic tier fire first and the consistency signal only on its misses; and stepwise consistency filtering, which we apply to committed objects rather than reasoning steps. Against LLM-as-judge verification, our deterministic tier is auditable and frozen where an extractor is reliable, and we report both side by side rather than assuming either dominates. Within chemistry and materials specifically, several recent efforts are adjacent but scoped dif-ferently. Process-level deterministic benchmarks (ChemCoTBench-style step verification [ 19 ], MolecularIQ [ 20 ]) verify reasoning steps deterministically but are evaluation-only and molecular-only, with no correction loop, no crystalline surface, and no cost accounting; we add closed-loop correction, the crystalline and property surfaces, and per-retrieval cost. Retrieval/knowledge-graph hallucination work for materials (HalluMat-style detection and mitigation [ 21 ]) grounds against retrieved documents or KGs; ours grounds against deterministic physics and structured databases and reports the end-task and cost consequences, not detection alone. Tool-using chemistry agents (ChemCrow [ 22 ]) and LLM chemistry benchmarks (ChemBench [ 23 ]) document the tool-integration and overconfidence problems and the failure of LLM-judge scoring; we quantify the overconfidence directly (calibration) and avoid LLM-judge labelling entirely. Learned grounded step-rewards (process-reward models [ 24 ]) supply soft, learned signals over reasoning steps; we instead issue hard, deterministic verdicts on locally checkable objects, trading coverage for auditability. Fi-nally, verifier-in-the-loop generation is established in fully formalizable domains (Lean/Isabelle proof assistants [ 25 ], SMT-backed geometry solvers [ 26 ]), where every step is machine-checkable; our contribution is to carry the paradigm into a partially, tiered-verifiable domain where only some claims have authoritative checks, and to show where that partial verifiability does and does  
+
+> 15 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+not pay off. Uncertainty-gated escalation (deferring or escalating on low-confidence steps) is the applied prior art our gating instantiates against external ground truth. The distinctive contribu-tions are the two-stage (detect/repair) decomposition that localizes the bottleneck to detection, the reference-frame-artifact analysis for quantitative properties, and the object-vs-derived-quantity scope boundary. Our detect/repair diagnosis has a direct analogue in a different augmentation paradigm. Skill Retrieval Augmentation [ 27 ] decomposes agentic skill use into retrieval, incorporation, and ap-plication, and finds the binding constraint is not retrieval but incorporation , whether the model recognizes when and which skill to load; our result is the same shape in the grounding paradigm, where repair (application of an injected fact) is easy and in-loop detection (recognizing that a claim needs grounding, and emitting it checkably) is the bottleneck. Both point to need-aware gating and precision calibration as the next lever rather than larger retrieval corpora. Relative to document-grounded factuality checking such as FActScore [ 28 ], which decomposes text into atomic claims and scores each by entailment against retrieved passages, our verifier issues hard verdicts against structured databases and physics rather than soft entailment against prose, trading breadth for auditability and a repair signal that carries the reference value. Structured information-extraction components are complementary and partly already inside our pipeline: RDKit canonicalization backs the Tier-0 SMILES check, and name-to-structure parsers such as OPSIN [ 29 ] are the natural route to widen extraction coverage, the extractability axis our results identify as limiting. The constrained-RAG variant we add instantiates the extraction-enforcing RAG family, which forces the model to restate a retrieved value rather than answer conversationally. More broadly, the survey of verification-enabled mathematical reasoning [ 30 ] frames verifier-in-the-loop workflows for fully formalizable domains; we carry that paradigm into partially verifiable science, and our efficiency findings (gate retrieval, route only checkable claims to external truth) support the case for specialized, tool-integrated, auditable pipelines argued by the domain-specific-superintelligence perspective [31].  
+
+> 3.1 Limitations
+
+Extraction recall bounds the entire method: a claim the extractor never sees cannot be checked, and in-loop recall (what the loop catches during generation) is well below offline recall. The formation-energy detection tier shares extraction logic with the adjudicator, so the two have correlated blind spots; the independent-GT audit (scoring against PubChem/MP/CCCBDB directly) is the control for this. The verifier removes only errors that (a) exist in the base model and (b) are emitted in a form the extractor can bind. The extractability half of that axis is a real brittleness: the Claude Haiku 4.5 case shows output formatting can silently gate the entire benefit despite abundant headroom, so a deployment would need a formatting-robust extractor. Correction carries regeneration-noise risk; a confidence-weighted gate on the calibrated trust score is the natural do-no-harm instrument, and a gated constants rerun with corrected references eliminates the frontier false-positive-flag harm, but the per-cell gate is a no-op on single-claim surfaces (where trust is binary) and its validation on a multi-claim surface is deferred. The dipole surface is underpowered ( 𝑛 = 56 ). Results follow a one-shot holdout protocol (no iteration on holdout results), with three replicates per condition; per-replicate variation is in supplementary. On transfer, only the headroom domain yields an accuracy lift; the constants domain establishes portability of the mechanism alone. The hybrid two-stage  
+
+> 16 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+detection tier raises in-loop recall but its accuracy-lift measurement is pending a reference-injecting variant. As reported above, the consistency stage flags without a reference and the lift does not follow. Converting that recall gain into precision-safe flags through calibrated detector fusion, combining the consistency signal with the calibrated trust score so that only high-confidence disagreements trigger regeneration, is the natural next step but is untested here. In-loop detection recall also depends on the model re-emitting a claim in a checkable position; we did not vary gate timing or anchor-prompt phrasing (earlier/later gates, different re-elicitation anchors), and the sensitivity of recall to that schedule is an open question. Because in-loop recall is gated by output formatting, it should be treated as a deployment-time variable, not a fixed model property (the Claude Haiku 4.5 case). 
+
+Outlook. These limitations point to concrete next steps, each aimed at the bottleneck the study isolates—detection. First, the recall recovered by the consistency stage can be converted into precision-safe flags through calibrated detector fusion, combining the consistency signal with the calibrated trust score so that only high-confidence disagreements trigger regeneration; this is the missing reference-injecting variant that would turn the recall gain into an accuracy lift. Second, the extractability ceiling—the sharpest brittleness we find, where output formatting alone can gate the entire benefit—invites a formatting-robust extractor with name-to-structure parsing (for example OPSIN) to widen coverage of the checkable surface. Third, because in-loop recall depends on the model re-emitting a claim in a checkable position, need-aware gating that varies gate timing and re-elicitation anchors is the natural lever for raising it, and its sensitivity is an open, testable question. Finally, the underpowered surfaces (the dipole set, and the suggestive frontier-model isotope lift) warrant confirmatory runs at larger sample. Together these define a program in which detection precision and extraction coverage, not larger retrieval corpora, are the levers that most extend grounded verification. 
+
+4 Methods 
+
+> Corpus
+
+528 condition-pinned prompts × 4 models, four rarity strata (PubChem-CID-ordered), both molec-ular and crystalline within each stratum; ground truth frozen and hashed before grading. 
+
+> Verifier
+
+Tiered: Tier 0 syntactic (SMILES/formula hygiene) → Tier 1 identity (PubChem formula, named-phase space group) → Tier 1.5 tabulated property (Materials Project formation energy/band gap, CCCBDB dipole) with accept-either-frame policy → Tier 3 DFT (def2-TZVP; last resort). xTB Tier 2 [32 ] descoped: the property surface is fully covered by Tier 1.5 + frame policy; no corpus claim type requires semi-empirical QM. The extractor and full verifier configuration are frozen and registered ex ante. Every extension beyond this core (detection tiers, transfer domains) was registered ex ante with a content hash; the frozen extractor and verifier configs were never modified. 
+
+> Conditions
+
+(1) unguarded baseline, (2) self-critique no-tools (with a stronger tool-free variant, Chain-of-Verification, reported in the supplementary material), (3) RAG-in-prompt (oracle), run in two  
+
+> 17 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+variants, conversational (facts prepended, answer free-form) and constrained (facts prepended with an instruction to restate the reference value as the final answer), (4) gated Mode A (verifier-guided correction, retrieve only on flag), (5) Mode B best-of-8 rerank. The constrained variant instantiates the extraction-enforcing RAG family and isolates how much of the conversational baseline’s no-commit rate is prompt-shaping rather than intrinsic; both variants draw the same oracle fact block. 
+
+> Extraction pipeline
+
+Detection is bounded by what the extractor binds, so we make its operation explicit (the full verify-and-correct flow is summarized in Fig. 1). Each trace is normalized (Markdown/LaTeX stripped, balanced-bracket and valid-atom-start checks) before ASCII regexes extract molecular formulas, SMILES, space-group symbols/numbers, and property values with units. Names are bound to claims by whole-word matching (so “benzene” does not match inside “nitrobenzene”), and values are bound to the nearest named subject. The frozen materials extractor deliberately does not 
+
+normalize Unicode-subscript formulas (C 9H8O4): these become no-commit under identical rules in every arm rather than silent errors. Known failure classes (Unicode subscripts, unit-less bare values, terse final answers with no adjacent subject) are the extractability limit; per-object-type extraction rate and accuracy are in Table S1, and the full extractor is in the released code. 
+
+> Independent ground truth
+
+Baseline error scored against PubChem/MP/CCCBDB directly, not by running the verifier, the control for the verifier’s own blind spots. Extraction rate is the ceiling on verifier recall. 
+
+> Parser-artifact retro-audit
+
+Motivated ex ante by the constants-domain finding, we tested whether the materials lift could be an extraction artifact of the same kind, the asymmetric bug in which a parser scores a digit-correct baseline wrong and Mode A’s re-elicitation flips it correct, manufacturing lift. The materials extrac-tor (frozen core) behaves differently: it does not normalize Unicode-subscript formulas (C 9H8O4), so those become no-commit/abstain (scored as an abstention, not an error) under identical rules in every arm; this is the reported no-commit behavior. The decisive test is therefore whether Mode A converts these subscript-abstains to parseable commitments at a higher rate than baseline, which would inflate the lift. It does not: the subscript-only miss rate is symmetric across arms: baseline 23.8% (134/564, Wilson CI 20.4–27.4%) vs Mode A 24.1% (407/1692, CI 22.1–26.1%), so the abstain behavior cancels and the err |commit lift arises from genuinely changed committed formulas, not parse differences. (The two denominators differ by design: the baseline is a single unguarded con-dition, 𝑛 = 564 ; Mode A pools the three tier-active replicates, 𝑛 = 1 ,692 .) The artifact concern has two channels, each with its own control. The abstain channel, a correct baseline value left unparsed and scored no-commit, is closed by the symmetry test above. The wrong-parse channel, a correct baseline value misparsed into a different value and scored wrong, is closed by the manual raw-trace audits of every flagged baseline error (the grading-integrity spot checks and the independent-GT audit, which score against PubChem/MP/CCCBDB directly rather than by running the verifier). The materials headline is not parser-manufactured. Limitation: the registered per-cell (a)-genuine / (b)-parse-artifact / (c) classification of a repaired-cell sample requires round-0 committed text,  
+
+> 18 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+which was not persisted (only the round-0 verdict and final text); the population abstain-symmetry test closes the abstain channel at higher power ( 𝑛 = 564 vs 73), and the wrong-parse channel is closed by the manual flag audits. 
+
+> Statistics
+
+Aggregated-unit McNemar [ 33 ] (majority outcome per prompt ×model over three reps); prompt-clustered bootstrap 95% CIs; three-outcome accounting throughout. Per-replicate rates in supple-mentary. We state the dependence structure explicitly. Per-model McNemar tests are the primary inference: within a model, the prompt ×model units are distinct prompts and independent. Pooled (across-model) tests share the same prompt set across the four models, so their units are not fully independent and their 𝑝 -values are reported as descriptive. To confirm the pooled headlines are not artifacts of that dependence, we add a prompt-clustered sensitivity analysis: a cluster boot-strap of the net discordant count that resamples whole prompts (all model rows for a prompt together, 10,000 resamples), reported per headline in supplementary Table S3. Both significant pooled headlines survive: molecular formula net +80 (clustered 95% CI [62 , 99] ) and formation energy net +27 (CI [14 , 40] ), each with no resample reaching net ≤ 0; crystalline space group is non-significant under clustering as in the primary test (net −2 , CI [−10 , 5] ). No pooled significance required demotion. Across the thirteen McNemar tests that carry a reported 𝑝 -value, we control for multiple comparisons with the Holm and Bonferroni procedures at 𝛼 = 0 .05 (Bonferroni threshold 
+
+0.05/13 = 3 .8 × 10 −3 ). The primary headlines survive both corrections: molecular-formula ITT (7.3 × 10 −22 ), isotope overall ( 2.3 × 10 −7 ), Mode B versus Mode A on formation energy ( 1.1 × 10 −5 ), the end-task derived-tier per-model Qwen result ( 1.2 × 10 −4 ), the formation-energy in-loop test (7.3 × 10 −4 ), and the per-model isotope Qwen lift ( 1.0 × 10 −3 ); the pooled end-task derived-tier headline ( 6.6 × 10 −3 ) survives Holm but not Bonferroni. The two per-model frontier isotope lifts (Claude Sonnet 5 𝑝 = 0 .016 , GPT-5.5 𝑝 = 0 .021 ) do not survive either correction, and we present them as suggestive rather than confirmatory. Re-estimating these two tests at five replicates rather than three sharpens them to 𝑝 = 0 .016 (Claude Sonnet 5) and 𝑝 = 0 .008 (GPT-5.5); GPT-5.5 then crosses the Holm threshold but not Bonferroni, and Claude Sonnet 5 crosses neither, so both remain reported as suggestive. 
+
+> Transfer domain (physical constants)
+
+Reference: CODATA 2022, with ground truth frozen and hashed before grading. Grading exploits the exactness structure of the 2019 SI revision: seven defining constants ( 𝑐 , ℎ, 𝑒 , 𝑘 B, 𝑁 A, Δ𝜈 Cs , 𝐾 cd )and the quantities exactly derived from them ( 𝑅 , 𝐹 , 𝜎 , Josephson and von Klitzing constants, etc.) are exact and graded by significant figures: a truncated but digit-correct value passes, an altered digit fails. Measured constants are graded within the larger of the CODATA-2022 standard uncertainty and the 2018–2022 adjustment drift ( ≤ 4 × 10 −9 for every measured constant here), so neither adjustment version nor quoted-digit truncation can register as an error. Standard-state-dependent constants (Sackur–Tetrode) are pinned to the modern 100 kPa convention. The value extractor was hardened after the constants-domain audit found the first-pass parser dropped exponents.  
+
+> A C K N O W L E D G M E N T S
+> No funding was received for this research.
+> 19 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+Use of AI tools 
+
+Generative AI assistance was used during manuscript finalization for language editing, for drafting and formatting figure-generation code. The large language models studied in this work are the objects of the experiments and are described in Methods; they were not used to generate the scientific insights, the experimental design, or the conclusions. The authors take full responsibility for all content of this manuscript. 
+
+Computing resources 
+
+All model generations were obtained through the OpenRouter API. The four primary models were Claude Sonnet 5, GPT-5.5, DeepSeek v4 Pro, and Qwen3-235B; two smaller models, Claude Haiku 4.5 and GPT-5.4 mini, were used only for the small-model detection comparison. Decoding used temperature 0 (greedy) for the single-answer conditions and temperature 0.7 for sampled generations, including the best-of-8 rerank ( 𝑁 = 8 ); top-𝑝 was left at the provider default. The maximum-token cap depended on the workflow: 1,200 tokens for the main arms and holdout harness, 900 for the closed-loop correction driver used by the two-stage and isotope experiments, and 1,400 for the end-task runs. Density-functional theory reference calculations and all database lookups (PubChem, Materials Project, CCCBDB, IAEA NDS) ran on a single workstation CPU. The USD and wall-clock figures in Table S4 are scaled from a measured base generation cost of $0.00418 per trace at 12 concurrent workers. The exact provider-side model-version snapshot identifiers for each model are listed in Supplementary Table S7. 
+
+> A U T H O R C O N T R I B U T I O N S
+
+C.P. conceived and implemented the tiered grounded-verification pipeline, conducted all computational experiments and benchmark runs, performed the data analysis, and wrote the original manuscript. M.K, E.S., and H.K. supervised the research, contributed to the interpretation of results, and reviewed and edited the manuscript. All authors read and approved the final manuscript. 
+
+> C O M P E T I N G I N T E R E S T S
+
+The authors declare no competing financial or non-financial interests. 
+
+> D A T A A N D C O D E A V A I L A B I L I T Y
+
+The condition-pinned prompt corpus, the frozen ground truth for all domains, and all experimental results reported in this study are available with the code in the project repository at https://github.com/KurbanI ntelligenceLab/grounded-matsci , each with a per-file SHA-256 manifest. The corpus and ground-truth data are released under the Creative Commons Attribution 4.0 (CC-BY-4.0) license, and the verification pipeline and analysis code under the MIT license. The complete verification pipeline and analysis code are available at the same repository. 
+
+References 
+
+[1] Nikhil Kandpal, Haikang Deng, Adam Roberts, Eric Wallace, and Colin Raffel. Large language models struggle to learn long-tail knowledge. Proceedings of Machine Learning Research , 202:15696–15707, 2023. ICML 2023. [2] Alex Mallen, Akari Asai, Victor Zhong, Rajarshi Das, Daniel Khashabi, and Hannaneh Hajishirzi. When not to trust language models: Investigating effectiveness of parametric and non-parametric memories.  
+
+> 20 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+Proceedings of the 61st Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) , pages 9802–9822, 2023. doi: 10.18653/v1/2023.acl-long.546. [3] Jie Huang, Xinyun Chen, Swaroop Mishra, Huaixiu Steven Zheng, Adams Wei Yu, Xinying Song, and Denny Zhou. Large language models cannot self-correct reasoning yet. The Twelfth International Conference on Learning Representations (ICLR) , 2024. [4] Zhibin Gou, Zhihong Shao, Yeyun Gong, Yelong Shen, Yujiu Yang, Nan Duan, and Weizhu Chen. CRITIC: Large language models can self-correct with tool-interactive critiquing. The Twelfth Interna-tional Conference on Learning Representations (ICLR) , 2024. [5] Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir Karpukhin, Naman Goyal, Heinrich Küttler, Mike Lewis, Wen-tau Yih, Tim Rocktäschel, Sebastian Riedel, and Douwe Kiela. Retrieval-augmented generation for knowledge-intensive NLP tasks. Advances in Neural Information Processing Systems , 33:9459–9474, 2020. [6] Lianmin Zheng, Wei-Lin Chiang, Ying Sheng, Siyuan Zhuang, Zhanghao Wu, Yonghao Zhuang, Zi Lin, Zhuohan Li, Dacheng Li, Eric P. Xing, Hao Zhang, Joseph E. Gonzalez, and Ion Stoica. Judging LLM-as-a-judge with MT-Bench and Chatbot Arena. Advances in Neural Information Processing Systems (Datasets and Benchmarks Track) , 36, 2023. [7] Sunghwan Kim, Jie Chen, Tiejun Cheng, Asta Gindulyte, Jia He, Siqian He, Qingliang Li, Benjamin A. Shoemaker, Paul A. Thiessen, Bo Yu, Leonid Zaslavsky, Jian Zhang, and Evan E. Bolton. PubChem 2025 update. Nucleic Acids Research , 53(D1):D1516–D1525, 2025. doi: 10.1093/nar/gkae1059. [8] Anubhav Jain, Shyue Ping Ong, Geoffroy Hautier, Wei Chen, William Davidson Richards, Stephen Dacek, Shreyas Cholia, Dan Gunter, David Skinner, Gerbrand Ceder, and Kristin A. Persson. Commen-tary: The Materials Project: A materials genome approach to accelerating materials innovation. APL Materials , 1:011002, 2013. doi: 10.1063/1.4812323. [9] Russell D. Johnson III. NIST computational chemistry comparison and benchmark database (CCCBDB). NIST Standard Reference Database Number 101, Release 22, May 2022. URL https://cccbdb.nist.go v/ . National Institute of Standards and Technology, Gaithersburg, MD. [10] Shehzaad Dhuliawala, Mojtaba Komeili, Jing Xu, Roberta Raileanu, Xian Li, Asli Celikyilmaz, and Jason Weston. Chain-of-verification reduces hallucination in large language models. Findings of the Association for Computational Linguistics: ACL 2024 , pages 3563–3578, 2024. [11] Potsawee Manakul, Adian Liusie, and Mark J. F. Gales. SelfCheckGPT: Zero-resource black-box hallucination detection for generative large language models. Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing , pages 9004–9017, 2023. doi: 10.18653/v1/2023.emn lp-main.557. [12] Sebastian Farquhar, Jannik Kossen, Lorenz Kuhn, and Yarin Gal. Detecting hallucinations in large language models using semantic entropy. Nature , 630(8017):625–630, 2024. doi: 10.1038/s41586-024-0 7421-0. [13] Chuan Guo, Geoff Pleiss, Yu Sun, and Kilian Q. Weinberger. On calibration of modern neural networks. 
+
+Proceedings of Machine Learning Research , 70:1321–1330, 2017. ICML 2017. [14] John C. Platt. Probabilistic outputs for support vector machines and comparisons to regularized likelihood methods. Advances in Large Margin Classifiers , pages 61–74, 1999. MIT Press, Cambridge, MA. [15] Peter J. Mohr, David B. Newell, Barry N. Taylor, and Eite Tiesinga. CODATA recommended values of the fundamental physical constants: 2022. Reviews of Modern Physics , 97:025002, 2025. doi: 10.1103/Re vModPhys.97.025002. [16] International Atomic Energy Agency, Nuclear Data Section. Live chart of nuclides: nuclear structure  
+
+> 21 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+and decay data. IAEA Nuclear Data Services. URL https://www-nds.iaea.org/relnsd/vcharthtml/ VChartHTML.html . relnsd v1, fetched 2026-07-06. [17] Ran El-Yaniv and Yair Wiener. On the foundations of noise-free selective classification. Journal of Machine Learning Research , 11:1605–1641, 2010. [18] Aman Madaan, Niket Tandon, Prakhar Gupta, Skyler Hallinan, Luyu Gao, Sarah Wiegreffe, Uri Alon, Nouha Dziri, Shrimai Prabhumoye, Yiming Yang, Shashank Gupta, Bodhisattwa Prasad Majumder, Katherine Hermann, Sean Welleck, Amir Yazdanbakhsh, and Peter Clark. Self-refine: Iterative re-finement with self-feedback. Advances in Neural Information Processing Systems , 36:46534–46594, 2023. [19] Hao Li, He Cao, Bin Feng, Yanjun Shao, Xiangru Tang, Zhiyuan Yan, Li Yuan, Yonghong Tian, and Yu Li. Beyond chemical QA: Evaluating LLM’s chemical reasoning with modular chemical operations. arXiv preprint arXiv:2505.21318, 2025. Accepted at NeurIPS 2025 Datasets and Benchmarks Track; introduces the ChemCoTBench benchmark. [20] Christoph Bartmann, Johannes Schimunek, Mykyta Ielanskyi, Philipp Seidl, Günter Klambauer, and Sohvi Luukkonen. MolecularIQ: Characterizing chemical reasoning capabilities through symbolic verification on molecular graphs. arXiv preprint arXiv:2601.15279, 2026. [21] Bhanu Prakash Vangala, Sajid Mahmud, Pawan Neupane, Joel Selvaraj, and Jianlin Cheng. HalluMat: Detecting hallucinations in LLM-generated materials science content through multi-stage verification. arXiv preprint arXiv:2512.22396, 2025. [22] Andres M. Bran, Sam Cox, Oliver Schilter, Carlo Baldassari, Andrew D. White, and Philippe Schwaller. Augmenting large language models with chemistry tools. Nature Machine Intelligence , 6:525–535, 2024. doi: 10.1038/s42256-024-00832-8. [23] Adrian Mirza, Nawaf Alampara, Sreekanth Kunchapu, Martíño Ríos-García, Benedict Emoekabu, Aswanth Krishnan, et al. A framework for evaluating the chemical knowledge and reasoning abilities of large language models against the expertise of chemists. Nature Chemistry , 17:1027–1034, 2025. doi: 10.1038/s41557-025-01815-x. [24] Hunter Lightman, Vineet Kosaraju, Yura Burda, Harri Edwards, Bowen Baker, Teddy Lee, Jan Leike, John Schulman, Ilya Sutskever, and Karl Cobbe. Let’s verify step by step. The Twelfth International Conference on Learning Representations (ICLR) , 2024. [25] Leonardo de Moura and Sebastian Ullrich. The Lean 4 theorem prover and programming language. 
+
+Automated Deduction – CADE 28, Lecture Notes in Computer Science , 12699:625–635, 2021. doi: 10.1007/ 978-3-030-79876-5_37. [26] Trieu H. Trinh, Yuhuai Wu, Quoc V. Le, He He, and Thang Luong. Solving olympiad geometry without human demonstrations. Nature , 625:476–482, 2024. doi: 10.1038/s41586-023-06747-5. [27] Weihang Su, Jianming Long, Qingyao Ai, Yichen Tang, Changyue Wang, Yiteng Tu, and Yiqun Liu. Skill retrieval augmentation for agentic AI. arXiv preprint arXiv:2604.24594 , 2026. [28] Sewon Min, Kalpesh Krishna, Xinxi Lyu, Mike Lewis, Wen-tau Yih, Pang Wei Koh, Mohit Iyyer, Luke Zettlemoyer, and Hannaneh Hajishirzi. FActScore: Fine-grained atomic evaluation of factual precision in long form text generation. Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing (EMNLP) , 2023. arXiv:2305.14251. [29] Daniel M. Lowe, Peter T. Corbett, Peter Murray-Rust, and Robert C. Glen. Chemical name to structure: OPSIN, an open source solution. Journal of Chemical Information and Modeling , 51(3):739–753, 2011. doi: 10.1021/ci100384d. [30] Syed Rifat Raiyan, Mohsinul Kabir, Hasan Mahmud, and Md Kamrul Hasan. Artificial intelligence for mathematical reasoning: An integrated survey of language models, neuro-symbolic systems, and verified discovery. arXiv preprint arXiv:2606.08728 , 2026.  
+
+> 22 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+[31] Margarita Belova, Yuval Kansal, et al. An alternative trajectory for generative AI: Domain-specific superintelligence. arXiv preprint arXiv:2603.14147 , 2026. [32] Christoph Bannwarth, Sebastian Ehlert, and Stefan Grimme. GFN2-xTB—an accurate and broadly parametrized self-consistent tight-binding quantum chemical method with multipole electrostatics and density-dependent dispersion contributions. Journal of Chemical Theory and Computation , 15(3): 1652–1671, 2019. doi: 10.1021/acs.jctc.8b01176. [33] Quinn McNemar. Note on the sampling error of the difference between correlated proportions or percentages. Psychometrika , 12(2):153–157, 1947. doi: 10.1007/BF02295996.  
+
+> 23 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+> APPENDIX
+
+A Supplementary information 
+
+This supplementary material collects the extended tables, robustness analyses, and notes that support the main-text claims but are not needed to follow the argument: per-object-type extraction and error breakdowns (Tables S1, S2), a parser-artifact audit of the physical-constants domain (Supplementary Note S1), a clustered re-analysis of the headline significance tests (Table S3), the per-condition compute accounting (Table S4, Fig. S1), a reference-frame-policy robustness check (Table S5), a four-detector comparison (Table S6), the model versions and access details (Table S7), a Chain-of-Verification tool-free baseline (Supplementary Note S3), the isotope frontier lift re-estimated at five replicates (Supplementary Note S4), and a realistic non-oracle retrieval bound (Supplementary Note S5). Each item is referenced from the main text at the point it supports; the paragraphs below state what each one shows and its single takeaway. 
+
+Extraction and error structure 
+
+The verifier can only correct what its extractor first commits to a parseable claim, so we report the per-object-type extraction rate alongside accuracy. Table S1 gives both: extraction rate (the fraction of cells that commit a parseable value) sets a hard ceiling on verifier recall, which is why the crystalline space-group surface, committed in only 54% of cells, has a low detection recall regardless of how good the adjudicator is.  
+
+> Table S1
+
+Frozen extractor holdout extraction rate and accuracy by object type. Extraction rate = fraction of cells committing a parseable claim ( 1− no-commit); accuracy | commit = correctness among committed. Baseline unguarded condition, frozen extractor. The extraction rate is the ceiling on verifier recall.                               
+
+> object type 𝑛 committed extraction rate accuracy |commit molecular formula 564 451 80.0% 78.3% crystalline space group 508 275 54.1% 94.2% reasoning system (crystal system) 404 404 100.0% 97.3% formation energy 404 371 91.8% 68.7% band gap 176 175 99.4% 100.0% dipole 56 56 100.0% 87.5% Extraction rate is the ceiling on verifier recall: the space-group tier’s 54% commit rate (grey) caps its detection recall regardless of adjudication quality.
+
+Table S2 shows where the 248 genuine baseline errors actually fall. Two patterns determine where correction can help: errors concentrate in the long-tail rarity strata (S3–S4) rather than the well-known compounds, and they concentrate in the weakest model (Qwen3-235B alone ac-counts for 131 of 248). This is the error structure behind the per-model lift in Table 1: correction lifts accuracy exactly where errors are dense and leaves the near-ceiling frontier models roughly unchanged.   
+
+> 24 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+> Table S2
+
+Genuine baseline errors by claim type × stratum (pooled models) and by model. 248 genuine baseline errors (correct = false), concentrated in the long-tail strata and the weakest model, the pattern that governs where correction lifts accuracy (Table 1).                        
+
+> claim type total errors leading strata (count) representative subject formation energy 116 S4 (49), S3 (35), S2 (22) halite (NaCl) molecular formula 98 S4 (69), S3 (27) ampicillin crystalline space group 16 S3 (6), S4 (6) sphalerite (ZnS) reasoning system 11 S4 (11) Cs 2AgBiBr 6perovskite dipole 7S1 well-known (7) nitrobenzene By model: Qwen3-235B 131, DeepSeek v4 Pro 53, Claude Sonnet 5 46, GPT-5.5 18. (Full model ×type ×stratum breakdown available in the released repository.)
+
+Supplementary Note S1: Physical-constants audit (parser artifact and per-model detail) 
+
+The first-pass constants result (84% to 99%) was traced by a line-by-line audit of every flagged constant: ∼23 of ∼29 baseline “errors” were orchestration-layer extraction artifacts: the model stated the correct value in scientific notation ( 1.602176634 × 10 −19 , 4𝜋 × 10 −7 , or LaTeX-brace form) but the value parser dropped the exponent, and Mode A “fixed” these by eliciting an ASCII-parseable restatement of the same value. After hardening the parser (Unicode superscripts, LaTeX braces, symbolic-𝜋 , digit-group spacing) and re-grading the full triplicate under the registered tolerance policy, no model changes significantly: the two frontier models start at 100% baseline and dip slightly under Mode A (Claude Sonnet 5 100% to 97%, GPT-5.5 100% to 94%) from regeneration noise on already-correct answers, while the open-weights models each gain ∼5 .7 points (DeepSeek v4 Pro 91.4% to 97.1%, Qwen3-235B 88.6% to 94.3%); all 𝑝 ≥ 0.5. The verifier still detects the genuinely wrong constants that remain (Qwen3-235B dropping the ×10 −8 on the Stefan–Boltzmann constant, a missing sign on the electron 𝑔 -factor, a 10 3 unit-scale slip on the Josephson constant). This asymmetric artifact (baseline scored wrong, re-elicitation flipped it to correct) is the failure mode the materials retro-audit checked for and, via the symmetric subscript-abstain test, ruled out for the materials headline (Methods). 
+
+Supplementary Note S2: proof of the error-reduction identity 
+
+Setup. Consider the claims committed and graded in both the baseline and Mode-A arms on a fixed surface, with baseline error-given-commitment 𝑒 0 = Pr(wrong) . Gated correction applies a fire/hold decision 𝐷 per claim (the verifier flag conjoined with the Platt gate 𝜎 (𝑎𝑠 +𝑏 ) < 𝜃 , where 𝑠 is the raw verifier score from the main text and 𝜎 is the logistic function); a fired claim is regenerated with the reference value injected. Define the conditional rates 𝑟 𝑑 = Pr( 𝐷 =fire ∣ wrong) , 𝑟 𝑝 =Pr(correct after regen ∣ 𝐷 =fire , wrong) , 𝜙 = Pr( 𝐷 =fire ∣ correct) , and 𝜌 = Pr(wrong after regen ∣ 
+
+𝐷 =fire , correct) . Held claims are unchanged, and any regeneration that leaves the committed population (a regenerated no-commit) is excluded by the committed-in-both-arms restriction, so every claim ends either correct or wrong. 
+
+Proof. Partition the population by baseline correctness. A wrong claim (mass 𝑒 0) ends correct iff 
+
+𝐷 =fire and repair succeeds, probability 𝑟 𝑑 𝑟 𝑝 ; otherwise it ends wrong, contributing 𝑒 0(1 − 𝑟 𝑑 𝑟 𝑝 ) to  
+
+> 25 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+the post-correction error. A correct claim (mass 1 − 𝑒 0) ends wrong iff 𝐷 =fire and regeneration breaks it, probability 𝜙𝜌 , contributing (1 − 𝑒 0)𝜙𝜌 . These two events partition the ways a committed claim can be wrong after correction and no other transition changes correctness, so by the law of total probability 𝑒 1 = 𝑒 0(1 − 𝑟 𝑑 𝑟 𝑝 ) + (1 − 𝑒 0)𝜙𝜌 , whence Δ = 𝑒 0 − 𝑒 1 = 𝑒 0𝑟 𝑑 𝑟 𝑝 − (1 − 𝑒 0)𝜙𝜌 .
+
+Precision form of the harm term. The fired set has mass 𝐹 = 𝑒 0𝑟 𝑑 +(1− 𝑒 0)𝜙 and detector precision 
+
+𝜋 = 𝑒 0𝑟 𝑑 /𝐹 , so (1 − 𝑒 0)𝜙 = (1 − 𝜋 )𝐹 and the harm term equals (1 − 𝜋 )𝐹 𝜌 . Harm therefore grows as precision falls: a high-recall, low-precision detector (the consistency-triggered stage reaches precision 0.28 on formation energy) fires largely on already-correct claims, and unless the break rate 𝜌 is suppressed the gain 𝑒 0𝑟 𝑑 𝑟 𝑝 is offset. Two levers reduce harm without lowering recall: injecting a reference, which raises 𝑟 𝑝 toward 1 and is what the deterministic tier supplies but the consistency signal does not; and gating on a calibrated trust score, which lowers 𝜙 and hence raises 
+
+𝜋 . The identity thus separates the two requirements the experiments establish: detection recall sets the reachable gain, and a reference-carrying, precision-calibrated fire sets how much of it is realized without harm. The identity is an exact accounting relation, following from the law of total probability applied to the two ways a committed claim can be wrong after correction. As a numerical check on the molecular-formula surface, substituting 𝑒 0=0 .22 , 𝑟 𝑑 =0 .82 , and 𝑟 𝑝 =0 .97 with a negligible false-positive break term gives 𝑒 1 = 𝑒 0(1 − 𝑟 𝑑 𝑟 𝑝 ) = 4 .5% , consistent with the observed post-correction error of about 4% .
+
+Robustness of the headline statistics 
+
+The pooled McNemar tests in the main text treat prompt ×model cells as independent, but the three replicates of each prompt are not. Table S3 re-tests the two significant headlines under a prompt-clustered cluster bootstrap that resamples whole prompts (all four model rows together): both the molecular-formula and formation-energy net effects remain strictly positive across 10,000 resamples (fraction with net ≤ 0 is 0.000), and crystalline space group stays non-significant, so the headlines are not artifacts of treating replicates as independent.  
+
+> Table S3
+
+Prompt-clustered sensitivity of the pooled Mode-A McNemar headlines. Cluster bootstrap of the net discordant count (lift − harm), resampling whole prompts (all four model rows together), 10,000 resamples. “frac. net ≤ 0” is the fraction of resamples with non-positive net (a one-sided robustness check). Both significant headlines survive clustering; crystalline is non-significant as in the primary per-model test.                              
+
+> surface units prompts lift harm net (95% CI) frac. net ≤0
+> molecular formula 444 141 86 6+80 [62 ,99] 0.000 formation energy 369 101 45 18 +27 [14 ,40] 0.000 crystalline space group 258 102 57−2 [−10 ,5] 0.75 Units = prompt ×model pairs with a gradable value in both arms; baseline (single) vs Mode A (majority over three reps), joined by subject ×model. Clustering is by prompt.
+
+Compute cost 
+
+Table S4 accounts for the compute of every condition on the same footing: calls per cell and retrieval rounds are measured, USD and wall-clock are scaled from the measured base generation cost. The  
+
+> 26 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+takeaway is the deployment trade between the two interventions: best-of-8 rerank (Mode B) costs 
+
+∼8× baseline generation ( ∼$212 , ∼92 min) for its formation-energy gain, whereas gated correction (Mode A) costs only ∼1 .75× (∼$46 , ∼20 min) because it retrieves only on a flag rather than on every prompt. Fig. S1 visualizes the retrieval side of this saving.  
+
+> Table S4
+
+Per-condition compute cost for the full evaluation (528 prompts × 4 models × 3 replicates = 6,336 cells per condition). Calls per cell and retrieval rounds are measured; USD and wall-clock are scaled from the measured base generation cost ($0.00418/trace) and measured call multipliers, at 12 concurrent workers ( ∼1.3 s/call). RAG variants issue one blanket retrieval per prompt at deployment (100 per 100); gated Mode A retrieves only on a flag (17 per 100, the measured overall prompt ×model cell flag rate). Per-surface breakdown in Fig. S1.                                             
+
+> condition calls/cell total LLM calls retrievals/100 USD wall-clock (min) baseline (unguarded) 1.00 6,336 026 11 self-critique 3.00 19,008 079 34 RAG conversational 1.00 6,336 100 26 11 RAG constrained 1.00 6,336 100 26 11 gated Mode A 1.75 11,075 17 46 20 Mode B ( 𝑁 =8 )8.00 50,688 0212 92 Mode B’s best-of-8 rerank costs ∼8× baseline generation ( ∼$212 ,∼92 min) for its formation-energy gain, versus gated Mode A’s ∼1 .75× (∼$46 ,∼20 min); this is the deployment trade the reviewer raises. Chain-of-Verification costs four LLM calls per cell (draft, plan, independent answers, revise), above self-critique’s three, and still closes no surface; the extra tool-free reasoning buys no accuracy. Full cost logs are in the released repository.
+
+Reference-frame robustness 
+
+A quantitative-property claim can look “wrong” merely because the model and the reference use different conventions (e.g. a computed vs an experimental band gap). Table S5 checks this by re-grading under two policies. Only the band-gap surface is frame-sensitive: its error collapses from 34.6% to 0.0% once either documented frame is accepted (107 of 116 naive flags were correct experimental gaps), which is why band gap is excluded from the property headline. Formation energy, whose frames nearly coincide, barely moves (33.7% to 31.3%) and remains a genuine error surface; the frame-insensitive surfaces are unchanged. 
+
+Why a deterministic checker 
+
+Table S6 compares our deterministic tiered checker against three alternatives on the same frozen baseline claims: a frontier reasoning-class LLM-as-judge (no tools), a sampling-consistency base-line (SelfCheckGPT-style), and a semantic-entropy detector. The deterministic checker gives the high recall that matters for catching errors on the molecular-formula surface (0.92) while keeping precision usable (0.51), where the alternatives either trade recall for precision (the LLM judge, 0.71 recall at 0.86 precision) or over-flag (sampling-consistency, 0.85 recall but only 0.40 precision, with many false alarms); no single detector dominates on every surface, but only the deterministic tier returns an external reference value to inject, which is what the correction step requires. The semantic-entropy detector, which clusters the eight samples by meaning before measuring entropy, behaves as a refinement of the sampling-consistency baseline: it matches its recall on molecular  
+
+> 27 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+Table S5 Post-audit baseline error by claim type under the two reference-frame policies. Band gap collapses once either documented frame is accepted (107/116 naive flags were correct experimental gaps); formation energy, whose frames nearly coincide, barely moves and remains a genuine error surface; frame-insensitive surfaces are unchanged. 
+
+claim type naive single-frame accept-either-documented-frame band gap 34.6% 0.0% formation energy 33.7% 31.3% molecular formula 21.7% 21.7% dipole 12.5% 12.5% space group 5.8% 5.8% crystal system 2.7% 2.7% 
+
+formula (0.93) and raises formation-energy precision to 0.51 (from 0.36) at slightly lower recall (0.57 from 0.67), but like it returns no reference value and so cannot drive the correction step. 
+
+Table S6 Four-detector precision (P) and recall (R) by surface (offline, frozen baseline claim text): the deterministic verifier, a frontier reasoning-class LLM-as-judge (no tools) [ 6 ], a sampling-consistency baseline (SelfCheckGPT-style [ 11 ], flag if modal-object agreement ≤ 0.25 , threshold frozen on a dev half), and a semantic-entropy detector [ 12 ] that clusters the same eight samples by meaning and flags high normalized cluster entropy (threshold 0.44 frozen on a dev half). Bold marks the highest recall per surface; only the deterministic verifier also returns a reference value to inject. 
+
+Deterministic LLM-as-judge Sampling-consistency Semantic entropy 
+
+surface P R P R P R P Rmolecular formula 0.51 0.92 0.86 0.71 0.40 0.85 0.31 0.93 
+
+formation energy 0.55 0.31 0.53 0.53 0.36 0.67 0.51 0.57 crystalline SG 0.20 0.69 0.67 0.38 0.17 0.17 0.27 0.20 P, precision; R, recall. The sampling-consistency detector is strongest exactly where symbolic extraction is weakest (formation energy), but returns no reference value, so it can detect but not repair. Semantic entropy, computed by reanalysis of the stored eight-sample sets with no new generation, tracks the sampling-consistency detector while improving formation-energy precision ( 0.51 versus 0.36 ) through meaning-based clustering; like it, semantic entropy is detection-only and returns no reference value to inject. 
+
+Retrieval savings 
+
+Fig. S1 makes the retrieval side of the cost story (Table S4) concrete: because gated correction retrieves only when a claim is flagged, it issues far fewer external lookups than blanket RAG’s one-per-prompt baseline, 3.2× fewer on molecular formula, 6.2× on formation energy, and 8.4× on crystalline space group. The three bars report round-0 Mode A cell flag rates (triplicate mean) on those surfaces; Table S4’s 17 per 100 pools all claim types. 
+
+Model versions and reproducibility 
+
+All generations were served through the OpenRouter API. Table S7 records the exact model string for each model so that the runs can be reproduced against the same provider-side snapshots.    
+
+> 28 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab Molecular formula 31.5%
+
+3.2× fewer   
+
+> Formation energy 16.1%
+
+6.2× fewer   
+
+> Crystalline space group 11.9%
+
+8.4× fewer     
+
+> 025 50 75 100
+> retrieval rounds per 100 prompt ×model cells
+> Mode A retrievals (only on a flag)
+> saved vs blanket RAG baseline (100/100)
+
+Figure S1 Retrieval savings of gated correction. Gated Mode A retrieves only on a flagged prompt ×model cell, versus blanket RAG’s 100/100 baseline (one lookup per prompt at deployment), from the precise per-surface round-0 cell flag rates: molecular 31.5% ( 3.2× fewer retrievals), formation energy 16.1% ( 6.2× ), crys-talline SG 11.9% ( 8.4× ). Full per-condition compute cost is in Table S4. 
+
+Table S7 Model versions. Snapshot identifiers are the OpenRouter model strings used at run time. 
+
+model role OpenRouter model string Claude Sonnet 5 primary anthropic/claude-sonnet-5 
+
+GPT-5.5 primary openai/gpt-5.5 
+
+DeepSeek v4 Pro primary deepseek/deepseek-v4-pro 
+
+Qwen3-235B primary qwen/qwen3-235b-a22b-2507 
+
+Claude Haiku 4.5 small (detection only) anthropic/claude-haiku-4.5 
+
+GPT-5.4 mini small (detection only) openai/gpt-5.4-mini 
+
+Hardware: all model queries were issued through the OpenRouter API from a single Apple M4 Pro MacBook Pro (24 GB unified memory), which also ran the local DFT reference calculations and database lookups. 
+
+29 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab 
+
+> Supplementary Note S3: Chain-of-Verification as a stronger tool-free baseline
+
+Self-critique is a single-pass no-tools control. To test whether a stronger structured self-verification method fares differently, we ran Chain-of-Verification [ 10 ]: the model drafts an answer, plans a set of verification questions targeting its own factual claims, answers those questions independently, then revises. No external tool is used at any stage. We ran the four-stage protocol on the three error surfaces (molecular formula, formation energy, crystalline space group) with the four primary models in triplicate, using the same corpus, system prompt, and frozen grader (final-answer rule) as the self-critique arm; 4,427 cells, no API errors. It closes no surface: on the two surfaces whose answer formatting the frozen grader parses without ambiguity, error given commitment is essentially unchanged (molecular 21.7% to 18.8%, crystalline 5.8% to 6.0%), and on formation energy it does not improve on the baseline. A formatting note bounds the formation-energy comparison: about a quarter of Chain-of-Verification answers write the value with a Unicode minus sign, which the frozen extractor’s ASCII regex misreads, inflating the raw error rate; the glyph rate differs across conditions, so we report the raw frozen-grader numbers and do not renormalize the published self-critique value. Under a sensitivity check that maps the Unicode minus to ASCII for all conditions, Chain-of-Verification formation-energy error is 29.5% against a 31.3% baseline, still no improvement. The finding matches self-critique: a stronger tool-free protocol does not reach the gap that tool-grounded correction closes, because the model cannot supply the external reference value it lacks. 
+
+> Supplementary Note S4: Isotope frontier lift at five replicates
+
+The two per-model frontier isotope lifts reported in the main text (Claude Sonnet 5 and GPT-5.5) rest on triplicate McNemar tests with 𝑝 = 0 .016 and 𝑝 = 0 .021 , which do not survive correction for multiple comparisons. Because these borderline claims carry the paper’s only frontier-model lift, we re-estimated the isotope arm at five replicates. We generated two additional replicates of both arms (baseline and gated Mode A) over the 63 isotope prompts and four primary models (1,008 cells, no API errors), using the same prompts, ground truth, system prompt, tolerance, and per-model aggregation (correct versus not-correct on model-by-subject units, majority over replicates) as the triplicate analysis. The per-model net lifts are unchanged (Claude Sonnet 5 net +7 , GPT-5.5 net 
+
++8 , Qwen3-235B net +11 ; DeepSeek v4 Pro rises from +4 to +6 ), and the two frontier 𝑝 -values sharpen to 𝑝 = 0 .016 (Claude Sonnet 5) and 𝑝 = 0 .008 (GPT-5.5). Under the same thirteen-test Holm and Bonferroni family, GPT-5.5 then crosses the Holm threshold but not Bonferroni, and Claude Sonnet 5 crosses neither. The added replicates therefore tighten the estimates without changing the conclusion, and we continue to report the frontier lift as suggestive rather than confirmatory. 
+
+> Supplementary Note S5: Realistic (non-oracle) retrieval
+
+The RAG conditions in the main text are an oracle upper bound, drawing facts from the same database records that define the ground truth, so coverage is complete and every fact is correct. To bound what a deployed system would see, we built a realistic retriever that resolves each named entity live: molecular names against PubChem (formula and SMILES), and crystalline and formation-energy entities by resolving a formula and querying the Materials Project for the most-stable polymorph’s space group and formation energy. No ground-truth record is consulted during retrieval. Retriever quality varies sharply by surface. Molecular coverage is 141 of 141 entities, all correct, because every compound in the corpus is name-addressable in PubChem, the same source  
+
+> 30 GROUNDED VERIFICATION OF CHEMICAL AND MATERIALS REASONING Kurban Intelligence Lab
+
+the molecular ground truth draws on. Crystalline coverage is 27 of 127 entities (21%), of which 20 of 27 return a space group within the accepted set; formation- energy coverage is 23 of 101 entities (23%), all within tolerance when returned. The two failure modes on the long tail are a name that does not resolve to a formula, and a formula that resolves to the most-stable polymorph rather than the phase the prompt names (for example rutile returns space group No. 141 where the prompt fixes the No. 136 phase). Prepending these retrieved facts and generating once, realistic retrieval matches the oracle on molecular formula (error given commitment 0.2% versus the oracle’s 0.3%, baseline 21.7%) with low abstention (4.8% versus the oracle’s 42.0%), but recovers almost none of the oracle gain on the long tail: error given commitment holds at baseline (formation energy 33.9% versus 31.3%; space group 5.3% versus 5.8%) and abstention rises to 56.2% and 59.4% as the model, handed no usable fact, declines to commit. The verifier’s claim-specific retrieval, keyed to the named phase rather than to bare composition, is what still succeeds in this regime.

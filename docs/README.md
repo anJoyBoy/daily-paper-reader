@@ -6,62 +6,68 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-07-20
-- 运行时间：2026-07-20 21:37:15 UTC
+- 最新运行日期：2026-07-21
+- 运行时间：2026-07-21 21:31:59 UTC
 - 运行状态：成功
-- 本次总论文数：14
-- 精读区：5
+- 本次总论文数：15
+- 精读区：6
 - 速读区：9
 
 ### 今日简报（AI）
-今日精选14篇论文，重点关注符号谓词引导的钙钛矿氧化物逆向设计与模块化LLM后训练新范式。最值得看钙钛矿逆向设计（9.0分）通过谓词指导语言智能体实现高效材料发现，以及代理引导的LLM后训练范式（8.0分）降低训练成本。普通读者可关注语言模型与科学推理的融合，以及工具记忆复用技术在智能体中的潜力。
-- 详情：[/202607/20/README](/202607/20/README)
+- 今日共生成 15 篇推荐（精读 6 篇，速读 9 篇）
+- 精读：《Efficient Sequential Evaluation of Large Language Models》（9.0/10）, 《JOR-Bench: Japanese Operations Research Benchmarks for Large Language Models》（8.0/10）
+- 速读：《Automating structural reliability analysis with a multi-agent large language model framework》（7.0/10）, 《Schema-Bound LLM Control of Scientific Instrumentation through Model Context Protocol Skills》（7.0/10）, 《Chemical filters for ultra-high-throughput materials screening and generation》（7.0/10）
+- 这些结果覆盖了当下较热的方向，建议先看精读区论文的关键问题与方法。
+- 详情：[/202607/21/README](/202607/21/README)
 
 ### 精读区论文标签
-1. [Symbolic Predicate-Guided Language Agents for Inverse Design of Perovskite Oxides](/202607/20/2607.15535v1-symbolic-predicate-guided-language-agents-for-inverse-design-of-perovskite-oxides)  
+1. [Efficient Sequential Evaluation of Large Language Models](/202607/21/2607.17409v1-efficient-sequential-evaluation-of-large-language-models)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：大语言模型代理用于钙钛矿氧化物的逆向设计
-2. [Proxy Exploration and Reusable Guidance: A Modular LLM Post-Training Paradigm via Proxy-Guided Update Signals](/202607/20/2607.11505v1-proxy-exploration-and-reusable-guidance-a-modular-llm-post-training-paradigm-via-proxy-guided-update-signals)  
+   evidence：大语言模型高效顺序评估方法
+2. [JOR-Bench: Japanese Operations Research Benchmarks for Large Language Models](/202607/21/2607.16777v1-jor-bench-japanese-operations-research-benchmarks-for-large-language-models)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：大语言模型的后训练范式
-3. [Behavioral Controllability of Agentic Models for Information Extraction: From Fixed Workflows to Reflective Agents](/202607/20/2607.15715v1-behavioral-controllability-of-agentic-models-for-information-extraction-from-fixed-workflows-to-reflective-agents)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：使用LLM代理从学术PDF中提取数据集，属于数据挖掘任务
-4. [An MLIR-Based Compilation Method for Large Language Models](/202607/20/2607.15865v1-an-mlir-based-compilation-method-for-large-language-models)  
+   evidence：大语言模型日文运筹学基准测试集
+3. [ChemFusion: A Multimodal Cross-Attention Network for Reaction Yield Prediction](/202607/21/2607.17033v1-chemfusion-a-multimodal-cross-attention-network-for-reaction-yield-prediction)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：大型语言模型的编译方法
-5. [Multi-Modal Semantic Segmentation of Electrolyzer Components for Sustainable Hydrogen Technologies: A Dual-Branch Deep Learning Approach](/202607/20/2607.16056v1-multi-modal-semantic-segmentation-of-electrolyzer-components-for-sustainable-hydrogen-technologies-a-dual-branch-deep-learning-approach)  
+   evidence：化学反应产率预测的人工智能方法
+4. [Grounded verification of chemical and materials reasoning: detection is the bottleneck](/202607/21/2607.17417v1-grounded-verification-of-chemical-and-materials-reasoning-detection-is-the-bottleneck)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：人工智能驱动的电解槽组件分割用于氢技术
+   evidence：关注化学领域LLM推理的基于数据库的验证，直接契合利用LLM于化工
+5. [Informatics Modeling of High Tg Polymers: Assessing the Role of Processing versus Chemistry](/202607/21/2607.17925v1-informatics-modeling-of-high-tg-polymers-assessing-the-role-of-processing-versus-chemistry)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：用于聚合物玻璃化温度预测的机器学习模型，整合加工参数
+6. [PPL-Factory: Task-Aware and Budget-Aware Data Selection from Language Modeling to Reasoning](/202607/21/2607.18199v1-ppl-factory-task-aware-and-budget-aware-data-selection-from-language-modeling-to-reasoning)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：大语言模型微调数据选择方法
 
 ### 速读区论文标签
-1. [The Nuts and Bolts of Natural Language to SQL Translation: A Systematic Analysis of Model Pipeline Optimisation Approaches and their Interactions](/202607/20/2607.10911v1-the-nuts-and-bolts-of-natural-language-to-sql-translation-a-systematic-analysis-of-model-pipeline-optimisation-approaches-and-their-interactions)  
+1. [Automating structural reliability analysis with a multi-agent large language model framework](/202607/21/2607.16580v1-automating-structural-reliability-analysis-with-a-multi-agent-large-language-model-framework)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：利用大语言模型进行自然语言到SQL翻译
-2. [ToolAtlas: Learning Once, Reusing Everywhere with Tool-Side Memory](/202607/20/2607.11126v1-toolatlas-learning-once-reusing-everywhere-with-tool-side-memory)  
+   evidence：多智能体LLM框架用于工程可靠性分析
+2. [Schema-Bound LLM Control of Scientific Instrumentation through Model Context Protocol Skills](/202607/21/2607.17012v1-schema-bound-llm-control-of-scientific-instrumentation-through-model-context-protocol-skills)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：LLM智能体的工具使用，提供者侧记忆
-3. [TopoAgent: A Self-Evolving Topological Agent for Multimodal Scientific Reasoning](/202607/20/2607.14658v1-topoagent-a-self-evolving-topological-agent-for-multimodal-scientific-reasoning)  
+   evidence：大语言模型控制科学仪器
+3. [Chemical filters for ultra-high-throughput materials screening and generation](/202607/21/2607.17910v1-chemical-filters-for-ultra-high-throughput-materials-screening-and-generation)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：使用多模态大语言模型的自我进化拓扑代理用于科学推理
-4. [Harnessing GPU Acceleration in Large-Scale Process Optimization](/202607/20/2607.15420v1-harnessing-gpu-acceleration-in-large-scale-process-optimization)  
+   evidence：化学过滤器作为AI先验知识用于化工材料筛选
+4. [Human Grounded Evaluation of Large Language Models for Optical Network Automation](/202607/21/2607.18068v1-human-grounded-evaluation-of-large-language-models-for-optical-network-automation)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：GPU加速的过程优化
-5. [LLM-Driven AutoML for Cross-Lingual Handwritten OCR: Closed-Loop Neural Architecture Search with GPT-5, GPT-4o, and Claude Sonnet 4](/202607/20/2607.15509v1-llm-driven-automl-for-cross-lingual-handwritten-ocr-closed-loop-neural-architecture-search-with-gpt-5-gpt-4o-and-claude-sonnet-4)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：使用LLM驱动自动机器学习进行跨语言手写OCR
-6. [Evolutionary Algorithm-Guided LLMs for Physics-Informed Neural Network Design](/202607/20/2607.15560v1-evolutionary-algorithm-guided-llms-for-physics-informed-neural-network-design)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：进化算法引导LLM设计物理信息神经网络
-7. [PagedWeight: Efficient MoE LLM Serving with Dynamic Quality-Aware Weight Quantization](/202607/20/2607.16184v1-pagedweight-efficient-moe-llm-serving-with-dynamic-quality-aware-weight-quantization)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：通过权重量化优化大语言模型服务
-8. [Knowledge-Assisted Multi-Graph Dependency Learning for Multivariate Time Series Anomaly Detection in Multi-Stage Industrial Processes](/202607/20/2607.15799v1-knowledge-assisted-multi-graph-dependency-learning-for-multivariate-time-series-anomaly-detection-in-multi-stage-industrial-processes)  
+   evidence：大语言模型评估用于网络自动化
+5. [LakeQuest: A Three-Domain Benchmark for Grounded Question Answering across Data Lakes](/202607/21/2607.12310v1-lakequest-a-three-domain-benchmark-for-grounded-question-answering-across-data-lakes)  
+   标签：评分：6.0/10、query:llm-dm
+   evidence：数据湖接地问答基准，评估检索与合成流水线，与数据挖掘相关
+6. [LaCache: Exact Caching and Precision-Adaptive Inference for Diffusion Large Language Models](/202607/21/2607.16339v1-lacache-exact-caching-and-precision-adaptive-inference-for-diffusion-large-language-models)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：多阶段工业过程异常检测
-9. [Atomic Design Transformer: Scaffold-Conditioned 3D Molecule Generation via xTB-Reward Reinforcement Learning](/202607/20/2607.15918v1-atomic-design-transformer-scaffold-conditioned-3d-molecule-generation-via-xtb-reward-reinforcement-learning)  
+   evidence：扩散LLM的缓存和精度自适应推理加速
+7. [Going Beyond the d-band Center to Design Intermetallic Catalysts for Nitrogen Reduction: A High-Throughput DFT and Machine Learning Study](/202607/21/2607.17463v1-going-beyond-the-d-band-center-to-design-intermetallic-catalysts-for-nitrogen-reduction-a-high-throughput-dft-and-machine-learning-study)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：用于化学设计的3D分子生成方法
+   evidence：结合DFT和机器学习进行化工催化剂设计
+8. [Can AI Agents Really Complete RTL-to-GDS? Lessons from Benchmarking Tool-Interactive EDA Workflows](/202607/21/2607.17528v1-can-ai-agents-really-complete-rtl-to-gds-lessons-from-benchmarking-tool-interactive-eda-workflows)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：LLM代理在电子设计自动化工作流中的基准测试
+9. [VEHBench: A Stage-Local Diagnostic Benchmark for LLM-Assisted Vibration Energy Harvester Design](/202607/21/2607.18181v1-vehbench-a-stage-local-diagnostic-benchmark-for-llm-assisted-vibration-energy-harvester-design)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：LLM辅助工程设计的诊断基准，LLM评估
 
 
 <div class="dpr-home-promo-card">
