@@ -1,0 +1,836 @@
+Title: Bi-semantic Chemical Embedder for Joint Representation Learning of SMILES and Natural Language
+
+URL Source: https://arxiv.org/pdf/2608.03855v2
+
+Published Time: Fri, 07 Aug 2026 00:55:04 GMT
+
+Number of Pages: 19
+
+Markdown Content:
+# Bi-semantic Chemical Embedder for Joint Representation Learning of SMILES and Natural Language 
+
+David Ming Segura 1, 2, ∗, † Jeremy Goumaz 1, ∗ Joshua W. Sin 1, 3 
+
+Bojana Rankovi´ c1, 2 Philippe Schwaller 1, 2, †
+
+> 1
+
+Laboratory of Artificial Chemical Intelligence (LIAC), EPFL, Lausanne, Switzerland 
+
+> 2
+
+National Centre of Competence in Research (NCCR) Catalysis, EPFL, Lausanne, Switzerland 
+
+> 3
+
+Process Chemistry & Catalysis, Synthetic Molecules Technical Development, F. Hoffmann-La Roche AG, Basel, Switzerland 
+
+> ∗
+
+Equal contribution †Corresponding author 
+
+{david.segura, philippe.schwaller}@epfl.ch 
+
+Abstract 
+
+Transformer models have revolutionized natural language processing (NLP), and text-based molecular representations like SMILES have successfully extended these architectures to chemistry. However, domain-adaptive pre-training often causes models to overfit to chemical syntax, catastrophically forgetting their foundational semantic capabilities. To address this challenge, we introduce CheMatE, a chemistry-oriented embedding model that jointly captures molecular structure and domain-specific natural language within the same representation space. Built on a ModernBERT backbone, CheMatE learns bi-semantic representations through a two-stage training procedure: continued masked language modeling (MLM) followed by a Matryoshka contrastive learning stage via Multiple Negative Ranking Loss (MNRL). First, we train the model using MLM on a novel, large-scale corpus of SMILES-annotated, long-context scientific documents that were constructed and curated from FineWeb and ChemPile (comprising 10.4B and 11.5B tokens, respectively). Subsequently, the model undergoes contrastive learning using a synthetic dataset of SMILES-text pairs algorithmically derived from our original training corpus. This design exposes the model to SMILES-enriched scientific literature, enabling bi-semantic understanding. We evaluate CheMatE across a range of downstream tasks covering molecular property prediction and scientific language understanding. Our results demonstrate that coupling our custom-curated datasets with this sequential training strategy yields robust, highly transferable representations. By effectively unifying structural and contextual signals within a single text-based framework, CheMatE achieves competitive performance across both specialized chemistry models and general-purpose language model baselines. 
+
+1 Introduction 
+
+The rise of machine learning (ML) techniques has led to widespread applications in chemistry problems, supporting chemists in reaction planning, property prediction, opti-mization, and more generally, in similarity search applica-tions Coley et al. [2018], Bian and Xie [2021], Jablonka et al. [2024], Sin et al. [2025], Rankovi´ c et al. [2025]. Seminal contributions in the field range from the earli-est neural networks for supervised molecular property pre-diction using graph representations to transformer-based models with molecular text representations for diverse ap-plications. Central to the success of these computational approaches is the choice of underlying data representa-tion. Molecules can be represented through various modal-ities, from 2D graphs Montanari et al. [2020], 3D con-formers Xu et al. [2021], structural fingerprints Rogers and Hahn [2010], specific natural language descriptions Ed-wards et al. [2021], or even through Simplified Molecular Input Line Entry System (SMILES) Weininger [1988]. The linearization of molecular structures into SMILES strings unlocked a new spectrum of possibilities and led to the birth of powerful sequence-based modeling techniques Liu et al. [2017], Gómez-Bombarelli et al. [2018], Schwaller 
+
+> Preprint. arXiv:2608.03855v2 [cs.LG] 6 Aug 2026
+
+et al. [2018, 2019], leveraging the inherent capabilities of transformer architectures with textual data Vaswani et al. [2017], Schwaller et al. [2018], Devlin et al. [2019]. Ad-ditionally, self-supervised transformers have already estab-lished a robust paradigm for learning SMILES representa-tions Wang et al. [2019], Fabian et al. [2020], Irwin et al. [2022]. Notably, the RXNFP model successfully maps reaction SMILES into continuous embeddings to capture complex chemical transformations Schwaller et al. [2020]. Similarly, the ChemBERTa family of models has set foun-dational baselines by pre-training on extensive corpora of molecular strings Chithrananda et al. [2020], Ahmad et al. [2022]. However, while these models serve as strong baselines for SMILES-centered representation tasks, they suffer from two critical limitations. First, models that undergo in-tensive domain-specific pre-training on these syntactic molecular representations often suffer from domain over-specialization. While they excel at specific featurisation tasks such as property prediction, they struggle to gener-alize across diverse semantic applications Chithrananda et al. [2020], Gururangan et al. [2020], Li et al. [2024], Mukhoti et al. [2024]. Models pre-trained from scratch on SMILES inherently lack the capability to represent gen-eral scientific natural language, while the ones adapted from general language models see this capacity degrade through domain-specific continuous pre-training Christofi-dellis et al. [2023], Tan et al. [2025]. Furthermore, as molec-ular SMILES strings are inherently concise representations of isolated entities, embedding models dedicated to molecu-lar entities are historically optimized for short inputs Honda et al. [2019], Wang et al. [2019], Chithrananda et al. [2020], Fabian et al. [2020], Irwin et al. [2022]. Consequently, such models are architecturally constrained by a shorter token context limit. We address these limitations through a dual strategy: com-bining bi-semantic text learning with the integration of long-context documents. By simultaneously mapping SMILES and textual scientific descriptions into a shared semantic space, we avoid our model becoming confined to domain-specific syntax. At the same time, by providing an enlarged context window that handles entire scientific documents rather than isolated strings, our model learns to ground structural chemical tokens within their broader, long-form scientific context. While recent bi-semantic efforts have explored this space for generative applications Christofi-dellis et al. [2023], Tan et al. [2025], the development of encoder-centric models dedicated to bi-semantic represen-tation learning remains largely unexplored. We introduce CheMatE (Chemical Embedder with Ma-tryoshka Embedding), a long-context bi-semantic chem-istry encoder built upon a modern transformer architec-ture Warner et al. [2024]. Our model supports sequences up to 8,192 tokens and was extensively trained on an in-house annotated scientific database. Our training strategy relies on a novel, hybrid dataset specifically designed to intertwine molecular structures with rich textual context. We curated more than 14M long-context documents (spanning up to 8,192 tokens) primarily consisting of scientific articles and educational materials from FineWeb and ChemPile Penedo et al. [2024], Mirza et al. [2025] (See Figure 2). These texts were then annotated via an automated SMILES-injection pipeline, capable of detecting chemical entities present within the text and inserting a chemical SMILES trans-lation at the next position Lowe et al. [2011], Mavraˇ ci´ cet al. [2021], Kim et al. [2025], Landrum et al. [2025]. By tightly weaving structural notation into scientific text, we yield a highly contextualized training corpus directly opti-mized for bi-semantic representation learning. Ultimately, CheMatE is designed to serve as a versatile foundation for both molecule and natural language embedding applica-tions. Across our evaluation pipeline for predictive tasks, CheMatE is the only model that ranks among the best-performing group across both modalities simultaneously, consistently generating high-quality embeddings for both SMILES-based molecular tasks and scientific NLP bench-marks, whereas baseline models typically excel in only one domain. We summarize our core methodological and architectural contributions as follows (Figure 1): 
+
+(i) Large-scale SMILES injection pipeline. We describe a multi-stage automated pipeline that combines chemical named-entity recognition (NER), structure resolution from public databases, and canonicalization using RDKit Lan-drum et al. [2025], applied across ∼14.4 million dedupli-cated documents drawn from various complementary scien-tific sources (see Section 2.1). Our pipeline is applied at a large scale, producing a pre-training corpus of 21.9 billion tokens. 
+
+(ii) Cost-budget distributed batch sampler. We develop a new batch sampler ( BalancedTokenBatchSampler ) to ad-dress the severe length variability across our heterogeneous dataset collection. Rather than enforcing a fixed number of samples per batch, which is not efficient in our case at large-scale with a multi-GPU setup, or ensuring batch homogeneity by sorting the texts by token counts, which would bias the training and reduce batch variety, our sam-pler enforces three simultaneous constraints for the batch construction: a raw-token budget, a padded-token memory cap, and a quadratic cost ceiling. These constraints are combined with a Distributed Data Parallel (DDP) aware group-balancing policy that guarantees that all GPU ranks process comparable workloads per synchronization step (see Algorithm 1). This reduces mean padding overhead by up to 50% relative to naive batching and eliminates out-of-memory errors on extremely uneven sequences within a single batch, enabling efficient training at an 8,192-token context length with up to a 30% increase in GPU Utilization across multi-node GH200 hardware. 
+
+(iii) Bi-semantic sequential training. We introduce a 
+
+bi-semantic training pipeline in which SMILES are not a separate semantic modality but are woven into natural-language documents at the positions of chemical entity mentions. The standard MLM objective then operates on these mixed token sequences, forcing the model to predict 2masked SMILES tokens from the textual context and vice versa. We subsequently use a contrastive learning objective to refine the embeddings learned during the first training phase by creating artificial SMILES-annotated text pairs through a similarity-based approach on chemical content. This training pipeline enables a single model to produce consistent representations across heterogeneous chemical and scientific domains. 
+
+(iv) Multi-purpose benchmarking. To assess the flexibil-ity of our model across the two semantics, we construct a unified benchmarking pipeline that covers 48 diverse evalu-ation datasets, comprising 26 classification and 22 regres-sion tasks. These datasets span a broad range of chemistry-relevant problem settings, including molecular property pre-diction, materials science, and chemistry-related scientific language understanding drawn from established community benchmarks validated across literature (see Section A.1). 
+
+2 Methods 
+
+In this section, we introduce the two-stage training pipeline that sequentially integrates masked language modeling (MLM) with a contrastive learning objective. To fuel this bi-semantic training, we processed our entire collection of 14.4 million source documents through our automated SMILES-injection pipeline. This massive source corpus comprises 6.6 million scientific texts (5.9 million abstracts and 0.9 million full-text articles) from ChemPile Mirza et al. [2025], as well as 7.8 million high-quality educational documents from FineWeb-EDU Penedo et al. [2024]. 
+
+2.1 Data filtering & SMILES annotation pipeline 2.1.1 Data filtering 
+
+We collected datasets from the ChemPile corpus; chem-istry papers from ChemPile-Papers (11.45B tokens), a cu-rated, open-access collection of chemistry-related scien-tific articles, as well as educational texts from ChemPile-Education (75M tokens) Mirza et al. [2025]. Additionally, our main source of educational texts is FineWeb-Edu, a 1.3T tokens subset of the FineWeb web crawl filtered using an educational content classifier trained on Llama3-70B-Instruct annotations Penedo et al. [2024]. As we only re-quired chemistry-related content, we filtered the texts from FineWeb-Edu using a custom scoring pipeline: each text is first standardized (lowercase, removal of special characters) and then split into a list of words, and secondly, each text’s relevance to chemistry is scored using a word frequency-based approach, using a simple word classifier algorithm. This classification allows us to compute a text chemistry score (TCS) for each text, a metric that measures the text’s chemical relevance Bran et al. [2026]. The TCS formulas can be found in Equation (1). The classification is based on the word frequencies found in two manually labeled text corpora: chemistry texts (positive) and non-chemistry texts (negative). The word k frequencies in chemistry texts and non-chemistry texts are written f ck and f nk respectively: 
+
+T CS (text ) := 1
+
+Nwords 
+
+X
+
+> k=word in text
+
+wk
+
+with wk =
+
+f ck /f nk , if f ck /f nk > 10, otherwise (1) We filtered FineWeb-Edu by retaining texts with a TCS above 1, resulting in a dataset of 10.41B tokens after dedu-plication. 
+
+2.1.2 SMILES annotation 
+
+Each text is then processed through a four-stage SMILES injection pipeline to annotate chemical entities with their canonical SMILES representations. First, Chemical Data Extractor 2 (CDE2) Swain and Cole [2016], Mavraˇ ci´ c et al. [2021] is used to perform chemistry-aware named entity recognition, detecting all chemical entities in the texts. Sec-ond, identified chemical spans are passed into OPSIN Lowe et al. [2011] for deterministic IUPAC-to-SMILES conver-sion or standard name conversions. Third, each flagged chemical span that OPSIN was unable to resolve is passed to a PubChem API call via PubChemPy as a fallback lookup to obtain the associated SMILES representations Kim et al. [2025]. Then, all recovered SMILES are canonicalized and validated through RDKit Landrum et al. [2025]; structures that fail valence checking are discarded. Finally, the valid SMILES representations are inserted immediately after the original chemical entity in the source text, yielding our final annotated dataset. 
+
+2.2 Bi-semantic training strategies 2.2.1 MLM strategy 
+
+Each text sample consists of natural language containing SMILES strings injected using our annotation pipeline. The number of SMILES per sample is proportional to sequence length, as shown in Figure 2: the longest samples contain more than 200 SMILES within the full 8,192-token con-text window, providing rich co-occurrence signals among molecular species that appear in similar chemical contexts. To infuse bi-semantic knowledge, we started by conducting a continuous pre-training of ModernBERT base Warner et al. [2024] under a standard Masked Language Modeling (MLM) (see Equation 2) objective with a 15% masking rate, using Flash Attention 2 Dao [2023] and BF16 preci-sion across 16 GH200 GPUs (4 nodes × 4 GPUs). 
+
+LMLM (θ) = − 1
+
+|M| 
+
+X
+
+> i∈M
+
+log Pθ
+
+ xi eX (2) where LMLM (θ) is the masked language modeling loss for model weights θ, M denotes the set of masked token posi-tions, and Pθ (xi | eX) is the predicted probability of predict-ing the original token xi given the corrupted bidirectional context eX Devlin et al. [2019]. 3Texts filtered to only    
+
+> keep chemistry-
+> related texts (using
+> TCS score attribution)
+> SMILES annotation
+> pipeline:
+> CDE2, OPSIN,
+> PubChem, RDkit
+> Masked Language Modeling
+> (MLM) Objective function
+> Chemical
+> Text
+> Multi-purpose
+> embeddings
+> Chemistry of Carbohydrates are an essential part of
+> the diet in humans and animals, Grains, fruits, and
+> vegetables are natural sources of carbohydrates that
+> provide energy to the body, particularly
+> through glucose 0=С[С@H](0)[С@@H](0)[С@H](0)
+> (C@H](0)CO , a simple sugar ...
+> Multiple Negative Ranking
+> (MNRL) Objective with
+> Matryoshka Wrapper
+> SMILES-TEXT
+> Pair generator
+> Cost-Aware
+> Batch Sampler
+
+Figure 1: Overview of the multi-task training pipeline for learning bi-semantic chemistry embeddings. Chemical texts are first filtered for domain relevance using TCS score attribution, then processed through a SMILES annotation pipeline (CDE2, OPSIN, PubChem, RDKit) to produce SMILES-injected text corpora. The model is trained sequentially using two objective functions: a Masked Language Modeling (MLM) objective with a Cost-Aware Batch Sampler to improve training efficiency, and a Multiple Negative Ranking (MNRL) objective with a Matryoshka Wrapper with SMILES-TEXT pairs generated from our annotated text. This combined training strategy yields general-purpose embeddings suitable for a range of downstream chemistry tasks. Full training hyperparameters and architectural details are detailed in Section 2.2.1 and 2.2.2. 0 2k 5k 7k 
+
+Token count 
+
+01.0M 2.0M 
+
+> Documents
+
+n=6.6M tok=11.45B 
+
+Papers 
+
+0 2k 5k 7k 
+
+Token count 
+
+0500k 1.0M 1.5M 2.0M 
+
+> Documents
+
+n=7.8M tok=10.48B 
+
+Education & Web 
+
+0 50 100 
+
+SMILES count 
+
+02k 4k 6k 8k 
+
+> Token count
+
+SMILES Injection Density 
+
+median 
+
+10 1
+
+10 3
+
+10 5
+
+> Doc count (log)
+
+Figure 2: Distribution of sample lengths and SMILES content in the CheMatE MLM training corpus. The left and middle panels show token-count histograms for the Papers subset (6.6M documents, 11.45B tokens) and the Education/Web subset (7.8M documents, 10.48B tokens), respectively, after truncating the texts at 8,192 tokens. The right panel shows a log-scaled 2D histogram of SMILES count versus token count across the combined corpus. The dashed line represents the median token count within each SMILES-count bin. A key challenge arises from the highly variable sequence lengths in our corpus under a multi-GPU training setup; the computational load is not evenly distributed across GPUs. Standard transformer training typically pads sequences within each batch, which implicitly homogenizes per-device compute costs. In the case of ModernBERT training, the sequences are unpadded and concatenated to optimize the training efficiency with jagged attention masks Warner et al. [2024]. While effective in settings with homogeneous se-quence lengths or limited device parallelism (e.g., single-GPU training), this approach can lead to substantial load imbalance in large-scale multi-GPU setups when sequence lengths vary significantly. In these cases, overall training efficiency decreases because some GPUs remain idle while waiting for the device with the most computationally expen-sive batch to complete. To address this, we created a cus-tom batch sampler: BalancedTokenBatchSampler (Al-gorithm 1). The objective of this sampler is to construct 4batches with balanced per-device computational costs, en-abling efficient workload distribution across GPUs. The core principles behind the batch construction strategy is that, in ModernBERT training, the computational cost of a batch is approximately proportional to P 
+
+> i
+
+L2 
+
+> i
+
+due to the use of unpadding and jagged attention masks, whereas standard transformer training with padding scales approximately as P 
+
+> i
+
+L2max , where Lmax denotes the length of the longest sequence in the batch. Consequently, our sampler aims to construct per-device batches such that the values of P 
+
+> i
+
+L2
+
+> i
+
+remain balanced across GPUs at each training step. The details of our custom batch sampler (BalancedTokenBatchSampler ) are provided in Algo-rithm 1. Samples are first sorted by token length, split into B bins, shuffled within each bin, and then concate-nated back together. Batch stochasticity is preserved as long as N _samples/B remains sufficiently large. If B
+
+becomes too large, the bin assignment becomes increas-ingly deterministic; however, this is not problematic in our setting, given the scale of the dataset (millions of samples) and the relatively small value of B. After this sample shuffling, per-device batches are formed greedily under three simultaneous constraints: a raw-token budget Tmax ,a padded-token memory cap T pad max , and a quadratic cost ceiling Cmax . As a result, the sampler naturally produces variable-length per-device batches containing different numbers of sequences depending on their token lengths and estimated computational cost. The resulting per-device batches are sorted by quadratic cost, grouped into blocks of size W (corresponding to the number of GPUs), and the blocks are shuffled to mitigate ordering bias. This results in a batch construction strategy that assigns per-device batches with comparable computational loads to each training step, ensuring balanced workload distribution across GPUs. 
+
+Algorithm 1 Smart Batching BalancedTokenBatchSampler 
+
+Input: token counts {li}Ni=1 ; B bins; 
+
+Tmax , T pad max , Cmax ; world size W , rank r
+
+Output: ordered batch list for rank r
+
+Sort indices by li; split into B equal bins; shuffle within each bin; concatenate to obtain IB ← [ ] , b ← [ ] 
+
+for each index i ∈ I do if P 
+
+> j∈b
+
+lj + li > Tmax or max(max j∈b lj , l i) ·
+
+(|b|+1) > T pad max or P 
+
+> j∈b
+
+l2 
+
+> j
+
++ l2 
+
+> i
+
+> C max then 
+
+B ← B ∥ [b]; b ← [ ] 
+
+end if 
+
+b ← b ∥ [i]
+
+end for 
+
+Sort B by cost; group into ⌊|B| /W ⌋ groups of size W
+
+Shuffle groups; assign group [ · ][ r] to rank r
+
+return rank r’s batch list 
+
+2.2.2 Contrastive training strategy 
+
+To improve the bi-semantic understanding in our model and further refine the quality of the embeddings, we algorith-mically constructed an artificial contrastive dataset directly from our annotated corpora by leveraging the chemical content naturally embedded in each document. The core intuition is that two text passages discussing chemically sim-ilar molecules should be close in embedding space, while passages whose molecular content is chemically unrelated should be pushed apart. Rather than relying on document-level labels, we compute this signal at the SMILES level. At each iteration, we draw K documents from our collec-tion of SMILES annotated texts Ds and chunk them into sentence-level segments to form a candidate pool C. We pro-ceed by sampling a single canonical SMILES s∗ present in a random text from C and use it as the anchor. For every seg-ment c ∈ C , each inline SMILES it contains is individually compared to s∗ via Tanimoto similarity over Morgan finger-prints (radius 2, 2048 bits), and the scores are aggregated (e.g. max) into a single segment-level score c. score Rogers and Hahn [2010], Landrum et al. [2025]. The top-P seg-ments whose total score exceeds τ + become the positive set 
+
+C+, and the bottom-Q segments whose score are below τ −
+
+become the negative set C−. Together with the anchor they form a triple (s∗, C+, C−), and the procedure is repeated until the contrastive dataset P contains N such triples as illustrated on Algorithm 2. 
+
+Algorithm 2 SMILES-Text Synthetic Pair generator                                                                  
+
+> Input: corpus Ds; size N; docs/round K;positives P, negatives Q; thresholds τ+, τ −
+> Output: dataset P={(s∗,C+,C−)}P ← [ ]
+> while |P| < N do
+> draw Kdocs from Ds; chunk to segments → C
+> sample c0∼ C ;anchor s∗∼SMILES( c0)
+> f∗←Morgan( s∗, r =2 , b =2048)
+> for c∈ C do
+> c. score ←
+> max s∈SMILES( c)Tanimoto( f∗,Morgan( s))
+> end for
+> C+←top P{c:c. score > τ +}C−←bottom Q{c:c. score < τ −}
+> if C+̸=∅and C−̸=∅then
+> P ← P ∥ [( s∗,C+,C−)]
+> end if end while return P
+
+The model is then fine-tuned on these triples or pairs us-ing the Multiple Negative Ranking Loss (see Equation 3) contrastive objective with Matryoshka loss Kusupati et al. [2024], simultaneously optimizing embedding alignment across sub-dimensions (768, 512, 256, 128, 64) to pro-duce representations that remain informative even when truncated. In practice for CheMatE, we train for a single epoch on a 20k subset of anchor-positive pairs, which we found sufficient to achieve meaningful embedding refine-ment without overfitting. The Multiple Negatives Ranking Loss (MNRL) at dimen-sion dk is a cross-entropy objective, where corresponding texts are pulled together, and non-matching ones are pushed 5apart Henderson et al. [2017]: 
+
+L(k)MNRL = − 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+"
+
+S(k) 
+
+> xi,y i
+
+− log 
+
+> N
+
+X
+
+> j=1
+
+eS(k)
+
+> xi,y j
+
+#
+
+(3) where S(k) 
+
+> xi,y j
+
+is the similarity score (cosine similarity) com-puted between the text embeddings xi and yi at dimension 
+
+dk (truncated embeddings for the Matryoshka loss). This objective encourages each anchor embedding xi to be more similar to its corresponding positive yi than to negatives yj
+
+(when i̸ = j). The final Matryoshka loss is the weighted sum across all dimensions Kusupati et al. [2024]: 
+
+LMatryoshka =
+
+> K
+
+X
+
+> k=1
+
+wk L(k)MNRL (4) 
+
+2.2.3 CheMatE training details 
+
+Our model is built on the ModernBERT-base architec-ture Warner et al. [2024], a long-context encoder-only model pre-trained with a masked language modeling ob-jective. We perform continued MLM pre-training using 
+
+answerdotai/ModernBERT-base native tokenizer, on our chemically-annotated corpus for 3 epochs at LR=5 ×
+
+10 −4 with a linear scheduler and 1,000 warmup steps, in 
+
+bf16 mixed precision. We use AdamW with β1=0 .9,
+
+β2=0 .999 , ϵ=10 −8, weight decay 0.01 , and gradient clip-ping at norm 1.0. The MLM training is run on 16 GPUs with DDP using dynamic batch sizes. We use the final epoch-3 checkpoint as the initialization for contrastive fine-tuning. The resulting MLM checkpoint is then fine-tuned through Matryoshka contrastive learning with a Multiple Negatives Ranking Loss (MNRL) objective on pairs gen-erated by our in-house data generation pipeline, using in-batch negatives and mean token pooling to obtain sequence embeddings during training. The synthetic pair dataset gen-erated was filtered to keep only anchor SMILES of length 
+
+≥ 64 characters (19,638 pairs out of an initial 100,000), and the model was trained for 3 epochs at LR=2 × 10 −5
+
+with 500 linear warmup steps followed by cosine decay. The contrastive training is run on 4 GPUs with DDP using a per-rank batch size of 16 and gradient accumulation of 2, yielding an effective batch size of 128 (around 15 in-batch negatives per anchor per rank). The released CheMatE checkpoint corresponds to the end of the first contrastive epoch. For evaluation, we employ mean-token pooling to match our training methodology. 
+
+3 Results 
+
+We evaluate CheMatE against a total of 11 baselines on 48 benchmark datasets (26 classification, 22 regression) drawn from a diverse collection spanning molecular prop-erty prediction (see Section A.1), materials science, and chemistry-related NLP tasks Gurulingappa et al. [2012], Ramakrishnan et al. [2014], Bravo et al. [2015], Baker et al. [2016], Wu et al. [2018], Cohan et al. [2019], He et al. [2019], Jin et al. [2019], Kotonya and Toni [2020], Huang et al. [2021], Singh et al. [2022], Wognum et al. [2024], Herck et al. [2025], Kasmaee et al. [2025b]. For compari-son purposes, we select baselines containing both general-purpose language models (ModernBERT Warner et al. [2024], SciBERT Beltagy et al. [2019], Nomic-v1.5 Nuss-baum et al. [2025], GTE-base-v1.5 Zhang et al. [2024], Nomic-MLM, and GTE-MLM Zhang et al. [2024]) and chemistry-specialized encoder-based models (ChemBERTa-77M-MLM Chithrananda et al. [2020], MoLFormer-c3-1.1B Singh et al. [2026], BERT-SMILES Jouary et al. [2025], and ChEmbed-full Kasmaee et al. [2025a]. Ad-ditionally, we include a standard Morgan fingerprint (ra-dius 2, 2048 bits) baseline Rogers and Hahn [2010] for SMILES-only tasks to compare our results against estab-lished cheminformatics representations. To assess the em-bedding quality of the text provided, we adopt a frozen-embedding evaluation protocol. A linear probe is initialized on top of the fixed embedding, ensuring that the transformer backbones act purely as feature extractors without any task-specific fine-tuning. For classification tasks, we employ a multinomial logistic regression classifier with balanced class weights and report balanced accuracy as our main evaluation metric. For regression tasks, we train a Ridge regressor ( α = 1 .0) and report R2 as our primary metric. Figure 3 displays aggregated Critical Difference (CD) di-agrams for both SMILES and scientific natural language modalities, pooling classification and regression tasks to maximize statistical power per panel. We use the Friedman omnibus test to reject the null hypothesis of equal model performance, and the Nemenyi post-hoc test ( α=0 .05 ) to identify pairwise equivalences Friedman [1937], Demšar [2006]. Models with no significant difference are connected by vertical brackets. Across both semantic modalities, Che-MatE achieves the lowest mean rank ( 1.9 on SMILES, 3.2
+
+on NLP) and is the only chemistry-specialized model in the top Nemenyi equivalence group on both panels. This result demonstrates the strong bi-semantic capabili-ties of our model without the modality trade-off present in SMILES-only encoders such as MoLFormer and BERT-SMILES. In addition, our mid-stage checkpoint (CheMatE-MLM) ranks significantly lower than our final contrastively tuned model on the SMILES panel (rank 6.6 vs 1.9), in-dicating that the second sequential training step crucially refines embedding quality. Furthermore, CheMatE outranks Morgan fingerprints as well as chemistry-specialized en-coders such as MoLFormer-c3 and ChemBERTa-MLM. On the NLP panel ( n=17 ), CheMatE also achieves the lowest mean rank ( 3.2) and is not significantly worse than any ded-icated scientific language model, supporting that chemical specialization does not come at the cost of natural scientific language representational quality. However, the true advantage of CheMatE is revealed by the cross-modal asymmetry between the two panels. While some text-trained encoders manage to retain com-petitive performances on SMILES tasks (serving as Che-MatE’s closest competitors), every chemistry-specialized 61 2 3 4 5 6 7 8 9 10 11          
+
+> Mean rank
+> CheMatE
+> SciBERT Nomic-v1.5 MorganFP MoLFormer-c3-1.1B CheMatE-MLM GTE-MLM ChEmbed-Full BERT-SMILES GTE-base ChemBERTa-MLM Nomic-MLM ModernBERT-Base
+> 1.9 4.5 4.8 5.4 6.5 6.6 7.0 7.3 7.4 8.9 9.5 10.3 11.0
+> SMILES (31)
+> 12345678910 11 12
+> Mean rank
+> CheMatE
+> SciBERT ChEmbed-Full Nomic-v1.5 GTE-base CheMatE-MLM Nomic-MLM ModernBERT-Base GTE-MLM BERT-SMILES ChemBERTa-MLM MoLFormer-c3-1.1B
+> 3.2 3.6 3.8 4.4 5.7 5.8 6.5 6.7 7.0 9.5 9.8 11.4
+> NLP (17)
+
+Figure 3: Per-modality Demšar critical-difference (CD) diagrams over 20 cross-validation folds (Friedman omnibus + post-hoc Nemenyi, α=0 .05 ) Friedman [1937], Demšar [2006]. Each bar shows a model’s mean rank on fold-averaged scores across the given datasets (lower is better, where 1 is the best). Vertical connector bars join models whose pairwise rank differences are not significant under the Nemenyi test. The metrics used for classification and regression are, respectively, balanced accuracy and R2. Both plots show aggregated results per representation with 13 regression and 18 classification SMILES-based tasks (left panel), and 4 regression with 13 classification datasets for scientific natural language (right panel). SMILES baseline, including MoLFormer-c3-1.1B ( 11 .4), ChemBERTa-MLM ( 9.8), and BERT-SMILES ( 9.5), is lo-cated at the bottom of the NLP leaderboard. CheMatE is the only model that avoids this semantic trade-off, confirming that our joint contrastive training objective on our in-house annotated data effectively produces a single encoder capa-ble of robust performance across both representations. To complement this view, we employ a per-dataset frequency-of-best group analysis following the principles of Ash et al. [2025]. For each dataset in our collection, we conduct a one-way ANOVA across all models over the 20 CV folds, and apply a Tukey’s honestly significant dif-ference (HSD) post-hoc test on those datasets where the omnibus test rejects equal-means at α=0 .05 Tukey [1949], Ash et al. [2025]. When the test fails to reject the null hy-pothesis, we conservatively treat all models as tied, count-ing each as belonging to the best-performing group for that dataset. Table 1 reports the proportion of datasets where each model ranks in the top tier, which is defined as being statistically indistinguishable from the best-performing model. While the CD diagram illustrates average ordering across datasets, this analysis offers a view of the frequency at which each model is among the dataset’s top performers. We design a new evaluation metric, named Bi-semantic Score % , to account for dataset modality imbalance, by weighting the two modalities equally. Across all baselines, CheMatE achieves a bi-semantic score of 86 .7% and belongs to the best-performing group on 
+
+87 .8% of datasets (i.e., the best group in 43 /48 datasets), with consistent top-tier performance across modalities: 
+
+30 /31 on SMILES and 13 /17 on NLP. This produces a single encoder that is competitive on chemistry and scien-tific natural language with minimal observed specialization trade-off. Comparing CheMatE to its MLM-only counter-part enables isolating the contribution of the contrastive training stage: removing the contrastive supervision re-duces the bi-semantic score to 55 .5% (27 /48 datasets), a 
+
+31 .2% performance difference. This ablation indicates that contrastive training over scientific corpora is also a key ingredient driving CheMatE’s cross-modality performance. 
+
+4 Discussion 
+
+We presented CheMatE, a bi-semantic chemistry encoder that jointly represents molecular SMILES and scientific natural language within a unified embedding space. Our model mitigates the trade-off between chemical and natu-ral language specialization that is observed in current en-coder models by combining a large-scale SMILES injec-tion pipeline to generate high-quality annotated texts and a two-stage sequential training strategy. CheMatE obtains a bi-semantic score of 86.7% and has the lowest mean rank across both SMILES and natural language modalities when evaluated on 48 benchmark datasets covering molecular property and scientific NLP predictive tasks. Our results demonstrate that strong SMILES and scientific language understanding are not mutually exclusive in encoder-only models. Furthermore, our ablation study shows that the contrastive stage is critical as the MLM-only checkpoint (CheMatE-MLM) ranks significantly lower despite sharing the same backbone. In addition to the model itself, this work provides an au-tomatic SMILES annotation pipeline for scientific texts and introduces a collection of 14.4 million annotated 7Table 1: Frequency of models in the best-performing statistical group across all evaluated datasets. The best-performing group is defined as the top-scoring model and any models statistically indistinguishable from it under a Tukey’s HSD post-hoc test ( α = 0 .05 , 20 CV folds). If the initial ANOVA omnibus test lacked significance, all models were considered tied. Results are displayed as raw counts (in-best group/N benchmarks ) per modality, along with a bi-semantic score (%) built by weighting the two modalities equally. We denote our models with an asterisk ( ∗). In-best group Model SMILES NLP Bi-sem. % CheMatE ∗ 30/31 13/17 86.7 
+
+SciBERT 23/31 13/17 75.4 Nomic-v1.5 23/31 10/17 66.5 ChEmbed-Full 17/31 10/17 56.8 CheMatE-MLM ∗ 18/31 9/17 55.5 MoLFormer-c3-1.1B 24/31 4/17 50.5 GTE-MLM 20/31 6/17 49.9 GTE-base-v1.5 14/31 8/17 46.2 BERT-SMILES 18/31 4/17 40.8 Nomic-BERT-MLM 10/31 8/17 39.7 ModernBERT-Base 11/31 7/17 38.4 ChemBERTa-MLM 10/31 5/17 30.9 Morgan FP (r=2, 2048) 21/31 — —documents spanning from chemistry papers to educa-tional web content. To train efficiently on this heteroge-neous corpus with a multi-GPU setup, we developed the 
+
+BalancedTokenBatchSampler , a cost-aware dynamic batch sampler that enforces simultaneous constraints on token budget, memory, and quadratic computational cost across distributed GPU ranks, reducing padding overhead by up to 50% and enabling stable MLM training at 8,192-token context lengths. We further introduce an automated method for constructing contrastive training pairs directly from annotated corpora by scoring the chemical content of annotated text chunks, thereby reducing the reliance on expensive labeling methodologies. Despite these con-tributions, several limitations remain and motivate future work. First, our SMILES annotation pipeline depends on a cascade of NER (CDE2) Mavraˇ ci´ c et al. [2021], rule-based parsing (OPSIN) Lowe et al. [2011], and database lookup (PubChem)Kim et al. [2025], which can fail on novel compounds, ambiguous names, unusual text format-ting, or entities described only by partial structural frag-ments. Although RDKit canonicalization Landrum et al. [2025] filters invalid structures, silent annotation errors (e.g., the wrong tautomer or stereoisomer) can propagate into the training corpus and are challenging to quantify at scale. Second, our contrastive stage uses a relatively modest 20k filtered anchor-positive pairs. The trade-off between dataset size, similarity threshold for building posi-tive/negative pairs, and downstream performance has not been systematically explored. Third, while CheMatE sup-ports an 8,192-token context window, most downstream benchmarks considered in this study consist primarily of short SMILES strings or short scientific passages, meaning that the model’s long-context capabilities are not directly stressed in our evaluation. Nevertheless, we believe CheMatE supports the idea that merging molecular notation directly into scientific text is a fruitful route toward general-purpose chemistry representa-tion learning for encoders and that structural and contextual chemical understanding are not mutually exclusive goals. Beyond feature extraction, the contrastive training stage further positions CheMatE as a promising backbone for retrieval applications in mixed-semantic environments. We also hypothesize that bi-semantic encoder representations of this kind could serve as a foundation for future generative chemistry models, where grounding molecular structures in rich scientific contexts through Retrieval-Augmented Gen-eration (RAG) pipelines may prove particularly valuable. 
+
+Software and Data 
+
+Custom code and models developed for this work are implemented in Python and are publicly available in an open-source GitHub repository at https://github. com/schwallergroup/CheMatE under the MIT license and at https://huggingface.co/SchwallerGroup/ CheMatE-v0 .
+
+Impact Statement 
+
+This work advances representation learning at the interface of chemistry and natural language, with potential applica-tions in drug discovery, materials science, and scientific literature. There are many potential societal consequences of our work, none which we feel must be specifically high-lighted here. 8Acknowledgments 
+
+The authors gratefully acknowledge the financial support of the Swiss National Science Foundation (SNSF). This work was also supported under project ID a131 as part of the Swiss AI Initiative, through a grant from the ETH Do-main and computational resources provided by the Swiss National Supercomputing Centre (CSCS) under the Alps infrastructure. 
+
+References 
+
+Walid Ahmad, Elana Simon, Seyone Chithrananda, Gabriel Grand, and Bharath Ramsundar. ChemBERTa-2: Towards Chemical Foundation Models, September 2022. URL http://arxiv.org/abs/2209.01712 . arXiv:2209.01712 [cs]. Jeremy R. Ash, Cas Wognum, Raquel Rodríguez-Pérez, Matteo Aldeghi, Alan C. Cheng, Djork-Arné Clevert, Ola Engkvist, Cheng Fang, Daniel J. Price, Jacqueline M. Hughes-Oliver, and W. Patrick Walters. Practically Significant Method Comparison Protocols for Machine Learning in Small Molecule Drug Discovery. Journal of Chemical Information and Modeling , 65(18):9398–9411, September 2025. ISSN 1549-9596. doi: 10.1021/acs.jcim.5c01609. URL 
+
+https://doi.org/10.1021/acs.jcim.5c01609 . Publisher: American Chemical Society. Simon Baker, Ilona Silins, Yufan Guo, Imran Ali, Johan Högberg, Ulla Stenius, and Anna Korhonen. Automatic semantic classification of scientific literature according to the hallmarks of cancer. Bioinformatics , 32(3):432–440, February 2016. ISSN 1367-4803. doi: 10.1093/bioinformatics/btv585. URL https://doi.org/10.1093/bioinformatics/ btv585 .Iz Beltagy, Kyle Lo, and Arman Cohan. SciBERT: A Pretrained Language Model for Scientific Text, September 2019. URL http://arxiv.org/abs/1903.10676 . arXiv:1903.10676 [cs]. Yuemin Bian and Xiang-Qun Xie. Generative chemistry: drug discovery with deep learning generative models. Journal of Molecular Modeling , 27(3):71, March 2021. ISSN 1610-2940, 0948-5023. doi: 10.1007/s00894-021-04674-8. URL 
+
+http://arxiv.org/abs/2008.09000 . arXiv:2008.09000 [q-bio]. Andres M. Bran, Tong Xie, Shai Pranesh, Jeffrey Meng, Xuan Vu Nguyen, Jeremy Goumaz, David Ming Segura, Ruizhi Xu, Dongzhan Zhou, Wenjie Zhang, Bram Hoex, and Philippe Schwaller. MiST: Understanding the role of mid-stage scientific training in developing chemical reasoning models, 2026. URL http://arxiv.org/abs/2512.21231 .Àlex Bravo, Janet Piñero, Núria Queralt-Rosinach, Michael Rautschka, and Laura I. Furlong. Extraction of relations between genes and diseases from text and large-scale data analysis: implications for translational research. BMC Bioinformatics , 16(1):55, February 2015. ISSN 1471-2105. doi: 10.1186/s12859-015-0472-9. URL https://doi. org/10.1186/s12859-015-0472-9 .Seyone Chithrananda, Gabriel Grand, and Bharath Ramsundar. ChemBERTa: Large-Scale Self-Supervised Pretraining for Molecular Property Prediction, October 2020. URL http://arxiv.org/abs/2010.09885 . arXiv:2010.09885 [cs]. Dimitrios Christofidellis, Giorgio Giannone, Jannis Born, Ole Winther, Teodoro Laino, and Matteo Manica. Unifying Molecular and Textual Representations via Multi-task Language Modelling, May 2023. URL http://arxiv.org/ abs/2301.12586 . arXiv:2301.12586 [cs:LG, cs:cs:CL]. Arman Cohan, Waleed Ammar, Madeleine van Zuylen, and Field Cady. Structural Scaffolds for Citation Intent Classification in Scientific Publications, September 2019. URL http://arxiv.org/abs/1904.01608 . arXiv:1904.01608 [cs:CL]. Connor W. Coley, William H. Green, and Klavs F. Jensen. Machine Learning in Computer-Aided Synthesis Planning. 
+
+Accounts of Chemical Research , 51(5):1281–1289, May 2018. ISSN 0001-4842. doi: 10.1021/acs.accounts.8b00087. URL https://doi.org/10.1021/acs.accounts.8b00087 . Publisher: American Chemical Society. Tri Dao. FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning, July 2023. URL http: //arxiv.org/abs/2307.08691 . arXiv:2307.08691 [cs]. Janez Demšar. Statistical Comparisons of Classifiers over Multiple Data Sets. Journal of Machine Learning Research , 7(1): 1–30, 2006. ISSN 1533-7928. URL http://jmlr.org/papers/v7/demsar06a.html .Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. BERT: Pre-training of Deep Bidirectional Trans-formers for Language Understanding, May 2019. URL http://arxiv.org/abs/1810.04805 . arXiv:1810.04805 [cs]. 9Carl Edwards, ChengXiang Zhai, and Heng Ji. Text2Mol: Cross-Modal Molecule Retrieval with Natural Language Queries. In Marie-Francine Moens, Xuanjing Huang, Lucia Specia, and Scott Wen-tau Yih, editors, Proceedings of the 2021 Conference on Empirical Methods in Natural Language Processing , pages 595–607, Online and Punta Cana, Dominican Republic, November 2021. Association for Computational Linguistics. doi: 10.18653/v1/2021.emnlp-main.47. URL 
+
+https://aclanthology.org/2021.emnlp-main.47/ .Benedek Fabian, Thomas Edlich, Héléna Gaspar, Marwin Segler, Joshua Meyers, Marco Fiscato, and Mohamed Ahmed. Molecular representation learning with language models and domain-relevant auxiliary tasks, November 2020. URL 
+
+http://arxiv.org/abs/2011.13230 . arXiv:2011.13230 [cs:LG, cs:cs:AI]. Milton Friedman. The Use of Ranks to Avoid the Assumption of Normality Implicit in the Analysis of Variance. Journal of the American Statistical Association , 32(200):675–701, December 1937. ISSN 0162-1459. doi: 10.1080/01621459.1937. 10503522. URL https://www.tandfonline.com/doi/abs/10.1080/01621459.1937.10503522 . Publisher: Taylor & Francis _eprint: https://www.tandfonline.com/doi/pdf/10.1080/01621459.1937.10503522. Harsha Gurulingappa, Abdul Mateen Rajput, Angus Roberts, Juliane Fluck, Martin Hofmann-Apitius, and Luca Toldo. Development of a benchmark corpus to support the automatic extraction of drug-related adverse effects from medical case reports. Journal of Biomedical Informatics , 45(5):885–892, October 2012. ISSN 1532-0464. doi: 10.1016/j.jbi. 2012.04.008. URL https://www.sciencedirect.com/science/article/pii/S1532046412000615 .Suchin Gururangan, Ana Marasovi´ c, Swabha Swayamdipta, Kyle Lo, Iz Beltagy, Doug Downey, and Noah A. Smith. Don’t Stop Pretraining: Adapt Language Models to Domains and Tasks, May 2020. URL http://arxiv.org/abs/2004. 10964 . arXiv:2004.10964 [cs]. Rafael Gómez-Bombarelli, Jennifer N. Wei, David Duvenaud, José Miguel Hernández-Lobato, Benjamín Sánchez-Lengeling, Dennis Sheberla, Jorge Aguilera-Iparraguirre, Timothy D. Hirzel, Ryan P. Adams, and Alán Aspuru-Guzik. Automatic Chemical Design Using a Data-Driven Continuous Representation of Molecules. ACS Central Science , 4 (2):268–276, February 2018. ISSN 2374-7943. doi: 10.1021/acscentsci.7b00572. URL https://doi.org/10.1021/ acscentsci.7b00572 . Publisher: American Chemical Society. Jun He, Liqun Wang, Liu Liu, Jiao Feng, and Hao Wu. Long document classification from local word glimpses via recurrent attention learning, 2019. Matthew Henderson, Rami Al-Rfou, Brian Strope, Yun-hsuan Sung, Laszlo Lukacs, Ruiqi Guo, Sanjiv Kumar, Balint Miklos, and Ray Kurzweil. Efficient Natural Language Response Suggestion for Smart Reply, May 2017. URL 
+
+http://arxiv.org/abs/1705.00652 . arXiv:1705.00652 [cs]. Joren Van Herck, María Victoria Gil, Kevin Maik Jablonka, Alex Abrudan, Andy S. Anker, Mehrdad Asgari, Ben Blaiszik, Antonio Buffo, Leander Choudhury, Clemence Corminboeuf, Hilal Daglar, Amir Mohammad Elahi, Ian T. Foster, Susana Garcia, Matthew Garvin, Guillaume Godin, Lydia L. Good, Jianan Gu, Noémie Xiao Hu, Xin Jin, Tanja Junkers, Seda Keskin, Tuomas P. J. Knowles, Ruben Laplaza, Michele Lessona, Sauradeep Majumdar, Hossein Mashhadimoslem, Ruaraidh D. McIntosh, Seyed Mohamad Moosavi, Beatriz Mouriño, Francesca Nerli, Covadonga Pevida, Neda Poudineh, Mahyar Rajabi-Kochi, Kadi L. Saar, Fahimeh Hooriabad Saboor, Morteza Sagharichiha, K. J. Schmidt, Jiale Shi, Elena Simone, Dennis Svatunek, Marco Taddei, Igor Tetko, Domonkos Tolnai, Sahar Vahdatifar, Jonathan Whitmer, D. C. Florian Wieland, Regine Willumeit-Römer, Andreas Züttel, and Berend Smit. Assessment of fine-tuned large language models for real-world chemistry and material science applications. Chemical Science , 16(2):670–684, 2025. doi: 10.1039/ D4SC04401K. URL https://pubs.rsc.org/en/content/articlelanding/2025/sc/d4sc04401k . Publisher: Royal Society of Chemistry. Shion Honda, Shoi Shi, and Hiroki R. Ueda. SMILES Transformer: Pre-trained Molecular Fingerprint for Low Data Drug Discovery, November 2019. URL http://arxiv.org/abs/1911.04738 . arXiv:1911.04738 [cs:LG, stat:stat:ML]. Kexin Huang, Tianfan Fu, Wenhao Gao, Yue Zhao, Yusuf H. Roohani, Jure Leskovec, Connor W. Coley, Cao Xiao, Jimeng Sun, and Marinka Zitnik. Therapeutics Data Commons: Machine Learning Datasets and Tasks for Drug Discovery and Development. June 2021. URL https://openreview.net/forum?id=8nvgnORnoWr .Ross Irwin, Spyridon Dimitriadis, Jiazhen He, and Esben Jannik Bjerrum. Chemformer: a pre-trained transformer for computational chemistry. Machine Learning: Science and Technology , 3(1):015022, January 2022. ISSN 2632-2153. doi: 10.1088/2632-2153/ac3ffb. URL https://doi.org/10.1088/2632-2153/ac3ffb . Publisher: IOP Publishing. Kevin Maik Jablonka, Philippe Schwaller, Andres Ortega-Guerrero, and Berend Smit. Leveraging large language models for predictive chemistry. Nature Machine Intelligence , 6(2):161–169, February 2024. ISSN 2522-5839. doi: 10. 1038/s42256-023-00788-1. URL https://www.nature.com/articles/s42256-023-00788-1 . Publisher: Nature Publishing Group. 10 Qiao Jin, Bhuwan Dhingra, Zhengping Liu, William W. Cohen, and Xinghua Lu. PubMedQA: A Dataset for Biomedical Research Question Answering, September 2019. URL http://arxiv.org/abs/1909.06146 . arXiv:1909.06146 [cs]. Adrien Jouary, J. Miguel Mata, Dean Rance, Gonzalo G. de Polavieja, Christian K. Machens, and Michael Orger. Bridging scales between chemical space and behavioral phenotype. July 2025. URL https://openreview.net/forum?id= DJI46O06tF .Ali Shiraee Kasmaee, Mohammad Khodadad, Mehdi Astaraki, Mohammad Arshi Saloot, Nicholas Sherck, Hamidreza Mahyar, and Soheila Samiee. ChEmbed: Enhancing Chemical Literature Search Through Domain-Specific Text Embeddings, August 2025a. URL http://arxiv.org/abs/2508.01643 . arXiv:2508.01643 [cs]. Ali Shiraee Kasmaee, Mohammad Khodadad, Mohammad Arshi Saloot, Nicholas Sherck, Stephen Dokas, Hamidreza Mahyar, and Soheila Samiee. ChemTEB: Chemical Text Embedding Benchmark, an Overview of Embedding Mod-els Performance & Efficiency on a Specific Domain, January 2025b. URL http://arxiv.org/abs/2412.00532 .arXiv:2412.00532 [cs]. Sunghwan Kim, Jie Chen, Tiejun Cheng, Asta Gindulyte, Jia He, Siqian He, Qingliang Li, Benjamin A Shoemaker, Paul A Thiessen, Bo Yu, Leonid Zaslavsky, Jian Zhang, and Evan E Bolton. PubChem 2025 update. Nucleic Acids Research , 53(D1):D1516–D1525, January 2025. ISSN 1362-4962. doi: 10.1093/nar/gkae1059. URL https: //doi.org/10.1093/nar/gkae1059 .Neema Kotonya and Francesca Toni. Explainable Automated Fact-Checking for Public Health Claims, October 2020. URL 
+
+http://arxiv.org/abs/2010.09926 . arXiv:2010.09926 [cs:CL, cs:cs:AI]. Aditya Kusupati, Gantavya Bhatt, Aniket Rege, Matthew Wallingford, Aditya Sinha, Vivek Ramanujan, William Howard-Snyder, Kaifeng Chen, Sham Kakade, Prateek Jain, and Ali Farhadi. Matryoshka Representation Learning, February 2024. URL http://arxiv.org/abs/2205.13147 . arXiv:2205.13147 [cs]. Greg Landrum, Paolo Tosco, Brian Kelley, Ricardo Rodriguez, David Cosgrove, Riccardo Vianello, Peter Gedeck, Gareth Jones, Eisuke Kawashima, Dan Nealschneider, et al. rdkit/rdkit: 2025_03_1 (q1 2025) release. Zenodo , 2025. Hongyu Li, Liang Ding, Meng Fang, and Dacheng Tao. Revisiting Catastrophic Forgetting in Large Language Model Tuning. In Yaser Al-Onaizan, Mohit Bansal, and Yun-Nung Chen, editors, Findings of the Association for Computational Linguis-tics: EMNLP 2024 , pages 4297–4308, Miami, Florida, USA, November 2024. Association for Computational Linguistics. doi: 10.18653/v1/2024.findings-emnlp.249. URL https://aclanthology.org/2024.findings-emnlp.249/ .Bowen Liu, Bharath Ramsundar, Prasad Kawthekar, Jade Shi, Joseph Gomes, Quang Luu Nguyen, Stephen Ho, Jack Sloane, Paul Wender, and Vijay Pande. Retrosynthetic reaction prediction using neural sequence-to-sequence models, June 2017. URL https://arxiv.org/abs/1706.01643v1 .Daniel M. Lowe, Peter T. Corbett, Peter Murray-Rust, and Robert C. Glen. Chemical Name to Structure: OPSIN, an Open Source Solution. Journal of Chemical Information and Modeling , 51(3):739–753, March 2011. ISSN 1549-9596. doi: 10.1021/ci100384d. URL https://doi.org/10.1021/ci100384d .Juraj Mavraˇ ci´ c, Callum J. Court, Taketomo Isazawa, Stephen R. Elliott, and Jacqueline M. Cole. ChemDataExtractor 2.0: Autopopulated Ontologies for Materials Science. Journal of Chemical Information and Modeling , 61(9):4280–4289, September 2021. ISSN 1549-9596. doi: 10.1021/acs.jcim.1c00446. URL https://doi.org/10.1021/acs.jcim. 1c00446 .Adrian Mirza, Nawaf Alampara, Martiño Ríos-García, Mohamed Abdelalim, Jack Butler, Bethany Connolly, Tunca Dogan, Marianna Nezhurina, Bünyamin ¸ Sen, Santosh Tirunagari, Mark Worrall, Adamo Young, Philippe Schwaller, Michael Pieler, and Kevin Maik Jablonka. ChemPile: A 250GB Diverse and Curated Dataset for Chemical Foundation Models, May 2025. URL http://arxiv.org/abs/2505.12534 . arXiv:2505.12534 [cs]. Floriane Montanari, Lara Kuhnke, Antonius Ter Laak, and Djork-Arné Clevert. Modeling Physico-Chemical ADMET Endpoints with Multitask Graph Convolutional Networks. Molecules , 25(1):44, January 2020. ISSN 1420-3049. doi: 10.3390/molecules25010044. URL https://www.mdpi.com/1420-3049/25/1/44 . Publisher: Multidisciplinary Digital Publishing Institute. Jishnu Mukhoti, Yarin Gal, Philip H. S. Torr, and Puneet K. Dokania. Fine-tuning can cripple your foundation model; preserving features may be the solution, July 2024. URL http://arxiv.org/abs/2308.13320 . arXiv:2308.13320 [cs]. 11 Zach Nussbaum, John X. Morris, Brandon Duderstadt, and Andriy Mulyar. Nomic Embed: Training a Reproducible Long Context Text Embedder, February 2025. URL http://arxiv.org/abs/2402.01613 . arXiv:2402.01613 [cs]. Guilherme Penedo, Hynek Kydlíˇ cek, Loubna Ben allal, Anton Lozhkov, Margaret Mitchell, Colin Raffel, Leandro Von Werra, and Thomas Wolf. The FineWeb Datasets: Decanting the Web for the Finest Text Data at Scale, October 2024. URL http://arxiv.org/abs/2406.17557 . arXiv:2406.17557. Raghunathan Ramakrishnan, Pavlo O. Dral, Matthias Rupp, and O. Anatole von Lilienfeld. Quantum chemistry structures and properties of 134 kilo molecules. Scientific Data , 1(1):140022, August 2014. ISSN 2052-4463. doi: 10.1038/ sdata.2014.22. URL https://www.nature.com/articles/sdata201422 . Number: 1 Publisher: Nature Publishing Group. Bojana Rankovi´ c, Ryan-Rhys Griffiths, and Philippe Schwaller. Large language models as uncertainty-calibrated optimizers for experimental discovery, November 2025. URL http://arxiv.org/abs/2504.06265 . arXiv:2504.06265 [cs]. David Rogers and Mathew Hahn. Extended-Connectivity Fingerprints. Journal of Chemical Information and Modeling , 50 (5):742–754, May 2010. ISSN 1549-9596. doi: 10.1021/ci100050t. URL https://doi.org/10.1021/ci100050t .Philippe Schwaller, Théophile Gaudin, Dávid Lányi, Costas Bekas, and Teodoro Laino. “Found in Translation”: predicting outcomes of complex organic chemistry reactions using neural sequence-to-sequence models. Chemical Science , 9(28): 6091–6098, July 2018. ISSN 2041-6539. doi: 10.1039/C8SC02339E. URL https://pubs.rsc.org/en/content/ articlelanding/2018/sc/c8sc02339e . Publisher: The Royal Society of Chemistry. Philippe Schwaller, Teodoro Laino, Théophile Gaudin, Peter Bolgar, Christopher A. Hunter, Costas Bekas, and Alpha A. Lee. Molecular Transformer: A Model for Uncertainty-Calibrated Chemical Reaction Prediction. ACS Central Science ,5(9):1572–1583, September 2019. ISSN 2374-7943. doi: 10.1021/acscentsci.9b00576. URL https://doi.org/10. 1021/acscentsci.9b00576 . Publisher: American Chemical Society. Philippe Schwaller, Daniel Probst, Alain C. Vaucher, Vishnu H. Nair, David Kreutter, Teodoro Laino, and Jean-Louis Reymond. Mapping the Space of Chemical Reactions using Attention-Based Neural Networks, December 2020. URL 
+
+https://chemrxiv.org/engage/chemrxiv/article-details/60c753a0bdbb89acf8a3a4b5 .Joshua W. Sin, Siu Lun Chau, Ryan P. Burwood, Kurt Püntener, Raphael Bigler, and Philippe Schwaller. Highly parallel optimisation of chemical reactions through automation and machine intelligence. Nature Communications ,16(1), July 2025. ISSN 2041-1723. doi: 10.1038/s41467-025-61803-0. URL http://dx.doi.org/10.1038/ s41467-025-61803-0 .Amanpreet Singh, Mike D’Arcy, Arman Cohan, Doug Downey, and Sergey Feldman. SciRepEval: A Multi-Format Bench-mark for Scientific Document Representations, November 2022. URL https://arxiv.org/abs/2211.13308v4 .Riya Singh, Aryan Amit Barsainyan, Rida Irfan, Connor Joseph Amorin, Stewart He, Tony Davis, Arun Thiagarajan, Shiva Sankaran, Seyone Chithrananda, Walid Ahmad, Derek Jones, Kevin McLoughlin, Hyojin Kim, Anoushka Bhutani, Shreyas Vinaya Sathyanarayana, Venkat Viswanathan, Jonathan E. Allen, and Bharath Ramsundar. ChemBERTa-3: an open source training framework for chemical foundation models. Digital Discovery , 5(2):662–685, February 2026. ISSN 2635-098X. doi: 10.1039/D5DD00348B. URL https://pubs.rsc.org/en/content/articlelanding/2026/ dd/d5dd00348b . Publisher: RSC. Matthew C. Swain and Jacqueline M. Cole. ChemDataExtractor: A Toolkit for Automated Extraction of Chemical Information from the Scientific Literature. Journal of Chemical Information and Modeling , 56(10):1894–1904, October 2016. ISSN 1549-9596. doi: 10.1021/acs.jcim.6b00207. URL https://doi.org/10.1021/acs.jcim.6b00207 .Qian Tan, Dongzhan Zhou, Peng Xia, Wanhao Liu, Wanli Ouyang, Lei Bai, Yuqiang Li, and Tianfan Fu. ChemM-LLM: Chemical Multimodal Large Language Model, August 2025. URL http://arxiv.org/abs/2505.16326 .arXiv:2505.16326 [cs:LG]. John W. Tukey. Comparing Individual Means in the Analysis of Variance. Biometrics , 5(2):99–114, 1949. ISSN 0006-341X. doi: 10.2307/3001913. URL https://www.jstor.org/stable/3001913 .Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, and Illia Polosukhin. Attention Is All You Need, August 2017. URL http://arxiv.org/abs/1706.03762 . arXiv:1706.03762 [cs]. 12 Sheng Wang, Yuzhi Guo, Yuhong Wang, Hongmao Sun, and Junzhou Huang. SMILES-BERT: Large Scale Unsuper-vised Pre-Training for Molecular Property Prediction. In Proceedings of the 10th ACM International Conference on Bioinformatics, Computational Biology and Health Informatics , BCB ’19, pages 429–436, New York, NY, USA, September 2019. Association for Computing Machinery. ISBN 978-1-4503-6666-3. doi: 10.1145/3307339.3342186. URL https://doi.org/10.1145/3307339.3342186 .Benjamin Warner, Antoine Chaffin, Benjamin Clavié, Orion Weller, Oskar Hallström, Said Taghadouini, Alexis Gallagher, Raja Biswas, Faisal Ladhak, Tom Aarsen, Nathan Cooper, Griffin Adams, Jeremy Howard, and Iacopo Poli. Smarter, Better, Faster, Longer: A Modern Bidirectional Encoder for Fast, Memory Efficient, and Long Context Finetuning and Inference, December 2024. URL http://arxiv.org/abs/2412.13663 . arXiv:2412.13663 [cs]. David Weininger. SMILES, a chemical language and information system. 1. Introduction to methodology and encoding rules. Journal of Chemical Information and Computer Sciences , 28(1):31–36, February 1988. ISSN 0095-2338. doi: 10.1021/ci00057a005. URL https://doi.org/10.1021/ci00057a005 . Publisher: American Chemical Society. Cas Wognum, Jeremy R. Ash, Matteo Aldeghi, Raquel Rodríguez-Pérez, Cheng Fang, Alan C. Cheng, Daniel J. Price, Djork-Arné Clevert, Ola Engkvist, and W. Patrick Walters. A call for an industry-led initiative to critically assess machine learning for real-world drug discovery. Nature Machine Intelligence , 6(10):1120–1121, October 2024. ISSN 2522-5839. doi: 10.1038/s42256-024-00911-w. URL https://www.nature.com/articles/s42256-024-00911-w . Publisher: Nature Publishing Group. Zhenqin Wu, Bharath Ramsundar, Evan N. Feinberg, Joseph Gomes, Caleb Geniesse, Aneesh S. Pappu, Karl Leswing, and Vijay Pande. MoleculeNet: A Benchmark for Molecular Machine Learning, October 2018. URL http://arxiv.org/ abs/1703.00564 . arXiv:1703.00564 [cs]. Minkai Xu, Shitong Luo, Yoshua Bengio, Jian Peng, and Jian Tang. Learning Neural Generative Dynamics for Molecular Conformation Generation, February 2021. URL https://arxiv.org/abs/2102.10240v3 .Xin Zhang, Yanzhao Zhang, Dingkun Long, Wen Xie, Ziqi Dai, Jialong Tang, Huan Lin, Baosong Yang, Pengjun Xie, Fei Huang, Meishan Zhang, Wenjie Li, and Min Zhang. mGTE: Generalized Long-Context Text Representation and Reranking Models for Multilingual Text Retrieval, October 2024. URL http://arxiv.org/abs/2407.19669 .arXiv:2407.19669 [cs]. 13 A Appendix 
+
+A.1 Details on benchmarks collected 
+
+Table 2: Full list of the 48 datasets in our evaluation suite, organized by source collection. Each dataset is evaluated under 20-fold cross-validation (StratifiedKFold for classification, KFold for regression).                              
+
+> Collection Task Datasets
+> MoleculeNet (SMILES) Cls. BACE, HIV MoleculeNet (SMILES) Reg. ESOL, FreeSolv, Lipophilicity, QM9 (gap), QM9 (zpve) Polaris TDC (SMILES) Cls. Ames Mutagenicity, BBB Penetration, CYP2C9 Inhibition, CYP2D6 Inhi-bition, CYP3A4 Inhibition, CYP3A4 Substrate, DILI, hERG Cardiotoxicity Polaris TDC (SMILES) Reg. Caco2 Permeability, LD50 (Zhu), Lipophilicity (AZ) Polaris Certified (SMILES) Reg. ASAP ADMET - LogD, ASAP ADMET - MDR1-MDCKII, ASAP AD-MET - MLM, Biogen ADME - HLM CLint, Biogen ADME - MDR1-MDCK ER GPT Challenge (SMILES) Cls. Cycloadd. Energy, Densities (Monomer), Synthesability GPT Challenge (SMILES) Reg. Free E. cyclo, MP tryg., Monomer Densities, Monomer Ecoh, Monomer Tg GPT Challenge (NLP) Cls. CO 2ads. of Bio-Adsorbents, Carbondioxide Adsorption, Gasification Biomass, Thermal Desalination 2 GPT Challenge (NLP) Reg. Carbondioxide Adsorption NLP Scientific Cls. ADE Corpus, ArXiv Categories, GAD Gene-Disease, Hallmarks of Cancer, Health Fact, SciCite Citation Intent, SciRepEval Field of Study NLP Biomedical Cls. PubMedQA NLP Materials Reg. AFLOW Band Gap (eV), TextEdge Band Gap (eV), TextEdge Volume (log A3)ChemTEB Cls. WikipediaChemFields
+
+A.2 Tukey’s HSD Test Individual Dataset Performances 
+
+The supplementary Tukey’s HSD test plots can be found in Figures 4, 5, 6, and 7. 
+
+A.3 Ranking results for each semantic modalities and each objective task 
+
+The detailed ranking results can be found in Figure 8. 
+
+A.4 Baseline model loading 
+
+We compare CheMatE against 11 baselines from BERT-style chemistry encoders, BERT-style general-purpose encoders, modern open sentence-embedding models, and a non-transformer molecular featuriser. All transformer baselines are loaded through HuggingFace’s AutoModel functionality, retain their released weights, and have no additional layers added at evaluation time. For each baseline, we apply a single pooling operation to the final hidden states, followed by L2 normalization. Pooling is selected by a per-model rule. When the released model card or repository explicitly mentions a pooling strategy (e.g., contrastive-trained sentence encoders), we use the documented choice. Otherwise, we follow the convention for the model’s architecture, applying CLS-token pooling to masked-language-model checkpoints and mean-token pooling to sentence-embedding models. The models used as baselines for MLM are the following: ModernBERT-base Warner et al. [2024] ( answerdotai/ModernBERT-base ) is the long-context encoder we build upon. ChemBERTa-MLM (DeepChem/ChemBERTa-77M-MLM ) is 77M-parameter RoBERTa-style chemistry encoders pre-trained respectively on SMILES MLM Chithrananda et al. [2020]. BERT-SMILES (unikei/bert-base-smiles ) is a BERT-base model pre-trained from scratch on SMILES strings Jouary et al. [2025]. SciBERT (allenai/scibert_scivocab_uncased ) is BERT-base pre-trained on scientific text with a domain-specific vocabulary Beltagy et al. [2019]. MoLFormer-c3-1.1B 
+
+(DeepChem/MoLFormer-c3-1.1B ) is a 1.1B SMILES encoder with linear attention Singh et al. [2026]. Nomic-BERT-MLM (nomic-ai/nomic-bert-2048 ) is the 2048-token Nomic-BERT MLM checkpoint Nussbaum et al. [2025]. GTE-MLM (Alibaba-NLP/gte-en-mlm-base ) is the base-MLM checkpoint released with the GTE family Zhang et al. [2024]. For contrastive models, Nomic-v1.5 (nomic-ai/nomic-embed-text-v1.5 ) is a trained through contrastive learning 14 0.65 0.70 0.75 0.80 0.85 0.90 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base Nomic-MLM Nomic-v1.5 SciBERT 
+
+ADE Corpus (ANOVA p=1.7e-206) 
+
+0.3 0.4 0.5 0.6 0.7 0.8 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base Nomic-MLM Nomic-v1.5 SciBERT 
+
+ArXiv Categories (ANOVA p=5.0e-265) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base Nomic-MLM Nomic-v1.5 SciBERT 
+
+CO2 ads. of Bio-Adsorbents (ANOVA p=4.4e-01) 
+
+0.70 0.75 0.80 0.85 0.90 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base Nomic-MLM Nomic-v1.5 SciBERT 
+
+Carbondioxide Adsorption (ANOVA p=8.3e-07) 
+
+0.550 0.575 0.600 0.625 0.650 0.675 0.700 0.725 0.750 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base Nomic-MLM Nomic-v1.5 SciBERT 
+
+GAD Gene-Disease (ANOVA p=3.0e-59) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base Nomic-MLM Nomic-v1.5 SciBERT 
+
+Gasification Biomass (ANOVA p=1.1e-01) 
+
+0.2 0.4 0.6 0.8 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base Nomic-MLM Nomic-v1.5 SciBERT 
+
+Hallmarks of Cancer (ANOVA p=3.4e-177) 
+
+0.375 0.400 0.425 0.450 0.475 0.500 0.525 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base Nomic-MLM Nomic-v1.5 SciBERT 
+
+Health Fact (ANOVA p=5.3e-40) 
+
+0.25 0.30 0.35 0.40 0.45 0.50 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base Nomic-MLM Nomic-v1.5 SciBERT 
+
+PubMedQA (ANOVA p=8.2e-09) 
+
+0.45 0.50 0.55 0.60 0.65 0.70 0.75 0.80 0.85 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base Nomic-MLM Nomic-v1.5 SciBERT 
+
+SciCite Citation Intent (ANOVA p=8.2e-176) 
+
+0.2 0.3 0.4 0.5 0.6 0.7 0.8 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base Nomic-MLM Nomic-v1.5 SciBERT 
+
+SciRepEval Field of Study (ANOVA p=2.7e-281) 
+
+0.6 0.7 0.8 0.9 1.0 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base Nomic-MLM Nomic-v1.5 SciBERT 
+
+Thermal Desalination 2 (ANOVA p=6.1e-01) 
+
+0.2 0.3 0.4 0.5 0.6 0.7 0.8 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base Nomic-MLM Nomic-v1.5 SciBERT 
+
+WikipediaChemFields (ANOVA p=1.4e-275) 
+
+NLP collection CLS Figure 4: Tukey HSD simultaneous confidence-interval plots for the 13 NLP classification datasets, using balanced accuracy over 20 CV folds. Each panel shows the average performance for each model and its Tukey HSD interval relative to the best mean model for that dataset Ash et al. [2025]. Blue marks the best mean, gray indicates models not statistically significantly different from the best, and red indicates models significantly worse than the best. The sub-plot titles report the one-way ANOVA p-value used to justify the post-hoc comparison. 15 0.1 0.2 0.3 0.4 0.5 
+
+> r2
+> BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base Nomic-MLM Nomic-v1.5 SciBERT
+
+AFLOW Band Gap (eV) (ANOVA p=5.3e-142)     
+
+> 0.5 0.6 0.7 0.8 0.9
+> r2
+> BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base Nomic-MLM Nomic-v1.5 SciBERT
+
+Carbondioxide Adsorption (ANOVA p=2.9e-10)        
+
+> 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50
+> r2
+> BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base Nomic-MLM Nomic-v1.5 SciBERT
+
+TextEdge Band Gap (eV) (ANOVA p=1.8e-116)       
+
+> 0.50 0.55 0.60 0.65 0.70 0.75 0.80
+> r2
+> BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base Nomic-MLM Nomic-v1.5 SciBERT
+
+TextEdge Volume (log A3) (ANOVA p=9.3e-138) 
+
+NLP collection REG Figure 5: Tukey HSD simultaneous confidence-interval plots for the 4 NLP regression datasets, using balanced accuracy over 20 CV folds. Each panel shows the average performance for each model and its Tukey HSD interval relative to the best mean model for that dataset Ash et al. [2025]. Blue marks the best mean, gray indicates models not statistically significantly different from the best, and red indicates models significantly worse than the best. The sub-plot titles report the one-way ANOVA p-value used to justify the post-hoc comparison. 137M-parameter sentence encoder Nussbaum et al. [2025]. GTE-base-v1.5 (Alibaba-NLP/gte-base-en-v1.5 ) is the base sentence encoder of the GTE family Zhang et al. [2024]. ChEmbed-full (BASF-AI/ChEmbed-full ) is a chemistry sentence-embedding model Kasmaee et al. [2025a]. CheMatE-MLM is our own MLM-only checkpoint (the contrastive ablation, with the same architecture as CheMatE but without contrastive fine-tuning. 16 0.3 0.4 0.5 0.6 0.7 0.8 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+ASAP ADMET - LogD (ANOVA p=1.4e-04) 
+
+0.3 0.4 0.5 0.6 0.7 0.8 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+ASAP ADMET - MDR1-MDCKII (ANOVA p=1.0e-01) 
+
+2.0 1.5 1.0 0.5 0.0 0.5 1.0 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+ASAP ADMET - MLM (ANOVA p=8.6e-01) 
+
+0.1 0.0 0.1 0.2 0.3 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+Biogen ADME - HLM CLint (ANOVA p=1.4e-26) 
+
+0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+Biogen ADME - MDR1-MDCK ER (ANOVA p=1.4e-11) 
+
+0.1 0.2 0.3 0.4 0.5 0.6 0.7 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+Caco2 Permeability (ANOVA p=5.0e-11) 
+
+0.50 0.55 0.60 0.65 0.70 0.75 0.80 0.85 0.90 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+ESOL (ANOVA p=1.2e-25) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+Free E. cyclo (ANOVA p=6.4e-91) 
+
+0.4 0.2 0.0 0.2 0.4 0.6 0.8 1.0 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+FreeSolv (ANOVA p=2.4e-30) 
+
+0.25 0.30 0.35 0.40 0.45 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+LD50 (Zhu) (ANOVA p=4.3e-18) 
+
+0.20 0.25 0.30 0.35 0.40 0.45 0.50 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+Lipophilicity (ANOVA p=6.8e-21) 
+
+0.20 0.25 0.30 0.35 0.40 0.45 0.50 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+Lipophilicity (AZ) (ANOVA p=6.8e-21) 
+
+0.2 0.4 0.6 0.8 1.0 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+MP tryg. (ANOVA p=7.4e-86) 
+
+0.4 0.5 0.6 0.7 0.8 0.9 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+Monomer Densities (ANOVA p=1.5e-05) 
+
+0.0 0.2 0.4 0.6 0.8 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+Monomer Ecoh (ANOVA p=1.3e-01) 
+
+0.0 0.2 0.4 0.6 0.8 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+Monomer Tg (ANOVA p=4.0e-05) 
+
+0.65 0.70 0.75 0.80 0.85 0.90 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+QM9 (gap) (ANOVA p=1.2e-107) 
+
+0.75 0.80 0.85 0.90 0.95 1.00 
+
+r2 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+QM9 (zpve) (ANOVA p=6.7e-143) 
+
+SMILES collection REG Figure 6: Tukey HSD simultaneous confidence-interval plots for the 18 SMILES regression datasets, using balanced accuracy over 20 CV folds. Each panel shows the average performance for each model and its Tukey HSD interval relative to the best mean model for that dataset Ash et al. [2025]. Blue marks the best mean, gray indicates models not statistically significantly different from the best, and red indicates models significantly worse than the best. The sub-plot titles report the one-way ANOVA p-value used to justify the post-hoc comparison. 17 0.70 0.72 0.74 0.76 0.78 0.80 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+Ames Mutagenicity (ANOVA p=5.2e-27) 
+
+0.74 0.76 0.78 0.80 0.82 0.84 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+BACE (ANOVA p=8.9e-04) 
+
+0.76 0.78 0.80 0.82 0.84 0.86 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+BBB Penetration (ANOVA p=1.4e-02) 
+
+0.75 0.76 0.77 0.78 0.79 0.80 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+CYP2C9 Inhibition (ANOVA p=2.1e-12) 
+
+0.70 0.72 0.74 0.76 0.78 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+CYP2D6 Inhibition (ANOVA p=4.0e-17) 
+
+0.74 0.76 0.78 0.80 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+CYP3A4 Inhibition (ANOVA p=6.5e-27) 
+
+0.525 0.550 0.575 0.600 0.625 0.650 0.675 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+CYP3A4 Substrate (ANOVA p=1.3e-01) 
+
+0.75 0.80 0.85 0.90 0.95 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+Cycloadd. Energy (ANOVA p=2.3e-27) 
+
+0.650 0.675 0.700 0.725 0.750 0.775 0.800 0.825 0.850 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+DILI (ANOVA p=1.3e-01) 
+
+0.75 0.80 0.85 0.90 0.95 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+Densities (Monomer) (ANOVA p=6.9e-05) 
+
+0.64 0.66 0.68 0.70 0.72 0.74 0.76 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+HIV (ANOVA p=4.2e-09) 
+
+0.86 0.88 0.90 0.92 0.94 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+Synthesability (ANOVA p=8.0e-05) 
+
+0.68 0.70 0.72 0.74 0.76 0.78 0.80 
+
+balanced_accuracy 
+
+BERT-SMILES ChEmbed-Full CheMatE CheMatE-MLM ChemBERTa-MLM GTE-MLM GTE-base MoLFormer-c3-1.1B ModernBERT-Base MorganFP Nomic-MLM Nomic-v1.5 SciBERT 
+
+hERG Cardiotoxicity (ANOVA p=1.3e-53) 
+
+SMILES collection CLS Figure 7: Tukey HSD simultaneous confidence-interval plots for the 13 SMILES classification datasets, using balanced accuracy over 20 CV folds. Each panel shows the average performance for each model and its Tukey HSD interval relative to the best mean model for that dataset Ash et al. [2025]. Blue marks the best mean, gray indicates models not statistically significantly different from the best, and red indicates models significantly worse than the best. The sub-plot titles report the one-way ANOVA p-value used to justify the post-hoc comparison. 18 1 2 3 4 5 6 7 8 9 10 11 12 
+
+Mean rank 
+
+CheMatE 
+
+MorganFP SciBERT BERT-SMILES Nomic-v1.5 MoLFormer-c3-1.1B ChEmbed-Full CheMatE-MLM GTE-MLM GTE-base ModernBERT-Base Nomic-MLM ChemBERTa-MLM 
+
+> 1.7 2.7 4.1 5.5 5.7 6.9 7.0 7.0 8.5 8.9 10.5 11.0 11.3
+
+Cls: SMILES (13) 
+
+1 2 3 4 5 6 7 8 9 10 11 12 
+
+Mean rank 
+
+CheMatE 
+
+SciBERT ChEmbed-Full Nomic-v1.5 CheMatE-MLM GTE-base ModernBERT-Base GTE-MLM Nomic-MLM BERT-SMILES ChemBERTa-MLM MoLFormer-c3-1.1B 
+
+> 3.2 3.2 4.4 4.5 5.4 5.9 6.6 6.8 6.8 9.4 9.5 11.4
+
+Cls: NLP (13) 
+
+1 2 3 4 5 6 7 8 9 10 11 12 
+
+Mean rank 
+
+CheMatE 
+
+Nomic-v1.5 SciBERT GTE-MLM MoLFormer-c3-1.1B CheMatE-MLM MorganFP ChEmbed-Full ChemBERTa-MLM BERT-SMILES GTE-base Nomic-MLM ModernBERT-Base 
+
+> 2.0 4.1 4.8 5.8 6.3 6.3 7.4 7.5 8.1 8.8 8.8 9.7 11.3
+
+Reg: SMILES (18) 
+
+1 2 3 4 5 6 7 8 9 10 11 12 
+
+Mean rank ChEmbed-Full 
+
+CheMatE 
+
+Nomic-v1.5 SciBERT GTE-base Nomic-MLM CheMatE-MLM ModernBERT-Base GTE-MLM BERT-SMILES ChemBERTa-MLM MoLFormer-c3-1.1B 
+
+> 1.8 3.0 4.0 4.8 5.0 5.8 7.0 7.0 7.8 10.0 10.5 11.5
+
+Reg: NLP (4) Figure 8: Per-modality Demšar critical-difference (CD) diagrams over 20 Cross-Validation folds (Friedman omnibus + post-hoc Nemenyi, α=0 .05 ). Each bar shows a model’s mean rank on fold-averaged scores across the given datasets (lower is better, where 1 is the best). Vertical connector bars join models whose pairwise rank differences are not significant under the Nemenyi test. The metrics used for classification and regression are, respectively, balanced accuracy and R2. Panel sizes; Cls: SMILES 13 datasets, Cls: NLP 13 datasets, Reg: SMILES 18 datasets, Reg: NLP 4: datasets ( N =48 in total). 19
