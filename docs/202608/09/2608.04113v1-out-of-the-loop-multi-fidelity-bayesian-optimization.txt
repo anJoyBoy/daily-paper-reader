@@ -1,0 +1,1280 @@
+Title: Out-Of-The-Loop Multi-Fidelity Bayesian Optimization
+
+URL Source: https://arxiv.org/pdf/2608.04113v1
+
+Published Time: Thu, 06 Aug 2026 00:03:49 GMT
+
+Number of Pages: 14
+
+Markdown Content:
+# Out-Of-The-Loop Multi-Fidelity Bayesian Optimization 
+
+## Gustavo Sutter 1,2, †, Hao Wang 3, Luis Ricardez-Sandoval 3,4 , Pascal Poupart 1,2 , Agustinus Kristiadi 2,5  
+
+> 1
+
+Cheriton School of Computer Science, University of Waterloo, Waterloo, ON, Canada  
+
+> 2
+
+Vector Institute, Toronto, ON, Canada  
+
+> 3
+
+Department of Chemical Engineering, University of Waterloo, Waterloo, ON, Canada  
+
+> 4
+
+Waterloo Institute for Nanotechnology, University of Waterloo, Waterloo, ON, Canada  
+
+> 5
+
+Department of Computer Science, Western University, London, ON, Canada 
+
+Abstract 
+
+Black-box optimization is a ubiquitous problem in science and engineering, often dealing with expensive objective functions with cheaper lower-fidelity proxies available. Multi-fidelity Bayesian optimization (MF-BO) is a principled approach to this problem, leveraging correlations across different fideli-ties when querying the objective. However, for many impor-tant MF-BO tasks, the true highest-fidelity function is pro-hibitively expensive to be part of the optimization loop. Nev-ertheless, practitioners often have gold standard data (observa-tions of the highest-fidelity function) obtained from previous experiments that might provide information for the current task. For instance, in molecular optimization, chemists often pick the top-k candidate molecules using various computer simulations, and later reveal their true objective function val-ues. In this work, we demonstrate the suboptimality of stan-dard MF-BO algorithms in the real-world scenarios above, even under ideal assumptions. Next, we mitigate this problem by incorporating historical high-fidelity data accompanied by task descriptors—which can be explicitly given or extracted from unstructured metadata. We demonstrate the effectiveness of our methods on synthetic functions, as well as real-world problems in chemistry and hyperparameter optimization. 
+
+## 1 Introduction 
+
+A wide array of problems in chemistry (Griffiths and Hernández-Lobato 2020; Greenaway et al. 2023; Muthyala et al. 2025), biology (Romero, Krause, and Arnold 2013; Ruberg et al. 2023; Martens et al. 2025), and engineering (Ament et al. 2023; Feurer et al. 2022; Lam et al. 2018) con-sists of optimizing black-box functions. Such objectives often have prohibitively large input domains and are expensive to compute. This creates the need for data-efficient black-box optimization algorithms that are able to find the optimal in-put point by querying the objective function as few times as possible. Bayesian optimization (BO; Močkus 1975; Garnett 2023) is a principled way to solve this problem following the principles of Bayesian decision theory. One solution to expensive objective function evaluations is the use of functions with different cost-fidelity trade-offs as proxies for the true, prohibitive objective. This setting is addressed by multi-fidelity Bayesian optimization (MF-BO; Kennedy and O’Hagan 2000; Huang et al. 2006) algorithms, 
+
+> †
+
+Corresponding author: gsutterp@uwaterloo.ca Observe Suggest 
+
+> Bayesian optimization loop
+> Top-k
+> Observe highest fidelity
+
+# I II 
+
+Figure 1: Visualization of the out-of-the-loop multi-fidelity setting, emphasizing the distinction between the in-the-loop and out-of-the-loop fidelities. (I) The online Bayesian opti-mization loop actively queries lower-fidelity functions. (II) 
+
+The offline stage takes the final top-k suggestions out of the loop to be observed on the highest-fidelity objective. where costs and correlations between proxies and the true objective are considered when selecting the next point to query in the BO loop. For example, one can employ nu-merical simulators or machine learning models instead of performing wet-lab experiments (Guan et al. 2022). However, in many applications, the highest fidelity level is prohibitively expensive, so practitioners often do not include it in the BO loop. Instead, the highest level available during online exploration is not the exact gold standard that is be-ing optimized. Usually, practitioners run optimization on the best available fidelity and evaluate the obtained maximizers on the real objective function of interest. Notably, the results of previous experiments are saved for future reference and experiments, which can be exploited by future optimization campaigns. For example, the highest fidelity in material de-sign is the physical experiment in the laboratory, but often BO is run considering density functional theory (DFT; Arga-man and Makov 2000) as the objective, with lower fidelities corresponding to lighter DFT configurations and/or machine learning interatomic potential models, such as UMA (Wood et al. 2025). Only once the BO algorithm is done, its top arXiv:2608.04113v1 [cs.LG] 4 Aug 2026 suggestions are used in lab experiments, the real objective functions are computed, and the results are saved. In this work, we first characterize the suboptimality of standard MF-BO under this setting, even assuming knowl-edge of the true correlation between fidelities—which is not available in real-world applications. This highlights the need for extra information when the highest fidelity is not available in the loop. Next, we propose a solution based on transfer-ring information from previous optimization tasks to address the suboptimality problem. We incorporate information from offline data collected at the end of past experiments via a multi-task multi-fidelity kernel. Importantly, the proposed deep kernel can leverage task-specific features that are either explicitly provided or extracted from unstructured metadata using modern foundation models (Bommasani et al. 2021), making use of the rich textual context available in real-world applications. We validate our approach on synthetic benchmarks as well as real-world applications in chemistry and hyperparameter tuning, demonstrating the importance of knowledge transfer in the OOL-MF-BO setting. The contributions of this work are as follows: 
+
+• We are, to the best of our knowledge, the first to formalize the OOL-MF-BO problem. 
+
+• We introduce theoretical results characterizing the sub-optimality of OOL-MF-BO even if the true correlations between fidelities are known. 
+
+• We introduce a method that leverages historical experi-mental data and task-specific features—extracted from ei-ther structured metadata or foundation models—to escape the aforementioned suboptimality, leading to a reduction in cumulative regret in multiple benchmarks. 
+
+• We show empirical results in the OOL-MF-BO setting across standard synthetic functions and on real-world chemistry and hyperparameter optimization benchmarks. 
+
+## 2 Preliminaries 
+
+Let f : X → R denote an unknown objective function on a space X ⊂ Rd. The goal of black-box optimization is to find an optimal point x∗ ∈ arg max x∈X f (x) while assuming that f is expensive to compute and the input domain cannot be explored exhaustively. The objective function is accessed via noisy observations y = f (x) + ϵ with ϵ ∼ N (0 , σ 2
+
+> n
+
+),stored in the observation dataset Dt = {(xi, y i)}ti=1 .
+
+Bayesian Optimization 
+
+Bayesian optimization (Močkus 1975; Garnett 2023) pro-vides a principled solution for black-box optimization prob-lems based on two main components: a surrogate model 
+
+p(f |D t) and an acquisition function α(x; Dt). The surro-gate model represents the current posterior belief over the unknown objective function, which is used by the acquisition function to evaluate candidate input locations and select the next query point according to xt+1 = arg max X α(x; Dt).The optimization loop terminates after a predefined number of iterations T is reached. Then, the algorithm returns its final choice ˆxT = arg max xi∈D T yi, given by the observed point with the highest objective value. 
+
+Multi-Fidelity Bayesian Optimization The multi-fidelity extension of the Bayesian optimization framework as-sumes that we have access to several functions in 
+
+{f (m) : X → R}Mm=1 with the highest fidelity function f (M )
+
+being the objective to be maximized, i.e., we aim to find 
+
+x∗ ∈ arg max 
+
+> x∈X
+
+f (M )(x)
+
+The observations dataset is a collection of triples (xi, y i, m i),where mi ∈ { 1, ..., M } indicates the fidelity queried on step i. For each fidelity, there is an associated querying cost c(m) ≥ 0 (assumed to be independent of x). In the multi-fidelity regime, the acquisition function is given by 
+
+α(x, m ; Dt), which also incorporates the fidelity as an in-put. The algorithm runs until the optimization budget Λ is ex-hausted. Both the surrogate model and the acquisition func-tion are adapted to deal with a set of correlated functions. Analogous to the single-fidelity case, at termination, the al-gorithm makes a final suggestion. Usually, this is done by suggesting the observed point from the highest fidelity with the highest objective value, i.e. ˆxT = arg max xi∈D T ,m yi
+
+where DT,m = {(xi, y i, m i) : mi = M }. Another option is to suggest ˆxT = arg max x∈X E[f (M )(x)|D T ], allowing for points that were not observed in the highest fidelity level or not observed at all. 
+
+Gaussian Processes 
+
+Gaussian processes (GPs; Rasmussen and Williams 2006) are the standard choice for surrogate modelling in BO. They define a distribution over functions specified by a mean func-tion μ : X → R and a covariance kernel k : X × X → R.Given a dataset Dt with inputs and noisy observations, a GP prior f ∼ GP (μ, k ) induces a multivariate Gaussian distri-bution over the unseen function values and observed data Dt.Conditioning on the data yields a GP posterior whose predic-tive distribution at a test point x is Gaussian with closed-form mean μt(x) and variance σt(x).
+
+Vector-valued Gaussian Process When dealing with vector-valued functions f : X → RM , it is still possible to use GPs. Under this setting, it is assumed that f (x) = (f1(x), . . . , f M (x)) ⊤ follows a vector-valued GP (Álvarez, Rosasco, and Lawrence 2012), fully characterized by a mean function μ : X → RM and a matrix-valued kernel 
+
+K : X × X → RM ×M . The entries (K(x, x′)) m,m ′ in the matrix K(x, x′) correspond to the covariance between 
+
+f (m)(x) and f (m′)(x′).A popular choice is the linear model of coregionaliza-tion (LMC; Journel and Huijbregts 1978; Goovaerts 1997): 
+
+[K(x, x′)] m,m ′ =
+
+> Q
+
+X
+
+> q=1
+
+B(q) 
+
+> m,m ′
+
+kq (x, x′), (1) where B(q) ∈ RM ×M is a positive definite coregionaliza-tion matrix and kq is a kernel for q ∈ { 1, . . . , Q }. This corresponds to modelling each output as a linear combina-tion of latent processes, f (m)(x) = PQq=1 a(m) 
+
+> q
+
+uq (x), where 
+
+uq ∼ GP (0 , k q ) are i.i.d. latent processes. 0.0 0.2 0.4 0.6 0.8 1.0 024  
+
+> u1u2u3
+
+(a) Latent processes 0.0 0.2 0.4 0.6 0.8 1.0     
+
+> f(1) f(2)
+
+(b) Objective functions 0.0 0.2 0.4 0.6 0.8 1.0       
+
+> f(2) f(2) f(2)
+
+(c) Target decomposition 
+
+Figure 2: Illustration of the pitfalls of out-of-the-loop multi-fidelity optimization under the LMC kernel, with M = 2 . (a) 
+
+Three latent functions u1, u 2, u 3 sampled from GPs with different lengthscales. (b) Higher and lower fidelity functions, with 
+
+f (1) = u1 + u2 and f (2) = 2 u1 + u2 + u3. That is, the process u3 is present in the target but not in the observable fidelity. (c) 
+
+The observable component f (2)  
+
+> ∥
+
+does not have the same maximizer as the target f (2) due to the shift imposed by f (2)  
+
+> ⊥
+
+.When all latent processes have the same kernel, the re-sulting model is called an intrinsic coregionalization model (ICM; Goovaerts 1997), for which the covariance is: 
+
+[K(x, x′)] m,m ′ = Bm,m ′ k(x, x′), (2) Another popular kernel, the multi-information source (MISO) model of Poloczek, Wang, and Frazier (2017), can be written in the LMC form by taking Q = M and setting 
+
+f (M ) = u1 and f (m) = u1 + um+1 for m = 1 , . . . , M − 1.Note that this requires distinct kernels for each process, plac-ing it in the LMC family but outside ICM. 
+
+## 3 Pitfalls of Out-of-the-Loop Fidelity 
+
+We start by characterizing what happens when we only have access to the lower fidelities in the BO loop. As noted before, in many complex scientific applications the true objective function is prohibitively expensive—both computationally and financially—to be accessed within the loop. Consider a multi-fidelity optimization problem with func-tions {f (m)}Mm=1 drawn from a joint Gaussian process with zero mean and an LMC kernel, that is, each fidelity is a lin-ear combination of the same set of latent processes {uq }Qq=1 .Let the costs {c(m)}Mm=1 be such that c(M ) = ∞, and let the budget be finite, Λ > 0. Therefore, we have mi < M for all elements in Dt = {(xi, y i, m i)}Ni=1 . The final suggestion of the algorithm is given by 
+
+ˆxT = arg max 
+
+> x∈X
+
+E[f (M )(x) | D T ], (3) since we are unable to query our target fidelity. First, we partition the set of latent functions based on their presence in the lower fidelities. Next, using the two sets in this partition, we decompose the objective function into observable and unobservable components. 
+
+Definition 3.1. Let Sobs = {q | a(m)
+
+> q
+
+̸ = 0 for some m < M } denote the set of indices of latent processes that are observable in at least one of the lower fidelities. In addition, define its complement Sc 
+
+> obs
+
+= {q | a(m) 
+
+> q
+
+= 0 for all m < M }, capturing the latent processes that are not present in any observable fidelity. 
+
+Definition 3.2. Let the target fidelity be f (M )(x) =PQq=1 a(M ) 
+
+> q
+
+uq (x). Splitting this sum according to the par-tition {S obs , Sc
+
+> obs
+
+} of {1, . . . , Q } from Definition 3.1 yields 
+
+f (M ) = f (M ) 
+
+> ∥
+
++ f (M ) 
+
+> ⊥
+
+, where 
+
+f (M ) 
+
+> ∥
+
+:= X
+
+> q∈S obs
+
+a(M ) 
+
+> q
+
+uq , f (M ) 
+
+> ⊥
+
+:= X
+
+> q∈S c
+> obs
+
+a(M ) 
+
+> q
+
+uq .
+
+This decomposition of the objective function allows us to reason about what can be reconstructed from out-of-the-loop observations. The key object to study under these conditions is the posterior mean μ(M ) 
+
+> t
+
+= E[f (M ) | D t], which is used to make suggestions. 
+
+Proposition 3.3. Under the LMC kernel defined in (1) , the highest-fidelity posterior mean equals the posterior mean of the observable component: μ(M ) 
+
+> t
+
+= E[f (M ) 
+
+> ∥
+
+| D t]. The unobservable component f (M ) 
+
+> ⊥
+
+contributes nothing. 
+
+Crucially, this inability to capture information from f (M )
+
+> ⊥
+
+is not resolved as more low-fidelity data is collected. As a re-sult, whenever the unobserved component shifts the location of the optimum, the algorithm incurs irreducible regret. 
+
+Theorem 3.4. Assume E[f (M ) 
+
+> ∥
+
+| D t] → f (M ) 
+
+> ∥
+
+uniformly as t → ∞ and that the lower-fidelity observations become dense in X . Given the candidate ˆxt selected via (3) , whenever 
+
+arg max f (M )̸ = arg max f (M ) 
+
+> ∥
+
+the regret converges to a strictly positive constant: lim 
+
+> t→∞
+
+(f (M )(x∗) − f (M )( ˆ xt)) > 0.Remark 3.5 . Under MISO, every latent process appears in some observable fidelity ( Sc 
+
+> obs
+
+= ∅), therefore f (M ) 
+
+> ⊥
+
+= 0 
+
+and Thm. 3.4 does not hold. However, this is a structural assumption on the fidelity hierarchy, and when it fails, the misspecified prior restores the suboptimality. A concrete instance of the LMC problem is presented in Figure 2. In this bi-fidelity example, the model has di-rect access to the true linear coefficients. However, since the lower-fidelity function does not include the higher-frequency Historical tasks Current task  
+
+> Surrogate model
+> Observe Suggest Suggest Observe
+
+Figure 3: Proposed solution for the OOL-MF-BO setting based on data from historical tasks for which the highest fidelity was observed. The surrogate model has access to a dataset of historical tasks alongside the data being collected from the available fidelities of the current task. component, the posterior collapses to the observed compo-nent and the regret converges to a positive value. The suboptimality of the LMC just presented relies on the set of non-observable latents being non-empty. For the ICM setting, however, we show that the regret is likely irreducible even when Sc 
+
+> obs
+
+= ∅, as the target posterior mean converges to a fixed combination of the lower fidelities that in general does not share the optimum location with the objective. 
+
+Corollary 3.6. Under the ICM kernel defined in (2) , the highest-fidelity posterior mean corresponds to a fixed lin-ear combination of the lower-fidelity posterior means, i.e., 
+
+μ(M ) 
+
+> t
+
+(x) = PM −1 
+
+> m=1
+
+wmμ(m) 
+
+> t
+
+(x), where the weights w do not depend on the input location x. Furthermore, if x∗̸ =arg max x∈X 
+
+PM −1 
+
+> m=1
+
+wmf (m)(x), the simple regret con-verges to a strictly positive constant: lim t→∞ (f (M )(x∗) −
+
+f (M )( ˆ xt)) > 0.
+
+This effect is clear in the bi-fidelity setting, which reduces to the high-fidelity posterior mean being a simple rescaling of the lower-fidelity one. Therefore, whenever the lower-fidelity maximizer or minimizer is not aligned with the true optima, the model will have irreducible regret. 
+
+## 4 Handling Out-of-the-Loop Fidelity 
+
+The root of the suboptimality stated in the previous section is the absence of the target fidelity information within the loop. Therefore, to escape this regime, it is necessary to incorpo-rate a higher-fidelity signal in the surrogate model. As, by definition, the highest fidelity of the current objective is not available, the solution is to incorporate data from outside the current task. Fortunately, in many science and engineering problems, practitioners do not start their optimization cam-paign in a vacuum. Instead, they often possess a repository of historical data from previous experiments—datasets where the highest-fidelity outcomes from those experiments have already been observed and recorded. Note, however, that the relationship between those previous experiments and the cur-rent experiment is often ambiguous, as past experiments may come from partially relevant configurations or settings. Based on this observation, we propose a solution for the aforementioned problem in OOL-MF-BO. Formally, con-sider N sets of functions {f (m) 
+
+> n
+
+}Mm=1 for n = 1 ...N , where the subscript n indicates the task index (i.e., previous ex-periments), and we are interested in optimizing task N (i.e., current experiment). Assume we have historical observations 
+
+Hn = {(xt, y (mt), m t)}Tn
+
+> t=1
+
+, for which the highest fidelity is available. We denote by H := {H n}N −1 
+
+> n=1
+
+the set of all historical data. In addition, assume each task has a task con-text vector en that the optimization algorithm can access. We assume that the previous tasks cannot be queried; only their past observations are available. 
+
+Surrogate modelling 
+
+To incorporate the information from the previous tasks, we replace the fidelity kernel to also include tasks: 
+
+Cov( f (m) 
+
+> n
+
+(x),f (m′) 
+
+> n′
+
+(x′)) = k(( x, m, n ), (x′, m ′, n ′)) = kdata (x, x′) · kθ (( m, n ), (m′, n ′)) .
+
+The newly introduced term kθ (( m, n ), (m′, n ′)) is a deep kernel (Wilson et al. 2016) that operates on fidelity indices and task features: 
+
+kθ (( m, n ), (m′, n ′)) = kRBF (E(m, e n; θ), E(m′, e n′ ; θ)) ,
+
+where E is a neural network parametrized by θ.We use a deep kernel as it can flexibly learn complex, non-linear relationships between tasks and fidelities. This is par-ticularly relevant in our setting, as the task features—whether manually defined or extracted via foundation models—can interact with fidelity indices in nontrivial ways. This allows the model to reliably identify which information from the previous tasks is relevant to the current objective, as not all previous data is equally relevant. Figure 3 illustrates how offline data from previous tasks can improve the modelling of the incumbent function and break the linear combination effect previously stated. Data from historical tasks is taken into account in the modelling of the current objective and its lower-fidelity functions. 
+
+Acquisition function 
+
+The proposed method does not impose restrictions on the choice of acquisition function. Once the historical dataset 
+
+H is considered in the surrogate model, any multi-fidelity acquisition function such as MF-MES (Takeno et al. 2020) Hydrocarbon task | Solvation energy benchmark             
+
+> Context: Non-polar, hydrophobic solutes. Dominant in-teractions: weak Van der Waals dispersive forces. Features: Zero dipole moment, lack of hydrogen bond donors or acceptors. Chemical space: Alkanes, alkenes, and aromatics. Solvation driven by cavity for-mation energy.
+
+Figure 4: Task description example from solvation energy benchmark. To generate the task embeddings, the description is fed to an LLM that maps it to a fixed-dimensional vector. or MF-EI (Huang et al. 2006) can be used. Importantly, the selected acquisition function should remain formulated to optimize the unobserved highest-fidelity objective. At each step of the optimization loop, the next point and fidelity queried are given by 
+
+xt+1 , m t+1 = arg max   
+
+> x∈X ,m ∈[M−1]
+
+α(x, m ; Dt, H).
+
+The main change from the usual MF-BO is the exclusion of the highest fidelity level from the optimization domain. 
+
+Task Features 
+
+Although some optimization problems may have natural task features, this is not the case for all problems. In fact, many real-world problems can be better explained in words than through a hand-crafted feature vector. A natural solution to this is to make use of foundation models trained on a wide variety of modalities and domains. An example of a task description that we use in our experiments is provided in Figure 4. Notably, we extract only one vector per task, repre-senting a negligible cost. 
+
+## 5 Related work 
+
+Multi-task Bayesian Optimization Multi-task BO was originally proposed by Swersky, Snoek, and Adams (2013) as a solution to transfer knowledge across tasks to speed up the optimization of a related task. In their work, they use an ICM kernel, learning the correlation between tasks directly by maximum likelihood estimation. Alternatively, Feng et al. (2020) proposed the latent embedding multi-output kernel, in which the external task embeddings are fed to an RBF kernel function. When the task embeddings are extracted by a neural network, this is closely related to deep kernel methods (Wil-son et al. 2016; Zhang, Desautels, and Chen 2025); however, in this case, the network weights are frozen. More recently, BOLT (Zeng et al. 2025) was introduced as a framework for using large language models (LLMs) to improve BO transfer across tasks. In their framework, an LLM is fine-tuned to produce a good initialization from task-specific context. Zhang, Park, and Simeone (2025) is the only work to combine multi-fidelity and multi-task BO. Their work differs from ours in three main ways: (i) the highest fidelity is always observable, (ii) the acquisition function used also weighs exploration for future tasks when selecting the next query point, and (iii) correlations among tasks arise from the i.i.d. assumption over task parameters rather than an explicit task kernel acting on the task contexts. 
+
+Bayesian Optimization Without Access to the Objective Function The central characteristic of our problem setting is not having access to the highest fidelity in the BO loop. In contrast, prior work has examined other settings, character-ized by different constraints and structural assumptions on the objective function. Zhang et al. (2025a) investigated the setting where, instead of directly selecting a point, one selects an action that is linked to the input space via a conditional distribution. Related to the multi-fidelity setting, Mikkola et al. (2023) explored the problem of unreliable fidelities and proposed a robust algorithm for MF-BO. Furthermore, another related area of work is offline model-based optimiza-tion (Kim et al. 2026), which leverages powerful surrogate and generative models to optimize a function in a completely offline setting. In contrast, we study the distinct challenge of OOL-MF-BO, in which the highest fidelity of the objective function is removed from the optimization loop, and lower fidelities are queried directly. 
+
+## 6 Experiments 
+
+We perform OOL-MF-BO experiments on both synthetic functions, molecular benchmarks, and hyperparameter op-timization tasks. To evaluate performance, we visualize the cumulative regret at each step, i.e., Rt = Ptτ =1 f (M )(x∗) −
+
+f (M )( ˆ xτ ). We consider the following methods: 
+
+• Random Search: Suggestions are made randomly by picking ˆxt ∼ Uniform (X ).
+
+• Next-Best: The surrogate models the current task up to the highest observable fidelity. The suggested point is given by ˆxt = arg max x∈X E[f (M −1) (x)|D t].
+
+• Single-Task: Surrogate models all fidelities of the current task. The suggested point is given by ˆxt =arg max x∈X E[f (M )(x)|D t].
+
+• Multi-Task: Our proposed method in which the out-of-the-loop fidelity is maximized. The suggested point is given by ˆxt = arg max x∈X E[f (M )(x)|D t, H].
+
+• Multi-Task Next-Best: Variation of our proposed method in which the next-best fidelity is maxi-mized. The suggested point is given by ˆxt =arg max x∈X E[f (M −1) (x)|D t, H].For all methods, except Random Search, we use a GP with a constant mean and an RBF covariance kernel scaled by the dimension (Hvarfner, Hellsten, and Nardi 2024) as the data kernel. For Single-Task and Next-Best, we show results with ICM, LMC, and MISO, covering popular multi-fidelity kernels used in practice. For the Next-Best variants, Appendix C repeats these experiments using the observed incumbent rather than the posterior-mean maximizer, with no qualitative change. The deep kernel network E is param-eterized as a two-layer network with 16 hidden units and an 8-dimensional output. The acquisition function used is MF-MES (Takeno et al. 2020). All experiments are implemented using the BoTorch package (Balandat et al. 2020). 10 0                 
+
+> 10 1
+> 10 2
+> 10 3
+> log  Rt
+> Branin (1D)
+> 10 0
+> 10 1
+> 10 2
+> Michalewicz (2D)
+> 10 4
+> 10 2
+> 10 0
+> 10 2
+> Park (3D)
+> 10 2
+> 10 3
+> 10 4
+> Styblinski-Tang (3D)
+> 020 40
+> Budget Used
+> 10 0
+> 10 1
+> 10 2
+> 10 3
+> log  Rt
+> Levy (3D)
+> 020 40
+> Budget Used
+> 10 0
+> 10 1
+> 10 2
+> Ackley (4D)
+> 020 40
+> Budget Used
+> 10 0
+> 10 1
+> 10 2
+> Hartmann (5D)
+> 020 40
+> Budget Used
+> 10 5
+> 10 7
+> Rosenbrock (5D)
+> Random Search Single-Task ICM Single-Task MISO Single-Task LMC Next-Best ICM Next-Best MISO Next-Best LMC Multi-Task (Ours) Multi-Task Next-Best (Ours)
+
+Figure 5: Performance comparison of our proposed methods on synthetic benchmark functions. Results are averaged over 20 independent trials with shading indicating the standard error. 
+
+Synthetic Functions 
+
+We now evaluate the methods on synthetic functions com-monly used in the MF-BO literature. Specifically, given a set of M multi-fidelity objective functions g(m) : Rd → R
+
+for m = 1 , . . . , M , we generate a family of related tasks by sectioning the original functions along a specific in-put dimension. Let the input space be decomposed such that the first d′ = d − 1 dimensions represent the de-sign variables x ∈ Rd−1, and the d-th dimension rep-resents a task-defining parameter. By selecting a discrete set of task values Z = {z1, . . . , z N }, we define the n-th task at the m-th fidelity level, f (m) 
+
+> n
+
+: Rd−1 → R, as 
+
+f (m) 
+
+> n
+
+(x) = g(m)(x1, . . . , x d−1, z n). In this framework, zn
+
+serves as a contextual feature. This construction ensures that tasks are naturally correlated, as they are derived from slices of the same underlying d-dimensional response surface g(m).Under this setting, we perform experiments on multi-fidelity versions of eight synthetic functions 1: Branin, Michalewicz, Park, Styblinski-Tang, Levy, Ackley, Rosen-brock, and Hartmann. For all functions, we perform 20 tri-als, in each trial sampling M ∼ Uniform ({2, 3, 4, 5}), N ∼
+
+Uniform ({2, 3, 4, 5}), |Hn| ∼ Uniform ({20 , 30 , 40 , 50 }).Given the number of tasks, the task-defining parameters are sampled uniformly. The costs are set to c(m) = 2 m−1 for 
+
+m ≤ M − 1 and c(M ) = ∞, capturing a situation where lowering the fidelity corresponds to halving the data size or tolerance parameter (Eggensperger et al. 2021). Points in the historical observations are sampled uniformly with fidelity ratio 2−(m−1) . More information is presented in Appendix B. The results are presented in Figure 5. Across all func-tions, Multi-Task approaches improve the results and are 
+
+> 1
+
+https://www.sfu.ca/~ssurjano/optimization.html 
+
+able to perform better than Next-Best and Single-Task methods. Interestingly, the Multi-Task Next-Best method is consistently better than its single-task counterpart. This gap in performance shows the clear advantage of incorporat-ing previous tasks in the OOL-MF-BO setting. As expected, the Single-Task method shows performance comparable to Random Search and, at best, on par with Next-best, high-lighting the impossibility of optimizing the unavailable fi-delity directly without auxiliary data. For further analysis of the different components of the setting, we refer to the ab-lation study exploring the effects of number of tasks, task relevance, and historical data size provided in Appendix D. 
+
+Real-World Applications 
+
+Molecular Optimization We experiment with three molecular optimization benchmarks, adapting the MF-BO problems used in Sabanza-Gil et al. (2025) to our OOL-MF-BO setting. The problems are (i) Xe/Kr selectivity (Gant-zler et al. 2023), (ii) solvation energy (Mobley and Guthrie 2014), and (iii) polarizability (Ghahremanpour, Van Maaren, and Van Der Spoel 2018). For all benchmarks M = 2 and the number of steps is set to T = 30 for all problems. We use the Qwen3 Embedding 8B (Zhang et al. 2025b) model to extract task features from text descriptions of the tasks. Figure 4 shows one of the textual descriptions used. Refer to Appendix B for information on the benchmarks and tasks. 
+
+Hyperparameter Optimization We evaluate the method on two hyperparameter optimization (HPO) benchmarks from HPOBench (Eggensperger et al. 2021): (i) logistic regression (LR) and (ii) support vector machine (SVM). For each benchmark, the hyperparameter space is provided alongside the validation accuracy for different fidelity levels, with M = 5 and M = 3 for LR and SVM, respectively. 0 10 20 30                             
+
+> Iteration
+> 10 1
+> log  Rt
+> Selectivity
+> 010 20 30
+> Iteration
+> 10 2
+> Solvation
+> 010 20 30
+> Iteration
+> 10 1
+> 10 0
+> 10 1
+> Polarizability
+> 010 20 30 40 50
+> Budget Used
+> 10 2
+> 10 1
+> 10 0
+> log  Rt
+> Logistic Regression
+> 010 20 30 40 50
+> Budget Used
+> 10 2
+> 10 1
+> 10 0
+> 10 1
+> SVM
+> Random Search Single-Task ICM Single-Task MISO Single-Task LMC Next-Best ICM Next-Best MISO Next-Best LMC Multi-Task (Ours) Multi-Task Next-Best (Ours)
+
+Figure 6: (Top) Performance comparison of all methods on three molecular optimization benchmarks: Xe/Kr selectivity, solvation energy, and polarizability. Results are averaged over 10 trials. (Bottom) Cumulative regret curves for logistic regression and SVM design spaces. Curves are averaged across 80 trials (8 datasets, each with 10 trials). Following the complexity scaling of the benchmark fideli-ties, costs are c(m) = 3 c(m−1) with c(1) = 1 and the budget is set to Λ = 50 . In both benchmarks, tasks correspond to different training and validation datasets, for a total of N = 8 
+
+tasks. We perform 10 trials per dataset in the role of the cur-rent task, randomly sampling only 3 of the remaining tasks to be present in the historical data for each trial. Refer to Appendix B for more information. The cumulative regret results for both families of bench-marks are presented in Figure 6. Our proposed methods Multi-Task and Multi-Task Next Best show strong per-formance, obtaining the lowest cumulative regrets for three out of five benchmarks. In the polarizability benchmark, the observed gains start from the strong initialization due to the knowledge transfer from historical tasks and are maintained thereafter—resulting in significantly lower cumulative re-gret throughout the iterations. On the other hand, on both HPOBench tasks (LR and SVM) our methods show con-sistently lower instantaneous regret during the entire run, leading to better results. The benefits from historical data are clear when compar-ing Multi-Task and Multi-Task Next Best with the ICM versions of Single Task and Next Best. Even though our proposed deep kernel has a structure very similar to the ICM kernel, namely a separable data kernel, the inclusion of his-torical information makes the results go from equivalent to Random Search to competitive in all evaluated benchmarks. The strong performance of the MISO-based methods fol-lows from Remark 3.5, and Next-Best LMC on Xe/Kr selec-tivity is the same effect in another guise: when the maximiz-ers of the target and next-best fidelities are closely aligned, a method that refuses to extrapolate is difficult to improve upon. Their subpar performance on the HPO and synthetic benchmarks shows that this condition is neither universal nor checkable in advance. Gains from modelling the out-of-the-loop fidelity directly are thus realized precisely in the regime characterized in Section 3. 
+
+## 7 Conclusion 
+
+In this work, we explored the out-of-the-loop multi-fidelity Bayesian optimization setting. We started from its formal definition and proceeded by characterizing the suboptimal-ity of tackling problems of this family using standard MF-BO methods with both LMC and ICM—even if the fidelity covariance matrix is known. Next, we demonstrated how his-torical data with the highest fidelity information can be used to improve the performance in the OOL-MF-BO setting. We showed the benefits of the proposed method across both syn-thetic and real-world objective functions, demonstrating the effectiveness of our approach. 
+
+Limitations and Future Work Our analysis of the OOL suboptimality is developed for the LMC family of surrogates, which, although broad, does not cover all possible kernels; extending it to more general covariance structures remains open. Furthermore, performance depends on the relevance of the available historical tasks, which in practice is hard to know in advance. A natural next step is to apply OOL-MF-BO to challenging science and engineering problems using domain-specific foundation models as low-fidelity functions, and to develop more efficient methods for handling historical data that avoid the cubic complexity of GPs. References 
+
+Álvarez, M. A.; Rosasco, L.; and Lawrence, N. D. 2012. Ker-nels for Vector-Valued Functions: A Review. Foundations and Trends in Machine Learning , 4(3). Ament, S.; Witte, A.; Garg, N.; and Kusuma, J. 2023. Sustainable Concrete via Bayesian Optimization. arXiv ,2310(18288). Argaman, N.; and Makov, G. 2000. Density Functional The-ory: An Introduction. American Journal of Physics , 68(1). Balandat, M.; Karrer, B.; Jiang, D.; Daulton, S.; Letham, B.; Wilson, A. G.; and Bakshy, E. 2020. BoTorch: A Frame-work for Efficient Monte-Carlo Bayesian Optimization. In 
+
+NeurIPS .Bommasani, R.; Hudson, D. A.; Adeli, E.; Altman, R.; Arora, S.; von Arx, S.; Bernstein, M. S.; Bohg, J.; Bosselut, A.; Brunskill, E.; Brynjolfsson, E.; Buch, S.; Card, D.; Castel-lon, R.; Chatterji, N. S.; Chen, A. S.; Creel, K. A.; Davis, J.; Demszky, D.; Donahue, C.; Doumbouya, M.; Durmus, E.; Ermon, S.; Etchemendy, J.; Ethayarajh, K.; Fei-Fei, L.; Finn, C.; Gale, T.; Gillespie, L. E.; Goel, K.; Goodman, N. D.; Grossman, S.; Guha, N.; Hashimoto, T.; Henderson, P.; He-witt, J.; Ho, D. E.; Hong, J.; Hsu, K.; Huang, J.; Icard, T. F.; Jain, S.; Jurafsky, D.; Kalluri, P.; Karamcheti, S.; Keeling, G.; Khani, F.; Khattab, O.; Koh, P. W.; Krass, M. S.; Kr-ishna, R.; Kuditipudi, R.; Kumar, A.; Ladhak, F.; Lee, M.; Lee, T.; Leskovec, J.; Levent, I.; Li, X. L.; Li, X.; Ma, T.; Malik, A.; Manning, C. D.; Mirchandani, S. P.; Mitchell, E.; Munyikwa, Z.; Nair, S.; Narayan, A.; Narayanan, D.; New-man, B.; Nie, A.; Niebles, J. C.; Nilforoshan, H.; Nyarko, J. F.; Ogut, G.; Orr, L.; Papadimitriou, I.; Park, J. S.; Piech, C.; Portelance, E.; Potts, C.; Raghunathan, A.; Reich, R.; Ren, H.; Rong, F.; Roohani, Y. H.; Ruiz, C.; Ryan, J.; R’e, C.; Sadigh, D.; Sagawa, S.; Santhanam, K.; Shih, A.; Srini-vasan, K. P.; Tamkin, A.; Taori, R.; Thomas, A. W.; Tramèr, F.; Wang, R. E.; Wang, W.; Wu, B.; Wu, J.; Wu, Y.; Xie, S. M.; Yasunaga, M.; You, J.; Zaharia, M. A.; Zhang, M.; Zhang, T.; Zhang, X.; Zhang, Y.; Zheng, L.; Zhou, K.; and Liang, P. 2021. On the Opportunities and Risks of Founda-tion Models. arXiv , 2108(07258). Eggensperger, K.; Müller, P.; Mallik, N.; Feurer, M.; Sass, R.; Klein, A.; Awad, N.; Lindauer, M.; and Hutter, F. 2021. HPOBench: A Collection of Reproducible Multi-Fidelity Benchmark Problems for HPO. In Thirty-fifth Conference on Neural Information Processing Systems Datasets and Bench-marks Track (Round 2) .Feng, Q.; Letham, B.; Mao, H.; and Bakshy, E. 2020. High-Dimensional Contextual Policy Search with Unknown Con-text Rewards using Bayesian Optimization. In NeurIPS .Feurer, M.; Eggensperger, K.; Falkner, S.; Lindauer, M.; and Hutter, F. 2022. Auto-sklearn 2.0: Hands-free AutoML via Meta-Learning. JMLR , 23(261). Gantzler, N.; Deshwal, A.; Doppa, J. R.; and Simon, C. M. 2023. Multi-Fidelity Bayesian Optimization of Covalent Or-ganic Frameworks For Xenon/Krypton Separations. Digital Discovery , 2(6). Garnett, R. 2023. Bayesian Optimization . Cambridge Uni-versity Press. Ghahremanpour, M. M.; Van Maaren, P. J.; and Van Der Spoel, D. 2018. The Alexandria Library, A Quantum-chemical Database of Molecular Properties for Force Field Development. Scientific Data , 5(1). Goovaerts, P. 1997. Geostatistics for Natural Resources Eval-uation . Oxford University Press. Greenaway, R. L.; Jelfs, K. E.; Spivey, A. C.; and Yaliraki, S. N. 2023. From Alchemist to AI Chemist. Nature Reviews Chemistry , 7(8). Griffiths, R.-R.; and Hernández-Lobato, J. M. 2020. Con-strained Bayesian Optimization for Automatic Chemical De-sign Using Variational Autoencoders. Chem. Sci. , 11(2). Guan, Y.; Chaffart, D.; Liu, G.; Tan, Z.; Zhang, D.; Wang, Y.; Li, J.; and Ricardez-Sandoval, L. 2022. Machine Learn-ing in Solid Heterogeneous Catalysis: Recent Developments, Challenges and Perspectives. Chemical Engineering Science ,248. Huang, D.; Allen, T. T.; Notz, W. I.; and Miller, R. A. 2006. Sequential Kriging Optimization Using Multiple-Fidelity Evaluations. Structural and Multidisciplinary Optimization ,32(5). Hvarfner, C.; Hellsten, E. O.; and Nardi, L. 2024. Vanilla Bayesian Optimization Performs Great in High Dimensions. In ICML .Journel, A. G.; and Huijbregts, C. J. 1978. Mining Geostatis-tics . Academic Press. Kennedy, M. C.; and O’Hagan, A. 2000. Predicting the Output From a Complex Computer Code When Fast Ap-proximations Are Available. Biometrika , 87(1). Kim, M.; Gu, J.; Yuan, Y.; Yun, T.; Liu, Z.; Bengio, Y.; and Chen, C. 2026. Offline Model-Based Optimization: Com-prehensive Review. TMLR .Lam, R.; Poloczek, M.; Frazier, P.; and Willcox, K. E. 2018. Advances in Bayesian Optimization with Applications in Aerospace Engineering. In 2018 AIAA Non-Deterministic Approaches Conference .Martens, A.; Neufang, M.; Butté, A.; von Stosch, M.; del Rio Chanona, A.; and Helleckes, L. M. 2025. Holistic Bio-process Development Across Scales Using Multi-Fidelity Batch Bayesian Optimization. arXiv , 2508(10970). Mikkola, P.; Martinelli, J.; Filstroff, L.; and Kaski, S. 2023. Multi-Fidelity Bayesian Optimization with Unreliable Infor-mation Sources. In AISTATS .Mobley, D. L.; and Guthrie, J. P. 2014. FreeSolv: A Database of Experimental and Calculated Hydration Free Energies, with Input Files. Journal of computer-aided molecular de-sign , 28(7). Močkus, J. 1975. On Bayesian Methods for Seeking the Extremum. In Optimization Techniques IFIP Technical Con-ference .Muthyala, M. R.; Sorourifar, F.; Tan, T.; Peng, Y.; and Paulson, J. A. 2025. Generative Multiobjective Bayesian Optimization with Scalable Batch Evaluations for Sample-Efficient De Novo Molecular Design. Industrial & Engineer-ing Chemistry Research , 65(1). Poloczek, M.; Wang, J.; and Frazier, P. 2017. Multi-Information Source Optimization. In NIPS .Rasmussen, C. E.; and Williams, C. K. I. 2006. Gaussian Processes for Machine Learning . The MIT Press. Romero, P. A.; Krause, A.; and Arnold, F. H. 2013. Navigat-ing the Protein Fitness Landscape with Gaussian Processes. 
+
+Proceedings of the National Academy of Sciences , 110(3). Ruberg, S. J.; Beckers, F.; Hemmings, R.; Honig, P.; Irony, T.; LaVange, L.; Lieberman, G.; Mayne, J.; and Moscicki, R. 2023. Application of Bayesian Approaches in Drug De-velopment: Starting a Virtuous Cycle. Nature Reviews Drug Discovery , 22(3). Sabanza-Gil, V.; Barbano, R.; Pacheco Gutiérrez, D.; Luter-bacher, J. S.; Hernández-Lobato, J. M.; Schwaller, P.; and Roch, L. 2025. Best Practices for Multi-Fidelity Bayesian Optimization in Materials and Molecular Research. Nature Computational Science , 5(7). Swersky, K.; Snoek, J.; and Adams, R. P. 2013. Multi-Task Bayesian Optimization. In NeurIPS .Takeno, S.; Fukuoka, H.; Tsukada, Y.; Koyama, T.; Shiga, M.; Takeuchi, I.; and Karasuyama, M. 2020. Multi-Fidelity Bayesian Optimization with Max-value Entropy Search and its Parallelization. In ICML .Vanschoren, J.; van Rijn, J. N.; Bischl, B.; and Torgo, L. 2014. OpenML: Networked Science in Machine Learning. 
+
+SIGKDD Explor. Newsl. , 15(2). Wilson, A. G.; Hu, Z.; Salakhutdinov, R.; and Xing, E. P. 2016. Deep Kernel Learning. In AISTATS .Wood, B. M.; Dzamba, M.; Fu, X.; Gao, M.; Shuaibi, M.; Barroso-Luque, L.; Abdelmaqsoud, K.; Gharakhanyan, V.; Kitchin, J. R.; Levine, D. S.; Michel, K.; Sriram, A.; Cohen, T.; Das, A.; Rizvi, A.; Sahoo, S. J.; Ulissi, Z. W.; and Zitnick, C. L. 2025. UMA: A Family of Universal Models for Atoms. 
+
+arXiv , 2506(23971). Xiong, S.; Qian, P. Z. G.; and Wu, C. F. J. 2013. Sequential Design and Analysis of High-Accuracy and Low-Accuracy Computer Codes. Technometrics , 55(1). Zeng, Y.; Maus, N.; Jones, H. T.; Tao, J.; Wan, F.; Der Torossian Torres, M.; de la Fuente-Nunez, C.; Marcus, R.; Bastani, O.; and Gardner, J. R. 2025. Large Scale Multi-Task Bayesian Optimization with Large Language Models. arXiv ,2503(08131). Zhang, F.; Desautels, T.; and Chen, Y. 2025. Robust Multi-Fidelity Bayesian Optimization with Deep Kernel and Parti-tion. In AISTATS .Zhang, M.; Bouabid, S.; Ong, C. S.; Flaxman, S.; and Sejdi-novic, D. 2025a. Indirect Query Bayesian Optimization with Integrated Feedback. arXiv , 2412(13559). Zhang, Y.; Li, M.; Long, D.; Zhang, X.; Lin, H.; Yang, B.; Xie, P.; Yang, A.; Liu, D.; Lin, J.; Huang, F.; and Zhou, J. 2025b. Qwen3 Embedding: Advancing Text Embedding and Reranking Through Foundation Models. arXiv .Zhang, Y.; Park, S.; and Simeone, O. 2025. Multi-Fidelity Bayesian Optimization with Across-Task Transferable Max-Value Entropy Search. IEEE Transactions on Signal Pro-cessing , 73. A Proofs 
+
+Proposition 3.3. Under the LMC kernel defined in (1) , the highest-fidelity posterior mean equals the posterior mean of the observable component: μ(M ) 
+
+> t
+
+= E[f (M ) 
+
+> ∥
+
+| D t]. The unobservable component f (M ) 
+
+> ⊥
+
+contributes nothing. Proof. Using the decomposition of the objective function and the linearity of expectation, the posterior mean can be written as 
+
+μ(M ) 
+
+> t
+
+= E[f (M ) | D t]= E[f (M ) 
+
+> ∥
+
++ f (M ) 
+
+> ⊥
+
+| D t]= E[f (M ) 
+
+> ∥
+
+| D t] + E[f (M ) 
+
+> ⊥
+
+| D t].
+
+By Definition 3.2, the second term can be written as E[f (M ) 
+
+> ⊥
+
+|Dt] = P
+
+> q∈S c
+> obs
+
+a(M ) 
+
+> q
+
+E[uq | D t]; however, uq ⊥ D t for all 
+
+q ∈ S c
+
+> obs
+
+. Therefore, E[uq | D t] = E[uq ] = 0 , given that all latent processes have a zero-mean prior. 
+
+Theorem 3.4. Assume E[f (M ) 
+
+> ∥
+
+| D t] → f (M ) 
+
+> ∥
+
+uniformly as t → ∞ and that the lower-fidelity observations become dense in X . Given the candidate ˆxt selected via (3) , whenever 
+
+arg max f (M )̸ = arg max f (M ) 
+
+> ∥
+
+the regret converges to a strictly positive constant: lim 
+
+> t→∞
+
+(f (M )(x∗) − f (M )( ˆ xt)) > 0.Proof. By Prop. 3.3, the posterior mean of the target fidelity evaluates exactly to the posterior mean of the observable component, meaning E[f (M )(x) | D t] = E[f (M ) 
+
+> ∥
+
+(x) | D t].Consequently, the candidate point selected at step t via (3) can be equivalently written as 
+
+ˆxt = arg max 
+
+> x∈X
+
+E[f (M ) 
+
+> ∥
+
+(x) | D t].
+
+By the assumption of uniform convergence, E[f (M ) 
+
+> ∥
+
+|Dt] → f (M ) 
+
+> ∥
+
+as t → ∞ . Since the lower-fidelity obser-vations become dense in X , the maximizer of the posterior mean converges to the maximizer of the limiting function. Let x∗∥ = arg max x∈X f (M ) 
+
+> ∥
+
+(x). It follows that 
+
+lim  
+
+> t→∞
+
+ˆxt = x∗∥.
+
+Let x∗ = arg max x∈X f (M )(x) be the true global opti-mum. We can now evaluate the limit of the simple regret as 
+
+t → ∞ . Assuming f (M ) is continuous, we have 
+
+lim 
+
+> t→∞
+
+
+
+f (M )(x∗) − f (M )( ˆ xt)
+
+
+
+= f (M )(x∗) − f (M )(x∗∥).
+
+By the premise that arg max f (M )̸ = arg max f (M ) 
+
+> ∥
+
+, the point x∗∥ is not a global maximizer of the true objective func-tion f (M ). Therefore, the value of the target fidelity at the true optimum is strictly greater than its value at the observable optimum: 
+
+f (M )(x∗) > f (M )(x∗∥).
+
+Subtracting f (M )(x∗∥) from both sides yields f (M )(x∗) −
+
+f (M )(x∗∥) > 0, which concludes the proof that the simple regret converges to a strictly positive constant. 
+
+Corollary 3.6. Under the ICM kernel defined in (2) , the highest-fidelity posterior mean corresponds to a fixed lin-ear combination of the lower-fidelity posterior means, i.e., 
+
+μ(M ) 
+
+> t
+
+(x) = PM −1 
+
+> m=1
+
+wmμ(m) 
+
+> t
+
+(x), where the weights w do not depend on the input location x. Furthermore, if x∗̸ =arg max x∈X 
+
+PM −1 
+
+> m=1
+
+wmf (m)(x), the simple regret con-verges to a strictly positive constant: lim t→∞ (f (M )(x∗) −
+
+f (M )( ˆ xt)) > 0.Proof. We begin by writing the general formula for the pos-terior mean for all m ≤ M :
+
+μ(m) 
+
+> t
+
+(x) = km(x)⊤(K + σ2
+
+> n
+
+I)−1y,
+
+where km(x) = [Cov( f (m)(x), f (mi)(xi))] Ni=1 
+
+is the cross-covariance vector, K =[Cov( f (mi)(xi), f (mj )(xj ))] N,N i=1 ,j =1 is the covariance matrix of the observation dataset, and y = [yi]Ni=1 
+
+is a vector collecting all observed responses. Re-call that, as we are dealing with the ICM kernel, 
+
+Cov( f (m)(x), f (m′)(x′)) = Bm,m ′ k(x, x′).Let w = B−1 
+
+> <M,<M
+
+B<M,M , where B<M,<M is the block of the coregionalization matrix corresponding to the observ-able fidelities and B<M,M is the block of cross-terms be-tween the observable and the non-observable fidelity. Since 
+
+B is positive definite, B−1 
+
+> <M,<M
+
+, and hence w, are well defined. Note that this definition of w implies P 
+
+> m<M
+
+wmBm,m ′ = BM,m ′ for all observable m′.Because mi < M holds for all points in the dataset Dt, we have 
+
+kM (x) = X
+
+> m<M
+
+wmkm(x). (4) Finally, we write the posterior mean of the highest fidelity and substitute (4) for the cross-covariance term: 
+
+μ(M ) 
+
+> t
+
+(x) = kM (x)⊤(K + σ2
+
+> n
+
+I)−1y
+
+=
+
+h X 
+
+> m<M
+
+wmkm(x)
+
+i⊤
+
+(K + σ2
+
+> n
+
+I)−1y
+
+= X
+
+> m<M
+
+wm
+
+km(x)⊤(K + σ2
+
+> n
+
+I)−1y
+
+= X
+
+> m<M
+
+wmμ(m) 
+
+> t
+
+(x),
+
+which concludes the first part of the proof. It remains to establish the irreducible regret. Assume that, as t → ∞ , each lower-fidelity posterior mean converges uni-formly to its function, μ(m) 
+
+> t
+
+→ f (m) for all m < M , which holds as the lower-fidelity observations become dense in X .Combining this with the first part of the proof, the highest-fidelity posterior mean converges to the fixed combination 
+
+μ(M ) 
+
+> t
+
+(x) → X
+
+> m<M
+
+wmf (m)(x) =: g(x).
+
+Consequently, the candidate point selected via (3) satisfies 
+
+lim  
+
+> t→∞
+
+ˆxt = arg max 
+
+> x∈X
+
+g(x) =: x∗ 
+
+> g
+
+.Let x∗ = arg max x∈X f (M )(x) be the true global optimum. Assuming f (M ) is continuous, the limit of the simple regret is 
+
+lim 
+
+> t→∞
+
+
+
+f (M )(x∗) − f (M )( ˆ xt)
+
+
+
+= f (M )(x∗) − f (M )(x∗ 
+
+> g
+
+).
+
+By the premise x∗̸ = arg max x∈X 
+
+P 
+
+> m<M
+
+wmf (m)(x) = 
+
+x∗ 
+
+> g
+
+, the point x∗ 
+
+> g
+
+is not a global maximizer of f (M ), so 
+
+f (M )(x∗) > f (M )(x∗ 
+
+> g
+
+). Therefore f (M )(x∗)−f (M )(x∗ 
+
+> g
+
+) >
+
+0, concluding the proof. 
+
+## B Experimental Details 
+
+Synthetic Functions 
+
+Here, we provide the formula for all the multi-fidelity func-tions considered in our experiments. Some multi-fidelity ex-tensions are taken from previous work (indicated accord-ingly), while others are introduced in this study. All functions have a continuous fidelity parameter m ∈
+
+[0 , 1] , where m = 1 recovers the original function. For each benchmark, the fidelity is discretized into M randomly cho-sen levels. Throughout, we define the fidelity shift 
+
+δ(m) = 0 .1(1 − m).
+
+Multi-fidelity Branin (Mikkola et al. 2023): 
+
+f (x, m ) = 
+
+
+
+x2 − (b − δ(m)) x21 + cx 1 − r
+
+2
+
++ 10(1 − t) cos( x1) + 10 ,
+
+where x ∈ [−5, 10] × [0 , 15] ,b = 5.14π2 , c = 5
+
+π ,r = 6 , t = 18π .
+
+Multi-fidelity Hartmann (Mikkola et al. 2023): 
+
+f (x, m ) = −(α1 − δ(m)) exp 
+
+
+
+−
+
+> 6
+
+X
+
+> j=1
+
+A1j (xj − P1j )2
+
+−
+
+> 4
+
+X
+
+> i=2
+
+αi exp 
+
+
+
+−
+
+> 6
+
+X
+
+> j=1
+
+Aij (xj − Pij )2
+
+.
+
+where 
+
+x ∈ [0 , 1] 6, α = (1 .0, 1.2, 3.0, 3.2) ,
+
+and A and P are the standard Hartmann constants. 
+
+Multi-fidelity Park (Xiong, Qian, and Wu 2013): 
+
+f (x, m ) = x1
+
+2
+
+s
+
+1 + x4(x2 + x23)
+
+x21
+
+− 1
+
+!
+
++  x1 + (3 − 1.5δ(m)) x4
+
+ exp(1 + sin x3).
+
+where x ∈ [0 , 1] 4.
+
+Multi-fidelity Rosenbrock: (adapted from BoTorch (Ba-landat et al. 2020)) 
+
+f (x, m ) = 
+
+> d−2
+
+X
+
+> i=1
+
+h
+
+100( xi+1 − x2 
+
+> i
+
++ δ(m)) 2
+
++ ( xi − 1 + δ(m)) 2i
+
+.
+
+where x ∈ [−5, 10] d.
+
+Multi-fidelity Ackley: 
+
+f (x, m ) = −a exp −b
+
+vuut 1
+
+d − 1
+
+> d−1
+
+X
+
+> i=1
+
+(xi − δ(m)) 2
+
+!
+
+− exp 1
+
+d − 1
+
+> d−1
+
+X
+
+> i=1
+
+cos  c(xi − δ(m)) !
+
++ a + e, 
+
+where 
+
+x ∈ [−32 .768 , 32 .768] d, (a, b, c ) = (20 , 0.2, 2π).
+
+Multi-fidelity Levy: 
+
+f (x, m ) = sin 2(πw 1)+
+
+> d−2
+
+X
+
+> i=1
+
+(wi − 1) 2 1 + 10 sin 2(πw i + 1) 
+
++ ( wd−1 − 1) 2 1 + sin 2(2 πw d−1),
+
+where 
+
+x ∈ [−10 , 10] d, wi = 1 + xi − 1 + δ(m)4 .
+
+Multi-fidelity Michalewicz: 
+
+f (x, m ) = −
+
+> d−1
+
+X
+
+> i=1
+
+sin( xi − δ(m)) 
+
+×
+
+
+
+sin 
+
+ i(xi − δ(m)) 2
+
+π
+
+ 2A
+
+,
+
+where 
+
+x ∈ [0 , π ]d, A = 10 .
+
+Multi-fidelity Styblinski–Tang: 
+
+f (x, m ) = 12
+
+> d−1
+
+X
+
+> i=1
+
+h
+
+(xi − δ(m)) 4
+
+− 16( xi − δ(m)) 2 + 5( xi − δ(m)) 
+
+i
+
+.
+
+where x ∈ [−5, 5] d.Chemistry Applications 
+
+The three benchmarks are taken from Sabanza-Gil et al. (2025), where the high- and low-fidelity values are provided directly in tabular form. For each dataset, we partition it into separate tasks and generate a textual description of each task using Gemini 3 Pro 2. Such textual descriptions are passed to Qwen3 Embedding 8B (Zhang et al. 2025b), producing task context vectors. For the three benchmarks, we use 30 exam-ples per historical task, sampled uniformly on each trial. We now explain the partitions and provide the task descriptions for each benchmark. 
+
+Solvation energy (Mobley and Guthrie 2014): For this dataset, we split the tasks based on the functional groups present in the molecules. The four resulting tasks are Ni-trogenous, Oxygenated, Halogenated, and Hydrocarbon. We establish a priority hierarchy (Nitrogen > Oxygen > Halo-gens) to assign each molecule to one of four mutually exclu-sive tasks. The following task descriptions are used: 
+
+Hydrocarbon: “Context: Non-polar, hydrophobic solutes. Dominant interactions: weak Van der Waals dispersive forces. Features: Zero dipole moment, lack of hydro-gen bond donors or acceptors. Chemical space: Alkanes, alkenes, and aromatics. Solvation driven by cavity forma-tion energy.” 
+
+Oxygenated: “Context: Polar, hydrophilic solutes. Domi-nant interactions: Strong hydrogen bonding and permanent dipole-dipole attraction. Features: High electronegativity difference, presence of hydroxyl (OH) or carbonyl (C=O) groups. Chemical space: Alcohols, ethers, ketones.” 
+
+Nitrogenous: “Context: Basic, polar solutes. Dominant interactions: Proton acceptance and electrostatic contribu-tions. Features: Presence of lone pairs on Nitrogen, variable hybridization (sp2/sp3). Chemical space: Amines, amides, nitriles. Solvation driven by specific H-bond networks.” 
+
+Halogenated: “Context: Lipophilic, polarizable solutes. Dominant interactions: Electrostatic sigma-hole interac-tions and halogen bonding. Features: Large atomic radii, high surface area, ’soft’ electron clouds. Chemical space: Alkyl halides. Solvation driven by entropy and polarizabil-ity.” 
+
+Xe/Kr selectivity (Gantzler et al. 2023): We partition this dataset based on the pore diameter of each instance. This results in 3 tasks: Small Pore ( ˚A < 15 , Medium Pore ( 15 ≤
+
+˚A ≤ 25 ), and Large Pore ( ˚A > 25 ). The following task descriptions are used: 
+
+> 2
+
+https://gemini.google.com/ 
+
+Small Pore: “Context: High confinement regime (< 15 Angstroms). Mechanism: Steric sieving and overlap of po-tential energy surfaces. Geometry: Dense packing, high framework density, restricted void fraction. Separation driven by repulsive forces and size exclusion.” 
+
+Medium Pore: “Context: Optimal adsorption regime (15-25 Angstroms). Mechanism: Strong guest-host affinity without steric penalty. Geometry: Mesoporous, balanced void fraction. Separation driven by attractive Van der Waals wells and surface interactions.” 
+
+Large Pore: “Context: Bulk fluid regime (> 25 Angstroms). Mechanism: Diffusion-dominated transport, weak confinement. Geometry: Open frameworks, ex-tremely high void fraction, low crystal density. Separation driven by pore wall surface area rather than pore size.” 
+
+Polarizability (Ghahremanpour, Van Maaren, and Van Der Spoel 2018): For this dataset, we split the tasks based on the elemental composition of the molecules. The four re-sulting tasks are Hetero-Halogens, CHN Compounds, CHO Compounds, and Hydrocarbons. We established a priority hierarchy (Hetero-Halogens [F, Cl, Br, I, S, P] > Nitrogen > Oxygen) to assign each molecule to one of four mutually exclusive tasks. The following task descriptions are used: 
+
+Hydrocarbon: “Context: Saturated carbon frameworks. Electronic environment: Hard electron clouds, high HOMO-LUMO gap. Polarizability source: Strictly vol-umetric scaling (size-dependent). Absence of permanent dipoles or lone pairs.” 
+
+CHO Compound: “Context: Oxygenated carbon frame-works. Electronic environment: High electronegativity contrast, distorted electron density. Polarizability source: Localized electron density around Oxygen atoms, perma-nent dipole contributions.” 
+
+CHN Compound: “Context: Nitrogenous carbon frame-works. Electronic environment: Lone pair donation, res-onance effects. Polarizability source: Mobile pi-electrons and orbital hybridization changes (sp/sp2/sp3).” 
+
+Hetero-Halogens: “Context: Heavy atom substituted frameworks. Electronic environment: Diffuse, soft orbitals (d-orbital participation for S/P). Polarizability source: High deformability of large valence shells (I, Br, S, P). Significant Van der Waals radii overlap.” 
+
+Hyperparameter Optimization Applications 
+
+The logistic regression (LR) and support vector machine (SVM) from Eggensperger et al. (2021) are used. The LR design space consists of the regularization strength α and the initial learning rate η0, both within [10 −5, 10 0]; the SVM de-sign space consists of the penalty parameter C and the kernel coefficient γ, both within [2 −10 , 210 ]. All four hyperparame-ters are optimized in log space. Both benchmarks provide a single fidelity dimension, discretized by the original authors. For LR it is the number of SGD iterations, taking the five values {10 , 37 , 111 , 333 , 1000 }, with the subsample fidelity fixed to its default value of 1; for SVM it is the fraction of the training data used, taking the three values {1/9, 1/3, 1}.We use the following 8 tasks: 10101, 53, 146818, 146821, 10 1                 
+
+> 10 2
+> 10 3
+> log  Rt
+> Branin (1D)
+> 10 0
+> 10 1
+> 10 2
+> Michalewicz (2D)
+> 10 4
+> 10 2
+> 10 0
+> 10 2
+> Park (3D)
+> 10 2
+> 10 3
+> 10 4
+> Styblinski-Tang (3D)
+> 020 40
+> Budget Used
+> 10 0
+> 10 1
+> 10 2
+> 10 3
+> log  Rt
+> Levy (3D)
+> 020 40
+> Budget Used
+> 10 0
+> 10 1
+> 10 2
+> Ackley (4D)
+> 020 40
+> Budget Used
+> 10 0
+> 10 1
+> 10 2
+> Hartmann (5D)
+> 020 40
+> Budget Used
+> 10 5
+> 10 6
+> 10 7
+> 10 8
+> Rosenbrock (5D)
+> Random Search Single-Task ICM Single-Task MISO Single-Task LMC Next-Best ICM Next-Best MISO Next-Best LMC Multi-Task (Ours) Multi-Task Next-Best (Ours)
+
+Figure 7: Synthetic benchmarks with the Next-Best methods reporting the best observed point instead of the posterior-mean maximizer. All other methods are unchanged from Figure 5. 9952, 146822, 31, and 3917. Each task is represented by the meta-features of its underlying OpenML (Vanschoren et al. 2014) dataset, retaining only those meta-features that are available for all tasks and non-constant across them. The resulting 20-dimensional feature vector is then standardized to zero mean and unit variance per dimension across the task set. Each of the 8 tasks serves as the target task in turn, and for each run we uniformly sample 3 of the remaining 7 tasks as the historical tasks, so that no method is given access to the full task set at once. Each historical task contributes 30 observations, uniformly distributed across its fidelity levels, and the target task is seeded with 5 observations at its lowest fidelity. The historical subset and all initial observations are resampled independently for each of the 10 runs. 
+
+Computational Resources 
+
+Experiments are implemented in Python using the BoTorch (Balandat et al. 2020) library version 0.16.1. The accompanying code contains all the software requirements and installation instructions. All experiments are executed on a single NVIDIA L40S using float64 , as suggested by BoTorch’s official documentation. 1 
+
+## C Additional Results 
+
+Throughout the paper, all methods report the maximizer of the posterior mean of their target fidelity. An alterna-tive convention is to report the best point observed so far, 
+
+ˆxt = arg max xi∈D t yi. This rule is only available to methods that observe the fidelity they report on, i.e., the Next-Best variants; the remaining methods target the out-of-the-loop fidelity, which is never observed in the loop. Figures 7 and 8 repeat the experiments of Section 6 with the Next-Best methods using the observed incumbent. All other methods and all experimental settings are unchanged. 
+
+## D Ablation Studies 
+
+In this section, we evaluate the impact of different compo-nents of our method on the Branin, Park, and Hartmann synthetic functions described in Section 6. Unless stated oth-erwise, we use the same setting as before and perform 10 trials per configuration. 
+
+Historical dataset size We first analyze the effect of the historical dataset size (first row of Figure 9). We vary |Hn| ∈ {20 , 30 , 40 } for all previous tasks. For lower-dimensional problems (Branin and Park), increasing the amount of his-torical data consistently reduces cumulative regret. For Hart-mann, however, the results are mixed and do not show a clear trend. 
+
+Number of tasks Next, we vary the number of available historical tasks, N ∈ { 2, 3, 4}. The task-defining parameters are sampled zn uniformly. For Branin and Park, having more historical tasks clearly improves performance. For Hartmann, the effect is less conclusive, likely because task diversity increases with dimensionality. 
+
+Auxiliary Task Relevance Finally, we examine the effect of task similarity. We sample the incumbent task parameter as zN ∼ Uniform (0 , 1) and draw the remaining parame-ters z1, . . . , z N −1 under low, medium, or high relevance. Low relevance is defined by plow (z | zN ) ∝ | z − zN |2,medium by pmid (z | zN ) = Uniform (0 , 1) , and high by 
+
+phigh (z | zN ) = N (zN , 0.12). As shown in the last row of Figure 9, highly relevant historical tasks substantially im-prove optimization performance. Moreover, as dimensional-ity increases, the differences between low, medium, and high relevance become more pronounced. 0 10 20 30 
+
+Iteration 
+
+10 1
+
+> log  Rt
+
+Selectivity 
+
+0 10 20 30 
+
+Iteration 
+
+10 2
+
+Solvation 
+
+0 10 20 30 
+
+Iteration 
+
+10 1
+
+10 0
+
+10 1
+
+Polarizability 
+
+0 10 20 30 40 50 
+
+Budget Used 
+
+10 2
+
+10 1
+
+10 0
+
+> log  Rt
+
+Logistic Regression 
+
+0 10 20 30 40 50 
+
+Budget Used 
+
+10 2
+
+10 0
+
+SVM 
+
+Random Search Single-Task ICM Single-Task MISO Single-Task LMC Next-Best ICM Next-Best MISO Next-Best LMC Multi-Task (Ours) Multi-Task Next-Best (Ours) Figure 8: Real-world benchmarks under the observed-incumbent rule. All other methods are unchanged from Figure 6. 0 20 40 0200 400 History size 
+
+Branin (1D) 
+
+0 20 40 0510 
+
+Park (3D) 
+
+0 20 40 050 
+
+Hartmann (5D) 
+
+> MT (20) MT (30) MT (40) MT NB (20) MT NB (30) MT NB (40)
+
+0 20 40 0500 Number of tasks 0 20 40 010 20 0 20 40 025 50 
+
+> MT (2) MT (3) MT (4) MT NB (2) MT NB (3) MT NB (4)
+
+0 20 40 
+
+Step 
+
+0500 1000 Tasks relevance 0 20 40 
+
+Step 
+
+010 0 20 40 
+
+Step 
+
+025 50 
+
+> MT (High) MT (Low) MT (Mid) MT NB (High) MT NB (Low) MT NB (Mid)
+
+Figure 9: Results of the ablation study of our proposed methods, Multi-task (MT) and Multi-task Next-Best (MT-NB) on Branin, Park and Hartmann synthetic functions. We vary the historical dataset size ( top ), the number of tasks ( middle ), and historical tasks’ relevance ( bottom ). Results are averaged over 10 independent trials.

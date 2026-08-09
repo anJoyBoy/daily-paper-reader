@@ -1,0 +1,297 @@
+Title: Paper Title (use style: paper title)
+
+URL Source: https://arxiv.org/pdf/2608.01296v1
+
+Published Time: Tue, 04 Aug 2026 01:25:07 GMT
+
+Number of Pages: 4
+
+Markdown Content:
+© IEEE. Personal use of this material is permitted. Permission from IEEE must be obtained for all other uses. The final published version is available at: DOI: 10.1109/SCM71573.2026.11625870 
+
+# Improving a Hybrid Algorithm for APCS Hierarchical Architecture Design via Hyperparameter Optimization 
+
+Ruslan Zakirzyanov NEXT engineering, LLC 
+
+Kazan, Russia zr@nexteng.ru 
+
+Abstract —Automated process control systems, widely used in industry, have a hierarchical multi-level tree-based architecture and are built using specialized hardware and software. Constructing such a control system from off-the-shelf industrial components with predetermined characteristics is a complex combinatorial optimization problem with multiple constraints. A hybrid method for constructing a tree-based structure is considered, combining a deterministic construction algorithm and an ant colony metaheuristic for device selection. The effectiveness of the metaheuristic algorithm depends on its hyperparameters, which are proposed to be optimized. This paper presents a general problem formulation, defines optimization criteria, describes the solution method, and provides several numerical examples. 
+
+Keywords—structural optimization, distributed control systems, metaheuristic algorithms 
+
+I. INTRODUCTION 
+
+Industrial Automated Process Control Systems (APCS) are a key element of modern large-scale industrial facilities [1], where high demands are placed on safety, reliability, and product quality. Continuous-process industries, such as chemical, petrochemical, and oil and gas production, are characterized by a particularly high degree of automation. In such systems, technological processes are performed automatically, while operators mainly supervise operation, adjust control strategies, and monitor system performance. 
+
+Large APCS are implemented using specialized hardware and software built from commercially available components, including Programmable Logic Controllers (PLCs), input/output modules, and communication and network devices. Each component has predefined characteristics, such as channel capacity, communication interfaces, memory, and processing performance. 
+
+During system design, engineers must assemble an architecture from available components that satisfies technical requirements while minimizing cost. Since component properties are fixed, system performance is largely determined by the chosen architecture, which is typically hierarchical and multi-level. In geographically distributed and large-scale installations, such systems are commonly referred to as Distributed Control Systems (DCS), where structural optimization becomes especially important. APCS may be built using single-vendor solutions or by integrating equipment from multiple manufacturers, for example within open architectures such as OPAS [2]. In practice, design decisions are often based on experience and vendor guidelines, which do not always lead to optimal configurations. 
+
+At early design stages, engineers are required to estimate system cost and scale under incomplete information about the controlled process. These estimates directly affect project planning and resource allocation. 
+
+The structural synthesis of APCS can be formulated as a constrained combinatorial optimization problem. Exact methods are applicable only to relatively small instances due to their computational complexity. For large-scale systems, approximate approaches are more practical, providing near-optimal solutions within reasonable time. Among them, metaheuristic algorithms have shown strong performance [3], including both local search methods and population-based techniques inspired by evolutionary processes and swarm intelligence. 
+
+In previous studies [4-6], an Ant Colony Optimization (ACO)-based framework was proposed for constructing tree-structured APCS architectures under limited information. In this paper, that approach is extended by incorporating an adaptive heuristic mechanism and a multi-objective, Pareto-based hyperparameter tuning strategy. Numerical experiments demonstrate improved feasibility and reduced variability of the obtained solutions. 
+
+II. RELATED WORK 
+
+Structural optimization of engineering systems remains an important research area, with structural synthesis problems studied across various domains, including distributed control system design [7]. 
+
+Among approximate methods, metaheuristic algorithms have attracted significant attention. A wide range of bio-inspired techniques has been developed, such as Genetic Algorithms (GA), Artificial Bee Colony (ABC), Grey Wolf Optimizer (GWO), Ant Colony Optimization (ACO), Particle Swarm Optimization (PSO), and others [8]. An overview of their evolution is presented in [9]. These methods have been successfully applied to diverse engineering optimization problems. 
+
+In addition to standalone approaches, hybrid metaheuristics that combine different optimization strategies have been investigated, particularly combinations of swarm intelligence and local search [10]. More recent studies also explore integrating metaheuristics with machine learning techniques. Hyperparameter tuning remains a critical factor influencing algorithm performance, and methods for automated generation of problem-specific optimization strategies have also been proposed. 
+
+Ant Colony Optimization, introduced by Dorigo for the Traveling Salesman Problem [11], has developed into a flexible metaheuristic with numerous extensions [12]. It has been applied to different tasks such as controller tuning, routing, and facility location [13-15]. 
+
+The APCS structural optimization problem considered in this work was previously formulated in [4, 6]. However, despite the extensive literature on metaheuristics and structural optimization, the specific problem of optimizing hierarchical APCS architectures remains insufficiently studied. Existing works either focus on general-purpose methods or consider structural synthesis in a limited form, which motivates the development of specialized metaheuristic approaches for this problem. 
+
+III. PROBLEM FORMULATION 
+
+A detailed formal formulation of the optimal APCS architecture synthesis problem is presented in [5]. The main components of the model are outlined below. 
+
+The APCS architecture is represented as a tree (i.e., an acyclic graph) 𝐺 = (𝒱, ℰ) , where 𝒱 is the set of nodes corresponding to devices 𝑣 ∈ 𝒱 , and ℰ is the set of edges representing communication links between them. An example of such an architecture is shown in Fig. 1.  
+
+> Fig. 1. Hierarchical architecture of the APCS
+
+The number of hierarchical levels is specified a priori by the system designer. 
+
+Let  𝒰  = {𝑢 1, … , 𝑢 𝑈 } denote the set of available device 
+
+types.  Each device executes a cyclic program that includes 
+
+three main stages: data acquisition, data processing (i.e., 
+
+execution of control algorithms), and data transmission. 
+
+Devices are categorized into two classes: p rocessors and 
+
+repeaters. 
+
+Each device type  𝑢 𝑖  ∈ 𝒰  is characterized by the following 
+
+parameter vector: 
+
+ 𝑢 𝑖 = (𝐶 𝑖 , 𝑁 𝑖 , 𝑅 𝑖 , 𝑃 𝑖 , 𝑇 𝑖 , 𝑦 𝑖 , 𝑀 𝑖 , 𝜏 𝑖 ), 𝑖 = 1, … , 𝑈  
+
+where  𝐶 𝑖  ∈ ℝ+ denotes the device cost,  𝑁 𝑖  ∈ ℕ – the number 
+
+of physical channels,  𝑅 𝑖  ∈ ℝ+ – the available memory,  𝑃 𝑖  ∈
+
+[0,1] – the failure probability,  𝑇 𝑖  ∈ ℝ+ – the instruction 
+
+execution time,  𝑦 𝑖  ∈ {0,1} – the device role (0 corresponds to 
+
+a repeater, 1 to a processor),  𝑀 𝑖  ∈ ℕ – the maximum number 
+
+of child nodes, and  𝜏 𝑖  ∈ ℝ+ – the communication delay 
+
+(relevant for repeaters). 
+
+Let  𝒜  = {𝑎 1, … , 𝑎 𝐴 } denote the set of control loops. Each 
+
+loop is defined as: 
+
+ 𝑎 𝑗 = (𝑛 𝑗 , 𝑟 𝑗 , 𝑤 𝑗 ), 𝑗 = 1, … , 𝐴  
+
+where  𝑛 𝑗  ∈ ℕ is the number of physical signals,  𝑟 𝑗  ∈ ℝ+ – the 
+
+required memory, and  𝑤 𝑗  ∈ ℕ – the computational load 
+
+expressed in the number of program instructions. 
+
+To describe loop allocation, binary decision variables 
+
+𝑥 𝑣𝑎  ∈ {0,1} and  𝑧 𝑣𝑎  ∈ {0,1} are introduced. The variable 
+
+𝑥 𝑣𝑎  = 1 indicates that loop  𝑎  a is physically connected to leaf 
+
+node  𝑣 , and 0 otherwise. The variable  𝑧 𝑣𝑎  = 1 indicates that 
+
+loop  𝑎  is processed at node  𝑣 , and 0 otherwise. 
+
+The formulation includes constraints related to device capacity, memory limitations, execution time, system reliability, and consistency of the hierarchical structure. 
+
+The objective is to determine a feasible hierarchical architecture  𝐺  that minimizes the total system cost: 
+
+ 𝐶 ∗ = min  
+
+> 𝐺∈𝒢
+
+∑ 𝐶 𝑣 𝑣∈𝒱(𝐺)   
+
+subject to the imposed constraints. Here,  𝒢  denotes the set of 
+
+all admissible hierarchical graphs that can be constructed from 
+
+the available device types. 
+
+IV. PROPOSED METHOD 
+
+The APCS architecture synthesis problem is formulated as a constrained combinatorial optimization task, where direct use of population-based metaheuristics (e.g., GA, PSO, ABC) typically produces many infeasible solutions due to constraint violations. This leads to inefficient search and increased computational cost. To mitigate this issue, a hybrid approach is proposed, integrating a deterministic tree construction procedure with a metaheuristic-based device selection mechanism. 
+
+The deterministic algorithm incrementally builds a tree-structured architecture. First, the backbone (stem) of the hierarchy is formed. Then, control loops are assigned to leaf nodes. If capacity constraints are violated, additional branches and devices are introduced as needed. Since feasibility is enforced during construction, invalid architectures are largely avoided. At specific decision points, where a device type must be chosen, selection is performed using Ant Colony Optimization. 
+
+ACO is well suited for such constructive problems. At each decision step, a candidate device i is selected probabilistically: 
+
+ 𝑃 𝑖 = 𝜏 𝑖 𝛼 𝜂 𝑖 𝛽  
+
+> ∑𝜏 𝑘 𝛼 𝜂 𝑘 𝛽 𝑁 𝑘=0
+
+ 
+
+where  𝜏 𝑖  denotes pheromone intensity,  𝜂 𝑖  – heuristic 
+
+desirability, and  𝛼 , 𝛽  are weighting parameters. Pheromone 
+
+values are updated iteratively: 
+
+ 𝜏 𝑖 ← (1 − 𝜌)𝜏 𝑖 + Δ𝜏 𝑖  
+
+where  𝜌  ∈ (0,1) controls evaporation. 
+
+Compared to random greedy and Monte Carlo strategies, ACO demonstrates higher solution quality but still struggles near feasibility boundaries, where valid configurations become scarce. This motivates the use of an adaptive heuristic. 
+
+A basic cost-driven heuristic (6) tends to favor inexpensive devices but may lead to infeasible structures due to insufficient capacity.  𝜂 𝑖 = 1𝐶 𝑖 
+
+ 
+
+To address this, a level-dependent heuristic is introduced. For leaf nodes ( 𝑠 = 𝑆 ), priority is given to channel capacity: 
+
+ 𝜂 𝑖 = 𝑁 𝑖 2
+
+> 𝐶 𝑖
+
+, 𝑠 = 𝑆   
+
+For internal levels ( 𝑠  < 𝑆  ), branching capability is 
+
+additionally considered  (8). 
+
+ 𝜂 𝑖 = 𝑁 𝑖 2𝑀 𝑖 
+
+> 𝐶 𝑖
+
+, 𝑠 < 𝑆   
+
+The heuristic is further adapted based on the number of unassigned loops and remaining expansion capacity. If the number of required assignments exceeds available branching resources, candidates with limited connectivity are penalized to avoid premature saturation of the structure. 
+
+The performance of ACO is sensitive to its parameters, particularly  𝛼 , 𝛽 , and  𝜌 , which influence both feasibility and 
+
+solution stability. Therefore, parameter tuning is formulated as 
+
+a multi -objective optimization problem and  solved using a 
+
+Pareto -based approach, enabling a trade -off between 
+
+feasibility and robustness. 
+
+Finally, a local search (LS) refinement is applied to the best solution. This involves replacing a randomly selected device with an alternative type; the modification is accepted if it improves the objective while maintaining feasibility. 
+
+V. DISCUSSION 
+
+The proposed framework was implemented in Python with a Qt-based graphical interface, allowing flexible configuration of device types, control loop parameters, hierarchical depth, and ACO settings (number of iterations, ants, and parameters 
+
+𝛼 , 𝛽 , 𝜌 ). 
+
+Six device types were considered (Table I), including two processor units analogous to industrial PLCs and four repeater-type devices representing I/O modules with varying channel capacities. Processor units are relatively costly and do not provide direct physical I/O, whereas repeater devices support between one and six signals and include communication interfaces.                                                            
+
+> TABLE I. DEVICE TYPES
+> Dev. Type
+> Device Parameters
+> 𝑪 𝒊 𝑵 𝒊 𝑹 𝒊 𝑷 𝒊 𝑻 𝒊 (s) 𝒚 𝒊 𝑴 𝒊 𝝉 𝒊 (s)
+> 𝑢 11300 0512 0.001 0.007 140
+> 𝑢 2950 0256 0.003 0.003 130
+> 𝑢 3110 6-0.0015 -060.02
+> 𝑢 490 4-0.002 -080.03
+> 𝑢 570 1-0.002 -080.02
+> 𝑢 655 2-0.002 -040.04
+
+All experiments were conducted on a workstation with an Intel Core i5 CPU, 16 GB RAM, and SSD storage. An example of the resulting optimal architecture for  𝐴  = 100 
+
+control loops and  𝑆  = 3 hierarchy levels is shown in Fig.  2.        
+
+> Fig. 2. APCS architecture for 𝐴 =100 and 𝑆 =3
+
+Several ACO variants were evaluated, including Ant System (AS), Min-Max Ant System (MMAS), and Elite Ant System (EAS), each tested with both the basic cost-driven heuristic and the proposed adaptive heuristic. The adaptive versions are denoted as “new”. 
+
+Algorithm performance was assessed using feasibility  𝑊 
+
+(percentage of successful runs) and relative variability  𝐶𝑉 ∗,
+
+defined as the coefficient of variation normalized by the best 
+
+solution. Since ACO performance strongly depends on 
+
+parameters, a multi -obj ective tuning procedure based on 
+
+NSGA -II [1 6] was applied. The resulting Pareto front (Fig.  3)
+
+was used to select parameter values prioritizing feasibility, 
+
+yielding  𝛼  = 2.2546 , 𝛽  = 8.3215 , and  𝜌  = 0.7856 . These 
+
+configurations are labeled as “Optimized”.                                        
+
+> Fig. 3. Pareto front for ACO parameter tuning
+> TABLE II. EXPERIMENTAL RESULTS
+> Exp. No Strategy 𝑪 𝒎𝒊𝒏 𝑪 𝒂𝒗𝒈 𝑪𝑽 ∗(%)
+> 1AS 7355 7411 1.62
+> 2MMAS 7355 7370 0.25
+> 3Elite MMAS 7355 7361 0.15
+> 4Elite MMAS new 7355 7368 0.24
+> 5AS new Optimized 8090 8274 3.05
+> 6AS new Optimized + LS 7740 7880 2.84
+> 7Elite MMAS new Optimized 8090 8141 1.34
+> 8Elite MMAS new Optimized + LS 7355 7384 1.05
+
+The results show that only optimized variants maintain high feasibility across the full range of control loop counts. However, increasing the influence of heuristic or pheromone components may reduce solution stability and cause premature convergence. 
+
+To address this issue, a local search (LS) stage was incorporated. The LS performs a simple neighborhood move by replacing a randomly selected node with an alternative device type, accepting the change if it improves cost while preserving feasibility. Experimental results are summarized in Table II. 
+
+Convergence curves (Fig. 4, 5) illustrate the evolution of solution cost over iterations, showing both average and best performance across multiple runs. The results indicate that the optimized ACO combined with LS achieves consistently high feasibility, low variability, and competitive cost values across the considered scenarios. 
+
+Fig. 4. Convergence of the Elite MMAS (adaptive heuristic) algorithm 
+
+Fig. 5. Convergence of the optimized Elite MMAS with local search 
+
+VI. CONCLUSION AND FUTURE WORK 
+
+The design of an optimal APCS architecture under limited initial information can be formulated as a constrained combinatorial optimization problem. Due to its high computational complexity, metaheuristic approaches are well suited for this task. To guarantee feasibility under multiple structural constraints, a deterministic construction procedure was integrated with ACO for device selection. To enhance performance in regions close to feasibility boundaries, an adaptive heuristic was introduced, and key ACO parameters were tuned using a multi-objective strategy that balances feasibility and solution stability. In addition, a local search stage was incorporated to reduce the risk of premature convergence. 
+
+Computational experiments show that the proposed hybrid framework increases the proportion of feasible solutions over the admissible range of control loop counts while maintaining competitive cost and low variability. The developed approach also enables explicit modeling of communication channels within the APCS architecture, allowing the system to be analyzed within the cyber-physical systems paradigm. 
+
+Future work will focus on improving the fidelity of the system model to better capture real device characteristics, evaluating alternative optimization techniques, and exploring integration with machine learning methods. 
+
+REFERENCES 
+
+[1] R. M. Zakirzyanov, A. R. Latypov and A. I. Shpilev “Experience in Replacing Foreign APCS Solutions for Continuous Processes in the Chemical Industry”, Avtomatizatsiya v promyshlennosti, no. 12, pp. 43–48, 2025, (in Russian). 
+
+[2] R. D. Bartusiak, S. Bitar, D. L. DeBari, B. G. Houk, D. Stevens, B. Fitzpatrick, P. Sloan “Open Process Automation: A standards-based, open, secure, interoperable process control architecture”, Control Engineering Practice, vol. 121, 2022, doi: 10.1016/j.conengprac.2021.105034. 
+
+[3] L. A. Gladkov, Yu. A. Kravchenko, V. V. Kureichik, S. I. Rodzin “Intellektual'nye sistemy: modeli i metody metajevristicheskoj optimizacii”, Cheboksary, LLC “Publishing house “Sreda” Publ., 2024. 228 p., (In Russian). 
+
+[4] R. Zakirzyanov “A Method For Optimizing The Structure Of The Software And Hardware Complex Of A Distributed Process Control System For Large Industrial Enterprises”, 18th International Conference on Management of Large-Scale System Development (MLSD), Moscow, Russian Federation, 2025, pp. 1–5, doi: 10.1109/MLSD65526.2025.11220659. 
+
+[5] R. M. Zakirzyanov “A Bio-Inspired Metaheuristic Approach to Hierarchical APCS Architecture Synthesis”, Vestnik Samarskogo gosudarstvennogo tekhnicheskogo universiteta. Seriya “Tekhnicheskie nauki”, 2026, (in Russian, unpublished). 
+
+[6] R. Zakirzyanov, “Application of Metaheuristic Algorithms for Optimizing the Structure of Industrial Control System,” 2025 VI International Conference on Control in Technical Systems (CTS), Saint Petersburg, Russian Federation, 2025, pp. 34–36, doi: 10.1109/CTS67336.2025.11196304. 
+
+[7] J. H. Bussemaker, P. Saves, N. Bartoli “System architecture optimization strategies: dealing with expensive hierarchical problems”, Journal of Global Optimization, vol. 91, pp. 851–895, 2025, doi: 10.1007/s10898-024-01443-8. 
+
+[8] A. Shaban, S. Almufti, R. Asaad “Metaheuristic Algorithms for Engineering and Combinatorial Optimization: A Comparative Study Across Problems Categories and Benchmarks”, International Journal of Scientific World, 2025, no. 11, pp. 38–49, doi: 10.14419/0hndc578. 
+
+[9] K. Sörensen, M. Sevaux, F. Glover “A history of metaheuristics”, 2018. doi: 10.1007/978-3-319-07124-4_4. 
+
+[10] L. M. Gambardella, M. Dorigo “An Ant Colony System Hybridized with a New Local Search for the Sequential Ordering Problem”, INFORMS Journal on Computing, 2000, no. 12(3), pp. 237–255, doi: 10.1287/ijoc.12.3.237.12636. 
+
+[11] M. Dorigo, T. Stützle “Ant Colony Optimization”, MIT Press, 2004. doi: 10.7551/mitpress/1290.001.0001. 
+
+[12] S. M. Almufti, R. P. Maribojoc, A. V. Pahuriray “Ant Based System: Overview, Modifications and Applications from 1992 to 2022”, Polaris Global Journal of Scholarly Research and Trends, 2022, no. 1(1), pp. 29–37, doi: 10.58429/pgjsrt.v1n1a85. 
+
+[13] A. Abushawish, M. Hamadeh, A. Nassif “PID Controller Gains Tuning Using Metaheuristic Optimization Methods: A survey”, International Journal of Computers, 2020, vol. 14, no. 14, pp. 87–95, doi: 10.46300/9108.2020.14.14. 
+
+[14] X. Ma, C. Liu “Improved Ant Colony Algorithm for the Split Delivery Vehicle Routing Problem”, Applied Sciences, vol. 14, no. 12, doi: 10.3390/app14125090. 
+
+[15] K. Schiff “Ant colony optimisation algorithm for the facility localisation problem”, Czasopismo Techniczne, 2018, vol. 1, pp. 103– 112, doi: 10.4467/2353737XCT.18.008.7959. 
+
+[16] K. Deb, A. Pratap, S. Agarwal and T. Meyarivan, “A fast and elitist multiobjective genetic algorithm: NSGA-II,” in IEEE Transactions on Evolutionary Computation, vol. 6, no. 2, pp. 182-197, April 2002, doi: 10.1109/4235.996017.

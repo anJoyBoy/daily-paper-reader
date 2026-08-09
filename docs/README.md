@@ -6,74 +6,74 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-08
-- 运行时间：2026-08-08 19:25:24 UTC
+- 最新运行日期：2026-08-09
+- 运行时间：2026-08-09 19:39:08 UTC
 - 运行状态：成功
-- 本次总论文数：18
-- 精读区：7
+- 本次总论文数：17
+- 精读区：6
 - 速读区：11
 
 ### 今日简报（AI）
-今日精读7篇、速读11篇，聚焦LLM智能体与化学过程模拟及薄膜沉积预测。最值得关注的是CRAFTS协作微调智能体（10分）与融合物理化学信息的PCINN网络（9分），两者分别提升化工仿真效率和ALD覆盖率预测可靠性。建议优先精读这两篇论文，重点关注AI如何通过领域知识约束解决工业场景中的实时计算与数据稀缺问题。
-- 详情：[/202608/08/README](/202608/08/README)
+- 今日共生成 17 篇推荐（精读 6 篇，速读 11 篇）
+- 精读：《GPTKB 2.0: Direct Construction of Disambiguated Knowledge Bases from Large Language Models》（9.0/10）, 《Active Learning Guided Design Space Refinement for Scalable Multi-Objective Bayesian Optimization in Materials Discovery》（9.0/10）
+- 速读：《onepot-Bench 0: towards lab-aware in silico chemistry benchmarks》（8.0/10）, 《Large language models for partial differential equation workflows》（8.0/10）, 《Guided Synthesis of EMT Zeolites by Machine Learning》（8.0/10）
+- 这些结果覆盖了当下较热的方向，建议先看精读区论文的关键问题与方法。
+- 详情：[/202608/09/README](/202608/09/README)
 
 ### 精读区论文标签
-1. [CRAFTS: Collaborative Role-Adaptive Fine-Tuning of LLM Agents for Chemical Process Simulation](/202608/08/2608.01369v1-crafts-collaborative-role-adaptive-fine-tuning-of-llm-agents-for-chemical-process-simulation)  
-   标签：评分：10.0/10、query:chemical-llm
-   evidence：面向化工过程模拟的LLM智能体，通过角色分解与确定性门控进行微调
-2. [A Physics-Chemistry-Informed Neural Network (PCINN) for Real-Time Spatial-ALD Coverage Prediction and Reliable Kinetics Inversion](/202608/08/2608.00212v1-a-physics-chemistry-informed-neural-network-pcinn-for-real-time-spatial-ald-coverage-prediction-and-reliable-kinetics-inversion)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：物理化学信息神经网络用于空间原子层沉积预测
-3. [DASH: Decoupled Adaptive Surrogate - Acquisition Harness for Automated Bayesian Optimization](/202608/08/2608.00641v1-dash-decoupled-adaptive-surrogate---acquisition-harness-for-automated-bayesian-optimization)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：LLM增强的自动贝叶斯优化，解耦自适应代理与采集函数，可应用于化工过程优化
-4. [GPTKB 2.0: Direct Construction of Disambiguated Knowledge Bases from Large Language Models](/202608/08/2608.03729v1-gptkb-20-direct-construction-of-disambiguated-knowledge-bases-from-large-language-models)  
+1. [GPTKB 2.0: Direct Construction of Disambiguated Knowledge Bases from Large Language Models](/202608/09/2608.03729v2-gptkb-20-direct-construction-of-disambiguated-knowledge-bases-from-large-language-models)  
    标签：评分：9.0/10、query:llm-dm
-   evidence：利用大语言模型直接构建消歧知识库，属于LLM驱动的数据挖掘
-5. [GPTKB 2.0: Direct Construction of Disambiguated Knowledge Bases from Large Language Models](/202608/08/2608.03729v2-gptkb-20-direct-construction-of-disambiguated-knowledge-bases-from-large-language-models)  
-   标签：评分：9.0/10、query:llm-dm
-   evidence：直接从大型语言模型构建消歧知识库
-6. [Bi-semantic Chemical Embedder for Joint Representation Learning of SMILES and Natural Language](/202608/08/2608.03855v2-bi-semantic-chemical-embedder-for-joint-representation-learning-of-smiles-and-natural-language)  
+   evidence：利用大语言模型直接构建消歧知识库的挖掘方法
+2. [Active Learning Guided Design Space Refinement for Scalable Multi-Objective Bayesian Optimization in Materials Discovery](/202608/09/2608.04651v1-active-learning-guided-design-space-refinement-for-scalable-multi-objective-bayesian-optimization-in-materials-discovery)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：联合SMILES与自然语言的化学嵌入模型，支撑化工LLM应用
-7. [DASyR-LLM: Domain-Aware Symbolic Regression with LLMs for Kinetic Model Discovery](/202608/08/2608.05120v1-dasyr-llm-domain-aware-symbolic-regression-with-llms-for-kinetic-model-discovery)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：大语言模型引导的化学工程动力学模型发现的符号回归方法
+   evidence：主动学习引导的多目标贝叶斯优化用于化工材料发现
+3. [Artificial Intelligence for the Characterization of Particles and Fibers by Optical Microscopy](/202608/09/2608.00361v1-artificial-intelligence-for-the-characterization-of-particles-and-fibers-by-optical-microscopy)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：面向颗粒与纤维显微表征的AI蒸馏框架，涉及化学组成分析，属于化学工程中的人工智能应用。
+4. [Improving a Hybrid Algorithm for APCS Hierarchical Architecture Design via Hyperparameter Optimization](/202608/09/2608.01296v1-improving-a-hybrid-algorithm-for-apcs-hierarchical-architecture-design-via-hyperparameter-optimization)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：自动化过程控制系统分层架构的优化
+5. [When May a Model Replace the Experiment? Audits, Licenses, and the Price of Trust in Surrogate-Driven Design](/202608/09/2608.01378v1-when-may-a-model-replace-the-experiment-audits-licenses-and-the-price-of-trust-in-surrogate-driven-design)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：化学/材料中的代理模型驱动设计，涉及AI与工程优化
+6. [GPTKB 2.0: Direct Construction of Disambiguated Knowledge Bases from Large Language Models](/202608/09/2608.03729v1-gptkb-20-direct-construction-of-disambiguated-knowledge-bases-from-large-language-models)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：从LLM直接构建消歧知识库
 
 ### 速读区论文标签
-1. [Execution-First Synthetic Tool-Use Trace Generation for LLM Agents](/202608/08/2607.29175v1-execution-first-synthetic-tool-use-trace-generation-for-llm-agents)  
+1. [onepot-Bench 0: towards lab-aware in silico chemistry benchmarks](/202608/09/2608.02595v1-onepot-bench-0-towards-lab-aware-in-silico-chemistry-benchmarks)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：面向LLM智能体的合成工具调用轨迹生成
-2. [Simulation Code Generation for Fluid Systems using Large Language Models: Benchmarking Models and Prompting Strategies](/202608/08/2607.29389v1-simulation-code-generation-for-fluid-systems-using-large-language-models-benchmarking-models-and-prompting-strategies)  
+   evidence：面向湿实验化学的大语言模型评测基准
+2. [Large language models for partial differential equation workflows](/202608/09/2608.03600v1-large-language-models-for-partial-differential-equation-workflows)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：利用大语言模型为流体系统生成仿真代码，与化工领域相关
-3. [MolecularCanvas: LLM-assisted Small-Molecule Drug Discovery via Structure-Guided Constraints](/202608/08/2608.00393v1-molecularcanvas-llm-assisted-small-molecule-drug-discovery-via-structure-guided-constraints)  
+   evidence：综述LLM辅助偏微分方程工作流，涵盖建模、求解器生成和基于仿真的控制设计优化，与化工过程优化高度相关。
+3. [Guided Synthesis of EMT Zeolites by Machine Learning](/202608/09/2608.03760v1-guided-synthesis-of-emt-zeolites-by-machine-learning)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：基于结构约束的LLM辅助小分子药物设计，契合化学工业中AI应用需求
-4. [Unleashing the Potential of Large Language Models: A Blueprint for Real-Time, Enterprise-Ready Deployments](/202608/08/2608.00419v1-unleashing-the-potential-of-large-language-models-a-blueprint-for-real-time-enterprise-ready-deployments)  
+   evidence：机器学习引导沸石合成条件，面向石油炼制和分离应用
+4. [Out-Of-The-Loop Multi-Fidelity Bayesian Optimization](/202608/09/2608.04113v1-out-of-the-loop-multi-fidelity-bayesian-optimization)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：面向生产环境的大语言模型部署运维方案
-5. [Overcoming the Weakest-Link Effect in LLM-Driven Program Optimization via Heterogeneous Edit Recombination](/202608/08/2607.28947v1-overcoming-the-weakest-link-effect-in-llm-driven-program-optimization-via-heterogeneous-edit-recombination)  
+   evidence：面向分子优化的多保真贝叶斯优化方法，可用于化工过程优化中的昂贵黑箱问题。
+5. [The Graph Language: How Knowledge Graphs Speak to Large Language Models](/202608/09/2608.01175v1-the-graph-language-how-knowledge-graphs-speak-to-large-language-models)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：通过异构编辑重组改进LLM驱动的程序优化，缓解文本梯度不可靠问题
-6. [TransMem: Transforming Hidden States into Memory for Large Language Models](/202608/08/2607.29032v1-transmem-transforming-hidden-states-into-memory-for-large-language-models)  
+   evidence：提出让知识图谱与冻结大语言模型直接通信的关系标记方法GRALAN，属于大语言模型集成创新。
+6. [FRAMES: Guarded and Dual-Objective Skill Evolution for Agents in Policy-Governed Enterprise Workflows](/202608/09/2608.01772v1-frames-guarded-and-dual-objective-skill-evolution-for-agents-in-policy-governed-enterprise-workflows)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：面向大语言模型智能体的记忆模块
-7. [A Synthetically-accessible Universe of Chemically Recyclable Polymers](/202608/08/2608.00149v1-a-synthetically-accessible-universe-of-chemically-recyclable-polymers)  
+   evidence：面向策略约束任务的大语言模型智能体技能演化框架，属于大语言模型应用研究。
+7. [Physics-Constrained Soft Actor-Critic for Simulator-in-the-Loop Petroleum Reservoir History Matching](/202608/09/2608.01986v1-physics-constrained-soft-actor-critic-for-simulator-in-the-loop-petroleum-reservoir-history-matching)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：利用语言模型生成可回收聚合物结构，属LLM在化工材料中的应用
-8. [PolymerGPT: Multi-property Optimization with a Decoder-Based GPT Model for Generative Polymer Design](/202608/08/2608.01431v1-polymergpt-multi-property-optimization-with-a-decoder-based-gpt-model-for-generative-polymer-design)  
+   evidence：物理约束SAC用于油藏历史拟合，是人工智能在能源工程中的应用
+8. [Interpreting Black-Box Large Language Models with Sentence-Level Energy Landscapes](/202608/09/2608.02879v1-interpreting-black-box-large-language-models-with-sentence-level-energy-landscapes)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：使用解码器GPT模型进行聚合物生成设计及多性质优化，属于LLM在化学/材料领域的应用
-9. [MolGVR: A Chemistry-Grounded Framework for Text-to-Molecule Generation](/202608/08/2607.29479v1-molgvr-a-chemistry-grounded-framework-for-text-to-molecule-generation)  
+   evidence：黑盒大语言模型的句子级可解释性方法
+9. [DGA$_2$D: Directed Graph-Guided Automated Algorithm Design with Large Language Models](/202608/09/2608.00700v1-dga2d-directed-graph-guided-automated-algorithm-design-with-large-language-models)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：基于大语言模型的文本到分子生成并引入化学验证，可用于化学设计
-10. [DASH: Decoupled Adaptive Surrogate - Acquisition Harness for Automated Bayesian Optimization](/202608/08/2608.00641v2-dash-decoupled-adaptive-surrogate---acquisition-harness-for-automated-bayesian-optimization)  
+   evidence：LLM驱动的有向图自动算法设计面向组合优化，可迁移到化工过程优化。
+10. [Learning What to Remember and What to Internalize in LLM Self-Evolution via Adaptive Memory-Parameter Coordination](/202608/09/2608.01234v1-learning-what-to-remember-and-what-to-internalize-in-llm-self-evolution-via-adaptive-memory-parameter-coordination)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：基于大语言模型的自动化贝叶斯优化，利用代理-采集合束机制，适用于黑盒优化
-11. [The Graph Language: How Knowledge Graphs Speak to Large Language Models](/202608/08/2608.01175v1-the-graph-language-how-knowledge-graphs-speak-to-large-language-models)  
-   标签：评分：6.0/10、query:llm-dm
-   evidence：知识图谱与大语言模型集成用于结构化数据推理和问答
+   evidence：大语言模型智能体自我进化中的记忆与参数协同方法
+11. [GraphIR: Architecture-Level Search States for LLM-Guided Neural Architecture Evolution](/202608/09/2608.01633v1-graphir-architecture-level-search-states-for-llm-guided-neural-architecture-evolution)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：利用大语言模型指导神经架构搜索，并提出架构感知中间表示
 
 
 <div class="dpr-home-promo-card">

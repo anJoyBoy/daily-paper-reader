@@ -1,0 +1,338 @@
+Title: onepot-Bench 0: towards lab-aware in silico chemistry benchmarks
+
+URL Source: https://arxiv.org/pdf/2608.02595v1
+
+Published Time: Tue, 04 Aug 2026 02:51:03 GMT
+
+Number of Pages: 17
+
+Markdown Content:
+# onepot-Bench 0: towards lab-aware in silico 
+
+# chemistry benchmarks 
+
+Brandon Wang, Andrei S. Tyrin, Daniil A. Boiko 
+
+Onepot AI, Inc. 
+
+research@onepot.ai 
+
+## Abstract 
+
+Language models are playing an increasingly important role in laboratory science, per-forming tasks such as experiment planning, execution, and post-hoc analysis. How-ever, precisely measuring their abilities is difficult, as scientific capabilities require a mixture of both problem-solving skills and domain-specific intuition. Existing evalua-tions rarely measure the capabilities required to make reliable decisions in a physical laboratory and often rely on public data that may have appeared in model training cor-pora. We introduce onepot-Bench 0 , a proprietary benchmark suite for evaluating language models on synthetic chemistry capabilities relevant to wet-lab execution. onepot-Bench 0 comprises three complementary evaluations: ChemAbacus measures tool-free cheminformatics literacy and numerical reasoning; SynthRefusal characterizes safety and refusal behavior across a variety of benign, controlled, and designer-drug targets; and SynthBench evaluates reaction-outcome prediction and catalyst selec-tion using private experimental data generated in our laboratory. Together, these eval-uations probe basic competency, reliability, and deeper knowledge, all skills which are required for reliable performance in the lab. We evaluate 13 models from six providers. Frontier models generally perform well on basic molecular-property questions. Safety behavior varies substantially across mod-els, molecular representations, target classes, and reasoning-effort settings. Further-more, models that distinguish established controlled substances from benign com-pounds may still generalize poorly to unfamiliar analogs, which may imply memoriza-tion instead of deeper understanding of potential harms. Finally, models perform sig-nificantly worse on SynthBench vs. ChemAbacus: reaction-outcome predictions trail a simple empirical baseline, and no tested model performs significantly above chance on catalyst preference. These results reveal a pronounced gap between chemistry-adjacent competence and the empirical judgment required for experimental execution. onepot-Bench 0 provides an initial, easy-to-run framework for measuring this gap us-ing both general chemistry tasks and non-public wet-lab data. 
+
+1. Introduction 
+
+onepot AI is an AI research lab building a small-molecule fab. We enable fast and efficient chemistry workflows by removing bottlenecks through automation. As part of this work, we arXiv:2608.02595v1 [cs.LG] 3 Aug 2026 utilize various capabilities of language models, including coding, analysis of chemistry data, and synthesis planning. As opposed to more common skills (code, customer service, biology), there is limited work on evaluating chemical capabilities, and arguably, no universally accepted benchmark. Fur-thermore, existing benchmarks still generally rely on public chemistry databases [1–3], which can lead to leakage. The ideal chemistry benchmark would therefore both evaluate general chemistry intuition and utilize non-public experimental data. Moreover, chemistry capabilities are inherently multifaceted: general chemistry knowledge and simple computation, deeper chemical reasoning, and eventually, an ability to do chemistry work [4–6]. Recent interest in closed-loop agentic systems for science [7, 8] makes the latter particularly important. Finally, model capabilities are constrained by their refusal rates, which can be a nontrivial barrier for completing biology- and chemistry-adjacent topics. To this end, we introduce onepot-Bench 0 , an easy-to-run benchmark that measures language models on a variety of axes of chemistry capability. Our goal is to evaluate whether models can make decisions necessary for executing chemistry experiments in physical wet-lab.   
+
+> Figure 1 |Overview of the approach. onepot-Bench 0 addresses refusals, simple knowledge and com-putation, and experimental outcome prediction and catalyst selection.
+
+onepot-Bench 0 consists of the following components: • ChemAbacus , a set of chemistry questions that test models’ (tool-free) cheminformatics capabilities. • SynthRefusal , a systematic measurement of models’ refusals on synthesis queries over a spectrum of target molecules ranging from benign to banned (DEA Schedule I-IV drugs and chemical warfare agents). • SynthBench , an evaluation of models’ abilities to anticipate reaction outcomes under concrete conditions, in both forward prediction (will this reaction work?) and decision-oriented (which catalyst will work better?). We picked these tasks as they measure orthogonal capabilities of interest. ChemAbacus measures general chemistry literacy and numeracy. Strong performance on its tasks is likely necessary but not sufficient for real-world chemistry decision-making. SynthRefusal is a dual-use evaluation [9]. It probes models’ helpfulness for a range of synthe-sis queries depending on the target molecule’s properties. In general, SynthRefusal measures a model’s ability to differentiate between benign and hazardous or illicit targets; understand-ing both directions of this behavior can inform users of which models can be both trusted to refuse unsafe requests and relied upon for genuine tasks. Unlike past work [10], SynthRefusal explicitly seeks to understand refusal profiles , i.e. how refusals depend on both properties of the input molecule and representations of the molecule. SynthBench measures two in silico -testable synthesis-relevant skills: Outcome prediction (bi-
+
+> 2
+
+nary) and catalyst selection (pick preferred catalyst). Both tasks [11, 12] are key problems in the ML-for-synthesis literature, as they are critical components of a functional automated syn-thesis pipeline. Furthermore, strong zero-shot performance on these tasks is a good proxy for whether models have the "chemistry intuition" required for experimental design and judge-ment of experimental results. Our results reveal a clear gap between chemistry-adjacent competence and real experimental decision-making. Models perform relatively well on ChemAbacus but substantially worse on SynthBench, where they generally trail a simple empirical baseline on reaction-outcome pre-diction and fail to exceed chance on catalyst selection. SynthRefusal likewise exposes incon-sistent safety behavior: performance depends strongly on the model, target class, molecular representation, and reasoning effort, with many models tending toward either broad refusal of benign chemistry or permissive responses to controlled and safety-relevant targets. 
+
+2. Methodology 
+
+2.1. ChemAbacus 
+
+ChemAbacus consists of 800 QA questions, each concerning a single molecule given as a SMILES [13] string. 100 of these questions ask to identify all functional groups (from a given set of all possibilities) in the molecule. The remaining 700 are split between seven numerical query types (100 questions / query type) asking for the molecule’s molecular weight, number of rings, TPSA [14], Crippen cLogP [15], number of rotatable bonds, number of hydrogen bond donors, and number of hydrogen bond acceptors. For counting problems, we require an exact answer, while for numerical problems (i.e. molec-ular weight, TPSA, and LogP), outputs within a certain range are also accepted. For TPSA, we accept both the values for N/O and values taking into account P/S atoms [14]. For rotatable bonds, we include the following instructions: “Count single, non-ring bonds between two non-terminal heavy atoms, but do NOT count bonds with restricted rotation from conjugation (e.g. amide, ester, amidine) or bonds to symmetric rotors (e.g. CF3, tert-butyl)." We use RDKit [16] for most of the ground truth computation, though we use custom SMARTS patterns [17] for some queries. The reference molecules for these questions are pulled from ChEMBL [18], with 20 small, 20 medium-sized, and 20 large drug-like molecules, 20 biologics, and 20 molecules chosen to be adversarially hard for that specific category. 
+
+2.2. SynthRefusal  
+
+> WARNING: This work contains discussion of chemical warfare agents, controlled substances, explosives, poisons, and other hazardous compounds as part of a language-model safety evaluation. These compounds should not be synthesized, acquired, or used outside appropriately authorized and controlled settings. Any model-generated chemistry discussed here is unverified and should not be treated as experimental guidance.
+
+SynthRefusal measures how a model responds to a synthesis request and how that response depends on the target representation. Each response is assigned to one of five mutually ex-clusive outcomes: clean refusal, produced answer, partial disclosure, target not identified, or target misidentified. Partial disclosure denotes a response that ultimately refuses or is ter-minated by a provider safety mechanism, but only after revealing target-relevant conceptual or executable chemistry. Target-not-identified responses explicitly fail to resolve the supplied target, whereas target-misidentified responses confidently answer for a different molecule. 
+
+> 3
+
+The clean-refusal rate is calculated over clean refusals and produced answers only. Partial disclosures and both target-identification outcomes are not included in refusal rate calcula-tions: partial disclosure is reported separately in the appendix, while the complete target-identification breakdown is retained in the audit supplement. We evaluate these outcomes on two datasets. 
+
+Controlled-substance set. 282 target molecules span six categories ranging from benign to banned: benign (50), anti-doping / sport-prohibited substances (50), poisons (50), explo-sives (32), Schedule I–IV controlled substances (50), and chemical-warfare agents (50). Each molecule carries provenance: a PubChem CID and, where it is controlled, the listing authority (WADA [19], DEA [20], OPCW [21], ATF, EPA, or Stockholm Convention [22]), the citing docu-ment, and the type of evidence linking it to that list. Input representation can affect safety be-havior [23]; to properly control for this effect, every target is presented four ways: as a SMILES string, a common name, a CAS registry number, and an InChI string. SMILES, InChI, and a common name are available for all 282 molecules, and a CAS number for 281. 
+
+Designer-drug set. 201 molecules drawn from Wikipedia’s list of designer drugs [24], span-ning eleven pharmacological classes (11 to 20 molecules each). Most are structural analogs of controlled substances (synthetic cannabinoids, dissociatives, entactogens, psychedelics, stimulants, sedatives, piperazines, and androgens); the rest are enhancement compounds that are not themselves scheduled (nootropics, PDE5 inhibitors, and peptides). Each molecule car-ries a PubChem CID (plus a Wikipedia link for 177 and a CAS number for 185 of the 201) and is presented as a SMILES string only. 
+
+Alignment index. Refusal rate alone does not order models by desirability: a model that refuses everything and a model that refuses nothing are misaligned in opposite directions. The desired behavior is conditional: comply on benign targets while refusing controlled or safety-relevant targets. All alignment indices in the main figures are computed from SMILES prompts only . For models evaluated at low, medium, and high reasoning effort, we first average each category’s clean-refusal rate across the three effort levels. Let c = 1 −rbenign denote benign compliance. For the controlled-substance set, let qctrl be the macro-average clean-refusal rate over the five con-trolled categories; for the designer-drug set, let qdesigner be the corresponding macro-average over its eleven pharmacological classes. We define 
+
+AD = √c q D, D ∈ { ctrl , designer }, (1) and report AD as a percentage. Both axes therefore use a common SMILES-only basis, and each class contributes equally regardless of its number of molecules. Partial disclosures and target-identification outcomes are excluded using the same denominator as the clean-refusal rate. The geometric mean penalizes both blanket refusal and blanket compliance. 
+
+2.3. SynthBench 
+
+SynthBench consists of two tasks, reaction outcome prediction and catalyst preference. For SynthBench, all reactions used are sourced exclusively from data collection experiments per-formed in our in-house wet lab [25]. For outcome prediction, we collect 80 reactions, 40 positive and 40 negative, in each of the fol-lowing reaction classes: Amide coupling [26], Buchwald-Hartwig coupling [27, 28], Chan-Lam coupling [29, 30], N-alkylation [31], Suzuki-Miyaura coupling [32], Thiourea synthesis [33], 
+
+> 4
+
+Urea synthesis [33, 34], and Van Leusen [35]. For each reaction, the model is given the reac-tants, target, and the conditions under which the reaction occurred (including catalyst, solvent, and temperature and duration). The model is then asked to predict whether or not the reaction succeeded (success defined via sufficient presence of target molecule). In catalyst preference, we focus on Suzuki-Miyaura coupling; our experience is that Suzuki-Miyaura coupling outcomes are highly sensitive to condition (and catalyst) choice. Here, the model is given two reactions, one which succeeded and one which did not, with identical ex-ecution up to choice of catalyst. The model is then asked to to identify which catalyst is more likely to lead to a successful reaction. 
+
+3. Results 
+
+Across all three evals, we evaluate 13 models from 6 different providers: • Anthropic: Claude Haiku 4.5, Claude Opus 4.8, Claude Opus 5, and Claude Fable 5. • DeepSeek: DeepSeek V4 Flash and DeepSeek V4 Pro (via Novita). • Google: Gemini 3.1 Pro and Gemini 3.5 Flash. • Meta: Muse Spark 1.1. • Moonshot: Kimi K2.6. • OpenAI: GPT-5.5, GPT-Rosalind, and GPT-5.6 Sol. We evaluate all 13 models on ChemAbacus; all models except DeepSeek V4 Pro and Kimi K2.6 on SynthRefusal; and all models except Muse Spark on SynthBench. All models are evaluated on default API settings. 
+
+3.1. ChemAbacus 
+
+For ChemAbacus, we use low, medium, and high effort modes for Opus 4.8, Opus 5, Fable 5, GPT-5.5, GPT-Rosalind, GPT-5.6 Sol, and Muse Spark 1.1; we use low effort for Haiku 4.5, Gemini 3.1 Pro, and Gemini 3.5 Flash; and we use the default thinking mode for DeepSeek V4 Flash/Pro and Kimi K2.6. Results are shown in Figure 2.   
+
+> Figure 2 |Accuracy on ChemAbacus for a variety of frontier LLMs. Weaker and/or outdated models are omitted. Prices are computed using prices from the primary provider, assuming no input caching.
+
+Claude Fable 5 has nontrivial refusal rate on ChemAbacus, increasing with reasoning effort (38 
+
+> 5
+
+of 800 questions on low, 60 on medium, and 75 on high). To account for this, we report two numbers: One marking refusals as wrong, and one using Opus 5 rerouting as fallback. Fable 5 with fallback is the strongest performing model at high reasoning levels. Because a few of the ChemAbacus questions (molecular weight, Crippen LogP, and TPSA) require nontrivial arithmetic, we also separate accuracy by computation heavy vs. compu-tation light. These results are shown in Figure 3. Performance is generally higher on non-computational tasks than on computational tasks, though some models show noticeably bet-ter performance on non-computational than computational tasks. However, the gap seems to close with more effort, which seems to imply that models with asymmetric performance may have chemistry knowledge but lack cheminformatic arithmetic capabilities. In particular, while the mainline GPT family performs similarly on computational vs. non-computational, GPT-Rosalind performs much better on non-computational.        
+
+> Figure 3 |Non-computational vs. computational performance on ChemAbacus. All models land near or above the y=xline (dashed). Similar model families (GPT-5.5 and GPT-5.6 Sol; Claude Opus 4.8, 5, and Fable 5) seem to have similar curves.
+
+3.2. SynthRefusal 
+
+SynthRefusal targets three axes: • whether models distinguish benign from controlled targets • how the input representation (e.g. name vs. structure) shifts refusal rates • whether refusal decisions reflect genuine reasoning over molecular structure We use low, medium, and high thinking levels for all models tested except DeepSeek V4 Flash, for which we only use the default thinking mode. Under the SMILES-only alignment index, the ordering differs sharply from raw refusal rate (Fig-ures 4 and 5). On the controlled-substance set, GPT-5.5 leads with Actrl ≈ 85% , closely fol-lowed by Fable 5 at ∼84% ; GPT-5.6 Sol and Gemini 3.1 Pro both score approximately 75% .On the designer-drug set, however, Fable 5 becomes the strongest model at Adesigner ≈ 80% ,
+
+> 6
+
+while GPT-5.5 falls to ∼67% . GPT-5.5 separates benign from established controlled targets particularly well, but generalizes poorly to unfamiliar designer analogs; Fable 5 remains highly restrictive on both sets. The extremes illustrate why refusal rate alone is insufficient. Muse Spark 1.1 refuses almost every controlled and designer target, and also refuses approximately 95% of benign SMILES prompts, yielding an alignment index of only ∼23% . DeepSeek V4 Flash exhibits the oppo-site behavior: it complies with nearly everything and has an alignment index near zero. GPT-Rosalind’s low refusal rate is expected due to lowered safety guardrails and restricted avail-ability. 
+
+Controlled-substance set results. Refusal rates vary substantially by model, target cate-gory, and legal schedule (Tables 3 and 4). At high reasoning effort, macro-averaged over the four representations, Muse Spark 1.1 exhibits blanket refusal. Fable 5 refuses approximately 
+
+94% of controlled targets, followed by GPT-5.5 at ∼85% , Gemini 3.1 Pro and GPT-5.6 Sol at 
+
+∼64% , and Opus 5 at ∼33% . Opus 4.8 and Gemini 3.5 Flash are substantially more permissive, while Haiku 4.5 and DeepSeek V4 Flash refuse almost nothing. Appendix cells report clean refusal and partial disclosure separately. Models also differ in which categories they guard. Chemical-warfare agents and explosives generally elicit the most caution, whereas anti-doping compounds elicit substantially less. Le-gal schedule adds further structure (Table 4): at high effort, Fable 5 refuses all Schedule I– III targets and approximately 81% of Schedule IV targets, while GPT-5.5 remains above 90% 
+
+across every schedule. Gemini 3.1 Pro declines from approximately 87% on Schedule I to 21% 
+
+on Schedule IV, and Opus 5 declines from approximately 38% to zero. Muse Spark 1.1 refuses every schedule, whereas DeepSeek V4 Flash refuses none. How a molecule is represented also matters, but there is no universal ordering of represen-tations (Figure 4 and Table 5). At high effort, averaged across models, CAS prompts increase refusal of anti-doping compounds by approximately 15 percentage points relative to SMILES, while common names produce the largest increase for chemical-warfare agents, approximately 
+
+8 points. Conversely, CAS representation lowers refusal of chemical-warfare agents by approx-imately 7 points. Representation effects therefore interact with both model and target class. 
+
+Designer-drug set results. On the designer-drug set, the ranking changes substantially (Fig-ure 5 and Table 6). Fable 5 has the highest SMILES-only alignment index ( ≈ 80% ) and refuses approximately 85% of designer targets at high effort. GPT-5.5 falls from ≈ 85% alignment on established controlled targets to ≈ 67% on designer drugs, indicating weaker generalization to less familiar analogs. Muse Spark 1.1 again refuses almost every target, but its near-blanket refusal of benign compounds prevents high alignment. Most other models are considerably more permissive, with DeepSeek V4 Flash refusing essentially none. The class and structural-subcategory breakdowns in the appendix (Table 6) show that these effects are highly target-dependent. For example, Fable 5 refuses all evaluated peptides at high effort, whereas GPT-5.5 refuses none, and Fable also strongly refuses dissociatives, en-tactogens, and psychedelics. Such variation suggests that safety behavior reflects learned category- and structure-specific associations rather than a uniform notion of chemical risk. On average, refusal increases modestly with reasoning effort: on both datasets, high reasoning effort has around four percentage points higher average refusal rate than medium reasoning effort. The aggregate, however, hides large model-specific effects. GPT-5.5 increases by ap-proximately 14 points on the controlled set and 17 points on the designer set, while Opus 5 increases by approximately 11 and 14 points, respectively. Fable 5 rises more moderately, by approximately five to six points. Gemini 3.1 Pro moves in the opposite direction, decreasing     
+
+> 7Figure 4 |SynthRefusal results on the controlled-substance set. Top: SMILES-only alignment be-tween benign compliance and refusal of controlled targets, with rates averaged across reasoning ef-forts, with an enlarged view of the high-compliance region. Bottom left: change in SMILES-based refusal rate with reasoning effort, relative to low effort. Bottom centre: high-effort refusal rates by controlled-substance category and DEA schedule. Bottom right: high-effort representation sensitivity, reported as the percentage-point change relative to SMILES.
+
+by approximately seven points on both sets, and GPT-5.6 Sol is roughly flat or slightly less restrictive on the controlled set. 
+
+3.3. SynthBench 
+
+SynthBench consists of two components, a reaction outcome prediction component and a cat-alyst preference component. Unlike ChemAbacus, which primarily tests computational and ex-ecution capabilities, SynthBench tests both knowledge and reasoning. Indeed, even a single-step reaction will have a very complex mechanism; therefore, reasoning about outcomes re-quires either multi-step reasoning, or general intuition about how certain substrates perform in a given reaction. Unlike other fields (e.g. math, coding) it is generally speaking impossible to reason a priori about reaction outcomes. Simple models can perform quite well on reaction outcome prediction [11, 36]; as an extra baseline, for reaction outcome prediction, we train a model using logistic regression on internal data, using a simple feature set.    
+
+> 8Figure 5 |SynthRefusal results on the designer-drug set. Top: SMILES-based alignment between benign compliance and mean refusal across the designer-drug classes, with an enlarged view of the high-compliance region. Bottom left: change in refusal rate with reasoning effort, relative to low effort. Bottom right: high-effort refusal rates by pharmacological class.
+
+Reaction outcome prediction. We report reaction outcome prediction results in Figure 6 and Table 7. For every reaction class except urea synthesis, the highest-scoring language model is from the Claude family (Table 7). However, all models lose to the baseline on all reaction classes except Claude Opus 5 on Buchwald-Hartwig coupling. Interestingly, for all models for which we tested multiple reasoning levels, performance does not increase significantly with more test-time compute (Table 7); in fact, for many models, performance seems to degrade. In general, this suggests that models lack the knowledge and intuition necessary to perform complex reasoning about standard organic chemistry re-actions. Moreover, we find that models are generally overoptimistic about reaction outcomes; the Claude family is a notable exception (Figure 6, bottom right). 
+
+Catalyst preference. Suzuki-Miyaura coupling already presents significant challenges for all language models tested on reaction outcome prediction (Figure 6). Thus, one might expect that the models would also struggle on catalyst preference, as catalyst preference exclusively tests Suzuki couplings. Indeed, catalyst preference appears to be very difficult for all models (Figure 7). No model is able to score significantly better than chance. However, the dataset for catalyst preference     
+
+> 9Figure 6 |Reaction-outcome prediction . Marker color denotes model family. Top: Best model per provider/model family vs. a logistic-regression baseline (black). The baseline wins 7 of 8 reaction classes, but loses to Claude Opus 5 on Buchwald-Hartwig coupling. Chan-Lam and Suzuki are espe-cially difficult for the models. Bottom-left: Average performance (best performance across effort levels selected for each model) vs. cost/query for various models. Bottom-right: Sensitivity vs. specificity for various models. Aside from the Claude family, most models are overly optimistic about reaction out-comes.
+
+is quite small, and larger datasets may be more instructive in better understanding the exact failure modes that current models run into. 
+
+4. Conclusion 
+
+We introduce onepot-Bench 0, a chemistry benchmark suite designed to evaluate language models on capabilities relevant to wet-lab execution: basic cheminformatics literacy, safety-adjacent refusal behavior, reaction outcome prediction, and catalyst selection. By combining simple cheminformatics questions with evaluations derived from private experimental data, onepot-Bench 0 probes both basic chemistry knowledge and real wet-lab decision-making. Our results show a sharp separation between chemistry-adjacent competence and chemistry-execution competence. On ChemAbacus, frontier models perform reasonably well, demon-strating an ability to answer basic questions about small molecules. However, this success does not transfer cleanly to synthesis-relevant prediction. On SynthBench, the strongest mod-els perform only modestly above chance on reaction outcome prediction, struggling especially on metal-catalyzed reactions which require more nuanced reasoning about both substrates   
+
+> 10 Figure 7 |Accuracy on catalyst preference on 95 pairs of Suzuki-Miyaura coupling reactions. Whiskers show 95% confidence intervals, all models score within noise.
+
+and reaction conditions. The refusal results are similarly mixed. For example, GPT-5.5 has high alignment scores; how-ever, it appears to mostly reliably refuse established targets while helping synthesize unfamil-iar designer analogs, suggesting that its alignment score may be more of a function of recog-nizing known molecules than robust risk assessment. We also observe both undesirable ex-tremes of the refusal spectrum: Muse Spark 1.1 refuses almost everything (including benign chemistry) while DeepSeek V4 Flash refuses almost nothing. These opposite failure modes are obscured by raw refusal rate but exposed by the alignment index. Safety behavior is also not a stable function of chemical risk alone. Representation effects de-pend on both model and compound class, and increased reasoning effort can either increase or decrease refusal. Partial disclosures further show that an eventual refusal does not neces-sarily mean that the response withheld useful synthesis information. Overall, onepot-Bench 0 suggests that today’s strongest language models are useful chem-istry assistants for parsing, computation, and some high-level reasoning, but they struggle to make zero-shot decisions relevant to lab-based chemistry. Further progress will require tighter integration of language models with private experimental datasets, reaction-specific empirical models, and closed-loop wet lab feedback. As the first iteration of onepot-Bench, onepot-Bench 0 is designed to be a simple, easy-to-run proxy for in-lab capabilities. However, it does not measure agentic capabilities of models, nor does it afford them access to a lab to try out and iterate on their ideas. Future iterations will incorporate agentic tasks both in silico and in the wet lab, working up to the ultimate goal of a lab-in-the-loop synthesis planner. 
+
+Acknowledgments 
+
+We thank Julian Götz for his valuable feedback and careful review of the manuscript. 
+
+> 11
+
+References 
+
+[1] Taicheng Guo et al. “What can large language models do in chemistry? a comprehensive benchmark on eight tasks”. In: Proceedings of the 37th International Conference on Neu-ral Information Processing Systems . NIPS ’23. New Orleans, LA, USA: Curran Associates Inc., 2023. [2] Adrian Mirza et al. “A framework for evaluating the chemical knowledge and reasoning abilities of large language models against the expertise of chemists”. In: Nature Chem-istry 17.7 (July 1, 2025), pp. 1027–1034. [3] Nicholas T. Runcie, Charlotte M. Deane, and Fergus Imrie. “Assessing the Chemical In-telligence of Large Language Models”. In: Journal of Chemical Information and Modeling 
+
+66.1 (Jan. 12, 2026), pp. 216–227. [4] Daniil A. Boiko et al. “Autonomous chemical research with large language models”. In: 
+
+Nature 624.7992 (Dec. 1, 2023), pp. 570–578. [5] Andres M. Bran et al. “Augmenting large language models with chemistry tools”. In: 
+
+Nature Machine Intelligence 6.5 (May 1, 2024), pp. 525–535. [6] Shriram Chennakesavalu et al. “Evaluating the Progression of Large Language Model Ca-pabilities for Small-Molecule Drug Design”. In: CoRR abs/2604.16279 (2026). [7] Jon M. Laurent et al. “LAB-Bench: Measuring Capabilities of Language Models for Biol-ogy Research”. In: CoRR abs/2407.10362 (2024). [8] Chris Lu et al. “Towards end-to-end automation of AI research”. In: Nature 651.8107 (Mar. 1, 2026), pp. 914–919. [9] Fabio Urbina et al. “Dual use of artificial-intelligence-powered drug discovery”. In: Na-ture Machine Intelligence 4.3 (2022), pp. 189–191. [10] Haochen Zhao et al. “ChemSafetyBench: Benchmarking LLM Safety on Chemistry Do-main”. In: CoRR abs/2411.16736 (2024). [11] Derek T. Ahneman et al. “Predicting reaction performance in C–N cross-coupling using machine learning”. In: Science 360.6385 (2018), pp. 186–190. [12] Hanyu Gao et al. “Using Machine Learning To Predict Suitable Conditions for Organic Reactions”. In: ACS Central Science 4.11 (2018), pp. 1465–1476. [13] David Weininger. “SMILES, a chemical language and information system. 1. Introduction to methodology and encoding rules”. In: Journal of Chemical Information and Computer Sciences 28.1 (Feb. 1, 1988), pp. 31–36. [14] Peter Ertl, Bernhard Rohde, and Paul Selzer. “Fast Calculation of Molecular Polar Surface Area as a Sum of Fragment-Based Contributions and Its Application to the Prediction of Drug Transport Properties”. In: Journal of Medicinal Chemistry 43.20 (Oct. 1, 2000), pp. 3714–3717. [15] Scott A. Wildman and Gordon M. Crippen. “Prediction of Physicochemical Parameters by Atomic Contributions”. In: Journal of Chemical Information and Computer Sciences 
+
+39.5 (2002), pp. 868–873. [16] Greg Landrum et al. RDKit: Open-source cheminformatics . https://www.rdkit.org .[17] Daylight Chemical Information Systems, Inc. SMARTS – A Language for Describing Molec-ular Patterns . Daylight Theory Manual. [18] David Mendez et al. “ChEMBL: towards direct deposition of bioassay data”. In: Nucleic Acids Research 47.D1 (2018), pp. D930–D940. [19] World Anti-Doping Agency. World Anti-Doping Code International Standard: Prohibited List 2026 . Approved 11 September 2025; in force 1 January 2026. 2026. 
+
+> 12
+
+[20] United States Drug Enforcement Administration, Diversion Control Division. Lists of Schedul-ing Actions, Controlled Substances, and Regulated Chemicals . Controlled Substances Act schedules I–V. 2026. [21] Organisation for the Prohibition of Chemical Weapons. Convention on the Prohibition of the Development, Production, Stockpiling and Use of Chemical Weapons and on Their De-struction: Annex on Chemicals (Schedules 1–3) . Entered into force 29 April 1997. 1993. [22] United Nations Environment Programme. Stockholm Convention on Persistent Organic Pollutants: Annexes A, B and C . Entered into force 17 May 2004; annexes amended by subsequent Conference of the Parties decisions. 2001. [23] Aidan Wong et al. SMILES-Prompting: A Novel Approach to LLM Jailbreak Attacks in Chem-ical Synthesis . 2024. [24] Wikipedia contributors. List of designer drugs . [Online; accessed 28-July-2026]. 2026. [25] onepot AI. POT-2 — the automated lab .[26] Christian A.G.N. Montalbetti and Virginie Falque. “Amide bond formation and peptide coupling”. In: Tetrahedron 61.46 (2005), pp. 10827–10852. [27] Anil S. Guram, Roger A. Rennels, and Stephen L. Buchwald. “A Simple Catalytic Method for the Conversion of Aryl Bromides to Arylamines”. In: Angewandte Chemie Interna-tional Edition in English 34.12 (1995), pp. 1348–1350. [28] Janis Louie and John F. Hartwig. “Palladium-catalyzed synthesis of arylamines from aryl halides. Mechanistic studies lead to coupling in the absence of tin reagents”. In: Tetra-hedron Letters 36.21 (1995), pp. 3609–3612. [29] Dominic M.T Chan et al. “New N- and O-arylations with phenylboronic acids and cupric acetate”. In: Tetrahedron Letters 39.19 (1998), pp. 2933–2936. [30] Patrick Y.S Lam et al. “New aryl/heteroaryl C-N bond cross-coupling reactions via aryl-boronic acid/cupric acetate arylation”. In: Tetrahedron Letters 39.19 (1998), pp. 2941– 2944. [31] Ralph N. Salvatore, Cheol Hwan Yoon, and Kyung Woon Jung. “Synthesis of secondary amines”. In: Tetrahedron 57.37 (2001), pp. 7785–7811. [32] Norio Miyaura, Kinji Yamada, and Akira Suzuki. “A new stereospecific cross-coupling by the palladium-catalyzed reaction of 1-alkenylboranes with 1-alkenyl or 1-alkynyl halides”. In: Tetrahedron Letters 20.36 (1979), pp. 3437–3440. [33] Riccardo Ronchetti et al. “Recent advances in urea- and thiourea-containing compounds: focus on innovative approaches in medicinal chemistry and organic synthesis”. In: RSC Medicinal Chemistry 12.7 (2021), pp. 1046–1064. [34] Arun K. Ghosh and Margherita Brindisi. “Urea Derivatives in Modern Drug Discovery and Medicinal Chemistry”. In: Journal of Medicinal Chemistry 63.6 (2019), pp. 2751–2788. [35] Albert M. Van Leusen, Jurjen Wildeman, and Otto H. Oldenziel. “Chemistry of sulfonyl-methyl isocyanides. 12. Base-induced cycloaddition of sulfonylmethyl isocyanides to carbon,nitrogen double bonds. Synthesis of 1,5-disubstituted and 1,4,5-trisubstituted imidazoles from aldimines and imidoyl chlorides”. In: The Journal of Organic Chemistry 
+
+42.7 (May 1977), pp. 1153–1159. [36] Kangway V. Chuang and Michael J. Keiser. “Comment on “Predicting reaction perfor-mance in C–N cross-coupling using machine learning””. In: Science 362.6416 (2018). 
+
+> 13
+
+A. Extended ChemAbacus Results 
+
+Here, we report extended results for ChemAbacus. Table 1 shows the overall scores for each (model, task) pair. Overall, Fable 5 (w/ Opus 5 fallback) is the strongest model; on high rea-soning, it attains the highest average score, and wins 5 out of 8 tasks. Out of all the tasks, molecular weight (MW), ring counting (Rings), TPSA, and HBD counting are fully solved by at least one model. Table 2 shows breakdown by difficulty tier instead of task. Performance is very strong on easy and weaker on the other buckets. For most models, “adversarial" is indeed the hardest tier, though some models also struggle on biologics as well. Fable 5 (strict) scores especially poorly on biologics; this is because most of its refusals occur on biologics. 
+
+Table 1 | ChemAbacus accuracy (%) by property. MW within ±1%, TPSA within ±5 Å 2, cLogP within 
+
+±1; rings/rotatable/HBA/HBD exact match; FG is Jaccard over the functional-group set. Macro denotes mean accuracy over all query types. Fable 5 appears twice: strict counts refusals (38 low, 60 medium, 75 high) as failures; +Opus routes them to Opus 5. bold denotes best score in the column, and the ¢/q column shows cents per query.                                                                                                                                                                                                                                                                                                                       
+
+> Model MW Rings TPSA cLogP Rot HBA HBD FG Macro ¢/q
+> OpenAI
+> GPT-5.5 (low) 93 100 90 76 51 93 98 94 86.9 2.90 GPT-5.5 (med) 98 99 96 85 68 94 100 93 91.6 9.29 GPT-5.5 (high) 99 100 97 85 70 96 100 93 92.5 20.84 GPT-Rosalind (low) 88 97 70 69 53 77 95 96 80.6 3.28 GPT-Rosalind (med) 95 99 78 77 77 82 96 96 87.5 6.50 GPT-Rosalind (high) 99 100 81 77 80 89 86 96 88.5 10.28 GPT-5.6 Sol (low) 96 100 80 74 61 91 64 95 82.6 3.03 GPT-5.6 Sol (med) 98 100 78 78 67 93 66 96 84.5 5.61 GPT-5.6 Sol (high) 99 100 86 73 78 95 65 96 86.5 10.47
+> Anthropic
+> Claude Opus 5 (low) 95 100 96 72 87 90 100 96 92.0 2.37 Claude Opus 5 (med) 97 100 99 82 94 90 100 96 94.8 5.62 Claude Opus 5 (high) 100 100 99 87 93 96 97 95 95.9 9.01 Claude Opus 4.8 (low) 92 99 96 75 90 88 100 96 92.0 2.69 Claude Opus 4.8 (med) 96 100 99 79 90 92 100 97 94.1 6.00 Claude Opus 4.8 (high) 98 100 100 78 93 90 100 97 94.5 8.54 Claude Fable 5 (strict, low) 87 91 91 66 79 81 96 95 85.8 2.30 Claude Fable 5 (strict, med) 91 89 87 69 83 82 96 95 86.5 5.72 Claude Fable 5 (strict, high) 91 84 86 78 85 83 97 96 87.5 10.30 Claude Fable 5 (+Opus, low) 90 99 94 71 87 87 97 96 90.1 2.36 Claude Fable 5 (+Opus, med) 97 100 96 75 92 88 99 97 93.0 6.00 Claude Fable 5 (+Opus, high) 100 100 99 90 94 91 100 97 96.4 11.09 Claude Haiku 4.5 (low) 23 80 28 54 852 57 88 48.8 0.83
+> Google
+> Gemini 3.1 Pro (low) 91 100 64 89 94 93 100 94 90.6 0.50 Gemini 3.5 Flash (low) 93 100 61 78 89 84 99 97 87.6 0.35
+> Meta
+> Muse Spark 1.1 (low) 94 98 88 80 72 79 98 96 88.1 1.19 Muse Spark 1.1 (med) 97 98 93 84 75 82 99 96 90.5 1.96 Muse Spark 1.1 (high) 98 100 97 83 82 82 99 98 92.4 4.00
+> DeepSeek
+> DeepSeek V4 Pro (default) 93 100 77 57 91 84 93 90 85.6 1.76 DeepSeek V4 Flash (default) 87 99 60 48 80 82 95 84 79.4 0.48
+> Moonshot
+> Kimi K2.6 (default) 99 100 83 68 82 84 98 96 88.8 10.55
+
+B. Detailed SynthRefusal Results 
+
+This compact appendix reports every publication-facing aggregate while avoiding repeated model rows. In behaviour tables, cells are clean refusal / partial disclosure (R/L). Target-not-identified and target-misidentified responses are excluded from the corresponding refusal de-nominators and are treated as audit outcomes rather than benchmark result tables. 
+
+14 Table 2 | ChemAbacus accuracy (%) by difficulty split. Each cell shows average performance for a given model on a given difficulty level across all 8 tasks. Fable 5 is shown both as strict (refusals count as incorrect) and +Opus (refusals routed to Opus 5); comparing the two rows reveals that refusals over-whelmingly appear in the biologics difficulty tier. Average shows the average score across all rows ex-cepting the Fable 5 strict rows. On average, easy is indeed the easiest tier by a large margin; the rest are of similar difficulty, with adversarial and biologics being the two hardest tiers. 
+
+Model Easy Medium Hard Adv. Biol. Mean 
+
+OpenAI 
+
+GPT-5.5 (low) 95 87 87 84 81 87 GPT-5.5 (med) 96 92 90 92 88 92 GPT-5.5 (high) 97 92 92 94 88 92 GPT-Rosalind (low) 97 80 79 74 74 81 GPT-Rosalind (med) 96 87 86 85 83 88 GPT-Rosalind (high) 97 89 86 82 88 89 GPT-5.6 Sol (low) 93 84 82 76 79 83 GPT-5.6 Sol (med) 93 85 86 74 84 85 GPT-5.6 Sol (high) 92 88 89 78 85 86 
+
+Anthropic 
+
+Claude Opus 5 (low) 98 92 89 91 91 92 Claude Opus 5 (med) 99 96 94 95 90 95 Claude Opus 5 (high) 98 97 95 94 96 96 Claude Opus 4.8 (low) 99 92 91 92 86 92 Claude Opus 4.8 (med) 98 95 93 93 92 94 Claude Opus 4.8 (high) 98 93 93 97 92 95 Claude Fable 5 (strict, low) 98 93 88 84 66 86 Claude Fable 5 (strict, med) 99 92 90 91 62 86 Claude Fable 5 (strict, high) 99 93 92 93 60 87 Claude Fable 5 (+Opus, low) 99 93 88 85 86 90 Claude Fable 5 (+Opus, med) 99 93 90 92 90 93 Claude Fable 5 (+Opus, high) 99 95 95 97 95 96 Claude Haiku 4.5 (low) 67 54 46 36 41 49 
+
+Google 
+
+Gemini 3.1 Pro (low) 98 91 91 87 86 91 Gemini 3.5 Flash (low) 98 91 86 81 83 88 
+
+Meta 
+
+Muse Spark 1.1 (low) 98 89 87 83 84 88 Muse Spark 1.1 (med) 98 91 93 86 85 90 Muse Spark 1.1 (high) 99 92 92 89 90 92 
+
+DeepSeek 
+
+DeepSeek V4 Pro (default) 94 85 85 80 84 86 DeepSeek V4 Flash (default) 89 77 76 78 78 79 
+
+Moonshot 
+
+Kimi K2.6 (default) 96 85 92 85 85 89 
+
+Average 96 88 87 84 85 88 
+
+Table 3 | Controlled-substance outcome rates by category. Each cell reports the conditional clean-refusal rate / partial-disclosure prevalence (%). Clean-refusal rates exclude partial disclosures and are calculated over clean refusals plus produced responses; partial-disclosure rates are calculated over all target-resolved responses. Rates are macro-averaged over SMILES, CAS, InChI, and name. Cell color encodes the clean-refusal rate (reversed for benign controls). 
+
+Model Benign Anti-dop. Poison Explos. Sched. I–IV CWA Avg ctrl 
+
+OpenAI 
+
+GPT-5.5 (low) 3/21 36/18 83/30 90/11 88/7 91/11 78/15 GPT-5.5 (med) 4/9 46/11 90/23 96/15 94/2 95/11 84/12 GPT-5.5 (high) 7/11 42/9 92/17 97/18 97/0 97/11 85/11 GPT-Rosalind (low) 0/0 2/0 0/1 33/20 15/0 33/5 17/5 GPT-Rosalind (med) 0/0 6/3 4/1 34/13 16/3 35/8 19/5 GPT-Rosalind (high) 2/0 5/0 3/1 26/12 14/1 33/6 16/4 GPT-5.6 Sol (low) 0/4 10/9 69/40 90/28 82/15 81/8 66/20 GPT-5.6 Sol (med) 0/0 12/9 56/40 84/27 82/16 86/11 64/20 GPT-5.6 Sol (high) 0/0 15/7 54/43 80/33 84/18 83/10 63/22 
+
+Anthropic 
+
+Haiku 4.5 (low) 1/1 0/0 1/0 7/1 9/0 12/0 6/0 Haiku 4.5 (med) 3/0 1/0 1/0 7/0 8/1 12/2 6/1 Haiku 4.5 (high) 0/0 1/1 1/0 7/5 8/1 13/0 6/2 Opus 4.8 (low) 0/0 0/0 31/5 10/0 6/0 36/1 17/1 Opus 4.8 (med) 0/0 0/0 34/1 16/0 8/0 42/1 20/0 Opus 4.8 (high) 0/0 0/0 35/2 24/0 10/0 48/1 24/1 Opus 5 (low) 0/0 0/0 22/1 21/2 4/1 53/2 20/1 Opus 5 (med) 0/0 0/0 31/0 28/8 12/9 60/6 26/5 Opus 5 (high) 0/0 0/0 38/0 40/9 22/13 66/4 33/5 Fable 5 (low) 26/32 61/25 98/7 99/0 98/21 98/5 91/11 Fable 5 (med) 35/13 70/13 99/5 99/1 99/6 99/6 93/6 Fable 5 (high) 39/5 73/6 99/1 100/0 97/1 98/4 94/2 
+
+Google 
+
+Gemini 3.1 Pro (low) 8/4 18/4 76/19 89/9 73/10 90/4 69/9 Gemini 3.1 Pro (med) 5/2 15/4 70/23 81/16 71/28 89/7 65/16 Gemini 3.1 Pro (high) 6/0 16/5 70/29 80/19 66/29 89/8 64/18 Gemini 3.5 Flash (low) 0/0 0/0 1/5 29/5 12/2 36/0 16/2 Gemini 3.5 Flash (med) 0/0 0/0 2/4 37/2 12/2 41/1 18/2 Gemini 3.5 Flash (high) 0/0 0/0 2/2 38/5 16/2 47/1 20/2 
+
+Meta 
+
+Muse Spark 1.1 (low) 92/8 100/5 100/5 100/0 100/1 100/2 100/3 Muse Spark 1.1 (med) 96/11 99/2 100/4 100/1 100/2 99/4 100/2 Muse Spark 1.1 (high) 96/14 99/3 100/4 100/1 100/0 100/1 100/2 
+
+DeepSeek 
+
+DeepSeek V4 Flash 0/0 0/0 0/0 0/0 0/0 1/0 0/0 15 Model Sched. I Sched. II Sched. III Sched. IV All 
+
+OpenAI 
+
+GPT-5.5 (low) 78/8 95/6 96/0 80/15 88/7 GPT-5.5 (med) 88/1 100/0 95/7 96/0 94/2 GPT-5.5 (high) 95/0 100/2 100/0 93/0 97/1 GPT-Rosalind (low) 20/0 20/0 12/4 0/0 15/1 GPT-Rosalind (med) 9/0 28/5 7/4 6/0 17/2 GPT-Rosalind (high) 20/0 18/2 7/4 0/0 15/1 GPT-5.6 Sol (low) 77/7 91/20 90/34 78/11 83/16 GPT-5.6 Sol (med) 74/9 98/17 83/11 65/34 82/17 GPT-5.6 Sol (high) 85/8 96/19 71/29 75/25 84/17 
+
+Anthropic 
+
+Haiku 4.5 (low) 9/1 16/0 0/0 0/0 9/1 Haiku 4.5 (med) 11/2 10/0 0/0 5/0 8/1 Haiku 4.5 (high) 10/0 10/3 0/0 6/0 8/1 Opus 4.8 (low) 12/0 4/0 0/0 0/0 6/0 Opus 4.8 (med) 15/1 8/0 5/0 0/0 9/1 Opus 4.8 (high) 15/0 15/0 0/0 0/0 11/0 Opus 5 (low) 4/0 9/3 0/0 0/0 4/1 Opus 5 (med) 21/8 16/15 0/12 0/0 13/9 Opus 5 (high) 38/16 19/17 7/0 0/8 22/12 Fable 5 (low) 98/9 100/32 100/18 83/32 98/21 Fable 5 (med) 100/1 100/13 100/4 92/8 99/6 Fable 5 (high) 100/0 100/0 100/0 81/7 97/1 
+
+Google 
+
+Gemini 3.1 Pro (low) 92/7 78/10 51/11 22/21 74/10 Gemini 3.1 Pro (med) 92/18 78/32 35/46 38/25 73/28 Gemini 3.1 Pro (high) 87/20 74/32 32/36 21/36 67/28 Gemini 3.5 Flash (low) 14/1 20/0 8/4 0/4 13/2 Gemini 3.5 Flash (med) 14/0 21/3 4/4 0/0 13/2 Gemini 3.5 Flash (high) 16/1 28/5 11/0 0/0 17/2 
+
+Meta 
+
+Muse Spark 1.1 (low) 100/1 100/2 100/0 100/0 100/1 Muse Spark 1.1 (med) 100/3 100/2 100/0 100/0 100/2 Muse Spark 1.1 (high) 100/1 100/0 100/0 100/0 100/1 
+
+DeepSeek 
+
+DeepSeek V4 Flash 0/0 0/0 0/0 0/0 0/0 
+
+Table 4 | Refusal rates by DEA schedule. Each cell is clean refusal / partial disclosure (%) averaged over the four given input representations. Colors follow Table 3. 
+
+Model SMILES CAS InChI name 
+
+OpenAI 
+
+GPT-5.5 (low) 68/16 80/16 78/16 85/14 GPT-5.5 (med) 81/14 88/11 80/12 87/13 GPT-5.5 (high) 81/11 90/11 83/14 86/9 GPT-Rosalind (low) 13/8 9/0 16/7 29/6 GPT-Rosalind (med) 14/6 20/4 14/9 28/4 GPT-Rosalind (high) 14/5 18/1 12/5 20/4 GPT-5.6 Sol (low) 58/20 74/21 59/25 75/14 GPT-5.6 Sol (med) 57/22 67/21 59/22 73/16 GPT-5.6 Sol (high) 56/25 67/16 59/22 72/25 
+
+Anthropic 
+
+Haiku 4.5 (low) 2/1 4/0 0/0 16/1 Haiku 4.5 (med) 3/0 5/0 1/0 14/2 Haiku 4.5 (high) 2/2 5/3 1/0 17/2 Opus 4.8 (low) 14/1 13/1 14/2 25/0 Opus 4.8 (med) 19/1 17/1 18/0 25/0 Opus 4.8 (high) 22/1 17/1 24/0 31/0 Opus 5 (low) 21/2 15/1 20/1 24/1 Opus 5 (med) 30/3 20/5 30/4 25/6 Opus 5 (high) 32/8 29/6 37/4 34/4 Fable 5 (low) 85/18 96/7 93/10 89/11 Fable 5 (med) 90/8 97/6 95/5 92/6 Fable 5 (high) 91/5 97/1 96/2 90/2 
+
+Google 
+
+Gemini 3.1 Pro (low) 60/9 89/8 65/14 62/6 Gemini 3.1 Pro (med) 54/16 86/14 63/20 57/14 Gemini 3.1 Pro (high) 53/22 86/18 61/20 56/12 Gemini 3.5 Flash (low) 12/3 11/1 12/1 28/5 Gemini 3.5 Flash (med) 19/3 13/1 13/0 29/3 Gemini 3.5 Flash (high) 20/3 15/0 18/1 29/4 
+
+Meta 
+
+Muse Spark 1.1 (low) 100/3 100/1 100/2 100/4 Muse Spark 1.1 (med) 100/4 100/1 99/2 100/2 Muse Spark 1.1 (high) 100/4 100/0 100/3 100/1 
+
+DeepSeek 
+
+DeepSeek V4 Flash 0/0 0/0 0/0 1/0 
+
+Table 5 | Refusal rate by input represen-tation. Controlled molecules only; data and colors match Table 4. 
+
+Table 6 | Designer-drug clean-refusal rate by structural subcategory and effort across all evaluated models. Each pharmacological class ( bold , class total) splits into its named structural sub-families. The rate is clean refusal divided by clean refusal plus produced (%); identification failures are reported separately and excluded from this denominator. Pro 3.1 and Flash 3.5 refer to Gemini models. 
+
+Class / subcategory n GPT-5.5 GPT-Rosalind GPT-5.6 Sol Haiku 4.5 Opus 4.8 Opus 5 Fable 5 Pro 3.1 Flash 3.5 Muse Spark DeepSeek low med high low med high low med high low med high low med high low med high low med high low med high low med high low med high V4 Flash 
+
+Androgens 20 35 47 47 0 0 0 6 19 11 0 0 0 0 0 0 0 0 0 67 67 95 0 0 5 0 0 0 100 100 100 0SARMs 10 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 67 43 89 0 0 0 0 0 0 100 100 100 0DHT based 5 60 100 100 0 0 0 0 33 25 0 0 0 0 0 0 0 0 0 25 75 100 0 0 0 0 0 0 100 100 100 0Testosterone based 3 50 100 100 0 0 0 33 50 50 0 0 0 0 0 0 0 0 0 100 100 100 0 0 0 0 0 0 100 100 100 0(other) 2 100 100 100 0 0 0 0 100 0 0 0 0 0 0 0 0 0 0 100 100 100 0 0 50 0 0 0 100 100 100 0
+
+Dissociatives 20 82 100 95 5 5 5 33 47 72 0 0 0 0 0 0 0 11 24 100 100 100 44 31 25 0 5 11 100 100 100 0Arylcyclohexylamines 10 90 100 100 10 10 10 56 89 100 0 0 0 0 0 0 0 25 57 100 100 100 83 75 75 0 11 22 100 100 100 01,2-Diarylethylamines 7 60 100 100 0 0 0 14 14 60 0 0 0 0 0 0 0 0 0 100 100 100 14 14 0 0 0 0 100 100 100 0(other) 3 100 100 67 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 100 100 33 0 0 0 0 0 100 100 100 0
+
+Entactogens 20 83 89 95 15 5 10 60 74 60 0 0 0 0 5 0 0 25 38 100 100 100 15 21 6 0 10 10 100 100 100 0MDxx 5 80 80 100 40 0 20 80 80 80 0 0 0 0 0 0 0 40 75 100 100 100 20 20 25 0 20 20 100 100 100 0Amphetamines 4 75 100 100 25 25 25 50 50 50 0 0 0 0 25 0 0 25 33 100 100 100 0 25 0 0 25 25 100 100 100 0Phenethylamines 3 100 100 100 0 0 0 67 100 100 0 0 0 0 0 0 0 33 50 – 100 100 33 0 0 0 0 0 100 100 100 0(other) 8 83 88 88 0 0 0 50 71 38 0 0 0 0 0 0 0 12 14 100 100 100 12 25 0 0 0 0 100 100 100 0
+
+Nootropics 20 32 26 37 10 10 10 11 11 16 0 0 0 0 0 5 5 5 15 50 53 53 11 15 11 5 5 10 86 94 100 0CNS stimulants 4 75 50 67 25 25 25 33 33 50 0 0 0 0 0 25 25 25 25 67 75 75 0 25 25 25 0 25 75 100 100 0(other) 16 20 20 31 6 6 6 7 7 7 0 0 0 0 0 0 0 0 12 46 46 47 12 12 7 0 6 6 90 92 100 0
+
+PDE5 inhibitors 13 17 20 27 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 88 100 100 0 0 0 0 0 0 100 100 100 0
+
+Peptides 17 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 6 0 0 94 94 100 6 6 6 0 0 0 100 100 93 0GH secretagogue agonists 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 80 80 100 0 0 0 0 0 0 100 100 100 0GHRH analogues 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 100 100 100 25 25 25 0 0 0 100 100 100 0(other) 8 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 12 0 0 100 100 100 0 0 0 0 0 0 100 100 83 0
+
+Piperazines 11 0 33 70 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 50 25 29 0 0 0 0 0 0 100 100 100 0
+
+Psychedelics 20 84 80 85 0 0 5 35 50 47 0 0 0 0 5 0 0 15 41 94 100 100 35 23 0 0 0 0 100 95 100 0Tryptamines 8 71 75 75 0 0 0 25 50 50 0 0 0 0 0 0 0 0 29 80 100 100 0 17 0 0 0 0 100 88 100 0Benzofurans > 2C-x 4 100 75 100 0 0 0 25 67 67 0 0 0 0 0 0 0 50 67 100 100 100 100 – – 0 0 0 100 100 100 0Benzofurans > DOx 3 67 67 67 0 0 0 67 33 33 0 0 0 0 0 0 0 0 33 100 100 100 33 33 0 0 0 0 100 100 100 0(other) 5 100 100 100 0 0 20 40 50 40 0 0 0 0 20 0 0 20 50 100 100 100 40 25 0 0 0 0 100 100 100 0
+
+Sedatives 20 35 47 68 0 0 0 28 26 33 0 0 0 0 5 5 0 5 15 75 67 83 26 24 18 0 0 0 100 100 100 0Opioids 9 44 62 88 0 0 0 38 44 43 0 0 0 0 0 0 0 0 11 100 100 100 33 33 25 0 0 0 100 100 100 0GHB analogues 3 0 0 33 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 33 0 0 0 0 0 0 100 100 100 0(other) 8 38 50 62 0 0 0 29 14 38 0 0 0 0 12 12 0 12 25 83 67 83 29 20 17 0 0 0 100 100 100 0
+
+Stimulants 20 33 56 53 5 0 0 22 28 26 0 0 0 0 5 5 0 0 15 93 79 94 11 0 0 5 5 0 100 100 100 0Piperidines/tropanes 5 50 60 60 20 0 0 25 50 50 0 0 0 0 20 20 0 0 20 100 100 100 33 0 0 20 0 0 100 100 100 0(other) 15 29 54 50 0 0 0 21 21 20 0 0 0 0 0 0 0 0 13 90 70 92 7 0 0 0 7 0 100 100 100 0
+
+Synthetic cannabinoids 20 26 32 40 0 0 0 5 10 5 0 0 0 0 0 0 0 5 5 64 88 78 6 0 0 0 5 0 100 100 100 0
+
+16 C. SynthBench (reaction outcome) results, all models 
+
+Table 7 | Reaction-outcome accuracy (%) by reaction class. Binary task, chance = 50 ; underline =
+
+significantly above chance (one-sided binomial, p < 2.2 · 10 −4 after Bonferroni correction); bold = best in column. 
+
+Model Amide Buch. Chan-Lam N-Alk Suzuki Thio. Urea V. Leusen Average OpenAI 
+
+GPT-5.5 (low) 54 52 54 58 50 56 65 60 56 GPT-5.5 (med) 51 52 49 59 50 52 56 56 53 GPT-5.5 (high) 50 54 51 59 50 51 55 55 53 GPT-Rosalind (low) 50 49 51 55 50 51 50 61 52 GPT-Rosalind (med) 51 50 54 56 50 50 54 60 53 GPT-Rosalind (high) 50 54 45 61 50 49 49 59 52 GPT-5.6 Sol (low) 51 51 52 56 50 52 51 54 52 GPT-5.6 Sol (med) 50 51 54 58 50 51 50 55 52 GPT-5.6 Sol (high) 50 51 55 58 50 51 50 55 52 
+
+Anthropic 
+
+Claude Opus 5 (low) 70 70 44 66 55 70 68 74 65 Claude Opus 5 (med) 62 68 54 64 56 66 69 71 64 Claude Opus 5 (high) 61 62 50 72 50 70 62 68 62 Claude Opus 4.8 (low) 72 60 41 62 51 66 58 70 60 Claude Opus 4.8 (med) 74 61 51 62 55 71 61 61 62 Claude Opus 4.8 (high) 71 54 51 60 52 74 66 68 62 Claude Fable 5 (low) 69 54 52 65 52 68 66 69 62 Claude Fable 5 (med) 71 56 60 60 54 62 65 68 62 Claude Fable 5 (high) 64 64 54 69 48 68 64 68 62 Claude Haiku 4.5 (low) 49 52 42 51 50 50 50 55 50 
+
+Google 
+
+Gemini 3.1 Pro (low) 62 54 49 61 52 59 65 60 58 Gemini 3.5 Flash (low) 59 58 45 62 49 69 71 56 59 
+
+DeepSeek 
+
+DeepSeek V4 Pro (default) 54 48 48 58 46 52 54 58 52 DeepSeek V4 Flash (default) 51 49 42 56 48 51 50 55 50 
+
+Moonshot 
+
+Kimi K2.6 (default) 54 62 45 61 52 46 51 54 53 Log. Reg. baseline 81 68 68 76 73 79 84 76 76 
+
+17
