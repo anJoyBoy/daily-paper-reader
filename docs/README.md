@@ -6,74 +6,75 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-09
-- 运行时间：2026-08-09 19:39:08 UTC
+- 最新运行日期：2026-08-10
+- 运行时间：2026-08-10 21:10:12 UTC
 - 运行状态：成功
 - 本次总论文数：17
 - 精读区：6
 - 速读区：11
 
 ### 今日简报（AI）
-- 今日共生成 17 篇推荐（精读 6 篇，速读 11 篇）
-- 精读：《GPTKB 2.0: Direct Construction of Disambiguated Knowledge Bases from Large Language Models》（9.0/10）, 《Active Learning Guided Design Space Refinement for Scalable Multi-Objective Bayesian Optimization in Materials Discovery》（9.0/10）
-- 速读：《onepot-Bench 0: towards lab-aware in silico chemistry benchmarks》（8.0/10）, 《Large language models for partial differential equation workflows》（8.0/10）, 《Guided Synthesis of EMT Zeolites by Machine Learning》（8.0/10）
-- 这些结果覆盖了当下较热的方向，建议先看精读区论文的关键问题与方法。
-- 详情：[/202608/09/README](/202608/09/README)
+今日精读6篇、速读11篇，核心聚焦AI驱动的分子模拟与自动化实验设计。
+
+最值得关注：多智能体粗粒化分子动力学框架（9.0分）与LLM自主实验设计基准（8.0分）。
+
+建议优先精读这两篇高分论文，再按需浏览光学结构识别与意图驱动工作流等速读内容。
+- 详情：[/202608/10/README](/202608/10/README)
 
 ### 精读区论文标签
-1. [GPTKB 2.0: Direct Construction of Disambiguated Knowledge Bases from Large Language Models](/202608/09/2608.03729v2-gptkb-20-direct-construction-of-disambiguated-knowledge-bases-from-large-language-models)  
-   标签：评分：9.0/10、query:llm-dm
-   evidence：利用大语言模型直接构建消歧知识库的挖掘方法
-2. [Active Learning Guided Design Space Refinement for Scalable Multi-Objective Bayesian Optimization in Materials Discovery](/202608/09/2608.04651v1-active-learning-guided-design-space-refinement-for-scalable-multi-objective-bayesian-optimization-in-materials-discovery)  
+1. [A Multi-Agent Framework for Automated Coarse-Grained Molecular Dynamics of Polymers](/202608/10/2608.06694v1-a-multi-agent-framework-for-automated-coarse-grained-molecular-dynamics-of-polymers)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：主动学习引导的多目标贝叶斯优化用于化工材料发现
-3. [Artificial Intelligence for the Characterization of Particles and Fibers by Optical Microscopy](/202608/09/2608.00361v1-artificial-intelligence-for-the-characterization-of-particles-and-fibers-by-optical-microscopy)  
+   evidence：利用大语言模型智能体自动化聚合物粗粒化分子动力学，直接体现LLM在化学聚合物材料中的应用
+2. [Can LLM design high-quality experiments? A Comprehensive and Systematic Benchmark on Autonomous Experimental Design](/202608/10/2608.03501v1-can-llm-design-high-quality-experiments-a-comprehensive-and-systematic-benchmark-on-autonomous-experimental-design)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：面向颗粒与纤维显微表征的AI蒸馏框架，涉及化学组成分析，属于化学工程中的人工智能应用。
-4. [Improving a Hybrid Algorithm for APCS Hierarchical Architecture Design via Hyperparameter Optimization](/202608/09/2608.01296v1-improving-a-hybrid-algorithm-for-apcs-hierarchical-architecture-design-via-hyperparameter-optimization)  
+   evidence：面向LLM自主实验设计的评测基准
+3. [Machine Learning-Guided Screening of Advantageous Solvents for Solid Polymer Electrolytes in Lithium Metal Batteries](/202608/10/2608.03688v1-machine-learning-guided-screening-of-advantageous-solvents-for-solid-polymer-electrolytes-in-lithium-metal-batteries)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：自动化过程控制系统分层架构的优化
-5. [When May a Model Replace the Experiment? Audits, Licenses, and the Price of Trust in Surrogate-Driven Design](/202608/09/2608.01378v1-when-may-a-model-replace-the-experiment-audits-licenses-and-the-price-of-trust-in-surrogate-driven-design)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：化学/材料中的代理模型驱动设计，涉及AI与工程优化
-6. [GPTKB 2.0: Direct Construction of Disambiguated Knowledge Bases from Large Language Models](/202608/09/2608.03729v1-gptkb-20-direct-construction-of-disambiguated-knowledge-bases-from-large-language-models)  
+   evidence：机器学习筛选固态聚合物电解质用溶剂
+4. [GPTKB 2.0: Direct Construction of Disambiguated Knowledge Bases from Large Language Models](/202608/10/2608.03729v2-gptkb-20-direct-construction-of-disambiguated-knowledge-bases-from-large-language-models)  
    标签：评分：8.0/10、query:llm-dm
-   evidence：从LLM直接构建消歧知识库
+   evidence：利用大语言模型直接构建消歧知识库，属于数据挖掘任务
+5. [Bi-semantic Chemical Embedder for Joint Representation Learning of SMILES and Natural Language](/202608/10/2608.03855v1-bi-semantic-chemical-embedder-for-joint-representation-learning-of-smiles-and-natural-language)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：化学SMILES与自然语言联合嵌入模型；化工大语言模型与文本挖掘的核心方法
+6. [3D Molecular Representation Learning for Organic Mixtures: Viscosity and Density Prediction](/202608/10/2608.06697v1-3d-molecular-representation-learning-for-organic-mixtures-viscosity-and-density-prediction)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：3D分子表示学习预测有机混合物性质
 
 ### 速读区论文标签
-1. [onepot-Bench 0: towards lab-aware in silico chemistry benchmarks](/202608/09/2608.02595v1-onepot-bench-0-towards-lab-aware-in-silico-chemistry-benchmarks)  
+1. [CAi Copilot: Reducing Operational Workload in Molecular Design through Intent-Driven Agentic Workflows](/202608/10/2608.06961v1-cai-copilot-reducing-operational-workload-in-molecular-design-through-intent-driven-agentic-workflows)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：面向湿实验化学的大语言模型评测基准
-2. [Large language models for partial differential equation workflows](/202608/09/2608.03600v1-large-language-models-for-partial-differential-equation-workflows)  
+   evidence：面向化学分子设计的智能体式AI工作流，符合化工领域利用大语言模型的需求
+2. [Not All Problems Are Best Modeled as MILP: A DSL-Centric Framework for Flexible and Accurate Optimization Modeling](/202608/10/2608.07040v1-not-all-problems-are-best-modeled-as-milp-a-dsl-centric-framework-for-flexible-and-accurate-optimization-modeling)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：综述LLM辅助偏微分方程工作流，涵盖建模、求解器生成和基于仿真的控制设计优化，与化工过程优化高度相关。
-3. [Guided Synthesis of EMT Zeolites by Machine Learning](/202608/09/2608.03760v1-guided-synthesis-of-emt-zeolites-by-machine-learning)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：机器学习引导沸石合成条件，面向石油炼制和分离应用
-4. [Out-Of-The-Loop Multi-Fidelity Bayesian Optimization](/202608/09/2608.04113v1-out-of-the-loop-multi-fidelity-bayesian-optimization)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：面向分子优化的多保真贝叶斯优化方法，可用于化工过程优化中的昂贵黑箱问题。
-5. [The Graph Language: How Knowledge Graphs Speak to Large Language Models](/202608/09/2608.01175v1-the-graph-language-how-knowledge-graphs-speak-to-large-language-models)  
+   evidence：基于 LLM 的优化建模框架，直接相关于流程优化建模
+3. [MinerU.Chem: A High-Precision System for Optical Chemical Structure and Reaction Recognition](/202608/10/2608.03525v2-mineruchem-a-high-precision-system-for-optical-chemical-structure-and-reaction-recognition)  
+   标签：评分：7.0/10、query:llm-dm
+   evidence：化学文献文档解析系统，支持从化学文献中进行数据挖掘
+4. [MuEvo: LLM-Driven Evolution of Multi-Heuristic Ensemble](/202608/10/2608.03636v1-muevo-llm-driven-evolution-of-multi-heuristic-ensemble)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：提出让知识图谱与冻结大语言模型直接通信的关系标记方法GRALAN，属于大语言模型集成创新。
-6. [FRAMES: Guarded and Dual-Objective Skill Evolution for Agents in Policy-Governed Enterprise Workflows](/202608/09/2608.01772v1-frames-guarded-and-dual-objective-skill-evolution-for-agents-in-policy-governed-enterprise-workflows)  
+   evidence：LLM 驱动的优化启发式自动设计；可迁移至流程优化
+5. [GPTKB 2.0: Direct Construction of Disambiguated Knowledge Bases from Large Language Models](/202608/10/2608.03729v1-gptkb-20-direct-construction-of-disambiguated-knowledge-bases-from-large-language-models)  
+   标签：评分：7.0/10、query:llm-dm
+   evidence：利用大语言模型直接构建知识库并进行实体消歧，属于LLM助力的数据挖掘技术
+6. [Improving Auto-Design of Neural PDE Solvers with a Domain-Specific Language](/202608/10/2608.04384v1-improving-auto-design-of-neural-pde-solvers-with-a-domain-specific-language)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：面向策略约束任务的大语言模型智能体技能演化框架，属于大语言模型应用研究。
-7. [Physics-Constrained Soft Actor-Critic for Simulator-in-the-Loop Petroleum Reservoir History Matching](/202608/09/2608.01986v1-physics-constrained-soft-actor-critic-for-simulator-in-the-loop-petroleum-reservoir-history-matching)  
+   evidence：领域专用语言改善LLM对神经PDE求解器的自动设计
+7. [CheMLFlow: An Open-Source Platform for Cheminformatics and Materials Informatics Applications](/202608/10/2608.04942v1-chemlflow-an-open-source-platform-for-cheminformatics-and-materials-informatics-applications)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：物理约束SAC用于油藏历史拟合，是人工智能在能源工程中的应用
-8. [Interpreting Black-Box Large Language Models with Sentence-Level Energy Landscapes](/202608/09/2608.02879v1-interpreting-black-box-large-language-models-with-sentence-level-energy-landscapes)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：黑盒大语言模型的句子级可解释性方法
-9. [DGA$_2$D: Directed Graph-Guided Automated Algorithm Design with Large Language Models](/202608/09/2608.00700v1-dga2d-directed-graph-guided-automated-algorithm-design-with-large-language-models)  
+   evidence：开源平台，用于化学信息学和材料信息学的人工智能驱动工作流，适用于化学工程中的人工智能应用
+8. [Physics-Based Molecular Fingerprints from Spectral Graph Theory Provide Efficient Geometry-Aware Measures of Chemical Similarity](/202608/10/2608.05336v1-physics-based-molecular-fingerprints-from-spectral-graph-theory-provide-efficient-geometry-aware-measures-of-chemical-similarity)  
+   标签：评分：7.0/10、query:coal-liquid
+   evidence：几何感知分子指纹用于化学相似性度量
+9. [SCHEDBench: A Benchmark for Evaluating LLM Constraint Faithfulness in Natural-Language Combinatorial Scheduling](/202608/10/2608.00991v1-schedbench-a-benchmark-for-evaluating-llm-constraint-faithfulness-in-natural-language-combinatorial-scheduling)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：LLM驱动的有向图自动算法设计面向组合优化，可迁移到化工过程优化。
-10. [Learning What to Remember and What to Internalize in LLM Self-Evolution via Adaptive Memory-Parameter Coordination](/202608/09/2608.01234v1-learning-what-to-remember-and-what-to-internalize-in-llm-self-evolution-via-adaptive-memory-parameter-coordination)  
+   evidence：评估LLM在组合调度中约束忠实度的基准，支撑化工调度LLM应用
+10. [SkillTrace: Traversing a Query-Skill Graph for Composable LLM Agents](/202608/10/2608.02356v1-skilltrace-traversing-a-query-skill-graph-for-composable-llm-agents)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：大语言模型智能体自我进化中的记忆与参数协同方法
-11. [GraphIR: Architecture-Level Search States for LLM-Guided Neural Architecture Evolution](/202608/09/2608.01633v1-graphir-architecture-level-search-states-for-llm-guided-neural-architecture-evolution)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：利用大语言模型指导神经架构搜索，并提出架构感知中间表示
+   evidence：通过图遍历实现LLM智能体技能组合
+11. [Towards a new paradigm of scientific discovery with socialized artificial intelligence](/202608/10/2608.02775v1-towards-a-new-paradigm-of-scientific-discovery-with-socialized-artificial-intelligence)  
+   标签：评分：6.0/10、query:llm-dm
+   evidence：使用智能体与文献的社会化人工智能范式，与大语言模型辅助科学知识发现和数据挖掘相关
 
 
 <div class="dpr-home-promo-card">
