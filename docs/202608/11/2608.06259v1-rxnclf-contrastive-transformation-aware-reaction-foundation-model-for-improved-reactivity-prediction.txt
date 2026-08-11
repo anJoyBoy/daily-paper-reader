@@ -1,0 +1,201 @@
+Title: RxnCLF: Contrastive Transformation-Aware Reaction Foundation Model for Improved Reactivity Prediction
+
+URL Source: https://arxiv.org/pdf/2608.06259v1
+
+Published Time: Fri, 07 Aug 2026 01:14:16 GMT
+
+Number of Pages: 8
+
+Markdown Content:
+# RxnCLF: Contrastive Transformation-Aware Reaction Foundation Model for Improved Reactivity Prediction 
+
+# Yiting Zheng 
+
+Discovery Chemistry, Merck & Co., Inc. Boston, MA, USA 
+
+# Cheng Fang ✉
+
+Discovery Chemistry, Merck & Co., Inc. Cambridge, MA, USA 
+
+# Anthony Donofrio 
+
+Discovery Chemistry, Merck & Co., Inc. Boston, MA, USA 
+
+# Haote Li 
+
+Discovery Chemistry, Merck & Co., Inc. Boston, MA, USA 
+
+## Abstract 
+
+Reaction yield prediction remains challenging because labeled data are scarce and reaction space is both combinatorially large and sparsely populated, limiting the generalization of existing reaction representations. String-, fingerprint-, and graph-based reaction encodings only partially capture chemical transformations, making accurate prediction difficult for reactions with complex substrates. We propose reaction contrastive learning foundation (RxnCLF), a self-supervised contrastive framework for reaction representa-tion learning. RxnCLF is built on a condensed reaction graph (CRG) that unifies reactant and product information into a single graph, enabling the model to learn explicit and enriched transformation structure rather than disconnected graphs. Pretrained on 1.7 million Pistachio reactions, RxnCLF learns a compact and continuous latent space that captures both reaction-center features and broader side chain contexts, making it transformation-aware and chemically interpretable. Fine-tuned on multiple yield prediction benchmarks, including Buchwald-Hartwig, Pd-catalyzed BH coupling, and pro-prietary HTE C-N coupling and amide formation datasets, RxnCLF consistently outperforms graph and sequence-based baselines, im-proving 𝑅 2 and achieving the best performance overall. Our results highlight the promise of CRG-based RxnCLF as a scalable reaction foundation model, with the potential to generalize across broader reaction spaces and support diverse downstream reaction informatics tasks, including regioselectivity prediction, enantioselectivity prediction, and reaction condition optimization. 
+
+## Keywords 
+
+Reaction Foundation Model, Contrastive Learning, Reaction Repre-sentation Learning, Reaction Yield Prediction, Condensed Reaction Graph, Reaction Informatics 
+
+## 1 Introduction 
+
+Predicting reaction properties such as yield, reaction enthalpy, acti-vation energy, and kinetic rate is a core problem in chemistry with direct impact on synthesis planning, reaction optimization, and drug discovery [1–3]. Despite substantial progress in machine learning methods for molecular property predictions, applying them to reac-tion remains challenging as it depends not only on the structures of participating molecules but also on the specific transformation that occurs between them. Thus, designing representations that faithfully encode reaction semantics becomes critical. Most existing methods represent reactions using SMILES strings [4– 7], reaction fingerprints [4, 8], or graphs [9–11]. While these ap-proaches are effective at capturing structure for reaction partici-pants, they rarely model the transformation-level information that governs reaction behavior [12]. Additionally, inferring reaction-center and bond-change patterns based on molecular input may compromise their ability to capture broader reaction information. BERT-based encoders, exemplified by YieldBERT, have become widely used for reaction yield predictions [5–7]. Built on RxnFP, YieldBERT captures the latent structure of reaction space, demon-strating the potential of representation learning. However, they remain limited by tokenization strategy, computational cost, and the fact that linearized molecular formats such as SMILES trans-form molecular graphs into sequences, introducing a sequential bias that may hinder the modeling of complex topological depen-dencies [13, 14]. In contrast, graph neural networks offer promis-ing approach by directly modeling atom- and bond-level informa-tion [15, 16]. Although reactions represented with disconnected graphs from individual participants are explored in the past [9, 17], generalizing them to represent reactions is not obvious. This is because a reaction is a transformation over multiple reactants and products rather than a single molecular graph [18]. Another challenge for reaction property prediction is that reac-tion space is combinatorially large, while experimentally labeled data is scarce, costly, and concentrated in only a small portion of ac-cessed space [19–21]. In this regime, supervised models trained on existing benchmarks cannot extrapolate towards regions of scarce reaction chemistries [22]. Foundation models offer a principled solu-tion by leveraging large-scale unlabeled or weakly labeled reaction data to learn transformation patterns that transfer across tasks and reaction conditions. To address these challenges, we propose RxnCLF, a contrastive learning (CL) framework built on a reaction foundation model that constructs a chemically meaningful and transformation-aware la-tent space from the condensed reaction graph (CRG). CRG unifies reactant and product information in a single graph, explicitly en-coding bond formation/cleavage, and conserved substructures. It catalyzes a more faithful and scalable representation of reaction transformations than disconnected graph or string-based encod-ings [18, 23, 24]. Pretrained with CL on large-scale reaction data, RxnCLF pulls similar reaction graphs (CRG) closer, enabling trans-ferable representations that support inter-dataset generalization with sparse labels. arXiv:2608.06259v1 [cs.LG] 6 Aug 2026 Yiting Zheng, Cheng Fang, Anthony Donofrio, and Haote Li 
+
+Extensive experiments show that features derived from RxnCLF consistently improves yield predictions, especially under low-data and out-of-distribution settings. These results further demonstrate that learning a transformation-aware reaction space is both chemi-cally meaningful and practically effective. This paper’s contribu-tions are summarized as follows: 
+
+• Introducing a reaction foundation model, which constructs chemically interpretable reaction latent space to capture reaction-center features and side-chain context in a unified tensor. 
+
+• Demonstrating that this representation contributes to con-sistent improvements in downstream yield prediction across both academic and industrial benchmarks, highlighting the practical value of interpretable reaction representations with sparse labels. 
+
+## 2 Methods 2.1 CRG generation 
+
+For reaction representation, we adopted the CRG formulation and implemented graph construction using the Chemprop 2.0 [16] fea-turizer module. Atom mappings required for CRG generation were produced for each dataset using NextMove HazELNut [25]. This preprocessing step enabled direct incorporation of reactant-product correspondence into a single graph structure. (Figure 1a) 
+
+## 2.2 Molecule graph augmentation via subgraph removal 
+
+In graph contrastive learning, subgraph removal generates seman-tically consistent but structurally perturbed views; training encour-ages the model to learn invariances beyond local substructures. We use three masking-based views. For pretraining, an origin atom is selected uniformly at random, and masking expands outward to neighboring atoms using breadth-first-search, until 25% of the atoms in the full CRG are masked. For perturbation studies, one view restricts masking to reaction-center atoms, continuing until ei-ther 25% of all atoms or all reaction-center atoms have been masked in the full CRG. The other view restricts masking to atoms outside the reaction center, i.e., side-chain atoms, until 25% of the atoms in the full CRG are masked. After masking, all bonds adjacent to masked atoms are removed, resulting in a subgraph of the original molecular graph. 
+
+## 2.3 Contrastive learning for pretraining 
+
+Given a batch of 𝑁 atom-mapped reactions, we first construct a CRG for each reaction and generate two augmented graph views through subgraph augmentation. Views derived from the same reaction are treated as positive pairs, while views from different reactions serve as negative pairs. A Graph Isomorphism Network (GIN) [26] en-coder maps each graph view to an embedding ℎ ∈ R𝑑 , which is then projected by a fully connected layer into a latent representation 
+
+𝑧 . We train the encoder using the Normalized Temperature-scaled Cross Entropy (NT-Xent) loss over the 2 𝑁 projected views as fol-lows [27]: 
+
+ℓ𝑖,𝑗 = − log exp  sim (𝑧 𝑖 , 𝑧 𝑗 )/ 𝜏 Í2𝑁 𝑘 =1 1[𝑘 ≠𝑖 ] exp (sim (𝑧 𝑖 , 𝑧 𝑘 )/ 𝜏 ) (1) where ℓ𝑖,𝑗 denotes the loss associated with a positive pair (𝑖, 𝑗 ), 𝜏 is a temperature hyperparameter, sim (· , ·) denotes cosine similarity and 1(·) is the indicator function. This objective encourages agree-ment between positive pairs while pushing apart representations of negative pairs in the latent space. 
+
+## 2.4 Reaction latent space evaluation 
+
+We compare three reaction representations: FP Difference (Morgan fingerprint, radius 2, 2048 bits) [4], RxnFP (256 bits) [28], and Rxn-CLF embedding (512 bits). FP Difference is computed by subtracting the hashed Morgan fingerprint of the products from that of the reactants. RxnFP is the latent embedding from BERT pretraining, and computed using the official implementation released by the authors. RxnCLF embedding is produced by our pretrained model. To assess the quality of the latent space, we use cosine similarity-based retrieval and report three metrics: K-Nearest Neighbor (KNN) stability, hubness, and Mean Reciprocal Rank (MRR). These metrics quantify local neighborhood consistency, embedding concentration, and ranking quality, respectively. 
+
+• KNN stability: We randomly sampled 𝑁 (𝑁 = 50 ,000) query reactions from Pistachio and computed their FP Dif-ference, RxnFP, and RxnCLF embeddings. For each query, we retrieved the top 20 nearest neighbors using the original embedding and a perturbed version with added Gaussian noise. Stability was defined as the overlap ratio between the two neighbor sets (𝑆 ):
+
+𝑆 original ∩ 𝑆 perturbed 
+
+𝑁 (2) Higher KNN stability indicates a smoother and more stable latent space, where local neighborhood relationships are consistently preserved despite small perturbations. 
+
+• Hubness: We measured hubness by counting how often each reaction appeared in the top-20 nearest neighbors of all queries under the three embeddings using the sampled data from the KNN stability experiment. For a sampled dataset 
+
+𝐷 = {𝑥 1, . . . , 𝑥 𝑁 }, (3) let 𝑁 𝑁 𝑘 (𝑥 𝑗 ) denote the 𝑘 -nearest-neighbor set of 𝑥 𝑗 . The 
+
+𝑘 -occurrence of sample 𝑥 𝑖 is defined as [29], 
+
+𝑁 𝑘 (𝑥 𝑖 ) =
+
+> 𝑁
+
+∑︁ 
+
+> 𝑗 =1
+
+1  𝑥 𝑖 ∈ 𝑁 𝑁 𝑘 (𝑥 𝑗 ) , (4) where 1(·) is the indicator function. Hubness is quantified by the skewness of the 𝑘 -occurrence distribution: Hubness = 𝑆 𝑁 𝑘 =
+
+E
+
+h 𝑁 𝑘 − 𝜇 𝑁 𝑘 
+
+3 i
+
+𝜎 3
+
+> 𝑁 𝑘
+
+. (5) where 𝜇 𝑁 𝑘 and 𝜎 𝑁 𝑘 denote the mean and standard deviation of the 𝑘 -occurrence distribution, respectively, and 𝑘 = 20. Higher hubness indicates more pronounced hub formation and a less uniform neighborhood structure. 
+
+• Mean Reciprocal Rank (MRR): To quantify retrieval qual-ity, we computed the mean reciprocal rank (MRR) across 50,000 query reactions. RxnCLF: Contrastive Transformation-Aware Reaction Foundation Model for Improved Reactivity Prediction 
+
+Figure 1: Overview of RxnCLF training. The process consists of three stages. a: A reaction is converted from atom-mapped reactants and products into a CRG, which explicitly encodes bond formation/cleavage, and conserved substructures. Thin arrow represents reaction, while broad grey arrow represents CRG transformation. b: Two augmented CRG views are generated through subgraph augmentation, with masked atoms and deleted bonds shown in red. c: Contrastive pretraining with a shared GIN encoder enables the model to learn a compact reaction latent space of RxnCLF. Amide formation reactions are colored with red and C-N coupling reactions are colored with blue. 
+
+MRR = 1
+
+𝑁 
+
+> 𝑁
+
+∑︁ 
+
+> 𝑖 =1
+
+1rank 𝑖 
+
+, (6) where 𝑁 is the number of query reactions and rank 𝑖 denotes the rank position of the first retrieved reaction sharing the same reaction as the 𝑖 -th query. Higher MRR indicates that relevant reactions are retrieved closer to the top of the ranked list, reflecting a more informative and better-aligned latent space. 
+
+• Query Retrieval-based Analysis: We randomly sampled 500 query reactions from Pistachio. For each query, we retrieved the top-50 nearest neighbors based on embeddings from the three latent spaces. We then evaluated retrieval quality using a top-𝑘 protocol ( 𝑘 ∈ [ 1, 50 ]) by computing the fraction of retrieved reactions sharing the same reaction superclass/type as the query: 1
+
+𝑘 ∑︁ 𝑟 ∈𝑅 𝑘 
+
+1(type (𝑟 ), 𝑡 ) , (7) where 𝑅 𝑘 denotes the set of top-𝑘 retrieved reactions and 𝑡 
+
+denotes the target reaction superclass/type, 𝑡𝑦𝑝𝑒 (𝑟 ) returns the superclass/type label of r, and 1(·) denotes the indicator function. This ratio assesses how well the embeddings pre-serve reaction-type information. Additionally, Tanimoto similarity between products of query and retrieved reaction was computed using count Morgan fingerprints for both full molecule and Bemis-Murcko scaffold to aid interpretation of the retrieval results [30]. 
+
+## 2.5 Out-of-distribution analysis 
+
+Beyond Pistachio training dataset, Pd-catalyzed BH coupling and proprietary amide formation datasets were projected into the learned latent space. A query of retrieval analysis was then conducted by retrieving similar Pistachio reactions for each dataset. 
+
+## 2.6 Perturbation analysis 
+
+We compared Pistachio embeddings produced for each reaction, from three graph variants: (1) the full reaction graph, (2) a reaction subgraph with the reaction center removed, and (3) a subgraph pro-duced by randomly removing side chains. Pairwise cosine similarity, Pearson similarity, Euclidean distance and Manhattan distance were computed among the three corresponding embeddings to quantify how these structural perturbations affect the latent representations. Yiting Zheng, Cheng Fang, Anthony Donofrio, and Haote Li 
+
+## 2.7 Yield prediction 
+
+We evaluate four models Chemprop 2.0, GIN, YieldBERT, and Rxn-CLF across four yield prediction datasets. Chemprop 2.0 and GIN were trained from scratch using only the downstream yield pre-diction data, while YieldBERT and RxnCLF were initialized with pretrained representations learned from the USPTO and Pistachio reaction corpus, respectively. Chemprop 2.0 is used with its default configuration on CRG inputs. The GIN is trained directly on CRG representations. YieldBERT is implemented using its pretrained weights adopted from publication and finetuned with prediction datasets. To leverage the pretrained latent representations learned by RxnCLF, we finetuned the pretrained encoder with a predic-tion head. The encoder is initialized from the RxnCLF weights, while the prediction head is randomly initialized. For the dataset containing diverse reagents, their information is encoded as cate-gorical features and embedded into the prediction head. The entire model is then optimized end-to-end in a supervised manner on the downstream yield prediction task using the standard Mean Squared Error (MSE). For each dataset, we split reactions into 80%/5%/15% train/validation/test sets, repeating five times with distinct ran-dom seeds. Early stopping is controlled by validation loss. Model performance is recorded by 𝑅 2 on the test set. 
+
+## 2.8 Datasets 
+
+For pretraining, we use 1.7M Pistachio reactions after removing du-plicate, unassigned reactions, and those with multiple products [31]. For downstream yield predictions, we evaluate four datasets span-ning both curated academic and industrial benchmarks. The first is the Buchwald–Hartwig dataset from prior work [32], which con-tains 4,608 reactions, generated from 15 aryl and heteroaryl halides, 4 Buchwald ligands, 3 bases, and 23 isoxazole additives. The sec-ond is the Pd-catalyzed BH coupling dataset [33], which contains 4,088 reactions constructed from 342 halides and 348 amines under fixed catalyst and base settings. The third is a proprietary C–N coupling dataset with around 29k reactions covering large reac-tion space and sparse reagent combinations (including Buchwald– Hartwig, copper-catalyzed Goldberg reaction, Ullmann reaction, SNAr, and etc); due to the large number of missing reagent anno-tations, reagents were excluded from fine-tuning, and the label is conversion. The fourth is an proprietary amide formation dataset with around 26k reactions covering diverse reactants, 7 bases, 5 solvents, and 12 additional reagents. Together, the two proprietary datasets provide a more realistic industrial setting for evaluating model generalization. 
+
+## 3 Results 3.1 Reaction latent space analysis 
+
+3.1.1 Reaction latent space visualization: We first evaluate whether RxnCLF learns a reaction latent space that is more structured and search-friendly than existing representations. To this end, we project Pistachio reactions into three reaction spaces: (1) FP Dif-ference, (2) RxnFP, and (3) RxnCLF embeddings. For visualization, we first reduce the dimension to 50 using PCA and then to 2 using UMAP (Figure 2). 
+
+Table 1: Comparison of FP Difference, RxnFP, and RxnCLF embeddings in latent space retrieval quality and extraction cost. 
+
+Metric FP Difference RxnFP RxnCLF KNN Stability 0.912 0.999 0.998 Hubness 3.34 1.26 1.88 MRR 0.673 0.959 0.986 Extraction Cost 30 min / 2M 390 min / 2M 15 min / 2M The projection results reveal clear differences across the three representations. FP Difference is widely dispersed, suggesting lim-ited local structure and substantial heterogeneity in the latent space. RxnFP forms a scattered and fragmented space with only sparse superclass-level clustering, indicating weaker preservation of local neighborhood structure and, consequently, reduced interpretability. Nevertheless, the fragmented clustering of reactions from the same superclass still suggests that RxnFP captures coarse reaction-class semantics. In contrast, RxnCLF embeddings provide the tightest and most structured latent space: reactions from the same super-class tend to occupy common regions, indicating that the latent space is sensitive to reaction category change. 
+
+3.1.2 Latent space retrieval analysis: A high-quality latent space should support reliable similarity search in addition to being struc-tured. We therefore evaluated KNN stability, hubness, MRR, and embedding extraction cost for the three representations (Table 1). RxnFP and RxnCLF embeddings both achieve KNN stability above 0.99, indicating strong local consistency in the latent space, where semantically similar reactions are consistently mapped to nearby regions. RxnCLF exhibits slightly higher hubness, but also achieves the highest MRR (0.986), reflecting superior retrieval quality. Along with the fast extraction speed, RxnCLF is the most effective among the tested models for similarity search and potentially for down-stream use. 
+
+3.1.3 Query-based retrieval analysis: To probe retrieval behavior more directly, we conducted 500 query-based searches and mea-sured the Tanimoto similarity between each query product and its retrieved neighbors (Figure 3). RxnCLF consistently returns neighbors with the highest product and scaffold similarities, indi-cating that it preserves both reaction-center features and broader structural context. By contrast, RxnFP achieves the lowest product similarity overall. The slightly higher Bemis–Murcko-based similar-ity for RxnCLF further suggests that its latent space better preserves scaffold-level structure while remaining sensitive to fine-grained side-chain variation. Second, we evaluated the fraction of retrieved reactions that share the same reaction superclass and reaction type as the query. RxnFP achieves the best performance on this task: the same-type fraction exceeds 90% within the top 50 retrieved results, while both RxnCLF and FP Difference show markedly lower same-type frac-tions. Since reaction type is a sub-label within the superclass, its retrieval fraction is expected to be lower than the corresponding superclass-level fraction. These results suggest that RxnFP places RxnCLF: Contrastive Transformation-Aware Reaction Foundation Model for Improved Reactivity Prediction 
+
+Figure 2: Visualization of the three latent spaces, colored by the four most frequent HazELNut reaction superclasses. a. FP Difference; b. RxnFP; c. RxnCLF embeddings. 
+
+Figure 3: Evaluation of reactions retrieved from the three latent spaces relative to the query reaction, using, a. product Tanimoto similarity based on Morgan count fingerprints, b. product Tanimoto similarity based on Bemis-Murcko scaf-fold plus Morgan count fingerprints and c. same reaction type ratio, d. same reaction superclass ratio. 
+
+stronger emphasis on reaction-center features that define reac-tion type, whereas RxnCLF embeddings preserve more structural-context information at the expense of class purity. An illustrative example (Figure 4) shows one query and the top 5 retrieved reactions from each space: comparing the search results, RxnCLF can retrieve the most similar reactions with highest product similarity at both molecule and scaffold level. RxnCLF retrieved top 5 reactions include a reaction labeled Ester Schotten-Baumann (top-4) while the query is a Williamson ether synthesis. Although the reaction types differ, the retrieved product is visually and chemically similar to the query product, both featuring a benzene ring and a heterocycle ring. This result suggests that RxnCLF can serve as a useful search engine for chemists to retrieve structurally and mechanistically related reactions beyond exact reaction types. Taken together, these results highlight complementary strengths across the three representations. RxnFP clusters reactions strongly by reaction centers and reaction types, making it effective for coarse-grained categorization. The FP Difference captures local reaction-center changes but remains relatively scattered, limiting its utility for reliable similar reaction search. In contrast, RxnCLF learns a compact latent space that preserves both reaction-center structure and product-level similarity, making it particularly well suited for retrieval. This behavior is also directly relevant to downstream tasks, especially yield prediction. Unlike reaction classification, yield depends on both the reaction type and substrate context. By retaining reaction-center information while preserving additional structural variation, RxnCLF provides a balanced representation for this task, which helps explain its superior performance on down-stream prediction tasks (section 3.2). 
+
+3.1.4 OOD analysis and latent space generalization: We projected out-of-distribution (yield prediction) datasets into the RxnCLF em-beddings trained from Pistachio. These sets included the Pd-catalyzed BH coupling dataset, proprietary HTE C-N coupling and amide for-mation dataset, containing reactions not present in Pistachio, and a Buchwald-Hartwig set of which 3 out of 15 reaction substrates are included in Pistachio. In the UMAP projections (Figure 5) each exter-nal set forms local clusters that overlap the regions established from Pistachio pretraining, indicating that the RxnCLF space places out of distribution examples into the same class specific neighborhoods rather than isolating them as artifacts. Overall, the visualization suggests that the RxnCLF latent space organizes unseen reactions into chemically meaningful neighborhoods. Next, we evaluated retrieval behavior by using the Pd-catalyzed BH coupling and proprietary amide formation datasets as queries against the Pistachio search database. Retrieval quality, measured by product Tanimoto similarity and the fraction of retrieved reactions sharing the same reaction type as the query, decays smoothly with increasing rank (Figure 6). The monotonic decay indicates that the latent space is continuous and well structured, such that nearby Yiting Zheng, Cheng Fang, Anthony Donofrio, and Haote Li 
+
+Figure 4: Top-5 similar reactions retrieved from three latent spaces for a given query reaction. Product similarity scores are shown using two color schemes: purple indicates the Tanimoto similarity based on the Morgan count fingerprint, and green indicates the Tanimoto similarity based on the Bemis–Murcko scaffold plus Morgan count fingerprint. Table 2: Pairwise comparison of the three latent spaces, eval-uated using similarity and distance metrics for the full graph (A), the reaction-center-removed subgraph (B), and the side-chain-removed subgraph (C).                                        
+
+> Metric Sim (𝐴, 𝐵 )Sim (𝐴, 𝐶 )Sim (𝐵, 𝐶 )
+> Cosine Similarity 0.993 ±0.005 0.995 ±0.004 0.991 ±0.006 Pearson Correlation 0.993 ±0.005 0.995 ±0.005 0.991 ±0.006 Euclidean Distance 4.75 ±1.48 3.93 ±1.43 5.21 ±1.83 Manhattan Distance 76 .47 ±24 .00 64 .56 ±23 .41 85 .38 ±30 .38
+
+points correspond to similar products and, when relevant, to the same reaction types. Among the two external datasets, the amide formation queries show higher product similarity and same-type ratios than the C–N queries, suggesting that the amide formation reactions are more similar to the Pistachio training distribution. These results demonstrate that RxnCLF preserves its performance under distribution shift. 
+
+3.1.5 Latent space perturbation analysis: we assess latent-space sensitivity by applying controlled perturbations to reaction graphs and comparing the resulting embeddings. For each reaction, we construct three variants: the full graph (A), a subgraph with the re-action center removed (B), and a subgraph with randomly removed side chain atoms (C). As shown in Table 2, all pairwise similarities remain consistently high, with cosine similarity and Pearson cor-relation exceeding 0.99, indicating that CRG learns a smooth and stable latent space under moderate structural perturbations. Notably, the full graph (A) and the side-chain-removed sub-graph (C) exhibit the highest similarity, whereas the reaction-center-removed subgraph (B) shows the largest deviation from the oth-ers. This gap suggests that the reaction center contributes more substantially to the learned representation than side-chain atoms, confirming that CRG encodes reaction transformations in a chem-ically meaningful and structurally aware manner. These results highlight the mechanistic advantage of CRG: by distinguishing re-action centers from side chain, it captures both robustness to minor perturbations and sensitivity to transformation-critical substruc-tures. Collectively, the OOD projections, search behavior, and pertur-bation experiments demonstrate that the RxnCLF latent space is continuous, stable under small input changes, and organized such that external reactions are embedded into meaningful, class consis-tent neighborhoods. 
+
+## 3.2 Yield prediction 
+
+The RxnCLF was fine-tuned for yield prediction on four datasets, respectively: Buchwald-Hartwig, Pd-catalyzed BH coupling, pro-prietary C-N coupling, and amide formation. Buchwald-Hartwig dataset is a standard benchmark with few substrate variations for multiple conditions. Pd-catalyzed BH coupling dataset represents industrial library optimization with a set of substrates. Proprietary C-N coupling and amide formation datasets mined from HTE data reflect more sparse experimental conditions. RxnCLF achieved the highest 𝑅 2 across all datasets (Table 3). In addition, pretrained RxnCLF: Contrastive Transformation-Aware Reaction Foundation Model for Improved Reactivity Prediction 
+
+Table 3: ( 𝑅 2) comparison across multiple reaction datasets and models for yield prediction (Results are reported as mean ±
+
+standard deviation). 
+
+Dataset Chemprop GIN RxnCLF YieldBERT Buchwald–Hartwig (BH) 0.617 ± 0.083 0.930 ± 0.012 0.962 ± 0.003 0.951 ± 0.005 Pd-catalyzed BH coupling 0.726 ± 0.010 0.597 ± 0.027 0.769 ± 0.016 0.659 ± 0.018 Proprietary C–N coupling 0.469 ± 0.032 0.471 ± 0.017 0.484 ± 0.020 0.397 ± 0.016 Proprietary amide formation 0.395 ± 0.052 0.358 ± 0.016 0.428 ± 0.024 0.418 ± 0.012 
+
+Figure 5: Latent space visualization of, a. the in-distribution Pistachio reactions and b. the out-of-distribution datasets. 
+
+RxnCLF consistently improved performance relative to GIN mod-els trained from scratch, indicating efficient use of representation learned from foundation models. 
+
+Figure 6: OOD evaluation: a. product Tanimoto similarity be-tween external dataset queries and retrieved reactions in the Pistachio latent space; b. same-reaction-type ratio between external dataset queries and retrieved reactions in the Pista-chio latent space. 
+
+As shown in Figure 5b, public datasets (Buchwald-Hartwig and Pd-catalyzed BH coupling) occupy a narrow but well-controlled region of reaction space, typically varying a small number of precur-sors around one or a few reaction templates. Despite their limited scope, they provide high-quality supervision because reactions are recorded uniformly and yields are measured with the same analyti-cal procedures. In contrast, industrial data cover a broader chemical space but is noisier. For instance, proprietary C-N coupling reaction dataset includes a variety of transition-metal catalyzed reactions including Pd-catalyzed BH coupling, copper-catalyzed Ullmann and Goldberg coupling, SNAr and other types. Heterogeneity of reaction types in the data might lead to poorer performance. In addition, internal experiments are conducted by different scientists; recorded reactions could miss key reagents or conditions due to human errors. This tradeoff in data quality and coverage likely Yiting Zheng, Cheng Fang, Anthony Donofrio, and Haote Li 
+
+explains why RxnCLF works better on public curated over industry data. 
+
+## 4 Conclusions 
+
+We presented RxnCLF, a contrastive learning framework built on the condensed reaction graph for reaction representation learning. By encoding reaction transformation structure, RxnCLF learns a chemically interpretable and transformation-aware latent space that captures both reaction-center information and broader side chain context. Pretraining on large-scale reaction data enables the model to learn enriched representations and robust reaction em-beddings under sparse supervision. Our results show that RxnCLF learns a structured and search-capable latent space. This translates into improved downstream yield prediction across tested benchmarks. Along with the embed-dings which preserves meaningful similarity, these findings demon-strate the value of explicit transformation modeling for scalable and transferable reaction representation learning. 
+
+## References 
+
+[1] João C.A. Oliveira, Johanna Frey, Shuo-Qing Zhang, Li-Cheng Xu, Xin Li, Shu-Wen Li, Xin Hong, and Lutz Ackermann. When machine learning meets molecular synthesis. Trends in Chemistry , 4(10):863–885, 2022. [2] Zhengkai Tu, Thijs Stuyver, and Connor W. Coley. Predictive chemistry: machine learning for reaction deployment, reaction development, and reaction discovery. 
+
+Chemical Science , 14(2):226–244, 01 2023. [3] Qiyuan Zhao, Dylan M. Anstine, Olexandr Isayev, and Brett M. Savoie. Δ2 ma-chine learning for reaction property prediction. Chemical Science , 14(46):13392– 13401, 12 2023. [4] Daniel Probst, Philippe Schwaller, and Jean-Louis Reymond. Reaction classifica-tion and yield prediction using the differential reaction fingerprint drfp. Digital Discovery , 1(2):91–97, 04 2022. [5] Paulo Neves, Bo Hao, Santeri Aikonen, Justin B. Diccianni, Jorg K. Wegner, Philippe Schwaller, and Iulia I. Strambeanu. Robust out-of-distribution prediction of buchwald-hartwig reactions. ChemRxiv , 2025(1013), 2025. [6] Adrian Krzyzanowski, Stephen D. Pickett, and Peter Pogány. Exploring bert for reaction yield prediction: Evaluating the impact of tokenization, molecular rep-resentation, and pretraining data augmentation. Journal of Chemical Information and Modeling , 65(9):4381–4402, 2025. PMID: 40311104. [7] Philippe Schwaller, Alain C Vaucher, Teodoro Laino, and Jean-Louis Reymond. Prediction of chemical reaction yields using deep learning. Machine Learning: Science and Technology , 2(1):015016, mar 2021. [8] Nadine Schneider, Daniel M. Lowe, Roger A. Sayle, and Gregory A. Landrum. Development of a novel fingerprint for chemical reactions and its application to large-scale reaction classification and similarity. Journal of Chemical Information and Modeling , 55(1):39–53, 2015. PMID: 25541888. [9] Baiqing Li, Shimin Su, Chan Zhu, Jie Lin, Xinyue Hu, Lebin Su, Zhunzhun Yu, Kuangbiao Liao, and Hongming Chen. A deep learning framework for accurate reaction prediction and its application on high-throughput experimentation data. 
+
+Journal of Cheminformatics , 15(1):72, 2023. [10] Kien Do, Truyen Tran, and Svetha Venkatesh. Graph transformation policy network for chemical reaction prediction. In Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining , KDD ’19, page 750–760, New York, NY, USA, 2019. Association for Computing Machinery. [11] Tengwei Song, Long Yin, Zhen Han, and Zhiqiang Xu. Improving enzyme prediction with chemical reaction equations by hypergraph-enhanced knowledge graph embeddings. In Proceedings of the 32nd ACM SIGKDD Conference on Knowledge Discovery and Data Mining V.1 , KDD ’26, page 1309–1320, New York, NY, USA, 2026. Association for Computing Machinery. [12] Anchen Li, Elena Casiraghi, and Juho Rousu. Chemical reaction enhanced graph learning for molecule representation. Bioinformatics , 40(10):btae558, 10 2024. [13] Zhengkai Tu and Connor W. Coley. Permutation invariant graph-to-sequence model for template-free retrosynthesis and reaction prediction. Journal of Chem-ical Information and Modeling , 62(15):3503–3513, 2022. PMID: 35881916. [14] Emmanuel Noutahi, Cristian Gabellini, Michael Craig, Jonathan S. C. Lim, and Prudencio Tossou. Gotta be safe: a new framework for molecular design. Digital Discovery , 3(4):796–804, 04 2024. [15] Yuyang Wang, Zijie Li, and Amir Barati Farimani. Graph Neural Networks for Molecules , pages 21–66. Springer International Publishing, Cham, 2023. [16] Esther Heid, Kevin P. Greenman, Yunsie Chung, Shih-Cheng Li, David E. Graff, Florence H. Vermeire, Haoyang Wu, William H. Green, and Charles J. McGill. Chemprop: A machine learning package for chemical property prediction. Jour-nal of Chemical Information and Modeling , 64(1):9–17, 2024. PMID: 38147829. [17] Tieu-Long Phan, Klaus Weinbauer, Marcos E. González Laffitte, Yingjie Pan, Daniel Merkle, Jakob L. Andersen, Rolf Fagerberg, Christoph Flamm, and Pe-ter F. Stadler. Syntemp: Efficient extraction of graph-based reaction rules from large-scale reaction databases. Journal of Chemical Information and Modeling ,65(6):2882–2896, 2025. PMID: 40019281. [18] Esther Heid and William H. Green. Machine learning of reaction properties via learned representations of the condensed graph of reaction. Journal of Chemical Information and Modeling , 62(9):2101–2110, 2022. PMID: 34734699. [19] Isabela Albuquerque, Nikhil Vijay Naik, Junnan Li, Nitish Shirish Keskar, and Richard Socher. Improving out-of-distribution generalization via multi-task self-supervised pretraining. ArXiv , abs/2003.13525, 2020. [20] Shikai Qiu, Boran Han, Danielle C. Maddix, Shuai Zhang, Yuyang Wang, and Andrew Gordon Wilson. Transferring knowledge from large foundation models to small downstream models. In Proceedings of the 41st International Conference on Machine Learning , ICML’24. JMLR.org, 2024. [21] Hongling Zheng, Li Shen, Anke Tang, Yong Luo, Han Hu, Bo Du, Yonggang Wen, and Dacheng Tao. Learning from models beyond fine-tuning. Nature Machine Intelligence , 7(1):6–17, 2025. [22] Yuyang Wang, Jianren Wang, Zhonglin Cao, and Amir Barati Farimani. Molecu-lar contrastive learning of representations via graph neural networks. Nature Machine Intelligence , 4(3):279–287, 2022. [23] Giustino Sulpizio, Charlotte Gerhaher, Esther Heid, and Kjell Jorner. Bridging cgr representations and language models for reaction property prediction. ChemRxiv ,2026(0316), 2026. [24] A. Varnek, D. Fourches, Frank Hoonakker, and V. Solov’ev. Substructural frag-ments: an universal language to encode reactions, molecular and supramolecular structures. J. Comput. Aided Mol. Des. , 19(9-10):693–703, 2005. [25] NextMove Software. Hazelnut, 2025. [26] Keyulu Xu, Weihua Hu, Jure Leskovec, and Stefanie Jegelka. How powerful are graph neural networks? In International Conference on Learning Representations ,2019. [27] Ting Chen, Simon Kornblith, Mohammad Norouzi, and Geoffrey Hinton. Asimple framework for contrastive learning of visual representations, 2020. [28] P. Schwaller, Daniel Probst, Alain C. Vaucher, Vishnu H. Nair, D. Kreutter, T. Laino, and J. Reymond. Mapping the space of chemical reactions using attention-based neural networks. Nature Machine Intelligence , 3(2):144 – 152, 2020. [29] Milos Radovanovic, Alexandros Nanopoulos, and Mirjana Ivanovic. Hubs in space: Popular nearest neighbors in high-dimensional data. KoBSON-skop -NasiuFP , 11(86):2487–2531, 2010. [30] Sereina Riniker and Gregory A. Landrum. Similarity maps - a visualization strategy for molecular fingerprints and machine-learning methods. Journal of Cheminformatics , 5(1):43, 2013. [31] NextMove Software. Pistachio, 2025. [32] Derek T. Ahneman, Jesús G. Estrada, Shishi Lin, Spencer D. Dreher, and Abigail G. Doyle. Predicting reaction performance in c-n cross-coupling using machine learning. Science , 360(6385):186–190, 2018. [33] Seung Kyun Ha, Dipannita Kalyani, Michael S. West, Jessica Xu, Yu-hong Lam, Thomas J. Struble, Spencer D. Dreher, Shane W. Krska, Stephen L. Buchwald, and Klavs F. Jensen. Developing pharmaceutically relevant pd-catalyzed c-n coupling reactivity models leveraging high-throughput experimentation. Journal of the American Chemical Society , 147(23):19602–19613, 2025.
