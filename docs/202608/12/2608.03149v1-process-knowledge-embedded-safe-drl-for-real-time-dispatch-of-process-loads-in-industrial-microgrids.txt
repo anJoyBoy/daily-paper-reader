@@ -1,0 +1,1336 @@
+Title: Process-Knowledge-Embedded Safe DRL for Real-Time Dispatch of Process Loads in Industrial Microgrids
+
+URL Source: https://arxiv.org/pdf/2608.03149v1
+
+Published Time: Wed, 05 Aug 2026 00:32:37 GMT
+
+Number of Pages: 10
+
+Markdown Content:
+> IEEE TRANSACTIONS ON SUSTAINABLE ENERGY, VOL. X, NO. X, XX MONTH 2026 1
+
+# Process-Knowledge-Embedded Safe DRL for Real-Time Dispatch of Process Loads in Industrial Microgrids 
+
+Daniyaer Paizulamu, Graduate Student Member, IEEE , Lin Cheng, Senior Member, IEEE ,Fashun Shi, Yuchi Zhang, Zhaoyang Dong, Fellow, IEEE 
+
+Abstract —Steelmaking process loads (SPLs) are flexible resources that enhance local renewable-energy utilization and reduce electricity procurement costs in industrial microgrids. However, strong multistage coupling makes current decisions affect subsequent feasibility, challenging conventional deep reinforcement learning to reduce costs while maintaining process feasibility throughout production. This paper proposes a process-knowledge-embedded safe deep reinforcement learning framework for the real-time dispatch of SPLs in industrial microgrids. Specifically, a lossless active-frontier action space is constructed, and a process-distance-guided action-processing mechanism reallocates excluded-action probabilities according to process distance and the actor’s safe-action preference. Recursive process feasibility is established to guarantee admissible execution and feasible continuation. Furthermore, the expected process-correction distance is incorporated into PPO through a correction budget and a primal-dual update to internalize process knowledge into the raw policy, while a derived bound quantifies the raw policy’s dependence on safety processing. Case studies using real-world data demonstrate zero process losses, electricity-cost reductions of 49.2% and 25.9% relative to rule-based scheduling and rolling MILP, respectively, within an acceptable computation time. 
+
+Index Terms —Industrial microgrid, process load, safe deep reinforcement learning, knowledge-embedded. 
+
+I. I NTRODUCTION 
+
+# REAL-TIME dispatch of steelmaking process loads (SPLs) in response to fluctuations in local renewable generation and grid electricity prices is essential for increasing on-site renewable energy utilization and reducing electricity procurement costs in industrial microgrids [1], [2]. SPLs are typically characterized by large power ratings, continuous op-eration, strong inter-stage coupling, and high start-stop costs. Their flexibility potential coexists with stringent production constraints [3]. Therefore, safe and efficient scheduling of SPLs is critical for converting process flexibility into reliable demand-side regulation while preserving production continuity and output requirements [4]. Existing studies on flexible process-load scheduling can be broadly classified into: Dispatching rule-based methods [5], 
+
+This work was supported by Science and Technology Program of Xinjiang Uyghur Autonomous Region (No. 2024B010012). ( Corresponding author: Zhaoyang Dong. )Daniyaer Paizulamu, Lin Cheng and Fashun Shi are with the State Key Laboratory of Power System Operation and Control, Department of Electrical Engineering, Tsinghua University, Beijing 100084, China (e-mail: dnyepzlm22@mails.tsinghua.edu.cn; chenglin@mail.tsinghua.edu.cn; shi fashun@tsinghua.edu.cn). Yuchi Zhang and Zhaoyang Dong are with the Department of Electrical Engineering, City University of Hong Kong, Hong Kong (e-mail: yzhang7522-c@my.cityu.edu.hk; zydong@cityu.edu.hk). 
+
+process systems engineering models based on RTN [6], CRTN [7] formulations, rolling MILP/MPC-based methods [8], [9], and reinforcement learning-based methods [10], [11]. The first two categories rely heavily on day-ahead forecasts and cannot readily embed process knowledge into online action generation, making them unsuitable for intra-day adjustment in response to electricity price variations or renewable generation fluctuations. Rolling optimization methods offer good inter-pretability and feasibility, but require repeated optimization in large-scale, highly constrained, and uncertain environments. The computational burden limits real-time applicability and makes it difficult to meet 5-min scale dispatch requirements. Under conditions of severe uncertainty and high-frequency scheduling, Deep Reinforcement Learning (DRL) exhibits substantial potential for real-time decision-making [12]. DRL has been applied to real-time pricing-based industrial facility management [13], discrete-manufacturing demand response [14], and heavy-industry energy management [15]. In steel-related applications, DRL has been used for multi-objective oxygen-system scheduling [16], hybrid discrete–continuous scheduling of oxygen systems [17], and electric arc furnace (EAF)-based steel-plant scheduling under electricity price and on-site renewable-generation uncertainties [18]. However, conventional DRL does not guarantee satisfaction of hard process constraints. To overcome the inherent limitations of traditional DRL in guaranteeing safety constraints, safe deep reinforcement learning (SDRL) provides a novel paradigm for complex industrial scheduling and energy management [19]. In [20], real-time pricing-driven manufacturing demand response was formulated as a constrained Markov decision process with a hybrid action space, wherein a cross-attention mechanism and a Lagrangian Soft Actor-Critic (SAC) framework were employed to handle hybrid action coupling and safety constraints. Relatedly, process knowledge was integrated into SDRL for the real-time scheduling of multi-product gas supply networks in [21], while an evolution-assisted SDRL approach was utilized for real-time production optimization under uncertainties in industrial rotary kilns in [22]. Furthermore, SDRL was applied to the optimal control of metallurgical pro-cesses in [23]. In the domain of microgrid energy management [24], SDRL was applied to secure and economic dispatch involving multi-energy coupling and network constraints, from the perspectives of spatio-temporal awareness [25] and physics-informed safety layers [26], respectively. However, existing SDRL methods provide only partial support for the real-time dispatch of SPLs. Constraint-based arXiv:2608.03149v1 [eess.SY] 4 Aug 2026 IEEE TRANSACTIONS ON SUSTAINABLE ENERGY, VOL. X, NO. X, XX MONTH 2026 2
+
+approaches mainly regulate expected cumulative violations, whereas action-level mechanisms typically filter, project, or re-place infeasible actions without fully accounting for multistage process logic, process-correction distances, or feasible process continuation. Process knowledge therefore remains largely external to the raw policy, which may continue assigning substantial probability to infeasible actions and require re-peated safety intervention. Penalty-based designs may further suppress violations through under-production, fewer startups, or reduced switching, thereby compromising production-quota fulfillment and yielding overly conservative schedules. This paper develops a process-knowledge-embedded safe deep reinforcement learning (PK-SDRL) framework for the real-time dispatch of SPLs under electricity-price and local renewable-generation uncertainties, while maintaining multistage process feasibility and meeting prescribed production requirements. The main contributions are summarized as follows: 1) Process-Distance-Guided Action Processing: A process-distance-guided action-processing (PDG-AP) mechanism is developed to reallocate excluded-action probabilities toward feasible actions according to process distance and the actor’s safe-action preference. Recursive process feasibility is established to ensure admissible execution and feasible process continuation. 2) Parameterized-Action PPO with Process-Knowledge Internalization: The expected process-correction distance is incorporated into PPO through a process-correction budget and a primal–dual update. The derived raw-policy process-infeasibility bound quantifies and limits the actor’s dependence on safety processing. 3) PK-SDRL Dispatch Framework: A PK-SDRL framework is developed for real-time dispatch at a 5-min resolution under a two-part electricity tariff and local renewable-generation uncertainties. The lossless active-frontier action space, parameterized discrete-continuous policy, state-transition shaping reward, and terminal quota reward jointly coordinate economic operation, process advancement, and daily quota fulfillment. 4) Ablation and Comparative Performance Evaluation: The framework is evaluated on a multiline EAF–LF–CC steel plant using real-world renewable-generation data and two-part tariff. Ablation, comparative, and sensitivity studies assess process feasibility, quota fulfillment, economic performance, online decision time, and robustness to forecast errors. The remainder of this paper is organized as follows. Section II introduces the process-constrained modeling of SPLs. The methodology of the proposed PK-SDRL framework is presented in Section III. Section IV validates the proposed method using real-world data. Finally, conclusions are summarized in Section V. II. P ROCESS -C ONSTRAINED MODELING OF SPL S
+
+This section first characterizes the dispatch modes of indus-trial process loads and then formulates a process-constrained dispatch model for steelmaking process loads (SPLs) in a short-process steelmaking plant following the electric arc fur-nace (EAF)–ladle furnace (LF)–continuous casting (CC) route. 
+
+A. Dispatch Modes for Process Loads 
+
+According to their controllability in the power and temporal dimensions, process loads (PLs) can be classified into three fundamental dispatch modes: adjustable, transferable, and shiftable, as illustrated in Fig. 1. Adjustable loads vary their operating power within admissible limits during processing. Transferable loads allow production tasks to be reassigned among eligible parallel units or production lines. Shiftable loads permit task start times to be advanced or delayed within process-feasible time windows. These modes may coexist within the same production stage and jointly determine its dispatch capability. For example, an EAF batch may combine adjustable operating power with a shiftable start time, while its admissible response remains constrained by downstream refining, transfer, and continuous-casting requirements. Ad justable  PL    
+
+> t
+> P
+> Post-dispatch Pre-dispatch
+> t
+> P
+> Shiftable PL
+> P
+> t
+> Transferable PL
+> Fig. 1. Classification of dispatch modes of process loads.
+
+B. EAF–LF–CC Process Configuration 
+
+The considered multiline short-process steelmaking plant follows the EAF–LF–CC route. Scrap is first melted in an EAF, subsequently refined in an LF, and finally solidified through continuous casting. Each production batch, hereafter referred to as a heat, must pass through these stages sequentially. The corresponding SPLs comprise the electrical demands of the processing stages along this route. Let L = {1,2,...,L } denote the set of production lines, and let Kℓ denote the set of heats assigned to line ℓ. Each line is equipped with an EAF, an LF, and a CC, whose device set is denoted by Sℓ. The complete device and heat sets are given by: 
+
+S = [
+
+> ℓ∈L
+
+Sℓ, K = [
+
+> ℓ∈L
+
+Kℓ, (1) where Sℓ = {sEAF  
+
+> ℓ
+
+,s LF  
+
+> ℓ
+
+,s CC  
+
+> ℓ
+
+}. Let A ⊆ S ×S denote the set of adjacent upstream-downstream device pairs, where (s,r ) ∈ A 
+
+indicates that device r immediately follows device s in the production route. 
+
+C. Processing Dynamics and Operational Constraints of SPLs 
+
+The operation of SPLs is characterized by the coupling between device power consumption, batch-processing progress, and interstage production requirements. The corresponding processing-energy dynamics, device-level operating constraints, and interstage timing constraints are formulated below. IEEE TRANSACTIONS ON SUSTAINABLE ENERGY, VOL. X, NO. X, XX MONTH 2026 3
+
+1) Processing Dynamics: Let δℓ,s k,t ∈ { 0,1} indicate whether device s is processing heat k on line ℓ during interval t, and let P ℓ,s k,t denote the corresponding power consumption. For each processing stage, Eℓ,s k,t denotes the cumulative electrical energy delivered to heat k by the end of interval t, with 
+
+Eℓ,s k, 0 = 0 . The state update equation is given by: 
+
+Eℓ,s k,t = Eℓ,s k,t −1 +P ℓ,s k,t ∆t, ∀ℓ ∈ L ,k ∈ K ℓ,s ∈ S ℓ,t ∈ T , (2) where ∆t is the 5-min dispatch interval, and T denotes the complete set of dispatch intervals. The processing-energy state satisfies 0 ≤ Eℓ,s k,t ≤ Eℓ,s k , where Eℓ,s k is the electrical energy required to complete the corresponding processing stage. 
+
+2) Device Operation Constraints: The operating power of each device is bounded by: 
+
+δℓ,s k,t P s ≤ P ℓ,s k,t ≤ δℓ,s k,t P s, ∀ℓ ∈ L , k ∈ K ℓ, s ∈ S ℓ, t ∈ T , (3) where P s and P s denote the minimum and maximum operating powers of device s, respectively. For a fixed-power device, P s = P s. Each device processes at most one heat during each dispatch interval: 
+
+X
+
+> k∈K ℓ
+
+δℓ,s k,t ≤ 1, ∀ℓ ∈ L , s ∈ S ℓ, t ∈ T . (4) For heat k processed on device s, let tℓ,s k, st and tℓ,s k, fn denote its start and finish intervals, respectively. Each processing task occupies one continuous and noninterruptible interval: 
+
+tℓ,s k, st −M
+
+
+
+1−δℓ,s k,t 
+
+
+
+≤ t ≤ tℓ,s k, fn +M
+
+
+
+1−δℓ,s k,t 
+
+
+
+, (5a) 
+
+X
+
+> t∈T
+
+δℓ,s k,t = tℓ,s k, fn −tℓ,s k, st +1 , 1 ≤ tℓ,s k, st ≤ tℓ,s k, fn ≤ |T | , (5b) 
+
+tℓ,s k, st , t ℓ,s k, fn ∈ Z+, ℓ ∈ L , k ∈ K ℓ, s ∈ S ℓ, and t ∈ T , where 
+
+M ≥ |T | is a sufficiently large constant. 
+
+3) Interstage Timing and Production Requirements: For each adjacent device pair (s,r ) ∈ A , heat k can enter device 
+
+r only after completing its processing on device s. The interstage transfer and waiting time is constrained by: 
+
+τ s,r  
+
+> tr
+
+≤
+
+
+
+tℓ,r k, st −tℓ,s k, fn −1
+
+
+
+∆t ≤ τ s,r  
+
+> tr
+
+, ∀ℓ ∈ L , k ∈ K ℓ, (6) where τ s,r  
+
+> tr
+
+and τ s,r  
+
+> tr
+
+denote the minimum transfer time and the maximum admissible interval between adjacent processing stages, respectively. The processing duration of each heat is restricted by: 
+
+τ ℓ,s k ≤
+
+
+
+tℓ,s k, fn −tℓ,s k, st +1 
+
+
+
+∆t ≤ τ ℓ,s k , ∀ℓ ∈ L ,k ∈ K ℓ,s ∈ S ℓ, (7) where τ ℓ,s k and τ ℓ,s k denote the minimum and maximum admissible processing durations, respectively. A heat is regarded as completed when its CC processing-energy requirement is satisfied. Accordingly, the number of completed heats at the end of the dispatch horizon N fin  
+
+> |T |
+
+is defined as: 
+
+N fin  
+
+> |T |
+
+= X
+
+> ℓ∈L
+
+X
+
+> k∈K ℓ
+
+I
+
+
+
+Eℓ,s CC  
+
+> ℓ
+> k, |T |
+
+= Eℓ,s CC 
+
+> ℓ
+> k
+
+
+
+. (8) Shared Device 
+
+> Crusher
+> Line 1
+> (L = 1)
+> EAF
+> Line 3
+> (L = 3)
+> Industrial Heats
+> Batch k=1
+> Batch k=2
+> Batch k=3
+
+𝛿 𝑘,𝑡 𝜄,𝑠   
+
+> LF
+> LF
+> Process
+> Time
+> Power
+> LF
+> CC-1/-2/-3
+> Batch
+> Process Time Limit Waiting Time Limit
+> ···
+> Fig. 2. Modeling diagram for steelmaking plants.
+
+III. PK-SDRL D ISPATCH FRAMEWORK 
+
+This section develops the process-knowledge-embedded safe deep reinforcement learning (PK-SDRL) framework for real-time dispatch of SPLs under a two-part tariff with real-time electricity prices and local renewable generation. At each 5-min decision interval, the dispatch objective is to reduce electricity procurement cost and demand-exceedance risk while satisfying process constraints. The expected process-correction distance induced by PDG-AP is further incorporated into policy updating to guide the raw actor toward the process-feasible action support. The overall framework of the proposed PK-SDRL framework is illustrated in Fig. 3. 
+
+A. Markov Decision Process Formulation 
+
+The intraday dispatch problem is modeled as a Markov decision process: 
+
+M = ( X ,U,P,r,γ ), (9) where X , U, P, r, and γ denote the state space, action space, transition kernel, instantaneous reward, and discount factor, re-spectively. Each episode corresponds to one operating day, and each decision step represents a 5-min interval. The environ-ment state at time t is constructed from the previous plant state 
+
+Ξt−1 = [ {δℓ,s k,t −1},{P ℓ,s k,t −1},{Eℓ,s k,t −1}] and short-term forecast information, and a compact state representation is adopted: 
+
+st =
+
+h
+
+Ξt−1,{ˆλτ |t, ˆP R 
+
+> τ|t
+
+}t+Hs−1  
+
+> τ=t
+
+,ηt
+
+i
+
+, (10) where ˆλτ |t and ˆP R  
+
+> τ|t
+
+denote the electricity-price and renewable-generation forecasts over the short look-ahead horizon Hs, respectively. The vector ηt collects the remaining daily production quota, the remaining time and the headroom relative to the contract demand D.
+
+B. Active Frontier and Action Space Construction 
+
+To reduce the action-space dimension, decisions are restricted to the active-frontier heats. For each device s ∈ S ℓ,the active frontier is defined as: 
+
+Fℓ,s t = {kℓ,s, cur  
+
+> t
+
+}∪{ kℓ,s, next  
+
+> t
+
+}, ∀ℓ ∈ L , s ∈ S ℓ, t ∈ T , (11) IEEE TRANSACTIONS ON SUSTAINABLE ENERGY, VOL. X, NO. X, XX MONTH 2026 4
+
+where kℓ,s, cur  
+
+> t
+
+and kℓ,s, next  
+
+> t
+
+denote the heat currently processed and the next eligible heat for device s at time 
+
+t, respectively. Eligibility is determined by the process constraints in Section II-C. The hybrid action is defined as: 
+
+at = ( axt ,Pt), (12) where axt = {δℓ,s k,t }, Pt = {P ℓ,s k,t }, k ∈ F ℓ,s t collect the operating decisions and power setpoints, respectively, for the current and next heats on each device. 
+
+Remark 1. Under the prescribed processing order, every feasible hybrid action is supported on the active frontier: 
+
+(δℓ,s k,t , P ℓ,s k,t ) = (0 , 0) for all k ∈ K ℓ \ F ℓ,s t . Consequently, restricting decisions to the active frontier is lossless relative to full-batch action construction. C. Process-Distance-Guided Action Processing 
+
+Let a,b ∈ U x denote candidate discrete connection actions. Given the current plant state Ξt, define the safe and excluded action sets as Us 
+
+> t
+
+and Ue 
+
+> t
+
+= Ux \ U s 
+
+> t
+
+, respectively. A discrete action belongs to Us 
+
+> t
+
+only if it satisfies constraints (4)–(7). Let 
+
+πxθ (· | st) ∈ ∆( Ux) denote the raw discrete policy. Assuming 
+
+Us
+
+> t
+
+̸ = ∅, its total probability over the safe set is Zθ,t =P
+
+> b∈U s
+> t
+
+πxθ (b | st), and the normalized safe reference policy is: 
+
+¯πxθ,t (b | st) = πxθ (b | st)/Z θ,t , b ∈ U s 
+
+> t
+
+. (13) A standard hard mask directly uses ¯πxθ,t (· | st) for sampling. Equivalently, the probability mass removed from every excluded action is allocated to safe actions according to the same reference distribution, without distinguishing which safe action constitutes a smaller process correction. To incorporate this distinction, let δt(a) ∈ { 0,1}nxt collect the active-frontier operating states induced by action a. The normalized process distance between a ∈ U e 
+
+> t
+
+and b ∈ U s 
+
+> t
+
+is defined as: 
+
+dt(a,b ) = ∥δt(a)−δt(b)∥1/n xt , (14) where nxt is the dimension of δt(a). Thus, dt(a, b ) ∈ [0 , 1] 
+
+measures the fraction of active-frontier operating decisions that must be changed when replacing a with b. For each excluded action a ∈ U e 
+
+> t
+
+, its probability allocation weights are determined by: 
+
+ω⋆θ,t (· | a) = arg min  
+
+> q∈∆( Us
+> t)
+
+n
+
+Eb∼q [dt(a,b )] +τmDKL 
+
+ q∥¯πxθ,t (· | st)o
+
+,
+
+(15) where ∆( Us 
+
+> t
+
+) is the probability simplex over Us 
+
+> t
+
+, DKL (·∥· ) de-notes the Kullback–Leibler divergence, and τm > 0 is a trade-off coefficient. The first term represents a process-near safe substitute, whereas the second prevents the allocation from departing excessively from the actor’s safe-action preference. Since the raw softmax policy is positive on Us 
+
+> t
+
+, the objective in (15) is strictly convex and admits the unique solution: 
+
+ω⋆θ,t (b | a) = ¯πxθ,t (b | st)exp[ −dt(a,b )/τ m]
+
+X
+
+> c∈U s
+> t
+
+¯πxθ,t (c | st)exp[ −dt(a,c )/τ m] , (16) where a ∈ U e 
+
+> t
+
+,b ∈ U s 
+
+> t
+
+, the resulting safety-processed policy is expressed as: 
+
+˜πxθ (b | st) = πxθ (b | st)+ X
+
+> a∈U e
+> t
+
+πxθ (a | st)ω⋆θ,t (b | a), b ∈ U s 
+
+> t
+
+, (17) where ˜πxθ (b | st) = 0 ,b ∈ U e 
+
+> t
+
+. Since ω⋆θ,t (· | a) is a probability distribution, (17) preserves the total probability mass and assigns zero probability to all excluded actions. Using 
+
+¯πxθ,t (· | st) as a feasible point of (15) gives: 
+
+Eb∼ω⋆θ,t (·| a)[dt(a,b )] ≤ Eb∼¯πxθ,t (·| st)[dt(a,b )] , a ∈ U e 
+
+> t
+
+. (18) 
+
+Proposition 1 (Recursive process feasibility under PDG-AP) .
+
+Suppose that Ξ0 is process feasible. For every ℓ ∈ L
+
+and every pair of consecutive heats k, k + 1 ∈ K ℓ, the configured processing-time bounds satisfy τ ℓ, LF  
+
+> k
+
+≤ τ ℓ, EAF 
+
+> k+1
+
+and τ ℓ, LF  
+
+> k
+
++ τ ℓ, CC  
+
+> k
+
+≤ τ ℓ, EAF  
+
+> k+1
+
++ τ ℓ, LF  
+
+> k+1
+
+. If axt ∼ ˜πxθ (· | st) and 
+
+Ξt = F  Ξt−1,a xt ,P⋆t
+
+, then: 
+
+Pr  {axt ∈ U s 
+
+> t
+
+(Ξ t−1)}∩ Us
+
+> t+1
+
+(Ξ t)̸ = ∅ st
+
+ = 1 , t > 0. (19) Proposition 1 establishes the recursive process feasibility of PDG-AP under the prescribed processing-time conditions. Specifically, starting from a process-feasible state, each safety-processed action leads to a successor state with at least one admissible continuation, thereby preventing process deadlock. The proof of Proposition 1 is provided in Appendix A. Although the safety-processed policy guarantees process-feasible execution, the raw policy may retain probability mass on the excluded action set. To quantify its reliance on safety processing, the expected process-correction distance induced by PDG-AP is defined as: 
+
+Ct(θ) = X
+
+> a∈U e
+> t
+
+πxθ (a | st) X
+
+> b∈U s
+> t
+
+ω⋆θ,t (b | a)dt(a,b ), (20) where Ct(θ) = 0 when Ue 
+
+> t
+
+= ∅. The probability assigned by the raw policy to excluded actions is: 
+
+pe 
+
+> t
+
+(θ) = X
+
+> a∈U e
+> t
+
+πxθ (a | st). (21) For Ue
+
+> t
+
+̸ = ∅, define the minimum nonzero process-correction distance as: 
+
+dmin  
+
+> t
+
+= min  
+
+> a∈U e
+> t,b ∈U s
+> t
+
+dt(a,b ) > 0. (22) 
+
+Proposition 2 (Raw-policy process-infeasibility bound) . Let 
+
+DTV (·, ·) denote the total variation distance. For any state satisfying Us
+
+> t
+
+̸ = ∅, the raw and safety-processed discrete policies satisfy: 
+
+DTV (πxθ (· | st),˜πxθ (· | st)) = pe 
+
+> t
+
+(θ) ≤ Ct(θ)
+
+dmin 
+
+> t
+
+≤ nxt Ct(θ). (23) 
+
+Proof: For Ue 
+
+> t
+
+= ∅, all terms in (23) are zero. Otherwise, (17) assigns zero probability to excluded actions and transfers their total probability mass pe 
+
+> t
+
+(θ) to the safe set. Therefore, the ℓ1 distance between the raw and processed policies is 
+
+2pe 
+
+> t
+
+(θ). Moreover, P
+
+> b∈U s
+> t
+
+ω⋆θ,t (b | a) = 1 and dt(a,b ) ≥ dmin 
+
+> t
+
+yield Ct(θ) ≥ dmin  
+
+> t
+
+pe 
+
+> t
+
+(θ). Since distinct binary connection actions satisfy ∥δt(a) − δt(b)∥1 ≥ 1, dmin  
+
+> t
+
+≥ 1/n xt , which proves Proposition 2. IEEE TRANSACTIONS ON SUSTAINABLE ENERGY, VOL. X, NO. X, XX MONTH 2026 5
+
+Remark 2. As τm → ∞ , (16) satisfies ω⋆θ,t (· | a) → ¯πxθ,t (· | st),and (17) reduces exactly to the standard masked policy. For a fixed decision state, Us 
+
+> t
+
+and dt are independent of 
+
+θ. Consequently, both ˜πxθ and Ct(θ) remain differentiable with respect to the actor parameters. The former is used for discrete-action sampling and the PPO likelihood ratio, while the latter guides raw-policy internalization. 
+
+The continuous branch decides the actual power of activated adjustable devices. Let zℓ,s k,t ∈ R denote the unbounded latent action sampled from the conditional continuous policy 
+
+πpθ (· | st, a xt ). The corresponding device power is obtained through the bounded mapping: 
+
+P ℓ,s k,t = δℓ,s k,t (axt )
+
+"
+
+P s + P s −P s
+
+2 ×
+
+
+
+1+tanh zℓ,s k,t 
+
+#
+
+. (24) ( )tV        
+
+> 
+> s··xta
+> Parameterized-Action PPO PDG-AP
+> 1010011
+> ···
+> 
+> Raw Policy
+> Environment
+> LF EAF CC
+> Queue
+> Plant Dynamics L
+> t
+
+PE                                                         
+
+> tP
+> Reward
+> Step Reward
+> Terminal Reward
+> Electricity Cost
+> Shaping Reward
+> Losses Penalty
+> Quota Reward
+> Quota Penalty
+> State
+> Plant State
+> State Update ()t
+> 
+> Electricity Price Renewable Indicators 1R|
+> ˆ{}stHttP
+> +−=1|
+> ˆ{}stHtt
+> 
+> 
+> +−=tηtP
+> State Input
+> Safety-Processed Policy
+> Safe Set
+> ··
+> ····
+> Actor
+> Critic
+> Trajectory Buffer
+> PPO Data Processing
+> TD
+> Error
+> GAE
+> Advantage
+> Return
+> Target PI ( , )L
+>   ()V
+> L
+> 
+> Knowledge
+> Embedding ()()xxt
+>   s∣s
+> t,11()tba
+> 
+> ∣···
+> ···1a2a3ana1b2b3b,3()ta
+> ∣e
+> ,()()()()
+> t
+> xxxtttta
+> bbab a
+> 
+> 
+> 
+> =+sss∣∣∣∣
+> 
+> Probability Relocation ( ) tC
+> 
+> Process-Knowledge
+> Internalization
+
+Fig. 3. PK-SDRL framework for real-time dispatch of SPLs. 
+
+D. Instantaneous Reward Function 
+
+During intraday dispatch, local renewable generation is first used to supply the SPLs, while the remaining power demand is supplied by the external grid. Let [x]+ = max {x, 0}. The grid purchase power at time t is given by: 
+
+P Gt =
+
+"X
+
+> ℓ∈L
+
+X
+
+> s∈S ℓ
+
+X
+
+> k∈K ℓ
+
+P ℓ,s k,t −P R
+
+> t
+
+#+
+
+, (25) where P R 
+
+> t
+
+denotes the available local renewable generation. Accordingly, the renewable power utilized by the plant is P R,u 
+
+> t
+
+= min {P R 
+
+> t
+
+, P
+
+> ℓ∈L
+
+P
+
+> s∈S ℓ
+
+P 
+
+> k∈K ℓ
+
+P ℓ,s k,t }. The reward consists of an intraday reward for economic operation together with process advancement and a terminal reward for daily production completion. The intraday reward is defined as: 
+
+rin  
+
+> t
+
+=−ce 
+
+> t
+
+P Gt ∆t−cRP R,u 
+
+> t
+
+∆t−cexc ce 
+
+> t
+
+[P Gt −D]+∆t
+
+−chm nhm  
+
+> t
+
+−csp nsp  
+
+> t
+
++rshp  
+
+> t
+
+, (26) where ce 
+
+> t
+
+is the real-time grid electricity price, cR is the local renewable price, D is the contract-demand threshold, and cexc is the demand-exceedance cost coefficient. nhm  
+
+> t
+
+and 
+
+nsp  
+
+> t
+
+denote the numbers of heats violating the admissible EAF →LF and LF →CC interstage intervals during time t,with penalty coefficients chm and csp , respectively. The shaping reward rshp  
+
+> t
+
+provides intermediate feedback on multi-stage production progress. Since an upstream action affects final heat completion only after the subsequent processing stages, sparse terminal feedback may result in delayed credit assignment. A state-transition-based shaping term is therefore introduced. The potential function is defined as: 
+
+Φ(Ξ t) = X
+
+> ℓ∈L
+
+X
+
+> s∈S ℓ
+
+ωs
+
+X
+
+> k∈K ℓ
+
+Eℓ,s k,t 
+
+Eℓ,s k
+
+, (27) where ωs ≥ 0 is the weight associated with processing stage 
+
+s. The shaping reward with shaping coefficient η ≥ 0 and discount factor γ is then given by: 
+
+rshp  
+
+> t
+
+= η γΦ(Ξ t+1 )−Φ(Ξ t). (28) At the end of each operating day, a terminal reward is applied to evaluate the daily quota fulfillment rate. Let N fin 
+
+> |T |
+
+,
+
+N qta , ρday denote the number of completed heats, daily quota and the reward for quota fulfillment, respectively. The terminal reward is defined as: 
+
+rter  
+
+> |T |
+
+= ρday I
+
+n
+
+N fin  
+
+> |T |
+
+≥ N qta o
+
+−cqN qta −N fin 
+
+> |T |
+
++, (29) where cq is the unit production-shortfall penalty. The total discounted episodic reward used for training is therefore derived as: 
+
+R =
+
+> |T |− 1
+
+X
+
+> t=0
+
+γtrin  
+
+> t
+
++γ|T | rter 
+
+> |T |
+
+. (30) 
+
+E. Parameterized-Action PPO with Process-Knowledge Internalization 
+
+Since the action comprises a discrete connection decision 
+
+axt and continuous power parameters, a parameterized-action actor–critic framework is adopted. The actor network contains two output branches. The discrete branch generates the raw probabilities of the candidate connection actions, which are transformed into the safety-processed policy ˜πxθ (axt | st)
+
+through the process-knowledge embedding described above. After axt is sampled from this policy, the continuous branch generates a conditional policy for the latent power parameters: 
+
+πpθ (zpt | st,a xt ) = N (μpθ (st,a xt ),Σpθ ), (31) where zpt contains the latent power parameters associated with the operations activated by axt , μpθ (·) denotes the corresponding mean output, and Σpθ = diag(( σpθ )2) is the diagonal exploration covariance. The sampled latent parame-ters are converted into executable device powers through the deterministic bounded-power mapping defined above: 
+
+P⋆t = Gpt (zpt ;st,a xt ). (32) Accordingly, letting zt = ( axt ,zpt ) denote the parameterized action sampled by the policy, its joint distribution is written as: 
+
+˜πθ (zt | st) = ˜ πxθ (axt | st)πpθ (zpt | st,a xt ). (33) The joint likelihood of zt is used for PPO updating, whereas the corresponding processed action axt ,P⋆t is executed in the production environment. Let Vψ (st) denote the critic network IEEE TRANSACTIONS ON SUSTAINABLE ENERGY, VOL. X, NO. X, XX MONTH 2026 6
+
+parameterized by ψ, and let ψold denote its parameters when the trajectory is collected. Let rt ≜ rin  
+
+> t
+
++ I{t=|T |} rter  
+
+> |T |
+
+denote the one-step reward used for policy optimization. Given the reward rt, the one-step temporal-difference error is: 
+
+δt = rt +γV ψold (st+1 )−Vψold (st), (34) The terminal-state value is set to zero, and the generalized advantage estimation (GAE) is computed as: 
+
+ˆAt =
+
+> Jt−1
+
+X
+
+> j=0
+
+(γλ )j δt+j , (35) where λ ∈ [0 ,1] is the GAE trace-decay parameter controlling the bias–variance tradeoff, and Jt denotes the number of valid steps from t to the end of the collected rollout or episode. The return target for critic learning is given by: 
+
+ˆRt = ˆAt +Vψold (st). (36) Both ˆAt and ˆRt are held fixed during each PPO update. A clipped policy update is employed to improve training stability. Let θold denote the actor parameters used to collect the trajectory. The probability ratio is computed from the joint likelihood of the sampled safe connection action and latent power parameters: 
+
+ρt(θ) = ˜πxθ (axt | st)πpθ (zpt | st,a xt )˜πxθold (axt | st)πpθold (zpt | st,a xt ) . (37) The clipped actor objective with clipping parameter ϵ is written as: 
+
+Lclip (θ) = Et
+
+h
+
+min 
+
+
+
+ρt(θ) ˆAt,clip( ρt(θ),1−ϵ, 1+ ϵ) ˆAt
+
+i 
+
+.
+
+(38) The actor update is further constrained by the expected process-correction distance: 
+
+max  
+
+> θ
+
+Lclip (θ), s.t. Et[Ct(θ)] ≤ κ, (39) where κ > 0 denotes the prescribed process-correction budget. The corresponding primal–dual actor objective is: 
+
+LPI (θ,ν ) = Lclip (θ)−ν(Et[Ct(θ)] −κ), ν ≥ 0, (40) where ν is the dual variable. The actor parameters are updated by maximizing LPI (θ,ν ), while ν is updated according to: 
+
+ν ← [ν +ην (Et[Ct(θ)] −κ)] +, (41) where ην > 0 is the dual learning rate. Let nx = max t∈T nxt .From Proposition 2, any policy satisfying (39) obeys: 
+
+Et[pe 
+
+> t
+
+(θ)] ≤ nxEt[Ct(θ)] ≤ nxκ. (42) Hence, PDG-AP guarantees process-feasible execution, while the correction-budgeted update limits the raw actor’s dependence on safety processing. PDG-AP remains active during deployment to preserve the hard feasibility guarantee. The critic is updated by minimizing the value loss below, and the complete training procedure of the proposed PK-SDRL method is summarized in Algorithm 1. 
+
+LV (ψ) = Et
+
+
+
+Vψ (st)− ˆRt
+
+2
+
+. (43) 
+
+Algorithm 1: Training Procedure for PK-SDRL 
+
+Input: Training-day data D, process model, and hyperparameters. 
+
+Output: Trained policy ˜πθ∗ .Initialize θ, ψ, and ν ← 0.
+
+for each episode drawn from D do 
+
+Reset Ξ0 and B ← ∅, and set (θold ,ψ old ) ← (θ,ψ ).
+
+for t ∈ T do 
+
+Observe st and construct {F ℓ,s t }, Us 
+
+> t
+
+, and Ue 
+
+> t
+
+.Obtain ˜πxθold through PDG-AP using (16)–(17). Sample zt = ( axt ,zpt ) ∼ ˜πθold (· | st).Map zpt to P⋆t ,execute the action, and observe rt and st+1 .Store (st,zt,r t,st+1 ) in B.
+
+end 
+
+Compute ˆAt and ˆRt from B using GAE. Update θ by maximizing LPI , update 
+
+ψ by minimizing LV , and update ν using (41). 
+
+end 
+
+IV. C ASE STUDY 
+
+A. Set up 1) Renewable Energy Sources and Market Data: Real-time wind and photovoltaic generation data were collected from a renewable energy station in an industrial microgrid, where the installed wind and PV capacities are 425 MW and 375 MW, respectively. The dataset spans 14 months with a one-second resolution and covers a broad range of typical renewable gen-eration scenarios from Oct/2024-Nov/2025, as shown in Fig. 4.  
+
+> Fig. 4. Distribution and variation trends of wind and photovoltaic power output over a 14-month period.
+
+Real-time system electricity price data were collected from PJM at a 5-minute resolution and were used for RL training and testing. The daily price profiles are illustrated in Fig. 5. 
+
+2) System Configuration and Parameters: A test system is constructed based on a representative large-scale short-process steel plant. The system includes one crushing unit and three steelmaking lines, each of which consists of one EAF, one LF, and one CC. The main equipment parameters are summarized in Table I, and the rated power of each unit is specified based on an 80-ton heat size per batch. Both unit commitment and IEEE TRANSACTIONS ON SUSTAINABLE ENERGY, VOL. X, NO. X, XX MONTH 2026 7Time (hour) 0 6 12 18 24 Electricity Price ($/MWh) 050 100 150  
+
+> Fig. 5. Typical 5-minute real-time system electricity price profiles for PJM from Oct/2024 to Nov/2025.
+
+power dispatch are implemented at a 5-minute resolution, aligned with the electricity price data. 
+
+3) Simulation Environment: RL training and testing are implemented in MATLAB (R2025b) on a workstation equipped with an Intel Core Ultra 9 275HX processor at 2.70 GHz and 32 GB RAM. Gurobi, interfaced through YALMIP, is used to solve the optimization problems. During RL training, the agent is trained for 200 epochs by repeatedly cycling through 400 days of historical data, while the validation set consists of an additional 15 days of unseen renewable generation and electricity price data. The state variables include electricity-price and renewable-generation forecasts over a 3-h look-ahead horizon. This horizon is consistent with the practical range of ultra-short-term forecasting at a 5-min resolution [27]. In testing, forecast data are generated by adding zero-mean Gaussian errors to the realized electricity-price and renewable-generation trajectories, with the error standard deviation σf set to 10% of the realized values.     
+
+> TABLE I KEY DEVICE AND PARAMETERS OF THE STEEL PLANT
+
+Parameter Crusher EAF LF CC EAF →LF LF →CC 
+
+(P ,P )(MW) (4, 4) (45, 75) (6, 10) (4, 4) \ \
+
+Energy (MWh/heat) \ 34.8 2.4 2 \ \
+
+Time (min) \ 40-50 20-30 30 5–10 5–10 Waiting time (min) \ ≥ 5 ≥ 5 ≥ 5 ≤ 10 ≤ 10 
+
+B. Scheduling Results 1) Training Convergence and Feasibility: During training, the PK-SDRL agent is evaluated periodically to track its tran-sition from stochastic exploration to deterministic operation. The policy is first trained with sampled actions to encourage exploration, while greedy validation is conducted at regular checkpoints to assess the performance of the deployable policy on unseen validation days. The key parameters are summarized in Table II. Fig. 6 presents the training convergence of the proposed PK-SDRL scheduling policy evaluated at greedy validation checkpoints. In the early training stage, the validation reward remains low and the quota fulfillment rate fluctuates noticeably, reflecting the agent’s insufficient ability to meet the daily production target and the resulting terminal shortfall penalties. As training progresses, the validation reward increases rapidly and the quota fulfillment rate reaches one. This trend indicates that PK-SDRL first learns the primary feasibility requirement of completing 54 heats per day and then converges to a stable scheduling regime. Fig. 7 verifies the effectiveness of process-knowledge inter-nalization during policy training. As training proceeds, both                                                    
+
+> TABLE II KEY PARAMETERS USED IN PK-SDRL T RAINING
+> Symbol Value Symbol Value Symbol Value
+> Nqta 54 heats/day D100 MW Hs36
+> σf10% cR10 $/MWh cexc 2
+> cq2.5×10 4$/heat chm 1.4×10 4$/heat csp 9.0×10 3$/heat
+> ρday 2.5×10 4$η3.0×10 3${ωs}s∈S 1/3
+> τm0.10 κ0.05 ην1.0×10 −32000 4000 6000 8000
+> -12
+> -10
+> -8
+> -6
+> -4
+> -2
+> 0
+> 210 5
+> 0.9
+> 0.95
+> 1
+> 2000 4000 6000 8000 -12 -10 -8 -6 -4 -2 0210 5
+> 0.9 0.95 1
+> Fig. 6. Validation reward and quota fulfillment rate during the training of the proposed PK-SDRL scheduling policy.
+
+0 1 2 3 4 5 6 7 8Episode #10 4
+
+> Value
+
+00.2 0.4 0.6 0.8 1 Ct(3) pe 
+
+> t
+
+(3) 
+
+> Fig. 7. Evolution of the raw excluded-action probability and expected process-correction distance during PK-SDRL training.
+
+the raw excluded-action probability pe 
+
+> t
+
+(θ) and the expected process-correction distance Ct(θ) decrease substantially, indi-cating that the raw actor progressively shifts its probability mass toward the safe action support. The faster reduction in 
+
+Ct(θ) further shows that the remaining excluded decisions re-quire only minor process corrections, thereby reducing the pol-icy’s dependence on PDG-AP. Fig. 8 further compares the se-lected PK-SDRL agent with a rule-based production policy on unseen validation days. The PK-SDRL policy achieves lower daily electricity cost across the validation set by adaptively coordinating production decisions with real-time electricity prices and renewable generation profiles. Meanwhile, both hot-metal losses and semi-product losses remain zero, demon-strating that the economic improvement is obtained while respecting the inter-stage transfer and waiting-time constraints. 
+
+2) Real-Time Decision Analysis of the PK-SDRL Frame-work: At the system level, PK-SDRL does not correspond to a deterministic heuristic that increases production at low-price periods and suspends production at high-price periods. Rather, it learns a dynamic decision-making policy that jointly accounts for the daily production requirement, the forecast-horizon grid electricity cost, and local renewable generation. For the representative validation day in Fig. 9, renewable generation reaches nearly 400 MW, the electricity IEEE TRANSACTIONS ON SUSTAINABLE ENERGY, VOL. X, NO. X, XX MONTH 2026 8Validation Day               
+
+> 12345678910 11 12 13 14 15 246810 12
+> Daily Electricity Cost ($)  #10 4
+> Process Losses
+> 00.2 0.4 0.6 0.8
+> PK-SDRL Daily Cost Rule-based Daily Cost Hot-Metal losses Semi-Product losses
+
+Fig. 8. Daily electricity cost comparison and process-loss performance on unseen validation days. 
+
+price peaks at approximately 70–80 $/MWh, and the total plant power reaches about 220 MW. However, several high-load intervals coincide with high renewable generation, and therefore the grid import does not increase proportionally with the total plant power. This indicates that PK-SDRL exploits intervals with low grid-import pressure instead of merely suppressing load. When renewable generation is limited and the electricity price is unfavorable, the policy reduces production intensity. When renewable generation is sufficient or the price remains within an acceptable range, the policy increases production power to advance heat completion. The cumulative production reaches 54 heats before the end of the day, indicating that PK-SDRL leverages intra-day variations in price and renewable generation to reduce the effective grid electricity cost while satisfying the production requirement. Power (MW)          
+
+> 0100 200 300 400 500
+> Electricity Price ($/MWh)
+> 20 30 40 50 60 70 80 Renewable Output Electricity Price
+> Time (Hour)
+> 04812 16 20 24
+> Power (MW)
+> 050 100 150 200 250
+> Cumulative Heats
+> 010 20 30 40 50 60 Total Plant Power Grid Import Demand Limit Cumulative Heats
+
+Fig. 9. Plant-level intra-day scheduling trajectory of the proposed PK-SDRL policy on a representative validation day. 
+
+At the device level, PK-SDRL translates the heterogeneous flexibility of different process stages into an executable staggered production schedule. As shown in Fig. 10, EAFs serve as the primary high-power controllable loads, with operating powers varying around the 60 MW baseline, and therefore provide the main source of economic dispatch. By contrast, LFs and CCs operate at much lower power levels, approximately 8 MW and 4 MW, respectively, and their dispatching primarily support the continuity of upstream material transfer. The three production lines operate in a stag-gered manner instead of being started synchronously, which mitigates power peaks caused by simultaneous EAF operation and provides coordination space for subsequent LF and CC stages. The sequential EAF–LF–CC processing relationship is also maintained throughout the day, with no material-transfer infeasibility induced by price-driven scheduling. These results demonstrate that PK-SDRL does not simply learn a load-reduction policy. Under safety-aware action constraints, it establishes a hierarchical coordination pattern in which high-power stages provide economic flexibility, while downstream stages preserve process continuity. Time (Hour)       
+
+> 04812 16 20 24
+> Production Unit
+> Crusher CC-3 LF-3 EAF-3 CC-2 LF-2 EAF-2 CC-1 LF-1 EAF-1 4 MW 4 MW 8 MW 60 MW 4 MW 8 MW 60 MW 4 MW 8 MW 60 MW
+
+Fig. 10. Unit-level power trajectories generated by the proposed PK-SDRL policy on a representative validation day. 
+
+C. Ablation and Comparative Performance Evaluation 1) Ablation Study: To examine the necessity of the PDG-AP mechanism under tightly constrained process scheduling, a standard DRL baseline is constructed by removing this mechanism while retaining the same state space, action space, reward function, network architecture, and training data as PK-SDRL. The training behavior is shown in Fig. 11. Although the daily reward of DRL increases during training, the number of completed heats decreases from nearly 54 heats/day to a much lower level, while hot-metal losses remain significant. This result indicates that, without PDG-AP, the agent cannot effec-tively learn the inter-stage transfer timing, waiting-time limits, and mandatory process-continuity requirements only from pos-terior penalties. The apparent reward improvement in the later training stage is mainly attributed to fewer high-risk startups and lower electricity consumption, rather than to a feasible production schedule. In other words, the DRL baseline tends to avoid process failures through conservative under-production. Episode          
+
+> 200 400 600 800 1000 1200 1400 1600 1800 2000 -14 -12 -10 -8 -6 -4 -2
+> Daily-Reward ($)
+> #10 6
+> Heats
+> 010 20 30 40 50 60 Quota Target
+> Reward Reward Average Completed Heats Completed Heats Average Heats Losses Heats Losses Average
+
+Fig. 11. Training behavior of the standard DRL baseline without PDG-AP. 
+
+In contrast, as shown in Fig. 6, PK-SDRL achieves 100% quota fulfillment rate under greedy validation, with the validation reward converging to a stable level. This comparison demonstrates that the PDG-AP excludes clearly IEEE TRANSACTIONS ON SUSTAINABLE ENERGY, VOL. X, NO. X, XX MONTH 2026 9
+
+infeasible actions and enforces mandatory process actions before execution, thereby restricting policy exploration to the feasible production space. 
+
+2) Comparative Performance Evaluation: The proposed PK-SDRL method is further compared with a Rule-Based Policy and Rolling MILP. The Rule-Based Policy completes the production task following a fixed and uniform production pace, while Rolling MILP solves a batch-level mixed-integer scheduling problem at each time step with a 3-h prediction horizon and a 5-min rolling interval. Fig. 12 presents the hourly power and electricity-cost profiles on a representative validation day. The Rule-Based Policy follows a nearly fixed production pattern and has limited capability to adjust the load distribution according to electricity prices and renewable generation, leading to high production power during some high-cost periods. Rolling MILP exhibits certain price-responsive behavior, but its short 3-h prediction horizon and local heat-completion revenue still result in temporally concentrated production, which increases the hourly electricity cost in several periods. In contrast, PK-SDRL adjusts the real-time dispatch more flexibly while satisfying the daily production target and process constraints. It allocates high-power operation more effectively to periods with lower grid-import pressure, thereby reducing the overall operating cost. The full-validation-set statistics are reported in Table III. Compared with short-horizon Rolling MILP, PK-SDRL also avoids the need for frequent online solution of large-scale mixed-integer optimization problems and exhibits superior economic scheduling performance under dynamic electricity prices and renewable-generation fluctuations. Time (Hour)                                 
+
+> 04812 16 20
+> Plant-Level Power (MW)
+> 0100 200 300 400 500
+> Hourly Electricity Cost ($)
+> 02000 4000 6000 8000 SDRL Power SDRL Cost Rule-Based Power Rule-Based Cost Rolling MILP Power Rolling MILP Cost
+> Fig. 12. Hourly power and electricity-cost comparison of different scheduling methods on a representative validation day. TABLE III PERFORMANCE COMPARISON OF DIFFERENT SCHEDULING METHODS
+> Method Electricity Cost Quota Hit Process-Loss Decision Time /day Rate Rate /5-min step PK-SDRL 29422.5$ 100% 00.18 ms DRL \072.1% 0.11 ms Rule-Based Policy 57946.3$ 100% 0\
+> Rolling MILP 39721.2$ 100% 09.8 s
+
+D. Sensitivity Analysis 
+
+Two sensitivity studies are conducted to evaluate the effects of forecast-error standard deviation σf and forecast horizon 
+
+Hf = Hs∆t on PK-SDRL. As shown in Fig. 13(a), the quota fulfillment rate remains 100% for σf ≤ 20% , while the cost per heat increases with forecast uncertainty. At σf = 50% , severely distorted price and renewable-generation forecasts prevent the policy from reliably identifying low-cost production windows, causing delayed operations and reducing the completed output to approximately 50 heats on a few validation days. The daily quota is imposed through a terminal penalty rather than a hard constraint or a predefined end-of-day catch-up rule. Such mechanisms would substantially restrict scheduling flexibility, while a universally valid catch-up instant cannot be specified under heterogeneous daily price, renewable-generation, and process-state trajectories. Fig. 13(b) shows that increasing Hf reduces the cost per heat, whereas the corresponding online decision time increases only marginally and remains well below the 5-min control interval. The results confirm that higher forecast accuracy and longer look-ahead information both improve economic performance. Nevertheless, the marginal cost reduction becomes limited beyond Hf = 3 h, while reliable forecasts at a 5-min resolution over substantially longer horizons are difficult to obtain in practical operation. (a)  (b)         
+
+> Fig. 13. Sensitivity analysis of PK-SDRL: (a) performance under different forecast-error standard deviations and (b) performance under different forecast-horizon lengths.
+
+V. C ONCLUSION 
+
+In this paper, a process-knowledge-embedded safe deep reinforcement learning framework is proposed for the 5-min real-time dispatch of SPLs under a two-part electricity tariff and local renewable-generation uncertainties. The proposed PDG-AP mechanism reallocates excluded-action probabilities according to process distance and the actor’s safe-action preference, while recursive process feasibility ensures admissible execution and feasible continuation. The expected process-correction distance is further incorporated into parameterized-action PPO through a process-correction budget and a primal–dual update, and the derived bound quantifies the raw policy’s dependence on safety processing. Together with the lossless active-frontier action space, state-transition shaping reward, and terminal quota reward, PK-SDRL coordinates economic operation, process advancement, and daily quota fulfillment. Case studies on a multiline EAF–LF–CC steel plant demonstrate zero process loss. Compared with the rule-based policy and rolling MILP, PK-SDRL reduces daily electricity costs by 49.2% and 25.9%, respectively, while requiring only 0.18 ms per decision step. Sensitivity studies further demonstrate its effectiveness under forecast errors and different forecast horizons. Future work will extend the proposed framework to more complex industrial processes and investigate its generalization under broader operating conditions and uncertainty patterns. IEEE TRANSACTIONS ON SUSTAINABLE ENERGY, VOL. X, NO. X, XX MONTH 2026 10 
+
+APPENDIX 
+
+A. Proof of Proposition 1 Proof. Consider an arbitrary reachable state Ξt−1 and any 
+
+axt ∈ U s 
+
+> t
+
+(Ξ t−1), with Ξt = F (Ξ t−1,a xt ). Define the processing duration and interstage interval as: 
+
+dℓ,s k =
+
+
+
+tℓ,s k, fn −tℓ,s k, st +1 
+
+
+
+∆t,q ℓ,s,r k =
+
+
+
+tℓ,r k, st −tℓ,s k, fn −1
+
+
+
+∆t, (44) where τ ℓ,s k ≤ dℓ,s k ≤ τ ℓ,s k and τ s,r  
+
+> tr
+
+≤ qℓ,s,r k ≤ τ s,r  
+
+> tr
+
+. Preserve all committed operations and, for each uncommitted heat k + 1 ,select: qℓ, EAF ,LF  
+
+> k+1
+
+= τ EAF ,LF tr , q ℓ, LF ,CC  
+
+> k+1
+
+= τ LF ,CC tr , d ℓ, LF  
+
+> k+1
+
+= τ ℓ, LF  
+
+> k+1
+
+.
+
+For any ℓ ∈ L and consecutive heats k,k + 1 ∈ K ℓ, exclusive EAF occupancy gives: 
+
+
+
+tℓ, EAF  
+
+> k+1 ,fn
+
+−tℓ, EAF 
+
+> k, fn
+
+
+
+∆t ≥ dℓ, EAF  
+
+> k+1
+
+≥ τ ℓ, EAF  
+
+> k+1
+
+. (45) Hence, the LF separation satisfies: 
+
+
+
+tℓ, LF  
+
+> k+1 ,st
+
+−tℓ, LF  
+
+> k, fn
+
+−1
+
+
+
+∆t
+
+=
+
+
+
+tℓ, EAF  
+
+> k+1 ,fn
+
+−tℓ, EAF 
+
+> k, fn
+
+
+
+∆t+qℓ, EAF ,LF  
+
+> k+1
+
+−qℓ, EAF ,LF  
+
+> k
+
+−dℓ, LF 
+
+> k
+
+≥ τ ℓ, EAF  
+
+> k+1
+
+−τ ℓ, LF  
+
+> k
+
+≥ 0.
+
+(46) Similarly, the CC separation satisfies: 
+
+
+
+tℓ, CC  
+
+> k+1 ,st
+
+−tℓ, CC  
+
+> k, fn
+
+−1
+
+
+
+∆t
+
+=
+
+
+
+tℓ, EAF  
+
+> k+1 ,fn
+
+−tℓ, EAF 
+
+> k, fn
+
+
+
+∆t+qℓ, EAF ,LF  
+
+> k+1
+
+−qℓ, EAF ,LF 
+
+> k
+
++dℓ, LF  
+
+> k+1
+
+−dℓ, LF  
+
+> k
+
++qℓ, LF ,CC  
+
+> k+1
+
+−qℓ, LF ,CC  
+
+> k
+
+−dℓ, CC 
+
+> k
+
+≥ τ ℓ, EAF  
+
+> k+1
+
++τ ℓ, LF  
+
+> k+1
+
+−τ ℓ, LF  
+
+> k
+
+−τ ℓ, CC  
+
+> k
+
+≥ 0.
+
+(47) Therefore, the backup continuation causes no EAF, LF, or CC conflict, and: 
+
+ax, bk  
+
+> t+1
+
+∈ U s
+
+> t+1
+
+(Ξ t), Us
+
+> t+1
+
+(Ξ t)̸ = ∅. (48) Since this holds for every axt ∈ Us 
+
+> t
+
+(Ξ t−1) and ˜πxθ is supported on Us 
+
+> t
+
+(Ξ t−1):
+
+Pr  {axt ∈ U s 
+
+> t
+
+(Ξ t−1)}∩ Us
+
+> t+1
+
+(Ξ t)̸ = ∅ st
+
+
+
+= X 
+
+> a∈U s
+> t(Ξ t−1)
+
+˜πxθ (a | st) = 1 . (49) which proves Proposition 1. REFERENCES [1] G. Cui, Q.-S. Jia, and X. Guan, “Energy management of networked microgrids with real-time pricing by reinforcement learning,” IEEE transactions on smart grid , vol. 15, no. 1, pp. 570–580, 2023. [2] C. Huang, H. Zhang, Y. Song, L. Wang, T. Ahmad, and X. Luo, “Demand response for industrial micro-grid considering photovoltaic power uncertainty and battery operational cost,” IEEE Transactions on Smart Grid , vol. 12, no. 4, pp. 3043–3055, 2021. [3] H. Hui, M. Bao, Y. Ding, and C. J. Meinrenken, “Incorporating multi-energy industrial parks into power system operations: A high-dimensional flexible region method,” IEEE Transactions on Smart Grid , vol. 16, no. 1, pp. 463–477, 2024. [4] A. Gholian, H. Mohsenian-Rad, and Y. Hua, “Optimal industrial load control in smart grid,” IEEE Transactions on Smart Grid , vol. 7, no. 5, pp. 2305–2316, 2015. [5] G. Kourtis, E. Kavakli, and R. Sakellariou, “A rule-based approach founded on description logics for industry 4.0 smart factories,” IEEE Transactions on Industrial Informatics , vol. 15, no. 9, pp. 4888–4899, 2019. [6] X. Zhang, G. Hug, and I. Harjunkoski, “Cost-effective scheduling of steel plants with flexible EAFs,” IEEE Transactions on Smart Grid ,vol. 8, no. 1, pp. 239–249, 2017. [7] R. Lyu, X. Su, E. Du, H. Guo, Q. Chen, and C. Kang, “Efficient schedul-ing of discrete industrial processes through continuous modeling,” IEEE Transactions on Smart Grid , vol. 16, no. 6, pp. 4726–4740, 2025. [8] Y. M. Ding, S. H. Hong, and X. H. Li, “A demand response energy management scheme for industrial facilities in smart grid,” IEEE trans-actions on industrial informatics , vol. 10, no. 4, pp. 2257–2269, 2014. [9] K. Miyazaki, K. Kobayashi, S.-i. Azuma, N. Yamaguchi, and Y. Yamashita, “Design and value evaluation of demand response based on model predictive control,” IEEE Transactions on Industrial Informatics , vol. 15, no. 8, pp. 4809–4818, 2019. [10] S. Luo, L. Zhang, and Y. Fan, “Real-time scheduling for dynamic partial-no-wait multiobjective flexible job shop by deep reinforcement learning,” IEEE Transactions on Automation Science and Engineering ,vol. 19, no. 4, pp. 3020–3038, 2021. [11] W. Song, X. Chen, Q. Li, and Z. Cao, “Flexible job-shop scheduling via graph neural network and deep reinforcement learning,” IEEE Transac-tions on Industrial Informatics , vol. 19, no. 2, pp. 1600–1610, 2022. [12] Z. Wan, H. Li, H. He, and D. Prokhorov, “Model-free real-time ev charging scheduling based on deep reinforcement learning,” IEEE Transactions on Smart Grid , vol. 10, no. 5, pp. 5246–5257, 2018. [13] R. Lu, R. Bai, Y. Huang, Y. Li, J. Jiang, and Y. Ding, “Data-driven real-time price-based demand response for industrial facilities energy management,” Applied Energy , vol. 283, p. 116291, 2021. [14] R. Lu, Y.-C. Li, Y. Li, J. Jiang, and Y. Ding, “Multi-agent deep reinforce-ment learning based demand response for discrete manufacturing sys-tems energy management,” Applied Energy , vol. 276, p. 115473, 2020. [15] A. Bashyal, T. Boroukhian, P. Veerachanchai, M. Naransukh, and H. Wicaksono, “Multi-agent deep reinforcement learning based demand response and energy management for heavy industries with discrete manufacturing systems,” Applied Energy , vol. 392, p. 125990, 2025. [16] G. Che, Y. Zhang, L. Tang, and S. Zhao, “A deep reinforcement learning based multi-objective optimization for the scheduling of oxygen production system in integrated iron and steel plants,” Applied Energy , vol. 345, p. 121332, 2023. [17] L. Li, X. Yang, S. Yang, and X. Xu, “Optimization of oxygen system scheduling in hybrid action space based on deep reinforcement learning,” 
+
+Computers & Chemical Engineering , vol. 171, p. 108168, 2023. [18] M. Shah, Y. Zhou, J. Wu, and M. Mowbray, “Deep reinforcement learning for scheduling of a steel plant in the electricity spot market,” 
+
+Engineering , 2026. [19] H. Li and H. He, “Learning to operate distribution networks with safe deep reinforcement learning,” IEEE Transactions on Smart Grid ,vol. 13, no. 3, pp. 1860–1872, 2022. [20] X. Ye, Z.-W. Liu, M. Chi, L. Ye, and C. Li, “Real-time price-based demand response for industrial manufacturing process via safe reinforcement learning,” IEEE Transactions on Industrial Informatics ,vol. 21, no. 4, pp. 2937–2946, 2025. [21] P. Zhou, Z. Xu, X. Zhu, J. Zhao, C. Song, and Z. Shao, “Safe reinforcement learning method integrating process knowledge for real-time scheduling of gas supply network,” Information Sciences , vol. 633, pp. 280–304, 2023. [22] F. Tang, Y. Li, C. Yang, and B. Sun, “Evolution-assisted safe reinforcement learning for real-time production optimization under uncertainty of industrial rotary kilns,” Process Safety and Environmental Protection , p. 108014, 2025. [23] J. Zheng, R. Jia, S. Liu, D. He, K. Li, and F. Wang, “Safe reinforcement learning for industrial optimal control: A case study from metallurgical industry,” Information Sciences , vol. 649, p. 119684, 2023. [24] Y. Xia, Y. Xu, and X. Feng, “Hierarchical coordination of networked-microgrids toward decentralized operation: A safe deep reinforcement learning method,” IEEE Transactions on Sustainable Energy , vol. 15, no. 3, pp. 1981–1993, 2024. [25] Y. Ye, H. Wang, P. Chen, Y. Tang, and G. Strbac, “Safe deep reinforcement learning for microgrid energy management in distribution networks with leveraged spatial–temporal perception,” 
+
+IEEE Transactions on Smart Grid , vol. 14, no. 5, pp. 3759–3775, 2023. [26] Y. Wang, D. Qiu, M. Sun, G. Strbac, and Z. Gao, “Secure energy man-agement of multi-energy microgrid: A physical-informed safe reinforce-ment learning approach,” Applied Energy , vol. 335, p. 120759, 2023. [27] J. Liang and W. Tang, “Ultra-short-term spatiotemporal forecasting of renewable resources: An attention temporal convolutional network-based approach,” IEEE Transactions on Smart Grid , vol. 13, no. 5, pp. 3798–3812, 2022.

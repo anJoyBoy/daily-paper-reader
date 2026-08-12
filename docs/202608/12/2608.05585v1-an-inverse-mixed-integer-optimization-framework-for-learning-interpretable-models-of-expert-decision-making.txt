@@ -1,0 +1,986 @@
+Title: An inverse mixed-integer optimization framework for learning interpretable models of expert decision making
+
+URL Source: https://arxiv.org/pdf/2608.05585v1
+
+Published Time: Fri, 07 Aug 2026 00:32:47 GMT
+
+Number of Pages: 31
+
+Markdown Content:
+# An inverse mixed-integer optimization framework for learning interpretable models of expert decision making 
+
+Anurag Holani 1, Rishabh Gupta 1, John Wassick 2, and Qi Zhang *11Department of Chemical Engineering and Materials Science, University of Minnesota, Minneapolis, MN 55455, USA 
+
+> 2
+
+Department of Chemical Engineering, Carnegie Mellon University, Pittsburgh, PA 15213, USA 
+
+Abstract 
+
+Understanding how experts make decisions and being able to transfer that knowledge is important, especially in complex engineering applications. It is highly valuable for training novices, improving the performance of human-machine systems, and potentially enabling fully autonomous systems that perform as well as human experts. However, an expert’s decision-making strategy, developed through years of experience, is often not directly accessible, since the implicit preferences and decision rules involved can be difficult to specify explicitly. This has motivated the use of observed decisions made by the expert to learn an interpretable model that captures the expert’s decision-making process. In this work, we develop an inverse op-timization approach to jointly learn the decision-maker’s preferences (or perceived cost) and the decision rules governing their choices. We then demonstrate the general applicability of our approach using three case studies: shift assignment, product planning, and a real-world routing problem. Across these case studies, modeling both perceived cost and decision rules leads to better predictions, highlighting the value of the proposed framework and its greater flexibility in capturing and replicating expert decision making. 
+
+Keywords: inverse optimization, interpretability, decision rules, mixed-integer optimization 
+
+# 1 Introduction 
+
+Decision making plays a central role in almost all human activities, ranging from everyday choices to high-stakes decisions in complex industrial environments. In contexts such as selecting con-sumer products, choosing medical treatments, allocating production across facilities, or routing vehicles through urban networks, decision makers must weigh multiple trade-offs involving costs, risks, timing, quality, and feasibility. Although experts often make these decisions efficiently and with apparent ease, the underlying reasoning processes are typically only partially articulated, 
+
+> *
+
+Corresponding author (qizh@umn.edu). 
+
+1arXiv:2608.05585v1 [math.OC] 6 Aug 2026 grounded in tacit knowledge, or constrained by organizational policies and heuristics that are not explicitly stated. In practice, what is often available to analysts and modelers is not the internal rationale of the decision maker, but the final decisions themselves. This gives rise to the following central question: Given a set of observed decisions, can we unveil the hidden preferences, constraints, or rules that governed them? 
+
+Understanding decision-making mechanisms is valuable in many settings. In industrial op-erations, for example, replicating the decision strategies of experienced production planners can lead to more consistent production schedules, more reliable resource allocation, and ultimately improved economic performance. In consumer-facing applications, uncovering the implicit pref-erences of users can inform product design, pricing, and personalization. In safety-critical do-mains, such as healthcare or emergency response, capturing the logic used by expert practitioners provides transparency, trust, and actionable guidelines for automated decision-support systems. Across these applications, the ability to infer not only what decision makers do, but why they do it, enables more interpretable and robust decision models. Despite its importance, reconstructing the underlying decision-making process from observed choices is difficult for several reasons. First, individuals and organizations often cannot precisely articulate the factors involved in their decisions. A consumer selecting between models of smart-phones may reference intangible aspects such as “feel” or “style,” which in reality encode latent trade-offs over measurable properties such as weight, durability, or screen brightness. Similarly, an industrial planner may know from experience that mixing too many product families in a sin-gle facility tends to produce operational bottlenecks, but may not express this as a formal rule. Second, decision-making procedures in competitive environments are intentionally kept propri-etary, meaning that internal objectives and operational rules are unavailable to external observers. Finally, decisions are frequently influenced by unmodeled behavioral regularities, domain heuris-tics, and soft constraints. These considerations complicate the task of inferring decision logic, even when ample decision data are available. In the machine learning literature, the problem of learning expert decision-making behavior from observations is referred to as imitation learning (Hussein et al., 2017; Zare et al., 2024). Acommon imitation learning approach is behavior cloning , which tries to find a direct mapping of environmental states to expert actions in a supervised learning fashion. Although conceptually straightforward, behavior cloning tends to overfit as the predicted decisions may not be consis-tent with the expert’s underlying objectives (Codevilla et al., 2019). Inverse reinforcement learning 
+
+2(IRL) attempts to address this problem by indirectly predicting the decisions through an inferred reward function that captures the expert’s preferences (Abbeel and Ng, 2004). IRL commonly relies on highly expressive parametric models, such as neural networks or random forests, to represent reward functions and policy mappings; these “black-box” models often contain many parameters and are difficult to interpret (Rudin, 2019; Guidotti et al., 2019). As a result, they are poorly suited to domains requiring auditability, such as lending, medicine, or critical infrastruc-ture. Even when accurate, black-box models typically fail to provide explanations that align with domain knowledge or organizational procedures. Thus, while IRL methods excel at recovering objectives (or preferences), interpretability of the objectives and the ability to recover structural elements of decision-making logic remain limited. To address the interpretability gap, substantial work has explored logical or symbolic mod-els of decision making, including decision trees, rule sets, and decision lists (Becker et al., 2023; de Ville, 2013; Qiao et al., 2021). These models represent decisions through human-readable logi-cal conditions of the form “if condition A holds, then take action B.” Decision trees structure these conditions hierarchically, while rule sets represent them as unordered collections of logical rules. Decision lists impose an ordering over rules, enforcing a “first-match semantics.” These models offer significantly greater transparency than black-box machine learning methods. However, they also come with limitations. Decision trees may become excessively deep when the feature space grows, reducing interpretability and introducing instability (Balcan and Sharma, 2024). Rule sets may include overlapping or contradictory rules, requiring conflict-resolution heuristics (Molnar, 2019; Lakkaraju et al., 2016). Decision lists impose rigid sequential structures that do not naturally capture parallel or additive influences of conditions. More importantly, these logical models are designed primarily for classification or discrete decision-making tasks; they scale poorly to the mixed discrete-continuous decision spaces common in many industrial problems. Moreover, log-ical models are well suited for uncovering constraints or decision logic, but they do not capture the objective-driven aspects of decision making. This divide highlights a fundamental methodological gap: existing approaches tend to learn either preferences or rules , but not both. Yet, in many real-world settings, expert decisions arise from a combination of both elements, governed by quantitative objectives subject to domain-specific, often context-dependent decision rules. A method capable of learning both components simulta-neously would provide a more faithful, interpretable, and operationally meaningful reconstruc-tion of decision logic. 3In this work, we propose a general framework for learning optimization-based decision models 
+
+that simultaneously recovers both the unknown objective function and logical decision rules that act as soft, context-dependent constraints. We take an inverse optimization (IO) approach, where we model the underlying decision-making process as an optimization problem. Originating in the early 1990s, classical IO sought to recover the cost parameters of an optimization problem for which an observed decision is exactly optimal (Burton and Toint, 1992, 1994). More recent IO re-search focuses on the data-driven setting that considers multiple, potentially noisy observations, where the goal is to learn model parameters that minimize the prediction error (Chan et al., 2023; Keshavarz et al., 2011; Chan et al., 2014; Mohajerin Esfahani et al., 2018; Bertsimas et al., 2015; Aswani et al., 2018); this also applies in our case. IO has been applied successfully in domains such as medical treatment planning, logistics, energy, and finance, demonstrating its ability to yield interpretable and data-efficient models. The main innovation in our proposed approach is to represent decision rules as propositional logic statements and reformulate them as mixed-integer linear constraints so that they can be embedded in the postulated optimization model. Each rule is then associated with a learnable penalty or reward, enabling the method to identify not only which 
+
+rules are relevant but also how strongly they influence decisions in different contexts. By incorpo-rating these rule representations into a classical IO formulation with unknown cost parameters, we obtain a unified and inherently interpretable model capable of learning both preference struc-tures and decision logic from observed decisions. The remainder of this paper is organized as follows. In Section 2, we introduce the forward op-timization problem with the proposed general decision rule structure. In Section 3, we formulate the resulting inverse mixed-integer optimization problem and develop a cutting-plane algorithm to solve it. Section 4 presents three computational case studies considering a shift assignment problem, a production planning problem, and the Amazon Last Mile Routing Research Challenge to assess to what extent learning decision rules alongside objectives can improve prediction accu-racy and reveal interpretable structures about expert decision making. Finally, we close with some concluding remarks in Section 5. 
+
+# 2 Forward optimization problem with decision rules 
+
+In IO, we assume that the observed decisions result from solving an underlying optimization problem, which is also referred to as the forward optimization problem (FOP). Traditionally, IO is used to recover the unknown cost parameters of a postulated FOP. In the following, we propose 4an FOP structure that also enables the systematic incorporation of a set of candidate decision rules; IO can then be applied to determine which of these decision rules are followed by the decision maker. 
+
+2.1 Base FOP 
+
+We start with a base FOP that is a mixed-integer linear program (MILP) of the following form: 
+
+minimize  
+
+> ¯x∈Rn×Zp
+
+¯c(u)⊤ ¯x (1a) 
+
+subject to ¯A(u) ¯ x ≤ ¯b(u), (1b) where ¯x are the decision variables and u are the input parameters representing contextual infor-mation that affects the feasible region of the FOP. We assume that all constraints in (1b) are known as they supposedly capture hard physical constraints and operational rules. We further assume that parts of the cost vector ¯c in (1a) are unknown, especially those related to hidden preferences of the human decision maker. Problem (1) is standard in the IO literature (Wang, 2009; Bodur et al., 2022) except that ¯c are commonly assumed to be constants whereas they can generally be functions of u in our formulation. 
+
+2.2 Rule-augmented FOP 
+
+Rules are commonly expressed in terms of conditions and logical statements; hence, given a set of decision rules R, we define each rule r ∈ R through a propositional logic statement (or proposi-tion) denoted by Ωr(¯ x, u ), which is a function of ¯x and u and returns a Boolean output, i.e., true or false. A proposition consists of literals (true/false statements) connected by logical operators such as ∧ (and), ∨ (or), and =⇒ (implication). In the following, we provide an illustrative example of a decision rule that can be expressed through such a proposition; more examples can be found in Section S1 of the supplementary material. 
+
+Example 1. Consider a multistage production scheduling problem where multiple units are avail-able for each production stage. Let the manufacturing process consist of two stages with Units A and B for Stage 1 and Units C, D, and E for Stage 2. Say the human expert performing this schedul-ing task applies the following decision rule: Use Unit B in Stage 1 if and only if the production rate in Unit A, denoted by xA, is greater than or equal to h; and if Unit B is used, use Unit D or Unit E in Stage 2. With PB , PD, and PE denoting the Boolean variables associated with the literals corresponding to using the respective units, this decision rule can be formulated as the following 5proposition: 
+
+(( h ≤ xA) ⇐⇒ PB ) ∧ (PB =⇒ (PD ∨ PE )) . (2) Decision rules are often not strict, i.e., the decision maker may violate them when other poten-tial benefits outweigh the heuristic preference. Therefore, we introduce for each rule r a binary variable zr that can be used to control which rule is applied. We add the following constraint: 
+
+zr = 1 = ⇒ Ωr(¯ x, u ) = true , (3) which ensures that rule r applies if zr = 1 .Considering decision rules of the proposed form, we can formulate the following rule-augmented FOP: 
+
+minimize 
+
+> ¯x∈Rn×Zp, z ∈{ 0,1}|R|
+
+¯c(u)⊤ ¯x − X
+
+> r∈R
+
+dr(u) zr (4a) 
+
+subject to ¯A(u) ¯ x ≤ ¯b(u) (4b) 
+
+^
+
+> r∈R
+
+
+
+zr = 1 = ⇒ Ωr(¯ x, u ) = true 
+
+
+
+, (4c) where dr denotes the reward for applying decision rule r. As such, the decision rules are incor-porated as soft constraints, and the values of d indicate the decision maker’s tendency to use each one of them. This rule-augmented FOP serves as an interpretable approximation of the decision-making process: it captures latent objective trade-offs and heuristic behavioral rules in a unified framework. The inverse optimization task that follows seeks to estimate (¯ c, d ) so that the resulting model reproduces observed decisions as closely as possible. 
+
+# 3 Data-driven inverse mixed-integer optimization approach 
+
+In this section, we formulate the inverse optimization problem (IOP) associated with the rule-augmented FOP (4). We will show that the FOP can be formulated as an MILP with unknown cost coefficients, and the goal is to infer these costs from observed decisions. 
+
+3.1 MILP formulation of the rule-augmented FOP 
+
+Recall that the decision maker’s behavior is approximated by an MILP with hard physical con-straints and soft decision rules. The decision rules, which are propositional logic statements, can be represented as mixed-integer constraints utilizing the reformulation framework of Raman and 6Grossmann (1994). Each proposition Ωr is a logical statement consisting of a set of literals Lr,where we denote the Boolean variable associated with literal ℓ ∈ L r as Prℓ . By introducing a binary variable yrl for each literal Prl , where Prl = true if yrl = 1 and Prl = false if yrl = 0 , propo-sition Ωr can be represented as a set of mixed-integer linear inequalities of the following general form: 
+
+ˆAr(u)¯ x + ˜Ar(u)yr ≤ ˆbr(u) (5a) 
+
+A′ 
+
+> r
+
+yr ≤ b′
+
+> r
+
+, (5b) where constraints (5a) define the relationship between yr and the variables ¯x, and constraints (5b), which only involve the binary variables yr, are a direct reformulation of proposition Ωr.
+
+Example 2. As an example, we use the proposition from Example 1, where we first introduce binary variables y ¯A, yB , yD, and yE for the literals h ≤ xA, PB , PD, and PE , respectively. We can then reformulate proposition (2) into the following mixed-integer linear constraints: 
+
+h y ¯A ≤ xA
+
+xA ≤ h + ( M − h) y ¯A
+
+y ¯A ≥ yB
+
+y ¯A ≤ yB
+
+yB ≤ yD + yE ,
+
+where M is a sufficiently large big-M parameter. With inequalities (5), we can now obtain an MILP formulation of the rule-augmented FOP (4) as follows: 
+
+minimize 
+
+> ¯x∈Rn×Zp, y ∈{ 0,1}L, z ∈{ 0,1}|R|
+
+¯c(u)⊤ ¯x − X
+
+> r∈R
+
+dr(u) zr (6a) 
+
+subject to ¯A(u) ¯ x ≤ ¯b(u) (6b) 
+
+ˆAr(u)¯ x + ˜Ar(u)yr ≤ ˆbr(u) ∀ r ∈ R (6c) 
+
+A′ 
+
+> r
+
+yr ≤ b′ 
+
+> r
+
++ M (1 − zr) ∀ r ∈ R , (6d) where the dimensionality of y is L = P 
+
+> r∈R
+
+|L r|, and M is a sufficiently large big-M parameter. 7Note that constraints (6d) ensure that the proposition associated with decision rule r must apply if zr = 1 .
+
+3.2 IOP formulation 
+
+For notational convenience, we write problem (6) in the following compact form: 
+
+minimize  
+
+> x∈Rn×Zm
+
+c(u; θ)⊤x (7a) 
+
+subject to A(u) x ≤ b(u), (7b) where we define x := (¯ x, y, z ), c := (¯ c, 0, −d), and A and b such that the corresponding inequalities capture constraints (6b)-(6d). The MILP has m = p + P 
+
+> r∈R
+
+|L r| + |R| discrete variables. More-over, we parameterize the unknown cost coefficients by θ, which are to be learned from observed decisions. Here, we assume that c(u; θ) is affine in θ.We observe a finite set of contexts and decisions {(ui, x i)}i∈I , where xi denotes the decision taken under context ui. A natural starting point, following data-driven IO formulations for convex FOPs (Aswani et al., 2018; Gupta and Zhang, 2022, 2023), is to directly minimize a measure of the discrepancy between observed decisions and predicted optimal solutions. This problem can be formulated as follows: 
+
+minimize 
+
+> ˆx, θ ∈Θ
+
+X
+
+> i∈I
+
+xi − ˆxi (8a) 
+
+subject to ˆxi ∈ arg min 
+
+> x∈Rn×Zm
+
+c(ui; θ)⊤x : A(ui) x ≤ b(ui) ∀ i ∈ I , (8b) where ˆxi denotes the predicted decision for context ui; this prediction is, according to (8b), an optimal solution to the FOP under parameters θ. The goal is to choose θ such that the deviation between the observed and predicted decisions is minimized. Here, we restrict θ to be selected from a given set Θ.Problem (8) is a bilevel optimization problem with |I| lower-level MILPs. Due to the noncon-vex nature of discrete optimization problems, one cannot directly apply a single-level KKT-based reformulation to this problem. Problem (8) can be solved using a cutting-plane method based on a value-function reformulation (Wang, 2009); however, this approach introduces bilinear terms and still involves mixed-integer constraints (as detailed in Section S2 of the supplementary material) such that it quickly becomes prohibitively computationally intensive with increasing number of 8observations. This motivates us to consider an alternative, more amenable formulation. 
+
+3.3 IOP formulation based on suboptimality loss 
+
+To obtain a more tractable formulation, we adopt a closely related but slightly different IOP that minimizes the so-called suboptimality based loss (Moghaddass and Terekhov, 2020, 2021) instead of the decision loss in problem (8). Given parameters θ, the suboptimality loss ∆i(θ) measures the degree to which observed decision xi is suboptimal: 
+
+∆i(θ) := c(ui; θ)⊤xi − min 
+
+> ˜x∈S i
+
+c(ui; θ)⊤ ˜x, 
+
+where 
+
+Si = {x ∈ Rn × Zm : A(ui) x ≤ b(ui)}
+
+is the feasible set of the FOP under context ui, which is assumed to be non-empty and bounded. Further, it is assumed that every observation xi is feasible, i.e., xi ∈ S i. Then, by construction, 
+
+∆i(θ) ≥ 0 and ∆i(θ) = 0 if and only if xi is optimal to the FOP with θ and under ui.The suboptimality-based IOP seeks to find a parameter vector θ that minimizes the total sub-optimality loss. Notice that for every ˜x ∈ S i, we have c(ui; θ)⊤xi − c(ui; θ)⊤ ˜x ≤ ∆i(θ). As a result, the suboptimality-based IOP can be formulated as follows: 
+
+minimize 
+
+> θ∈Θ, ϵ ∈R|I|
+
+∥ϵ∥ (9a) 
+
+subject to c(ui; θ)⊤xi − c(ui; θ)⊤ ˜x ≤ ϵi ∀ ˜x ∈ S i, i ∈ I , (9b) where the auxiliary variable ϵi takes the value of ∆i(θ) at the optimal solution. 
+
+3.4 Cutting-plane algorithm 
+
+We use a cutting-plane method to solve problem (9), which is generally a semi-infinite program given that Si can contain infinite number of points. The cutting-plane algorithm alternates be-tween solving a master problem with added cuts and solving a subproblem to generate new cuts if needed. With a finite subset ¯Si ⊆ S i, we can formulate the following master problem: 
+
+minimize 
+
+> θ∈Θ, ϵ ∈R|I|
+
+∥ϵ∥ (10a) 
+
+subject to c(ui; θ)⊤xi − c(ui; θ)⊤ ˜x ≤ ϵi ∀ ˜x ∈ ¯Si, i ∈ I , (10b) 9Algorithm 1 Cutting-plane method for solving IOP (9).  
+
+> 1:
+
+Initialize ¯Si ← ∅ for all i ∈ I . 
+
+> 2:
+
+repeat  
+
+> 3:
+
+Solve master problem (10) and obtain (¯θ, ¯ϵ). 
+
+> 4:
+
+Set violated ← false.  
+
+> 5:
+
+for each i ∈ I do  
+
+> 6:
+
+Solve subproblem (11) with parameters ¯θ, obtain ¯x∗ 
+
+> i
+
+. 
+
+> 7:
+
+if c(ui; ¯θ)⊤xi > c (ui; ¯θ)⊤ ¯x∗ 
+
+> i
+
+then  
+
+> 8:
+
+Update ¯Si ← ¯Si ∪ { ¯x∗ 
+
+> i
+
+}. 
+
+> 9:
+
+Set violated ← true.  
+
+> 10:
+
+end if  
+
+> 11:
+
+end for  
+
+> 12:
+
+until violated = false or a maximum number of iterations is reached  
+
+> 13:
+
+return ¯θ as the learned parameter vector. which is a finite-dimensional linear program. Given a candidate parameter vector ¯θ obtained from solving master problem (10), we check for violated constraints by solving, for each i ∈ I , the following subproblem: 
+
+minimize  
+
+> x∈Rn×Zm
+
+c(ui; ¯θ)⊤x (11a) 
+
+subject to A(ui) x ≤ b(ui). (11b) Note that problem (11) is simply the FOP under parameters ¯θ and context ui. If c(ui; ¯θ)⊤xi >c(ui; ¯θ)⊤ ¯x∗ 
+
+> i
+
+, with ¯x∗ 
+
+> i
+
+denoting an optimal solution to problem (11), we add ¯x∗ 
+
+> i
+
+to set ¯Si. If 
+
+c(ui; ¯θ)⊤xi ≤ c(ui; ¯θ)⊤ ¯x∗ 
+
+> i
+
+for all i ∈ I , we can terminate the algorithm and declare ¯θ the optimal solution to problem (9). The pseudocode for the proposed cutting-plane algorithm is shown in Algorithm 1. The al-gorithm is guaranteed to converge in a finite number of iterations (Wang, 2009) since the optimal solution to problem (11) must lie at an extreme point of conv( Si), the convex hull of the feasible region Si, which is a bounded polyhedron. In the worst case, the algorithm enumerates through all extreme points, of which there are finitely many. 
+
+# 4 Computational case studies 
+
+We apply the proposed approach to three case studies: learning the preferences of a planner in shift assignment, modeling the operator decisions in production planning, and modeling the rout-ing preferences of delivery drivers in a real-world scenario. The case studies were implemented in Julia 1.11.2 (Bezanson et al., 2017), modeled using JuMP 1.26.0 (Dunning et al., 2017), and solved 10 with Gurobi 12.0.2 (Gurobi Optimization, 2023) on AMD 7763 processors of the Agate cluster of the Minnesota Supercomputing Institute. 
+
+4.1 Shift assignment case study 
+
+For the initial case study, we consider a synthetic shift assignment problem, where the planner assigns workers to their respective shifts. This case study serves to illustrate the broad modeling capability of the proposed IO approach, by learning the objective of the planner as a function of the context under which they make the decision (such as under varying demand levels). 
+
+4.1.1 Problem description 
+
+A planner needs to assign |N | workers to |T | time periods. We know the cost of assigning each worker n to time period t, denoted by cnt , and the maximum number of time periods a worker can work, T max . The input parameter u represents the staffing requirement specified as the minimum number of assigments. Moreover, it is required to assign at least one worker in each time period. The binary decision variable xnt indicates whether worker n is assigned to time period t (xnt = 1 )or not ( xnt = 0 ). Now, the obvious approach in this scenario would be for the planner to minimize the labor costs while ensuring that the constraints outlined above are met. However, in a real-world sce-nario, the planner may wish to fulfill additional objectives, such as minimizing the inventory hold-ing and backlog costs and respecting the scheduling preferences of workers. These decisions may occur based on the planner’s understanding of typical demand profiles and the overall demand level. We aim to recover these objectives using the proposed IO approach. 
+
+4.1.2 Data generation 
+
+We generate synthetic data for the case study by generating shift assignment schedules for |N | = 5 
+
+workers and |T | = 10 time periods, assuming that the workers cannot work for more than T max =8 time periods in a day. The data is generated for u = 10 , ..., 40 , to get planner’s preferences across differing demand scenarios, which establish the ground-truth planner behavior. In the ground-truth model, the planner accounts for the following three competing considera-tions when deciding the schedule: • the total labor cost, P
+
+> n∈N
+
+P 
+
+> t∈T
+
+cn xnt ;• a desired time profile of production, represented in the objective as P 
+
+> t∈T
+
+ϕ(t) P 
+
+> n∈N
+
+xnt ;• and scheduling preferences of the workers, incorporated as a decision rule. 11 Incorporating the above considerations, the following ground-truth model is used to obtain the training data: 
+
+minimize 
+
+> x, y
+
+X
+
+> n∈N
+
+X
+
+> t∈T
+
+cnt xnt + X
+
+> t∈T
+
+ϕ(t) X
+
+> n∈N
+
+xnt + γ(u) z (12a) 
+
+subject to X
+
+> n∈N
+
+xnt ≥ 1 ∀ t ∈ T (12b) 
+
+X
+
+> t∈T
+
+xnt ≤ N max ∀ n ∈ N (12c) 
+
+X
+
+> n∈N
+
+X
+
+> t∈T
+
+xnt ≥ u (12d) 
+
+z = 1 = ⇒ x1t′ = 0 ∀ t′ ∈ { 6, . . . , T } (12e) 
+
+xnt ∈ { 0, 1} ∀ n ∈ N , t ∈ T (12f) 
+
+z ∈ { 0, 1}, (12g) where ϕ(t) = 80 sin( 2πt  
+
+> 10
+
+) represents the temporal scheduling preferences of the planner, which typically aligns with the expected demand profile. Worker 1 is assumed to prefer being scheduled only for time periods before t = 5 , and the associated preference is given a weight of γ = −600 
+
+if u ≤ 25 and zero otherwise, reflecting the fact that the planner will only try to meet Worker 1’s request if the demand is relatively low. The cost of employing worker n for first time period is defined as cn1 = 25(1 + n). This indicates that each successive worker, with a higher index n, has a higher cost of employment. Finally, it is assumed that since the workers prefer to work during earlier time slots, rather than the late evening ones, and hence need to be paid more for later time slots. This is included in the cost matrix, by increasing the staffing cost of each consecutive time slot by 10% , giving the final cost, cnt = 25(1 + n)(1 .1) t−1.In the objective function (12a), P
+
+> n∈N
+
+P 
+
+> t∈T
+
+cnt xnt is the total labor cost, P 
+
+> t∈T
+
+ϕ(t) P 
+
+> n∈N
+
+xnt 
+
+is used to align the production schedule to the expected demand profile, and γ(u)z is used to account for the scheduling preferences of Worker 1. Constraint (12b) ensures that each shift has at least one worker assigned, (12c) ensures that the employees are not scheduled beyond their maximum hours, (12d) ensures sufficient staffing to fulfill demand, and constraint (12f) enforces the decision rule by ensuring that the first worker is not scheduled from shift 6 onward. Finally, the variables are defined in (12f) and (12g). 12 4.1.3 Hypothesized model 
+
+Now, we consider the shift assignment problem from the perspective of an external analyst, who understands the general factors being considered by the planner, but doesn’t have access to the implicit objective being used by them. The labor costs are a direct observable, and hence, is known exactly. Hence, the analyst know that the planner has a preferred time profile of production, but do not know exactly how to represent this preference. Further, the analyst knows tat some of the workers prefer to avoid working night shifts (shift 6 onwards), and that the planner tries to respect the worker’s scheduling preferences if feasible, but neglects them is the demand is too high. However, they are not aware of which workers have these preferences, or what cut-off is established by the planner, beyond which they are unable to account for the worker’s preferences in their decisions. Based on this, the analyst hypothesizes the following: • the preferred time profile of the planner can be approximated using ˆϕ(t), a 4th order polyno-mial of time ( t), ˆϕ(t) = a4t4 + a3t3 + a2t2 + a1t + a0,• the coefficient applied for satisfaction of decision rule can be represented using ˆγn(u). If the decision rule applies for worker n, the parameter is expected to take a negative value till a certain u, which indicates the demand level till which the worker’s preference is considered by the planner, giving ˆγn(u) = −c if u ≤ ¯u, else ˆγn(u) = 0 . On the other hand, if the worker has no preference, the parameter will be zero at all demand level. Thus, we get the following hypothesized model: 
+
+minimize 
+
+> x,y,z
+
+X
+
+> n∈N
+
+X
+
+> t∈T
+
+cnt xnt + X
+
+> t∈T
+
+ˆϕ(t) X
+
+> n∈N
+
+xnt + X
+
+> n∈N
+
+ˆγn(u)zn (13a) 
+
+subject to X
+
+> n∈N
+
+xnt ≥ 1 ∀t ∈ T (13b) 
+
+X
+
+> t∈T
+
+xnt ≤ N max ∀n ∈ N (13c) 
+
+X
+
+> n∈N
+
+X
+
+> t∈T
+
+xnt ≥ u (13d) 
+
+zn = 1 = ⇒ xnt ′ = 0 ∀t′ ∈ { 6, . . . , T }, n ∈ N (13e) 
+
+xnt ∈ { 0, 1} ∀n ∈ N , t ∈ T (13f) 
+
+zn ∈ { 0, 1} ∀n ∈ N . (13g) 13 We make two important observations regarding (13): the only change as compared to (12) is in the constraint (13e), which is now written for all n ∈ N , and the only unknown parameters in this formulation are ˆϕ(t) and ˆγn(u), which can be determined using IO. Constraints (13b), (13c) and (13d) are the same as before, with the added propositional logic statement, constraint (13e) add the new variables, z, which indicate whether the scheduling preferences of the employees has been respected. 
+
+4.1.4 Results 
+
+We compare the actual values of ϕ(t) and γn(u) with the values estimated using IO, obtaining the trends shown in Fig. 1 (a) and Fig. 1 (b). We see that the predicted values of these functions cor-rectly describes the general trends shown by the actual functions, although there is some degree of mismatch in the functional values. This is to be expected, since the regularization term in the IO formulation aims to provide the smallest parameters that can describe the behavior observed in real-world data. However, we see that the learned parameters give us a good indication of the scheduler’s preferences, indicating their preferred timings of high or low production, and the degree of consideration given by them to the worker’s preferences. We also note an average nor-malized suboptimality loss of 0.11% and an average normalized decision loss of 5.54% , indicating the ability of our framework to closely approximate the decisions made by the decision maker (ad-ditional details on model accuracy are provided in Section S3 of the supplementary material). The main take-away from this case study is that our framework can determine cost parameters that are context dependent, rather than taking a fixed value under all circumstances, thus highlighting the flexibility of our IO framework. 
+
+0 2 4 6 8 10 
+
+−50 050 100 
+
+(a) 
+
+tϕ(t)
+
+> Actual Estimated
+
+10 15 20 25 30 35 40 
+
+−600 
+
+−400 
+
+−200 0
+
+(b) 
+
+uγ(u)
+
+> Actual Estimated
+
+Figure 1: Actual vs. estimated values of ϕ(t) (a) and γ(u) (b) 14 4.2 Production planning case study 
+
+We now illustrate the proposed framework on a synthetic production planning problem. The goal is to show that incorporating decision rules into the FOP allows us to (i) recover the decision maker’s underlying objective structure and (ii) identify rule-based preferences that strongly influ-ence the production plan. We also compare the prediction accuracies with and without decision rules to quantify the impact of model misspecification. 
+
+4.2.1 Problem description 
+
+Consider a firm that produces a set of products P at a set of production facilities F over a planning horizon of length H. For each product–facility pair (i, j ) ∈ P × F , we are given a production rate 
+
+rij (units of product i per unit of time at facility j) and a net unit return uij (dollars per unit of product i produced at facility j). For each product i ∈ P , we have a demand di that must be satisfied (or not exceeded) over the horizon. The decision variable qij ≥ 0 denotes the production time allocated to product i in facility j. The induced quantity of product i manufactured at facility 
+
+j is rij qij .A standard optimization model for this problem maximizes total return across all facilities subject to demand and capacity constraints. In practice, however, production planners may devi-ate systematically from this idealized objective. For instance, they may favor products with high unit returns, emphasize throughput, or deliberately limit the complexity of production plans (e.g., by restricting the number of products made at each facility). Our interest is in recovering such preferences, including rule-based complexity controls, from observed plans. 
+
+4.2.2 Data generation and ground-truth behavior 
+
+We generate synthetic data for a system with |P| = 15 products and |F| = 3 facilities, with a planning horizon of H = 30 days. The parameters uij and rij are set to representative values and normalized to lie in [0 , 1] . For each instance i ∈ I , we sample a demand vector d = ( di)i∈P and compute the production plan by solving a FOP that represents the ground-truth planner behavior. In the ground-truth model, the planner maximizes total return, i.e., P
+
+> i∈P
+
+P 
+
+> j∈F
+
+uij rij qij , and imposes a hard rule that each facility may produce at most five distinct products. Formally, the ground-truth FOP can be formulated as follows: 
+
+maximize 
+
+> q, x
+
+X
+
+> i∈P
+
+X
+
+> j∈F
+
+uij rij qij (14a) 15 subject to X
+
+> j∈F
+
+rij qij ≤ di ∀ i ∈ P (14b) 
+
+X
+
+> i∈P
+
+qij ≤ H ∀ j ∈ F (14c) 
+
+h x ij ≤ qij ≤ H x ij ∀ i ∈ P , j ∈ F (14d) 
+
+X
+
+> i∈P
+
+xij ≤ 5 ∀ j ∈ F (14e) 
+
+qij ≥ 0 ∀ i ∈ P , j ∈ F (14f) 
+
+xij ∈ { 0, 1} ∀ i ∈ P , j ∈ F , (14g) where xij = 1 if product i is produced at facility j, and h is the minimum production time when a product is manufactured. Constraints (14e) encode the decision rules that “each facility produces at most five products.” Solving (14) for multiple demand vectors yields a collection of observed plans {(di, (xi, q i)) }i∈I . These observations are then used as input to the IO procedure. 
+
+4.2.3 Hypothesized model without decision rules 
+
+From the analyst’s perspective, the ground-truth optimization problem is unknown. We assume that the analyst knows the base constraints (14b)–(14f) and that the planner’s objective is some linear combination of three interpretable components: • total return: P 
+
+> i,j
+
+uij rij qij ,• total unit return: P 
+
+> i,j
+
+uij qij ,• total production time: P 
+
+> i,j
+
+rij qij .Normalizing uij and rij to [0 , 1] , we posit the following parametric objective: 
+
+maximize  
+
+> q
+
+α X
+
+> i∈P
+
+X
+
+> j∈F
+
+uij rij qij + β X
+
+> i∈P
+
+X
+
+> j∈F
+
+uij qij + γ X
+
+> i∈P
+
+X
+
+> j∈F
+
+rij qij (15a) 
+
+subject to X
+
+> j∈F
+
+rij qij ≤ di ∀i ∈ P (15b) 
+
+X
+
+> i∈P
+
+qij ≤ H ∀j ∈ F (15c) 
+
+qij ≥ 0 ∀i ∈ P, ∀j ∈ F. (15d) In this no-rules model, the parameters (α, β, γ ) represent the relative importance assigned by 16 the planner to these three components. The inverse problem consists of estimating (α, β, γ ) from the observed plans {xi}.Note that (15) does not explicitly account for any complexity-control rule. If the planner’s behavior is strongly influenced by such a rule, the model (15) is structurally misspecified, and we expect the inverse optimization procedure to struggle to explain the data. 
+
+4.2.4 Hypothesized model with decision rules 
+
+To account for possible complexity-control behavior, we augment the forward model with a family of decision rules that limit the number of products per facility. For each facility j ∈ F and each candidate threshold p ∈ { 1, . . . , |P |} , we define a rule: 
+
+Ωp,j :
+
+X 
+
+> i∈P
+
+xij ≤ p
+
+
+
+,
+
+which is satisfied if facility j produces at most p distinct products. We introduce binary variables 
+
+zpj ∈ { 0, 1} indicating whether rule Ωp,j is satisfied, and associate to each rule a weight mpj in the objective. Negative values of mpj penalize violation of the rule, consistent with the interpretation of zpj as yielding a reward when the rule is satisfied. The augmented forward problem takes the form 
+
+maximize  
+
+> q,x,y,s
+
+α X
+
+> i∈P
+
+X
+
+> j∈F
+
+uij rij qij + β X
+
+> i∈P
+
+X
+
+> j∈F
+
+uij qij + γ X
+
+> i∈P
+
+X
+
+> j∈F
+
+rij qij + 
+
+> |P|
+
+X
+
+> p=1
+
+X
+
+> j∈F
+
+mpj zpj (16a) 
+
+subject to X
+
+> j∈F
+
+rij qij ≤ di ∀i ∈ P (16b) 
+
+X
+
+> i∈P
+
+qij ≤ H ∀j ∈ F (16c) 
+
+εx ij ≤ qij ≤ Hx ij ∀i ∈ P, ∀j ∈ F (16d) 
+
+X
+
+> i∈P
+
+xij = yj ∀j ∈ F (16e) 
+
+zpj = 1 = ⇒ yj ≤ p ∀p ∈ { 1, . . . , |P |} , ∀j ∈ F (16f) 
+
+qij ≥ 0 ∀i ∈ P, ∀j ∈ F (16g) 
+
+xij ∈ { 0, 1}, y j ∈ Z+, z pj ∈ { 0, 1} ∀i ∈ P, ∀j ∈ F, ∀p. (16h) Constraint (16f) ensures that if zpj = 1 , then yj ≤ p. The cost parameters (α, β, γ, m pj ) are collected into the parameter vector θ and are learned via inverse optimization. 17 In the ground-truth behavior described above, the planner enforces a maximum of five prod-ucts per facility. We therefore expect the learned rule weights m5j to be strongly negative across facilities, and the weights mpj for other thresholds to be close to zero. 
+
+4.2.5 Inverse optimization setup and accuracy metric 
+
+For both the no-rules model (15) and the rule-augmented model (16), we apply the suboptimality-based inverse optimization formulation of Section 3 to estimate the cost parameters from synthetic data. We randomly split the generated instances into training and testing sets and solve the inverse problem on the training set only. To evaluate predictive performance, we compute a relative decision error on the testing set. For each test instance t ∈ T , let xt denote the observed decision vector and ˆxt the optimal solution of the forward problem under the learned parameters. We define the relative error as 
+
+e := 1
+
+|T | Htot 
+
+X
+
+> t∈T
+
+∥xt − ˆxt∥1,
+
+where Htot is the total planning horizon aggregated across facilities (e.g., Htot = |F |H). All results reported below are averaged over five independent train/test splits for each training-sample size. 
+
+4.2.6 Results with decision rules 
+
+Figure 2 reports the relative test error for the rule-augmented model as a function of the number of training instances, for the case where the planner truly limits each facility to at most five prod-ucts. The prediction error decreases as more training data are provided and stabilizes below 0.005 
+
+for 500 training instances, indicating that the inverse model accurately reproduces the planner’s decisions. The estimated objective weights for a representative run with 500 training instances are α =48 .80 , β = 1 .00 , and γ = 1 .00 . We see that α is substantially larger than β and γ, confirming that total return is the dominant objective component. Further, we estimated m51 = −274 .08 , m52 = −289 .46 , and m51 = −205 .90 . The large negative values indicate a strong preference for satisfying the “at most five products per facility” rule at each facility, consistent with the ground-truth behavior. 
+
+4.2.7 Comparison with model without decision rules 
+
+To assess the value of decision rules, we repeat the inverse optimization procedure using the no-rules model (15). In this case, the inverse problem attempts to explain the ground-truth plans solely through the three scalar weights (α, β, γ ), without any explicit representation of plan com-18 5 10 20 50 100 200 500 
+
+00.05 0.10.15 
+
+Number of training data points Relative error Testing data predictions Training data predictions 
+
+Figure 2: Prediction accuracy on synthetic production planning data with a limit of five products per facility plexity. For 500 training instances, the estimated weights were α = β = γ = 1 .00 . All three parameters collapsing to the same value indicates that the inverse problem effectively chooses a nearly flat objective to reduce suboptimality in the presence of severe model mismatch. Figure 3 compares the relative test error of the rule-augmented model and the no-rules model for varying limits on the number of products per facility. When the rule has a strong effect on the production plan (e.g., low limits on the number of products), the no-rules model exhibits large prediction errors, reflecting its inability to capture the planner’s complexity preferences. In contrast, the rule-augmented model maintains uniformly low errors across all scenarios. 3 4 5 6 7 8 9 10 
+
+00.10.20.3
+
+Max. no. of products per facility Relative error 
+
+> With decision rules Without decision rules
+
+Figure 3: Prediction accuracy with and without decision rules for different limits on the number of products that can be manufactured at a facility (500 training instances). 19 These results demonstrate that incorporating decision rules into the forward model is criti-cal for accurately capturing planners’ behavior when such rules materially shape the production plans. Without decision rules, inverse optimization may produce objective parameters that have limited behavioral interpretability and poor predictive performance. 
+
+4.3 Amazon last-mile routing research challenge case study 
+
+Finally, we apply the proposed framework to a real last-mile routing problem using the Amazon Last Mile Routing Research Challenge dataset (Amazon.com Inc, 2021a). This case study serves two purposes. First, it demonstrates that our IO approach can recover interpretable decision rules from large-scale operational data. Second, it shows that these rules substantively improve out-of-sample route prediction relative to models that only learn pairwise travel costs. 
+
+4.3.1 Problem description and empirical behavior 
+
+The dataset consists of historical delivery routes executed by human drivers across multiple de-pots in several U.S. metropolitan areas (Merch´ an et al., 2022). Each route specifies a depot of origin and a set of stops to be visited, along with an estimated travel-time matrix between stops and the depot. In total, 6,112 routes are provided for training and 3,072 routes for testing (aggregated across depots). The dataset also includes stop attributes (coordinates and zone identifiers) and package attributes (e.g., service-time and time-window fields), although our modeling below uses only zone and travel-time information. A classical formulation would model each route as a Traveling Salesperson Problem (TSP) minimizing total travel time. However, the observed driver routes deviate systematically from shortest-time tours. Consistent with prior analyses of this dataset (Zattoni Scroccaro et al., 2024; Cook et al., 2024; Guo et al., 2023), we observe a strong tendency for drivers to group stops by zone and to traverse these zones in an organized fashion. Our objective is to learn a route-choice model that (i) captures this zone-level structure via decision rules and (ii) refines residual preferences via IO over pairwise zone costs. 
+
+4.3.2 Notation and route abstraction 
+
+Let D denote the set of depots and Rd the set of routes from depot d ∈ D . For a route r ∈ R d, let 
+
+Sr be the set of stops and Zr the set of zones represented by stops in Sr. We write Zd for the set of all zones observed for depot d across its routes. 20 At the zone level, we define binary variables 
+
+xij =
+
+
+
+1, if zone j is visited immediately after zone i on route r, 
+
+0, otherwise, 
+
+(i, j ) ∈ Z r × Z r,
+
+so x encodes a Hamiltonian tour over Zr. The observed driver stop sequence induces an observed zone tour ˜x by mapping each stop to its zone and compressing contiguous runs of the same zone into a single visit. Stops missing a zone label are assigned the zone of the nearest labeled stop on that route (in travel-time distance), ensuring every stop belongs to exactly one zone. 
+
+4.3.3 Baseline forward model: Restricted TSP without decision rules 
+
+For a fixed depot d and route r ∈ R d with zone set Zr ⊆ Z d, we introduce base zone-to-zone costs 
+
+θdij for all (i, j ) ∈ Z d × Z d. These are initialized using haversine distances between zone centers (computed from the obfuscated coordinates) and later refined using IO. The baseline FOP is a TSP in the Dantzig–Fulkerson–Johnson (DFJ) form over Zr:
+
+minimize 
+
+> x
+
+X
+
+> i∈Z r
+
+X
+
+> j∈Z r
+
+θdij xij (17a) 
+
+subject to X
+
+> j∈Z r
+
+xij = 1 ∀i ∈ Z r (17b) 
+
+X
+
+> i∈Z r
+
+xij = 1 ∀j ∈ Z r (17c) 
+
+X
+
+> i∈Q
+
+X
+
+> j∈Q
+
+xij ≤ |Q| − 1 ∀∅̸ = Q ⊂ Z r (17d) 
+
+xij ∈ { 0, 1} ∀(i, j ) ∈ Z r × Z r (17e) 
+
+xii = 0 ∀i ∈ Z r. (17f) This model captures only pairwise travel costs. As in the production-planning case, if driver behavior is strongly shaped by higher-level decision rules, (17) will be structurally misspecified and IO will have limited ability to recover interpretable preferences from sparse observations. 
+
+4.3.4 Decision rules as zone-clustering preferences 
+
+To represent higher-level structure, we introduce a family of decision rules that reward transitions consistent with hypothesized zone clusters. Zone identifiers follow a structured alphanumeric format, which we denote abstractly as W −x.yZ (e.g., P −12 .3C). We construct candidate cluster 21 rules by grouping zones that share selected components of these identifiers. Let K be a set of candidate clustering rules. For each rule k ∈ K and zone pair (i, j ), we define a known indicator M kij ∈ { 0, 1} where M kij = 1 if the transition i → j is consistent with rule k (i.e., remains within the same hypothesized cluster), and 0 otherwise. For each depot d, we associate a nonnegative reward parameter P dk ≥ 0. We define the effective transition cost 
+
+cdij (θd, P d) = θdij − X
+
+> k∈K
+
+P dk M kij ,
+
+so satisfying a rule lowers cost and encourages the route to respect the corresponding cluster structure. Replacing θd by cd(θd, P d) in (17) yields the rule-augmented forward problem: 
+
+minimize   
+
+> x∈X (Zr)
+
+X
+
+> i∈Z d
+
+X
+
+> j∈Z d
+
+
+
+θdij − X
+
+> k∈K
+
+P dk M kij 
+
+
+
+xij , (18) where X (Zr) is the feasible set defined by (17b)–(17f). 
+
+4.3.5 Inverse optimization setup 
+
+We estimate (θd, P d) from observed zone tours using the suboptimality-based IO framework of Section 3. For each route r ∈ R d, the observed zone tour ˜x is treated as approximately optimal for (18). As in the production-planning and shift assignment case studies, we enforce the IO optimality conditions via a cutting-plane procedure: at each iteration, we (i) solve the forward problem to generate a set of violating alternative tours and (ii) add the corresponding cut to the master problem. Operationally, we learn the decision-rule rewards first (fixing θd to its haversine initialization) and then refine pairwise costs θd on top of the selected rule set. This two-stage approach isolates broad structural effects (clustering) before fitting residual pairwise preferences, which is especially important under data sparsity at the zone-pair level. 
+
+4.3.6 Selection of clustering decision rules 
+
+We next quantify which clustering rules are supported by the data. We evaluate candidate rules by learning only the corresponding rewards P d (with θd fixed to haversine distance) and comparing the summed objective values across depots. At the first level (L1), we consider four candidate cluster definitions that share three out of the four code components. The best-performing rule clusters zones by (W, x, Z ) (denoted W −x.Z ), achieving the lowest summed objective: 22 L1 cluster rule W −x.y W −x.Z W.yZ x.yZ 
+
+Objective (summed) 160.188 147.144 160.855 161.093 
+
+Table 1: Objective values for candidate first-level clustering rules (lower is better). Conditioned on the selected L1 rule, we evaluate L2 cluster rules by grouping L1 clusters sharing two of the three components. The best-performing L2 rule clusters by (W, x ) (denoted 
+
+W −x), yielding the lowest summed objective and being best for 15 out of 17 depots: 
+
+L2 cluster rule W −x W −Z x.Z 
+
+Objective (summed) 144.386 146.867 147.121 
+
+Table 2: Objective values for candidate second-level clustering rules (lower is better). We also tested third-level (L3) rules (single-component clustering). These yielded negligible objective improvement and inconsistent depot-level effects, suggesting weak predictive value and potential overfitting: 
+
+L3 cluster rule W x
+
+Objective (summed) 144.321 144.376 
+
+Table 3: Objective values for candidate third-level clustering rules (lower is better). These results support using two clustering levels (L1 and L2) as decision rules and discarding L3 rules. 
+
+4.3.7 Prediction for test routes and Amazon Score 
+
+For each test route, the input is the set of stops and their associated zones, yielding Zr. We first solve the zone-level forward problem (18) with learned parameters to obtain a predicted zone order. We then enforce this zone order at the stop level by modifying stop-to-stop travel times: 
+
+˜cuv := 
+
+
+
+cuv , if zone( u) = zone( v),cuv + R, if zone( v) is the next zone after zone( u) in the predicted zone tour, 
+
+cuv + 2 R, otherwise ,
+
+where cuv is the travel time provided in the dataset and R is a large penalty. Finally, we solve a stop-level TSP using ˜cuv to obtain the predicted stop sequence. 23 Submissions are evaluated using the Amazon Score (Amazon.com Inc, 2021b), a normalized similarity measure combining sequence deviation ( SD ) and edit distance with real penalty (ERP): 
+
+AmazonScore( A, B ) = SD (A, B ) · ERP norm (A, B )
+
+ERP e(A, B ) ,
+
+where A is the observed route and B is the predicted route. Lower values indicate more accurate predictions, with values near zero corresponding to near-exact matches. 
+
+4.3.8 Results 
+
+We report three quantitative findings: (i) the marginal value of decision-rule depth; (ii) the ad-ditional value of pairwise cost learning on top of decision rules; and (iii) a structural diagnostic based on cluster crossings that explains why decision rules matter. 
+
+Effect of decision-rule depth. Figure 4 (a) reports the Amazon Score when we include an increas-ing number of decision rules in the model (0 = none, 1 = L1 only, 2 = L1+L2, 3 = L1+L2+L3). Starting from a purely distance-based model, adding L1 reduces the score from 0.0632 to 0.0593 .Adding L2 yields a further improvement to 0.0573 . In contrast, adding the L3 rule degrades per-formance slightly to 0.0576 , consistent with the weak and likely spurious objective improvements observed in Table 3. 0 1 2 3
+
+0.058 0.06 0.062 
+
+(a) Number of decision rules Amazon score 0 10 20 30 40 
+
+0.055 0.06 
+
+(b) Training iterations Amazon score 
+
+> Without decision rules With decision rules
+
+Figure 4: Amazon score as a function of the number of decision rules and training iterations. 
+
+Decision rules versus pairwise cost learning. We next quantify how much improvement is achieved by learning pairwise costs θd after learning decision-rule rewards. Figure 4 (b) reports Amazon Scores as a function of training iterations (cuts added), comparing models with and with-out decision rules. 24 With decision rules (L1+L2) and no pairwise learning, the score is 0.0573 . As we run IO and refine θd, performance improves to 0.0547 (10 iterations), 0.0535 (20 iterations), and stabilizes at 
+
+0.0531 by 30–40 iterations. This corresponds to a reduction from 0.0573 to 0.0533 , i.e., an additional 
+
+≈ 7.0% improvement relative to the decision-rule-only model. Without decision rules, the model starts at 0.0633 and improves to 0.0586 (10), 0.0572 (20), and stabilizes near 0.0571 by 40 iterations. Critically, after pairwise learning, the no-rules model (0.0571 ) performs similar to the decision-rule-only model ( 0.0573 at iteration 0), with no further pair-wise costs learned, but the fully trained with-rules model achieves 0.0533 . Comparing the best achieved scores, incorporating decision rules yields a reduction from 0.0571 to 0.0533 , i.e., an improvement of approximately 6.7% relative to the best no-rules model, and approximately 15 .8% 
+
+relative to the distance-based baseline ( 0.0633 to 0.0533 ). 
+
+Cluster crossings as a structural diagnostic. To explain why decision rules improve predictive accuracy, we compare the number of cluster crossings in predicted routes to those in observed driver routes. For each route, we compute the number of transitions that move from one cluster to another, at L1 and L2 levels, and report these as a percentage of the corresponding count in the observed route. Figure 5 (a) shows that predicted routes with decision rules exhibit L1 crossing rates close to the observed routes (between 94 .4% and 98 .0% across iterations), whereas predicted routes with-out decision rules cross L1 clusters far more often (between 111 .0% and 118 .0% ). The same effect is amplified at the L2 level: Figure 5 (b) shows with-rules predictions remain close to observed routes (between 96 .0% and 99 .6% ), while no-rules predictions exhibit substantially more L2 cross-ings (between 124 .1% and 132 .1% ). These results show that decision rules correctly encode the dominant structural regularity in driver behavior, serving zones in blocks, whereas pairwise cost learning alone cannot reliably reproduce this behavior. 
+
+4.3.9 Interpretability via route-level analysis 
+
+While aggregate metrics such as the Amazon score quantify predictive performance, they do not directly reveal how decision rules influence the structure of the predicted routes. To complement the quantitative results, we examine representative test routes predicted by our model, with and without decision rules. These examples illustrate how the learned rules shape the routing behavior and help diagnose the structural limitations of cost-only inverse optimization. All routes shown in Figures 6 and 7 are generated by our implementation using the public Amazon Challenge dataset. We study the routes predicted with and without the use of decision 25 0 10 20 30 40 
+
+90 100 110 120 
+
+(a) Training iterations L1 cluster crossing (% of actual) 
+
+> Routes predicted with decision rules Routes predicted without decision rules
+
+0 10 20 30 40 
+
+100 110 120 130 
+
+(b) Training iterations L2 cluster crossing (% of actual) 
+
+> Routes predicted with decision rules Routes predicted without decision rules
+
+Figure 5: L1 and L2 cluster crossing as percentages of the actual route. rules, to see the impact which learning these decision rule has on the overall accuracy of our route predictions, and discuss how learning the clustering of zones helps improve the final predictions.       
+
+> (a) Observed route (b) Route predicted using TSP with distances
+> (c) Route predicted using IO w/o decision rules (d) Route predicted using IO with decision rules
+
+Figure 6: Actual and predicted routes: Example 1 We first consider the route shown in Figure 6, which consists of six first-level (L1) clusters, indicated by the color-coded zones. The observed driver route (Figure 6a) exhibits strong conti-26 guity within each cluster, with transitions between clusters occurring only after all zones within a cluster have been served. However, when the route is predicted solely on the basis of the distance between the zones (Figure 6b), or when IO is used to learn the travel costs between the zones, but with the decision rules omitted (Figure 6c), the predicted route interleaves zones from different clusters, leading to substantially more cross-cluster transitions. Finally, when L1 clustering rules are incorporated into the forward model (Figure 6d), the predicted route closely matches the ob-served route: the zones are visited in the same order as in the observed route, and the clusters are visited contiguously. This observation illustrates that learning the clustering patterns of observed routes allows us to incorporate higher-level structural patterns into our prediction framework, improving the overall accuracy of our predictions.       
+
+> (a) Observed route (b) Predicted route using IO w/o decision rules
+> (c) Predicted route using IO with L1 clusters (d) Predicted route using IO with L2 clusters
+
+Figure 7: Actual and predicted routes: Example 2 To further examine the interaction between multiple decision rules, Figure 7 presents a route that contains both L1 and second-level (L2) clusters. The L1 clusters are represented by the color of the zones, while the L2 clusters are represented by the shape of the zone marker. The observed route (Figure 7a) respects both clustering levels, serving all zones within the L1 and L2 cluster 27 contiguously. As seen in the previous example, using IO without decision rules to predict the route leads to violation of the clustering patterns followed by the drivers (Figure 7b). If only L1 rules are enforced (Figure 7c), the model the L1 clusters but partially violates the L2 structure, splitting the second L2 cluster (consisting of circle zone markers) into two segments. Finally, when both L1 and L2 rules are enforced (Figure 7d), the predicted route preserves the complete hierarchical structure of L1 and L2 clusters seen in the observed route, giving us an exact prediction of the driver’s route. These examples highlight two key insights. First, decision rules act as soft structural prefer-ences that guide the optimizer toward behaviorally plausible routes. Secondly, it is important to include a sufficiently large set of decision rules, to be able to recover the overall structural patterns seen in the data. Together with the quantitative results, the route-level analysis demonstrates that explicitly modeling decision rules is essential for capturing the hierarchical structure present in real-world routing decisions. 
+
+Summary The Amazon case study reinforces the main insight from the production-planning ex-ample: when decision rules materially shape observed decisions, explicitly embedding these rules in the forward model is critical for accurate and interpretable inverse optimization. Quantitatively, learning two clustering rules (L1+L2) reduces the Amazon Score from 0.0632 (distance-based base-line) to 0.0573 , and refining pairwise costs via IO further reduces the score to 0.0533 after 30–40 iterations. In contrast, learning pairwise costs alone (without decision rules) saturates near 0.0570 
+
+after 40 iterations. The cluster-crossing diagnostic provides a behavioral explanation for this gap: decision rules align predicted routes with the block structure present in the observed driver routes, whereas pairwise learning alone produces excessive cross-cluster transitions. 
+
+# 5 Conclusions 
+
+In this work, we have presented a generalized data-driven approach to understanding and mod-eling the decisions made by human experts, using the framework of IO. By incorporating decision rules within the framework, we are able to learn and account for the additional restrictions or con-straints that the decision maker may be considering, in addition to learning the objective function, as traditionally done in the IO literature. We have showcased the capability of this approach us-ing multiple case studies, highlighting the ability of the proposed framework to learn additional constraints imposed by the decision maker and allow for a more realistic model of the decision maker’s behavior. 28 References 
+
+Pieter Abbeel and Andrew Y. Ng. Apprenticeship learning via inverse reinforcement learning. In Twenty-first international conference on Machine learning - ICML ’04 , page 1, Banff, Alberta, Canada, 2004. doi: 10.1145/1015330.1015430. Amazon.com Inc. Amazon Last-Mile Routing Research Challenge | supported by the MIT Center for Transportation & Logistics, 2021a. URL https://routingchallenge.mit.edu/ .Amazon.com Inc. Amazon routing challenge: Scoring, 2021b. URL https://github.com/ MIT-CAVE/rc-cli/tree/main/scoring .Anil Aswani, Zuo-Jun Shen, and Auyon Siddiq. Inverse optimization with noisy data. Operations Research , 66(3):870–892, 2018. Maria-Florina Balcan and Dravyansh Sharma. Learning accurate and interpretable decision trees. 
+
+arXiv preprint arXiv:2405.15911 , 2024. Thijs Becker, Axel-Jan Rousseau, Melvin Geubbelmans, Tomasz Burzykowski, and Dirk Valken-borg. Decision trees and random forests. American Journal of Orthodontics and Dentofacial Ortho-pedics , 164(6):894–897, December 2023. doi: 10.1016/j.ajodo.2023.09.011. Dimitris Bertsimas, Vishal Gupta, and Ioannis Ch. Paschalidis. Data-driven estimation in equilib-rium using inverse optimization. Mathematical Programming , 153(2):595–633, November 2015. doi: 10.1007/s10107-014-0819-4. Jeff Bezanson, Alan Edelman, Stefan Karpinski, and Viral B Shah. Julia: A fresh approach to numerical computing. SIAM Review , 59(1):65–98, 2017. Merve Bodur, Timothy C. Y. Chan, and Ian Yihang Zhu. Inverse Mixed Integer Optimization: Polyhedral Insights and Trust Region Methods. INFORMS Journal on Computing , 34(3):1471– 1488, May 2022. doi: 10.1287/ijoc.2021.1138. D. Burton and Ph. L. Toint. On an instance of the inverse shortest paths problem. Mathematical Programming , 53(1):45–61, January 1992. doi: 10.1007/BF01585693. D. Burton and Ph. L. Toint. On the use of an inverse shortest paths algorithm for recovering linearly correlated costs. Mathematical Programming , 63(1):1–22, January 1994. doi: 10.1007/ BF01582056. Timothy C. Y. Chan, Tim Craig, Taewoo Lee, and Michael B. Sharpe. Generalized Inverse Multi-objective Optimization with Application to Cancer Therapy. Operations Research , 62(3):680–695, June 2014. doi: 10.1287/opre.2014.1267. 29 Timothy C. Y. Chan, Rafid Mahmood, and Ian Yihang Zhu. Inverse Optimization: Theory and Applications. Operations Research , page opre.2022.0382, December 2023. doi: 10.1287/opre. 2022.0382. Felipe Codevilla, Eder Santana, Antonio M L ´ opez, and Adrien Gaidon. Exploring the limitations of behavior cloning for autonomous driving. In Proceedings of the IEEE/CVF international confer-ence on computer vision , pages 9329–9338, 2019. William Cook, Stephan Held, and Keld Helsgaun. Constrained Local Search for Last-Mile Routing. 
+
+Transportation Science , 58(1):12–26, January 2024. doi: 10.1287/trsc.2022.1185. Barry de Ville. Decision trees. WIREs Computational Statistics , 5(6):448–455, 2013. doi: 10.1002/ wics.1278. Iain Dunning, Joey Huchette, and Miles Lubin. Jump: A modeling language for mathematical optimization. SIAM Review , 59(2):295–320, 2017. Riccardo Guidotti, Anna Monreale, Salvatore Ruggieri, Franco Turini, Fosca Giannotti, and Dino Pedreschi. A Survey of Methods for Explaining Black Box Models. ACM Computing Surveys , 51 (5):1–42, September 2019. doi: 10.1145/3236009. Xiaotong Guo, Baichuan Mo, and Qingyi Wang. Amazon last-mile delivery trajectory prediction using hierarchical tsp with customized cost matrix. arXiv preprint arXiv:2302.02102 , 2023. Rishabh Gupta and Qi Zhang. Decomposition and Adaptive Sampling for Data-Driven Inverse Linear Optimization. INFORMS Journal on Computing , 34(5):2720–2735, September 2022. doi: 10.1287/ijoc.2022.1162. Rishabh Gupta and Qi Zhang. Efficient learning of decision-making models: A penalty block coordinate descent algorithm for data-driven inverse optimization. Computers & Chemical Engi-neering , 170:108123, February 2023. doi: 10.1016/j.compchemeng.2022.108123. LLC Gurobi Optimization. Gurobi optimizer reference manual, 2023. Ahmed Hussein, Mohamed Medhat Gaber, Eyad Elyan, and Chrisina Jayne. Imitation Learning: A Survey of Learning Methods. ACM Computing Surveys , 50(2):21:1–21:35, April 2017. doi: 10.1145/3054912. Arezou Keshavarz, Yang Wang, and Stephen Boyd. Imputing a convex objective function. In 2011 IEEE International Symposium on Intelligent Control , pages 613–619, Denver, CO, USA, September 2011. ISBN 978-1-4577-1104-6. doi: 10.1109/ISIC.2011.6045410. Himabindu Lakkaraju, Stephen H. Bach, and Jure Leskovec. Interpretable Decision Sets: A Joint Framework for Description and Prediction. In Proceedings of the 22nd ACM SIGKDD International 
+
+30 Conference on Knowledge Discovery and Data Mining , pages 1675–1684, San Francisco California USA, August 2016. ISBN 978-1-4503-4232-2. doi: 10.1145/2939672.2939874. Daniel Merch´ an, Jatin Arora, Julian Pachon, Karthik Konduri, Matthias Winkenbach, Steven Parks, and Joseph Noszek. 2021 Amazon Last Mile Routing Research Challenge: Data Set. 
+
+Transportation Science , 58(1):8–11, January 2022. doi: 10.1287/trsc.2022.1173. Mahsa Moghaddass and Daria Terekhov. Inverse integer optimization with an imperfect observa-tion. Operations Research Letters , 48(6):763–769, 2020. npublisher: Elsevier. Mahsa Moghaddass and Daria Terekhov. Inverse integer optimization with multiple observations. 
+
+Optimization Letters , 15(4):1061–1079, June 2021. doi: 10.1007/s11590-021-01721-4. Peyman Mohajerin Esfahani, Soroosh Shafieezadeh-Abadeh, Grani A. Hanasusanto, and Daniel Kuhn. Data-driven inverse optimization with imperfect information. Mathematical Programming ,167(1):191–234, January 2018. doi: 10.1007/s10107-017-1216-6. Christoph Molnar. Interpretable Machine Learning, 2019. Litao Qiao, Weijia Wang, and Bill Lin. Learning accurate and interpretable decision rule sets from neural networks. In Proceedings of the AAAI Conference on Artificial Intelligence , volume 35, pages 4303–4311, 2021. R. Raman and I. E. Grossmann. Modelling and computational techniques for logic based inte-ger programming. Computers & Chemical Engineering , 18(7):563–578, July 1994. doi: 10.1016/ 0098-1354(93)E0010-7. Cynthia Rudin. Stop explaining black box machine learning models for high stakes decisions and use interpretable models instead. Nature Machine Intelligence , 1(5):206–215, May 2019. doi: 10.1038/s42256-019-0048-x. npublisher: Nature Publishing Group. Lizhi Wang. Cutting plane algorithms for the inverse mixed integer linear programming problem. 
+
+Operations Research Letters , 37(2):114–116, March 2009. doi: 10.1016/j.orl.2008.12.001. Maryam Zare, Parham M. Kebria, Abbas Khosravi, and Saeid Nahavandi. A Survey of Imitation Learning: Algorithms, Recent Developments, and Challenges. IEEE Transactions on Cybernetics ,54(12):7173–7186, December 2024. doi: 10.1109/TCYB.2024.3395626. Pedro Zattoni Scroccaro, Piet Van Beek, Peyman Mohajerin Esfahani, and Bilge Atasoy. Inverse Optimization for Routing Problems. Transportation Science , page trsc.2023.0241, July 2024. doi: 10.1287/trsc.2023.0241. 31

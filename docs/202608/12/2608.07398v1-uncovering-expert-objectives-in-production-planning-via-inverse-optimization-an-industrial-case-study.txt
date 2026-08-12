@@ -1,0 +1,563 @@
+Title: Uncovering expert objectives in production planning via inverse optimization: An industrial case study
+
+URL Source: https://arxiv.org/pdf/2608.07398v1
+
+Published Time: Mon, 10 Aug 2026 01:13:27 GMT
+
+Number of Pages: 25
+
+Markdown Content:
+# Uncovering expert objectives in production planning via inverse optimization: An industrial case study 
+
+Shivi Dixit *1, Rishabh Gupta *1 , Adam Kelloway 2, John Wassick 3, and Qi Zhang †1 1Department of Chemical Engineering and Materials Science, University of Minnesota, Minneapolis, MN 55455, USA 
+
+> 2
+
+The Dow Chemical Company, Midland, MI 48642, USA 
+
+> 3
+
+Department of Chemical Engineering, Carnegie Mellon University, Pittsburgh, PA 15213, USA 
+
+Abstract 
+
+Production planning in the manufacturing industry often relies on the use of optimization models, but defining an appropriate objective function can be a challenge. In practice, planners must balance competing goals, manage uncertainty, and account for qualitative business pref-erences that are difficult to quantify. As a result, many optimization models fail to match expert behavior, limiting trust and adoption. In this work, we propose a data-driven inverse optimiza-tion framework to infer the objective function implicitly captured in expert planners’ decisions. We formulate the production planning problem as a mixed-integer linear program, where the unknown objective function is represented as a weighted sum of hypothesized cost terms. A suboptimality-loss-based inverse optimization method is then applied to learn the objective weights from historical production plans. The proposed approach is applied to a real indus-trial case provided by Dow, where the inferred weights reveal that avoiding inventory short-ages and maintaining consistent cycle lengths dominate the planners’ decision-making. Time-and product-dependent extensions further improve predictive accuracy and uncover evolving priorities. Expert interviews confirm the practical validity of these insights. Overall, this study shows that inverse optimization can transform tacit human expertise into interpretable models, enabling more accurate and trusted decision-support tools for complex industrial systems. 
+
+Keywords: production planning, human-in-the-loop decision-making, mixed-integer opti-mization, apprenticeship learning, inverse optimization 
+
+# 1 Introduction 
+
+Production planning and scheduling is a critical function in chemical manufacturing and has been studied extensively in the literature (Harjunkoski et al., 2014; Castro et al., 2018). Numerous op-timization models have been proposed to tackle various production planning problems, typically formulated to minimize or maximize an objective function subject to relevant constraints. In prac-tice, however, the appropriate objective function is often not explicitly known (Troutt et al., 2006), which can be due to several reasons, such as: (i) There are hidden costs, such as those related to the impact of equipment wear and tear on plant reliability, that are difficult to quantify. (ii) 
+
+> *These authors contributed equally to this work.
+> †Corresponding author (qizh@umn.edu).
+
+1arXiv:2608.07398v1 [math.OC] 7 Aug 2026 Uncertainty, most notably in future product demand, affects planning decisions but is not mod-eled explicitly. (iii) It is unclear how competing objectives, such as cost, throughput, flexibility, and customer satisfaction, are prioritized. (iv) Planning decisions at a single plant can influence operations across the broader supply chain network, requiring non-intuitive adjustments to lo-cal objective functions to balance trade-offs at the network level. (v) The required information is simply not available due to a lack of documentation. When implementing production planning models in industrial applications, not knowing the right objective function can be a major chal-lenge as it may lead to unreasonable solutions and ultimately the loss of user trust in the whole model. Although the right objective function for a production planning problem may not be explicitly given, one can often assume that it is implicitly captured in the decisions made by an expert plan-ner who has developed a deep intuition for the true costs and trade-offs through many years of experience. However, this information is not readily available in a form that can be directly incor-porated into a mathematical model. Typically, it requires many discussions between the modeler and the planner and a considerable amount of trial and error to determine an objective function that provides good solutions. To facilitate this process, we develop in this work a systematic data-driven approach to learning the expert planner’s mental objective function from production plans that the planner has generated in the past. In the machine learning literature, the problem of learning how to perform a certain task by ob-serving the behavior of a human expert is called imitation learning (Hussein et al., 2017), where the goal is to find a mapping from inputs to actions such that these actions mimic the expert’s behav-ior as closely as possible. It has found applications across a wide range of domains, most notably in robotics (Argall et al., 2009) and autonomous driving (Codevilla et al., 2018). Apprenticeship learning (Abbeel and Ng, 2004) is a specific form of imitation learning that focuses on recover-ing or approximating the expert’s objective function rather than directly cloning their actions. As such, apprenticeship learning can result in more interpretable models as it directly helps to better understand how much the expert values certain aspects of the problem. It also tends to generalize better to unseen situations compared to other imitation learning methods (Zheng et al., 2022). The most commonly used method for apprenticeship learning is inverse reinforcement learning 
+
+(IRL). In standard reinforcement learning (Sutton et al., 1998), the decision-making problem is modeled as a Markov decision process with given possible states and actions, the corresponding transition probabilities, and a known reward function; the goal is then to learn a policy, which maps states to actions, that maximizes the cumulative reward. IRL addresses the inverse problem where the reward function is unknown but can be inferred from observed state–action trajectories, assuming that they result from maximizing an underlying cumulative reward. It is especially well suited for problems where it is difficult to model the underlying process, e.g. a helicopter flying under various weather conditions, in detail. IRL has received significant attention in the past two decades in which many methodological advancements have been made, focusing on improving model accuracy, data efficiency, and generalizability. For a recent review of IRL, we refer the reader to Arora and Doshi (2021). A method closely related to IRL is inverse optimization (IO) (Ahuja and Orlin, 2001). Here, the decision-making problem is modeled as a mathematical optimization problem, where typically the constraints are known but the objective function is not. Similar to IRL, the goal of IO is to learn the underlying objective function (or reward function) given observed expert decisions that are assumed to be optimal or near-optimal solutions to the optimization problem. Early IO studies focused on classical formulations that enforced a perfect fit for a single observation, most often in linear or network flow models (Burton and Toint, 1992; Ahuja and Orlin, 2001; Heuberger, 2004). In contrast, more recent data-driven IO frameworks accommodate multiple and noisy observations 2by minimizing measures of suboptimality across data (Keshavarz et al., 2011; Mohajerin Esfahani et al., 2018; Aswani et al., 2018). This evolution has made IO particularly useful for learning the implicit objectives of expert decision-makers, whose real-world choices often reflect heuristics or approximate optimality. Methodological advances have further expanded IO to nonlinear (Gupta and Zhang, 2022b; Lu et al., 2025), discrete (Wang, 2009; Bulut and Ralphs, 2021; Bodur et al., 2022), and high-dimensional models, with scalable algorithms now available to estimate objective functions from observed behavior (Tan et al., 2020; Gupta and Zhang, 2022a,b; Bodur et al., 2022). For a comprehensive overview of the IO research landscape, we refer the reader to Chan et al. (2021). In recent years, IO has been applied across diverse domains. In healthcare, it has been used to infer the relative weight clinicians place on competing treatment goals in radiation therapy plan-ning, sometimes integrated with machine learning for greater interpretability (Babier et al., 2021; Ajayi et al., 2022). In energy systems, IO has helped estimate consumer demand response pref-erences and utility curves from smart grid data (Saez-Gallego and Morales, 2017; Esteban-Perez et al., 2024). Transportation studies have employed IO to recover congestion cost functions and route-choice preferences from observed traffic flows (Zhang and Paschalidis, 2017; Zattoni Scroc-caro et al., 2025; Chan et al., 2024). In finance, IO has been applied to infer investors’ risk-aversion coefficients from portfolio holdings (Alsabah et al., 2021; Yu et al., 2023). More recently, it has also been used to uncover institutional objectives in financial aid allocation (Bara, 2025) and to analyze the implicit priorities behind political gerrymandering (Smith and Boutilier, 2024). Several of these studies have leveraged real-world data: for example, clinical treatment plans in radiation oncology (Ajayi et al., 2022), consumption data from electricity markets (Saez-Gallego and Morales, 2017), traffic flow observations (Zhang and Paschalidis, 2017), and actual invest-ment portfolios (Alsabah et al., 2021). These empirical validations demonstrate IO’s ability to extract meaningful objective functions that explain expert or system-level decision-making. How-ever, a common feature across these applications is that the forward problems typically assume relatively simple constraints such as linear dose-volume limits in healthcare, flow conservation in transportation, or budget constraints in finance. While this simplification facilitates tractabil-ity and interpretability, it underutilizes IO’s potential. As we show in this work, incorporating richer, domain-specific constraints allows IO models to capture more nuanced decision processes, thereby increasing both their explanatory power and practical relevance. In this work, we apply data-driven IO to an industrial case study provided by The Dow Chem-ical Company (subsequently referred to as Dow), where we uncover expert planners’ objectives when performing production planning for a particular plant. Here, the underlying planning prob-lem can be readily formulated as a mixed-integer linear program (MILP) for which we do not ini-tially have an appropriate objective function. In this case, with the help of an expert planner, we can identify potential objectives that may play a role in the planners’ decision-making; however, we do not know to what extent they drive planning decisions and how the planners balance the trade-offs between competing objectives. We assume that the true objective function is a weighted sum of multiple objective terms and use IO to infer the weights from historical production plans generated by the planners. As a result, the trained model is inherently interpretable as the learned weights directly reveal the relative importance of the various hypothesized objectives. After ob-taining the inferred objective function, we conduct an interview with an expert planner to evalu-ate the results and gain additional insights into how well the model aligns with the planners’ true decision-making process. To the best of our knowledge, this is the first study reported in the liter-ature that applies data-driven IO to real-world production planning data in an effort to elucidate and quantify human expert planners’ objectives. It effectively demonstrates the efficacy of the IO approach in complex industrial applications. 3The remainder of this paper is organized as follows. In Section 2, we provide details about the production planning problem, the corresponding MILP formulation, and the specific form of the objective function that we are trying to learn. Then, the proposed data-driven IO approach is described in Section 3. In Section 4, we present the results from our real-world industrial case study and discuss these results based on feedback and insights received from an expert planner. Finally, we close with concluding remarks in Section 5. 
+
+# 2 Problem description 
+
+In this work, we consider a specific production planning problem from Dow; however, the setup is representative of many planning applications across the process industry such that the pro-posed approach can be readily extended to other similar problems. In the following, we provide a statement of the production planning problem, a mathematical formulation of the scheduling constraints, and a list of hypothesized objectives that the planners may have been considering in their decision-making. 
+
+2.1 Production planning problem 
+
+In this problem, we consider a plant that manufactures multiple products to meet demand over a given planning horizon, which generally requires multiple production cycles, where each cycle consists of multiple production campaigns, one for each product. As illustrated in the example Gantt chart shown in Figure 1, where each bar depicts a campaign, the order in which the products are produced is the same in all cycles. This production sequence is determined in a higher-level planning problem that considers a longer time horizon and other aspects such as transition costs and off-grade products. With the sequencing of campaigns being fixed, this problem focuses on optimizing the lengths of the campaigns, which can vary across different production cycles. Here, a campaign consists of a set of consecutive batches of the same product; hence, the campaign length depends on the number of batches produced in that campaign. Campaigns cannot overlap since there is only one production unit, and there is a minimum number of batches for each cam-paign so that no product is skipped in a cycle. Moreover, there are restrictions on the length of each production cycle and on the total number of cycles in the planning horizon. Figure 2 shows a typical demand profile and the corresponding inventory profile for a par-ticular product. Note that here demand values are given as negative numbers, as the product is drawn from the storage tank to meet demand. The inventory profile clearly reflects the timing of the campaigns. During a campaign, the inventory level of the corresponding product typically increases, while it decreases afterward as the inventory is depleted to meet demand until the next campaign for the same product starts. In this case, inventory levels can be negative, which indi-cate backlogs, i.e. demands that are not met in the current cycle but can be satisfied in later cycles. Lower and upper bounds are generally imposed on the inventory levels. The given demand profile for the planning problem considers both firm customer orders and forecast demand. As orders are usually only known for the next few time periods, the production plan needs to be updated on a regular basis. This means that we only implement the part of the production decisions that apply to the time periods before the next time the production plan is re-optimized. It is important to keep this rolling-horizon planning setup in mind as it may have an impact on how human planners make decisions. 4Figure 1: Example of a Gantt chart depicting a typical production plan, where each bar indicates a campaign for a particular product. 
+
+Figure 2: Example of typical demand and inventory profiles for a particular product. 
+
+2.2 Scheduling constraints 
+
+We now describe the mixed-integer constraints that jointly define the set of feasible solutions for the production planning problem. We apply a discrete-time formulation with a planning horizon of T time periods, where the notation is such that time period t starts at time t − 1 and ends at time 
+
+t. The resulting inventory balance constraints are as follows: 
+
+Ipt = Ip,t −1 + β x pt − Dpt ∀ p ∈ P , t ∈ T (1) 
+
+Imin  
+
+> p
+
+≤ Ipt ≤ Imax  
+
+> p
+
+∀ p ∈ P , t ∈ T (2) 
+
+xpt ∈ { 0, 1} ∀ p ∈ P , t ∈ T , (3) where P = {1, . . . , P } denotes the set of P products ordered according to the given production sequence, T = {1, . . . , T } denotes the set of time periods, Dpt is the demand for product p in time period t, and β is the fixed batch size, which is the amount of product manufactured in one time 5period. Note that in our particular problem, the batch size is the same for all products; however, if needed, β can be product-dependent. The continuous variable Ipt denotes the inventory level of product p at time t and can take negative values to account for backlogs in meeting customer demands, and the binary variable xpt equals 1 if product p is produced in time period t and 0 otherwise. Equations (1) simply state that the inventory level at time t is the inventory level at time 
+
+t − 1 plus the amount produced in time period t minus the amount withdrawn to meet demand in time period t. Constraints (2) enforce minimum and maximum inventory levels denoted by Imin 
+
+> p
+
+and Imax  
+
+> p
+
+, respectively. In this problem setting, only one production unit is available. This means that only one product can be produced at a time, which is captured in the following constraints: 
+
+X
+
+> p∈P
+
+xpt ≤ 1 ∀ t ∈ T . (4) The next set of constraints are used to track the timing and length of each campaign. We in-troduce the binary variables ypt and zpt that indicate the start and end, respectively, of a campaign producing product p, which is captured in the following constraints: 
+
+2 yp,t −1 − 1 ≤ xpt − xp,t −1 ∀ p ∈ P , t ∈ T (5) 
+
+yp,t −1 ≥ xpt − xp,t −1 ∀ p ∈ P , t ∈ T (6) 
+
+2 zp,t −1 − 1 ≤ xp,t −1 − xpt ∀ p ∈ P , t ∈ T (7) 
+
+zp,t −1 ≥ xp,t −1 − xpt ∀ p ∈ P , t ∈ T (8) 
+
+ypt ∈ { 0, 1}, z pt ∈ { 0, 1} ∀ p ∈ P , t = {0, . . . , T }. (9) Here, constraints (5) and (6) ensure that ypt equals 1 if a campaign producing product p starts at time t and 0 otherwise. Similarly, constraints (7) and (8) ensure that zpt equals 1 if a campaign producing product p ends at time t and 0 otherwise. The length of a campaign producing product p must be between γmin  
+
+> p
+
+and γmax  
+
+> p
+
+time periods, where we assume that 1 ≤ γmin  
+
+> p
+
+≤ γmax p . The following constraints enforce these bounds: 
+
+1 − ypt ≥  
+
+> min {t+γmin
+> p−1,T }
+
+X
+
+> t′=t
+
+zpt ′ ∀ p ∈ P , t ∈ { 0, .., T − 1} (10) 
+
+ypt ≤
+
+> t+γmax
+> p
+
+X
+
+> t′=t+1
+
+zpt ′ ∀ p ∈ P , t ∈ { 0, .., T − γmax  
+
+> p
+
+}. (11) The following constraints restrict the total number of cycles within the planning horizon and the length of each cycle: 
+
+ζmin ≤ X
+
+> t∈T
+
+ypt ≤ ζmax ∀ p ∈ P (12) 
+
+1 − ypt ≥ 
+
+> min {t+ηmin −1,T }
+
+X
+
+> t′=t+1
+
+ypt ′ ∀ p ∈ P , t ∈ { 0, .., T − 1} when ηmin ≥ 2 (13) 
+
+ypt ≤
+
+> t+ηmax
+
+X
+
+> t′=t+ηmin
+
+ypt ′ ∀ p ∈ P , t ∈ { 0, .., T − ηmax }, (14) 6where constraints (12) ensure that the number of cycles is between ζmin and ζmax . Note that the last cycle can be incomplete in the sense that there may not be enough time remaining in the planning horizon to cycle through all products in that cycle. Constraints (13) and (14) state that the length of each cycle must be between ηmin and ηmax time periods, where we have P
+
+> p∈P
+
+γmin  
+
+> p
+
+≤ ηmin ≤ ηmax .Finally, we need the following constraints to ensure that the given production sequence is followed in each production cycle: 
+
+zpt ≤
+
+> t+θp
+
+X
+
+> t′=t
+
+yp+1 ,t ′ ∀ p ∈ { 1, . . . , P − 1}, t ∈ { 1, .., T − θp} (15) 
+
+zP,t ≤
+
+> t+θP
+
+X
+
+> t′=t
+
+y1,t ′ ∀ t ∈ { 1, .., T − θP }, (16) where θp denotes the maximum number of time periods between the end of a campaign pro-ducing product p and the start of the next campaign. We assume that θp < η min − γmax  
+
+> p
+
+and 
+
+θp < P
+
+> p′∈P\{ p}
+
+γmin  
+
+> p′
+
++ P − 1. The first condition ensures that the next campaign for the next product starts before the next campaign for the same product, which will take place in the next cycle. The second condition ensures that we cannot have a production gap after every campaign. In prac-tice, these conditions are not overly restrictive as θp can still be reasonably large so that it is not limiting; we usually observe production gaps, if any, that are much shorter in duration. Note that throughout the proposed model formulation, we do not make use of a separate index for cycles or campaigns since each campaign is uniquely determined by its start (as indicated by 
+
+ypt ) and end (as indicated by zpt ). By doing so, we avoid having to prespecify the number of cycles and vary it in multiple runs of the model to find the optimal number of cycles. 
+
+2.3 Hypothesized objectives 
+
+In this problem, we assume that the scheduling constraints are known, which is reasonable as they represent physical constraints and well-established business rules for which most parameter values are readily available, but we do not know the objective function that aligns with expert planners’ decisions. To infer such an objective function, we first interviewed a planner from Dow to gain an understanding of the main factors that drive their decision-making. It turns out that it is not that difficult to determine a list of objectives that planners may care about; however, many of these objectives are competing with each other, and it is unclear to what extent the planners emphasize one over another. In the following, we present a list of hypothesized objectives derived from our discussion with the planner and show how they can be modeled. We then propose a single objective function that combines these objectives and identify the parameters that need to be estimated. Note that there are some additional business-specific objectives that we could have incorporated; however, for confidentiality reasons, we only consider the more generally applicable objectives in our case study. As we will show in our results, just considering these potential objectives was enough to provide useful insights with our proposed approach. 
+
+Minimizing inventory holding cost. The one objective that immediately comes to mind is mini-mizing inventory holding cost, a cost component that is incorporated in most production planning 7models. The corresponding objective function term can be written as follows: 
+
+Cic = X
+
+> p∈P
+
+X
+
+> t∈T
+
+ϕp max {0, I pt }, (17) where ϕp is the unit inventory holding cost for product p, and Cic is the total inventory cost, where 
+
+ic is a short hand notation for inventory cost. 
+
+Keeping inventory levels within given bounds. Production planners typically aim to maintain sufficient on-hand inventory to meet demand while avoiding excessive stock levels that lead to high inventory holding costs. In this case, the planners want to keep the inventory levels within some desired ranges, which are illustrated in Figure 3. At the start of a campaign, the inventory level for a product p should preferably be between Ismin  
+
+> p
+
+and Ismax  
+
+> p
+
+, while at the end of a campaign, it should be between Iemin  
+
+> p
+
+and Iemax  
+
+> p
+
+.anner, we identify candidate objectives 
+
+# nstraints and weighted-sum objective function: 
+
+# nventory holding costs campaign → penalty on inventory below 𝐼 '()* 
+
+# campaign → penalty on inventory above 𝐼 '(+, 
+
+# campaign → penalty on inventory below 𝐼 -()* 
+
+# campaign → penalty on inventory above 𝐼 -(+, 
+
+# penalty on cycle length deviations 
+
+# ty on gaps in production hypothesized objectives 
+
+## Time Inventory level  𝐼 !"#$% 
+
+𝐼 !"#&' 
+
+𝐼 !(#$% 
+
+𝐼 !(#&' 
+
+# weights to be learned 0
+
+## 11/21 
+
+Figure 3: Illustration of desired inventory ranges at the start and end of each campaign. Given these inventory targets, it makes sense to penalize inventory levels that are outside these ranges. We can calculate these deviations using the following constraints: 
+
+M (ypt − 1) + Ismin  
+
+> p
+
+− Ipt ≤ Slpt ∀ p ∈ P , t ∈ T (18) 
+
+M (ypt − 1) + Ipt − Ismax  
+
+> p
+
+≤ Supt ∀ p ∈ P , t ∈ T (19) 
+
+M (zpt − 1) + Iemin  
+
+> p
+
+− Ipt ≤ Elpt ∀ p ∈ P , t ∈ T (20) 
+
+M (zpt − 1) + Ipt − Iemax  
+
+> p
+
+≤ Eupt ∀ p ∈ P , t ∈ T (21) 
+
+Slpt ≥ 0, S upt ≥ 0, E lpt ≥ 0, E upt ≥ 0 ∀ p ∈ P , t ∈ T , (22) where M is a sufficiently large positive parameter. The variables Slpt and Supt are used to compute the positive deviations from the lower and upper bounds Ismin  
+
+> p
+
+and Ismax  
+
+> p
+
+, respectively, at the start of a campaign. Similarly, Elpt and Eupt represent the deviations at the end of a campaign. For each type of inventory level deviation, we obtain an additional objective function term as follows: 
+
+Csl = X
+
+> p∈P
+
+X
+
+> t∈T
+
+Slpt (23) 
+
+Csu = X
+
+> p∈P
+
+X
+
+> t∈T
+
+Supt (24) 8Cel = X
+
+> p∈P
+
+X
+
+> t∈T
+
+Elpt (25) 
+
+Ceu = X
+
+> p∈P
+
+X
+
+> t∈T
+
+Eupt . (26) 
+
+Maintaining consistent cycle lengths. Planners also try to schedule the production such that the lengths of the production cycles are close to a desired cycle length previously determined at a higher level of the planning decision hierarchy. Specifically, they want the length of each cycle to be within a given range [δmin , δ max ], where ηmin ≤ δmin ≤ δmax ≤ ηmax . We can use the following constraints to identify cycles whose lengths are outside of this range: 
+
+ypt ≤
+
+> t+δmax
+
+X
+
+> t′=t+δmin
+
+ypt ′ + vt ∀ p ∈ P , t ∈ { 0, .., T − δmax } (27) 
+
+vt ∈ { 0, 1} ∀ t ∈ { 0, .., T − δmax }, (28) where the binary variable vt must equal 1 if the number of time periods between the start of a campaign that begins at time t and the start of the next campaign producing the same product is less than δmin or greater than δmax . Summing vt over all applicable time periods provides an objective function term that can be used to encourage consistency in cycle times: 
+
+Ccl = 
+
+> T−δmax
+
+X
+
+> t=0
+
+vt. (29) 
+
+Minimizing plant downtime. Apart from planned shutdowns, planners generally prefer to run the plant continuously with as few production gaps as possible. To model this objective, we intro-duce the following constraints: 
+
+zpt ≤ yp+1 ,t + wpt ∀ p ∈ { 1, . . . , P − 1}, t ∈ { 1, .., T − 1} (30) 
+
+zP,t ≤ y1,t + wP,t ∀ t ∈ { 1, .., T − 1} (31) 
+
+wpt ∈ { 0, 1} ∀ p ∈ P , t ∈ { 1, .., T − 1}, (32) where the binary variable wpt must equal 1 if there is a gap in production after a campaign pro-ducing product p ends at time t. The objective is then to minimize the total number of production gaps: 
+
+Cg = X 
+
+> p∈P
+> T−1
+
+X
+
+> t=1
+
+wpt . (33) 
+
+Weighted-sum objective function. Given the hypothesized objectives defined above, we posit the planners’ true objective function to be a weighted sum of these objective function terms, i.e. we assume that the underlying optimization problem can be formulated as the following MILP: 
+
+minimize X
+
+> k∈K
+
+αk ρk Ck
+
+subject to constraints (1)–(33) ,
+
+(P) 9where K = {ic, sl, su, el, eu, cl, g } is the set of hypothesized objectives, ρk is a scaling factor that is calculated beforehand and ensures the framework is not biased toward specific terms when the order of magnitudes vary significantly between different cost terms, and αk is the weighting factor for objective k. One can interpret this as the planners solving a multi-objective optimization problem, where the weighting factors can directly tell us how the planners balance the different objectives to obtain trade-off solutions that they deem optimal. However, we do not know the values of the weighting factors; hence, our goal is to infer them from production plans previously generated by the planners. Note that although α are unknown, they are parameters in problem (P), which is an MILP. 
+
+# 3 Data-driven inverse optimization approach 
+
+We pose the problem of uncovering expert planners’ unknown preferences, i.e. inferring the weighting factors α in (P), as a data-driven IO problem. Specifically, since the underlying opti-mization model is an MILP, it becomes an inverse mixed-integer linear optimization problem (IM-ILOP). IMILOPs have been studied from a theoretical and algorithmic standpoint (Wang, 2009; Bodur et al., 2022), and more recently through data-driven formulations that accommodate mul-tiple and noisy observations (Moghaddass and Terekhov, 2021; Holani et al., 2026). The latter are particularly relevant for our setting, as human planning decisions often deviate from exact optimality due to uncertainty and operational heuristics. Conceptually, our approach in this work is most closely related to the IMILOP framework proposed by Moghaddass and Terekhov (2021), who introduced a suboptimality-minimization formulation to handle imperfect decisions. Here, we extend this idea to enable the recovery of an interpretable objective function directly from real production planning data. In the following, we describe the forward and inverse formulations, the suboptimality-based reformulation used to handle noisy data, and the cutting-plane solution method employed to solve the resulting semi-infinite program efficiently. 
+
+3.1 Forward optimization problem 
+
+As detailed in the previous section, we model the expert planners’ decision process as the MILP given in (P), which we now write in the following compact form for notational convenience: 
+
+minimize  
+
+> x∈Rp×Zq
+
+c⊤x
+
+subject to A(u)x ≤ b(u),
+
+(FOP) where x are the mixed-integer decision variables, u are the input parameters (e.g. customer de-mands and current inventory levels), and (A(u), b (u)) capture the linear constraints, which change with u. The cost vector c defines the linear objective function; as such, it includes the weighting factors from formulation (P) that we are trying to learn. 
+
+3.2 Inverse optimization problem 
+
+IO aims to infer c from observed input–decision pairs. Let I denote the set of historical instances that serve as training data points, with (ui, x i) denoting the inputs and the corresponding ob-10 served decisions for instance i ∈ I . The IMILOP can then be formulated as follows: 
+
+minimize  
+
+> ˆc∈C, ˆx
+
+X
+
+> i∈I
+
+∥xi − ˆxi∥ + λ∥ˆc∥1
+
+subject to ˆxi ∈ arg min 
+
+> ˜x∈Rp×Zq
+
+{ ˆc⊤ ˜x : A(ui)˜ x ≤ b(ui)} ∀ i ∈ I ,
+
+(IOP) where ˆxi denotes the predicted decisions using ˆc for instance i. As indicated by the objective func-tion of (IOP), the goal is to minimize the difference between the observed and predicted decisions and a regularization term that encourages the construction of sparse models. The constraints state that ˆxi is an optimal solution to the corresponding MILP. Also, we use C to denote the set from which ˆc can be chosen, which may include constraints that, for example, enforce nonnegativity and prohibit the trivial solution where all cost coefficients are zero. 
+
+3.3 Reformulation via suboptimality minimization 
+
+Problem (IOP) is a bilevel optimization problem with |I| lower-level problems. Because these lower-level problems are MILPs, we cannot apply KKT- or duality-based single-level reformula-tions. We could apply a value-function reformulation and a cutting-plane method to solve the resulting semi-infinite program; however, one key challenge remains, namely that we still need to enforce that every predicted solution ˆxi satisfies all mixed-integer constraints, which significantly increases the computational complexity of the problem as the number of training data points in-creases. To address the computational challenge, we apply the following alternative formulation of the IMILOP proposed by Moghaddass and Terekhov (2021), which minimizes a suboptimality loss instead of the decision loss shown in (IOP): 
+
+minimize 
+
+> ˆc∈C, ϵ ∈R|I|
+> +
+
+X
+
+> i∈I
+
+ϵi + λ∥ˆc∥1
+
+subject to ˆc⊤xi − ˆc⊤ ˜xi ≤ ϵi ∀ i ∈ I , ˜xi ∈ S i,
+
+(IOP-SL) where Si := {x ∈ Rp × Zq : A(ui)x ≤ b(ui)} denotes the feasible region of instance i. Here, we introduce the nonnegative variable ϵi which must be positive if xi is not the optimal solution that minimizes the cost defined by ˆc in instance i. As problem (IOP-SL) minimizes the sum of all ϵi’s, they provide a measure of the level of suboptimality for all observed decisions given a chosen 
+
+ˆc. Note that no mixed-integer constraints are involved in (IOP-SL) since it does not include any predicted solutions that must satisfy the constraints of the forward problem. 
+
+3.4 Solution method 
+
+Problem (IOP-SL) is a semi-infinite program since the set Si generally contains an infinite number of points. We solve it using a cutting-plane approach that alternates between a master problem and a set of cut-generating subproblems. • The master problem is a relaxation of (IOP-SL) where each Si is replaced by a finite subset 
+
+¯Si ⊆ S i, which results in a finite number of constraints. As a result, the master problem is just a linear program (LP). Solving it provides a candidate cost vector ˆc∗ and ϵ∗ 
+
+> i
+
+for each 
+
+i ∈ I .11 • Given a ˆc∗ obtained from solving the master problem, we can formulate a cut-generating problem for each i ∈ I that is (FOP) with c ← ˆc∗ and u ← ui. By solving this problem, we aim to find solutions that potentially achieve cost values lower than the one for the observed decisions with the current estimates of the cost coefficients ˆc∗ minus ϵ∗ 
+
+> i
+
+; for any i ∈ I where this applies, we add the corresponding x∗ 
+
+> i
+
+to ¯Si.The cutting-plane algorithm, as illustrated in the flowchart shown in Figure 4, terminates when 
+
+(ˆ c∗)⊤(xi − x∗ 
+
+> i
+
+) ≤ ϵ∗ 
+
+> i
+
+for all i ∈ I or the change in the objective function value of (IOP-SL) or in the value of ˆc∗ is small over multiple consecutive iterations or a maximum number of iterations is reached. Note that the cut-generating problem only needs to be solved to optimality in the final iterations to show convergence.                      
+
+> Start Initialize ¯Sifor all i∈ I
+> Solve master problem Estimated cost vector ˆc∗
+> Solve cut-generating problem with ˆcfor each i∈ I to obtain x⋆i
+> Set ¯Si←¯Si∪ { x⋆i}for all i∈ I
+> Converged? Output ˆc∗as the final estimate Yes No
+
+Figure 4: Cutting-plane scheme for solving problem (IOP-SL): alternate between solving the mas-ter problem on a finite set of cuts and generating new cuts via the cut-generating problems. 12 4 Results, discussion, and qualitative validation 
+
+We now apply the proposed framework to a real industrial case provided by Dow. In the discus-sion of our results, we emphasize the inherent interpretability of the estimated cost parameters, which allowed us to derive specific hypotheses about the planners’ decision-making process. Us-ing these interpretable results as a basis, we sought feedback from an expert planner, who was able to qualitatively confirm or invalidate our hypotheses. In the following, we detail our analysis and discussion. We list all our hypotheses, and for each one, we assess its validity and provide an explanation that resulted from our conversation with the expert planner. Note that due to con-fidentiality reasons, we cannot disclose all plant and product specifications as well as the actual product demands. Therefore, all results presented in the following are given without units, and the values are normalized if necessary. However, this anonymization does not hinder the analysis and interpretation of the results. 
+
+4.1 Data and model training 
+
+The plant considered in this case study produces eight products. There are multiple planners responsible for scheduling the production at this plant. We assume that their decisions are driven by the same underlying objective function; hence, we treat production plans generated by different planners as if they originated from the same decision-maker. We are provided with 70 historical production plans, each for a planning horizon of 200 time periods. It is important to note that each plan represents the planner’s decisions at a given point in time on the planned actions over the given time horizon; it is not what eventually got implemented (except for the decisions in the first few time periods) since the production plan is re-optimized on a regular basis in a rolling-horizon fashion. Of the 70 available production plans, we use 50 for training and 20 for testing. Models are con-structed and evaluated using five different randomly chosen training-testing splits to assess the robustness of the proposed approach and quantify the variability in the parameter estimates and model predictions. Hence, when means and variances are reported in the results, they originate from these five different training-testing splits. Problem (IOP-SL) is solved using the cutting-plane algorithm with a maximum number of iterations of 20. We adaptively increase the maximum so-lution time for the cut-generating problem with each iteration to allow quick cut generation in the earlier iterations and determine convergence toward the end as the cut-generating problem is solved to optimality in the final iterations. Once a model is trained, i.e. estimates of the unknown cost coefficients are obtained from IO, we can predict production planning decisions by solving problem (P). All optimization problems were implemented in Julia v1.7.2 using the modeling environment JuMP v0.22.3 (Dunning et al., 2017) and solved with Gurobi v10.3. All instances were solved utilizing 24 cores and 60 GB of memory on the Mesabi cluster of the Minnesota Supercomputing Institute (MSI) equipped with Intel Haswell E5-2680v3 processors. 
+
+4.2 Model selection 
+
+We first compare the performance of three different models that differ in the number of cost terms considered in the objective function: • a one-parameter model (model-1) that only considers inventory holding costs, i.e. all weight-ing factors in the objective function of problem (P) are set to zero except for αic ;13 • a five-parameter model (model-5) that, in addition to inventory holding costs, also includes the cost terms related to the four different types of penalties on inventory levels being out-side of the desired ranges, i.e. also αsl , αsu , αel , and αeu can be nonzero; • and the full seven-parameter model (model-7) that incorporates all seven objective function terms described in Section 2.3, including the penalties on cycle length deviations and pro-duction gaps with αcl and αg being their respective weighting factors. To obtain model-1, we simply set αic to 1 since there is no relative difference in importance between multiple objectives to be learned. We use model-1 to provide a baseline as its objective function captures the only directly known financial costs, i.e. the inventory holding costs. As such, it is the model one would initially formulate in the absence of any information about other costs that are not directly quantifiable, such as those capturing the other six hypothesized objectives. Model-5 and model-7 are trained using the proposed data-driven IO approach; we use them to assess the impact of assuming different sets of objective function terms. Figure 5 compares the root mean squared errors (RMSEs) achieved by these three models on the test dataset, where one can see that the prediction accuracy increases with the number of model parameters. Note that the RMSEs are computed based on the difference between the actual and predicted inventory profiles and are given in terms of the batch size β.
+
+Figure 5: RMSEs achieved by model-1, model-5, and model-7. Using a particular instance, we examine the differences in the predicted production schedules, which are shown in terms of the resulting inventory profiles in Figure 6. We can see that compared to the planners’ actual decisions, model-1 consistently predicts much lower inventory levels while model-5 and model-7 achieve more realistic inventory profiles. This indicates that inventory hold-ing costs, which are the only costs in this problem that can be readily quantified, are not the sole driver of the planners’ decisions. 
+
+4.3 Analysis and interpretation 
+
+We now examine the estimates of the weighting factors α, which are shown in Figure 7 for model-5 and model-7. Recall that the objective function terms in problem (P) are normalized using the 14 scaling factors ρ; this allows us to gain insights into the relative importance between different objectives by directly comparing the corresponding α-values. In Figure 7, one can see that while the values of the first five weighting factors are different in the two models, the ranking of these parameters according to their values is the same for both models. This indicates that both models capture the same relative importance across these five objectives. However, since model-7 with the two additional parameters provides more accurate predictions, we use the model-7 results as a basis for the following discussion. The first interesting and initially surprising observation we make is that αic = 0 , which leads to the following hypothesis. 
+
+Figure 6: Comparing for a particular instance the actual inventory profiles for all eight products with the profiles predicted by model-1, model-5, and model-7. 15 Figure 7: Estimates of the weighting factors obtained for model-5 and model-7. 
+
+Hypothesis 1. Planners do not directly consider inventory holdings costs to inform their planning deci-sions. – True. According to the expert planner we spoke to, the planners never explicitly compute the inventory holding costs in their decision-making process; instead, they manage inventory by focusing on other guidelines such as keeping inventory levels within desired ranges. This does not mean that inventory costs are not important, but rather that planners do not solely focus on reduc-ing inventory since they also need to balance this with the benefits of having sufficient on-hand inventory to maintain a high service level. Comparing the values of αsl , αsu , αel , and αeu , we see that αsl ≫ αsu and αel ≫ αeu . This indicates that the planners penalize inventory levels below the given ranges more heavily than those above. 
+
+Hypothesis 2. It is more important to avoid understock than overstock. – True. Planners typically would rather have excess inventory than not enough as they do not want to miss out on revenue opportunities when demand is higher than expected; the downside of having higher inventory holding costs when demand turns out to be lower is less severe. Next, we observe that αsl < α el , which we interpret as follows. 
+
+Hypothesis 3. Planners pay more attention to the inventory level at the end rather than at the start of a campaign. – False. Planners look at both the start and the end of a campaign. If there were a preference of one over the other, it would be the opposite; the rationale is that one should pay more attention to the start of a campaign since there is more opportunity to affect the end of a campaign as the production plan gets updated over time. The values of αcl and αg are relatively large, which leads to the following two hypotheses. 
+
+Hypothesis 4. It is important to maintain consistent cycle lengths. – True. Doing so strikes a balance between avoiding overly long production cycles to keep inventory cost low and having suffi-ciently long cycles to hedge against demand uncertainty. 
+
+Hypothesis 5. There is a strong desire to reduce plant downtime. – True. Planners typically try to run the plant continuously without any idle times unless there is a planned shutdown for maintenance purposes. 16 We see that αg has a value similar to αcl and is less than αsl and αel . From this observation, we further derive the following more nuanced hypothesis. 
+
+Hypothesis 6. Planners need to carefully balance the benefits of reducing production gaps and keeping inventory levels within the desired bounds. – False. According to the expert planner, it is very rare that there is a significant benefit from idling the plant so that it is usually not a consideration in the planners’ decision-making. In other words, under normal circumstances, planners do not intentionally create gaps in their production plans even at the risk of high inventory costs. Given the insight provided by the expert planner, one would expect αg to be significantly larger. A potential reason for this not being the case is that we do actually observe a few, mostly quite short, production gaps in the provided production plans, which we are trying to match in the our predictions; hence, the model cannot place a very high penalty that would effectively disallow any gaps in production. However, we do not know exactly why these plant downtimes occurred; maybe these were due to some external factors that are not included in our model but also not considered by the planners under normal circumstances. 
+
+4.4 Time- and product-dependent objectives 
+
+Looking at the inventory profiles shown in Figure 6, we notice that the accuracy of the model pre-dictions seems to decrease in later time periods. We confirm this by plotting the RMSEs computed for smaller time intervals (10 time periods per time interval up to time 100 and 20 time periods per time interval after time 100) in Figure 8, where the increasing trend in RMSE is particularly clear for model-5 and model-7. One way to interpret this trend is stated in the following hypothesis. 
+
+Hypothesis 7. Planners focus more on the earlier time periods, i.e. care less about being optimal in their plan for the later time periods. – True. Given that actual orders are only available for the first few time periods and the opportunity to re-optimize the production plan on a regular basis, it is not worth making a big effort in optimizing the later time periods where the actual demand will almost certainly be different from the current forecast. 
+
+Figure 8: RMSEs achieved by model-1, model-5, and model-7 for different time periods of the planning horizon. 17 Inspired by the time-varying prediction accuracy, we now want to explore whether planners also emphasize the various objectives differently in different time periods. To this end, we divide the planning horizon into four time buckets, each consisting of 50 time periods, and allow α to be different for each time bucket. The model trained using these time-dependent weighting factors is denoted by model-7-t. Figure 9 shows the obtained estimates for α across the four time buckets. First, we observe that αsl decreases over time, which leads to the following hypothesis. 
+
+Hypothesis 8. Planners try to avoid low inventory more in the earlier time periods. – True. Actual demands are realized in the earlier time periods, and when they are higher than previously fore-casted, backlogs can occur, which do not only affect the service level for the current orders but also the ability to fulfill orders in later time periods. In that case, a strong emphasis is placed on scheduling the production such that sufficiently high inventory levels can be maintained. 
+
+Figure 9: Estimates of the time-dependent weighting factors across the four 50-period time buck-ets obtained for model-7-t. We see an opposite trend for αcl , i.e. it increases over time. 
+
+Hypothesis 9. Maintaining consistent cycles times is more important in the later time periods. – True. In the earlier time periods, the main focus is on fulfilling the current orders, where deviating form the targeted cycle length is perfectly fine. When the demand is higher than forecasted, the cycle length is increased to increase production. Conversely, when the demand is lower than forecasted, the cycle length is reduced to avoid excessive inventory. Keeping the cycle lengths within the desired range is more important in later time periods as this is one main way to address demand uncertainty. Interesting, the results of model-7-t show that αsl is greater than αel , especially in the earlier time buckets; this is the opposite of what we observed in model-7 (cf. Figure 7). 
+
+Hypothesis 10. Planners pay more attention to the inventory level at the start rather than at the end of a campaign. – True. This is in line with the rationale provided to invalidate Hypothesis 3. We also observe that the prediction accuracy of model-7 and model-7-t can vary significantly across different products (see Figure 10). This has motivated us to build another model in which 18 the objective weighting factors are also product-dependent, which we call model-7-t&p. In the example shown in Figure 10, we can see that model-7-t&p predicts the inventory profiles for cer-tain products, e.g. P5, more accurately than model-7-t. The is also true for the overall prediction accuracy, as shown in the RMSE plot in Figure 11. 
+
+Figure 10: Comparing for a particular instance the actual inventory profiles for all eight products with the profiles predicted by model-7, model-7-t, and model-7-t&p. The heat maps in Figure 12 show the mean values of α for all time buckets and products. We again observe that αsl and αcl take large values toward the beginning and end of the planning horizon, respectively. Moreover, we now see that the weights can also be significantly different across the eight products. 
+
+Hypothesis 11. Planners tend to focus on some products more than others. – True. Different products 19 Figure 11: RMSEs achieved by model-7, model-7-t, and model-7-t&p for different time periods of the planning horizon. 
+
+Figure 12: Heat maps showing the average values of α in model-7-t&p for all four time buckets and eight products. can have different profit margins, and different customers can also have different priorities. Plan-ners typically try to maintain a higher inventory level for important products to ensure on-time fulfillment of high-priority orders. Regarding Hypothesis 11, we should mention that it has not been revealed to us whether the product-dependent weights we obtained align with the true relative importance of the different products or not. We also do not want to make such specific conclusions from these results since there can be many other factors that lead to these product-dependent weights. For example, a large αsl -value may also be indicative of a significant and consistent underforecasting of demand, which increases the likelihood of understock and results in an even greater need to maintain a sufficiently high inventory level. Although no clearer insights can be drawn at this point, we plan in our future work to use our results as a basis for further discussions with the planners to untangle the various potential influencing factors and further refine our model. 20 4.5 Computational analysis 
+
+We conclude our analysis by examining the computational performance of the proposed frame-work across all four models in terms of training time and convergence behavior of the cutting-plane algorithm. Figure 13 shows the training time for each model on a logarithmic scale. Model-5, which estimates five objective weighting factors based solely on inventory-related penalties, requires approximately 800 seconds to train. Introducing the two additional parameters for cycle length deviations and production gaps in model-7 increases the training time by about one order of magnitude to around 3000 seconds. Extending the model to consider time-dependent weight-ing factors in model-7-t further raises the training time to approximately 10,000 seconds, as the number of parameters grows proportionally with the number of time windows. Finally, model-7-t&p, which additionally allows for product-dependent weights, incurs the highest training cost at nearly 60,000 seconds, reflecting the combinatorial growth in parameters across both time win-dows and products. Despite this increase, it is important to note that all models are trained offline; once the cost coefficients are estimated, production planning decisions can be generated by sim-ply solving problem (P) without any additional training overhead, making the approach practical even for the most complex model variant. 
+
+Figure 13: Training times required by the proposed cutting-plane algorithm for different models. Figure 14 illustrates the convergence behavior of the cutting-plane algorithm for solving prob-lem (IOP-SL) across all four models, where the y-axis reports the normalized cost coefficient error as a function of the iterations. Here, model-5 converges most rapidly, reaching near-zero error within just a few iterations, consistent with its relatively small number of parameters and the lim-ited complexity of the corresponding cut-generating subproblems. Model-7 follows a similar tra-jectory, converging within approximately ten iterations. In contrast, model-7-t and model-7-t&p exhibit slower convergence, with the normalized error reaching near-zero by iteration 20. This be-havior is expected since the larger number of parameters increases the computational complexity of both the master problem and the cut-generating subproblems. Nonetheless, all models con-verge within the allotted 20 iterations, demonstrating the practical efficacy of the cutting-plane approach. 21 Figure 14: Convergence of the IO algorithm for different models. 
+
+# 5 Conclusions 
+
+In this work, we were given a production planning optimization problem for which the constraints were known but the objective function was not. Assuming that the right objective function is cap-tured in the decisions of expert planners that have been solving this production planning problem for many years, we applied a data-driven IO approach to learn the unknown objectives of these planners from production plans that they have generated in the past. Specifically, we formu-lated the production planning problem as an MILP with a weighted-sum objective function that considers multiple objectives which planners could be considering in their decision-making; the resulting IO problem was to infer the corresponding weighting factors. In the industrial case study provided by Dow, we were able to achieve reasonable prediction accuracy with only 50 training data points, each representing a historical production plan. This level of data efficiency can be attributed to the fact that all production planning constraints were explicitly captured in the IO framework, which means that inference could focus on the part that is truly unknown, namely the cost coefficients. Data efficiency is indeed important from a practical standpoint since this kind of data is not easy to come by in this particular production planning context. Perhaps even more importantly, the results also highlight the interpretability of the proposed approach. Since the inferred weighting factors are directly associated with the corresponding ob-jectives, they provide immediate insights into the relative significance between these objectives as perceived by the expert planners. This allowed us to formulate specific hypotheses about the plan-ners’ decision-making process and discuss them with an expert planner, whose feedback not only helped confirm or invalidate our hypotheses but also enabled further refinement of the model. Ultimately, we obtained a model that not only predicts the planners’ decisions well but is also interpretable such that planners can see how it aligns with the rationale in their own decision-making. We believe that only such a model can serve as a decision-support tool that is trusted by the user. 22 Acknowledgments 
+
+The authors gratefully acknowledge the financial support from the National Science Foundation under Grant #2044077 as well as the Minnesota Supercomputing Institute (MSI) at the University of Minnesota for providing resources that contributed to the research results reported in this paper. We would also like to thank Chad Dandron, Ellen Du, Kyle Harshbarger, Ellen Murray, and Jeff Tazelaar for their support and advice on the project. 
+
+# References 
+
+P. Abbeel and A. Y. Ng. Apprenticeship learning via inverse reinforcement learning. In Proceedings of the twenty-first international conference on Machine learning , page 1, 2004. R. K. Ahuja and J. B. Orlin. Inverse Optimization. Operations Research , 49(5):771–783, 2001. T. Ajayi, T. Lee, and A. J. Schaefer. Objective selection for cancer treatment: An inverse optimiza-tion approach. Operations Research , 70(3):1717–1738, 2022. H. Alsabah, A. Capponi, O. Ruiz Lacedelli, and M. Stern. Robo-advising: Learning investors’ risk preferences via portfolio choices. Journal of Financial Econometrics , 19(2):369–392, 2021. B. D. Argall, S. Chernova, M. Veloso, and B. Browning. A survey of robot learning from demon-stration. Robotics and autonomous systems , 57(5):469–483, 2009. S. Arora and P. Doshi. A survey of inverse reinforcement learning: Challenges, methods and progress. Artificial Intelligence , 297:103500, 2021. A. Aswani, Z.-J. M. Shen, and A. Siddiq. Inverse Optimization with Noisy Data. Operations Re-search , 66(3):870–892, 2018. A. Babier, T. C. Chan, T. Lee, R. Mahmood, and D. Terekhov. An ensemble learning framework for model fitting and evaluation in inverse linear optimization. Informs Journal on Optimization ,3(2):119–138, 2021. M. Bara. Revealing objectives in university financial aid: An inverse optimization approach. 2025. M. Bodur, T. C. Chan, and I. Y. Zhu. Inverse mixed integer optimization: Polyhedral insights and trust region methods. INFORMS Journal on Computing , 34(3):1471–1488, 2022. A. Bulut and T. K. Ralphs. On the complexity of inverse mixed integer linear optimization. SIAM Journal on Optimization , 31(4):3014–3043, 2021. D. Burton and P. L. Toint. On an instance of the inverse shortest paths problem. Mathematical Programming , 53(1-3):45–61, 1992. P. M. Castro, I. E. Grossmann, and Q. Zhang. Expanding scope and computational challenges in process scheduling. Computers & Chemical Engineering , 114:14–42, 2018. T. Chan, E. Delage, and B. Lin. Conformal inverse optimization for adherence-aware prescriptive analytics. Available at SSRN , 2024. T. C. Chan, R. Mahmood, and I. Y. Zhu. Inverse optimization: Theory and applications. arXiv preprint arXiv:2109.03920 , 2021. 23 F. Codevilla, M. M ¨ uller, A. L ´ opez, V. Koltun, and A. Dosovitskiy. End-to-end driving via condi-tional imitation learning. In 2018 IEEE international conference on robotics and automation (ICRA) ,pages 4693–4700. IEEE, 2018. I. Dunning, J. Huchette, and M. Lubin. Jump: A modeling language for mathematical optimiza-tion. SIAM Review , 59(2):295–320, 2017. A. Esteban-Perez, D. Bunn, and Y. Ghiassi-Farrokhfal. Estimating the unobservable components of electricity demand response with inverse optimization. arXiv preprint arXiv:2410.02774 , 2024. R. Gupta and Q. Zhang. Decomposition and adaptive sampling for data-driven inverse linear optimization. INFORMS Journal on Computing , 34(5):2720–2735, 2022a. R. Gupta and Q. Zhang. Efficient learning of decision-making models: A penalty block coordinate descent algorithm for data-driven inverse optimization. Computers & Chemical Engineering , page 108123, 2022b. I. Harjunkoski, C. T. Maravelias, P. Bongers, P. M. Castro, S. Engell, I. E. Grossmann, J. Hooker, C. M´ endez, G. Sand, and J. Wassick. Scope for industrial applications of production scheduling models and solution methods. Computers & Chemical Engineering , 62:161–193, 2014. C. Heuberger. Inverse combinatorial optimization: A survey on problems, methods, and results. 
+
+Journal of Combinatorial Optimization , 8(3):329–361, 2004. A. Holani, R. Gupta, J. Wassick, and Q. Zhang. An inverse mixed-integer optimization framework for learning interpretable models of expert decision-making. arXiv preprint arXiv:2608.05585 ,2026. A. Hussein, M. M. Gaber, E. Elyan, and C. Jayne. Imitation learning: A survey of learning methods. 
+
+ACM Computing Surveys (CSUR) , 50(2):1–35, 2017. A. Keshavarz, Y. Wang, and S. Boyd. Imputing a Convex Objective Function. In IEEE International Symposium on Intelligent Control , pages 613–619, 2011. Y.-A. Lu, W.-S. Hu, J. A. Paulson, and Q. Zhang. Bo4io: A bayesian optimization approach to inverse optimization with uncertainty quantification. Computers & Chemical Engineering , 192: 108859, 2025. M. Moghaddass and D. Terekhov. Inverse integer optimization with multiple observations. Opti-mization Letters , 15(4):1061–1079, 2021. P. Mohajerin Esfahani, S. Shafieezadeh-Abadeh, G. A. Hanasusanto, and D. Kuhn. Data-driven inverse optimization with imperfect information. Mathematical Programming , 167(1):191–234, 2018. J. Saez-Gallego and J. M. Morales. Short-term forecasting of price-responsive loads using inverse optimization. IEEE Transactions on Smart Grid , 9(5):4805–4814, 2017. A. J. Smith and J. J. Boutilier. Gap-gradient methods for solving generalized mixed integer inverse optimization: an application to political gerrymandering. arXiv preprint arXiv:2406.09457 , 2024. R. S. Sutton, A. G. Barto, et al. Reinforcement learning: An introduction , volume 1. MIT press Cambridge, 1998. 24 Y. Tan, D. Terekhov, and A. Delong. Learning linear programs from optimal decisions. Advances in Neural Information Processing Systems , 33:19738–19749, 2020. M. D. Troutt, W.-K. Pang, and S.-H. Hou. Behavioral estimation of mathematical programming objective function coefficients. Management science , 52(3):422–434, 2006. L. Wang. Cutting plane algorithms for the inverse mixed integer linear programming problem. 
+
+Operations Research Letters , 37(2):114–116, 2009. S. Yu, H. Wang, and C. Dong. Learning risk preferences from investment portfolios using inverse optimization. Research in International Business and Finance , 64:101879, 2023. P. Zattoni Scroccaro, P. van Beek, P. Mohajerin Esfahani, and B. Atasoy. Inverse optimization for routing problems. Transportation Science , 59(2):301–321, 2025. J. Zhang and I. C. Paschalidis. Data-driven estimation of travel latency cost functions via inverse optimization in multi-class transportation networks. In 2017 IEEE 56th Annual Conference on Decision and Control (CDC) , pages 6295–6300. IEEE, 2017. B. Zheng, S. Verma, J. Zhou, I. W. Tsang, and F. Chen. Imitation learning: Progress, taxonomies and challenges. IEEE Transactions on Neural Networks and Learning Systems , 35(5):6322–6337, 2022. 25
