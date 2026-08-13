@@ -6,71 +6,73 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-12
-- 运行时间：2026-08-12 20:42:16 UTC
+- 最新运行日期：2026-08-13
+- 运行时间：2026-08-13 21:10:17 UTC
 - 运行状态：成功
 - 本次总论文数：17
 - 精读区：6
 - 速读区：11
 
 ### 今日简报（AI）
-今日精选17篇论文，精读6篇，重点关注大语言模型在科学实体识别与分子性质预测中的应用。两篇9.0分研究分别提出类型驱动的多任务NER方法和多粒度理由引导的分子LLM，推荐优先阅读。下一步可尝试将这两类方法结合到科研文献自动化挖掘与药物分子筛选场景中。
-- 详情：[/202608/12/README](/202608/12/README)
+1) 今日共读17篇论文，精读6篇、速读11篇，两篇9.0分高分论文领衔推荐。  
+2) 最值得看的是生化过程建模开源框架PyOMES，以及利用大语言模型增强科学命名实体识别的多任务学习方法。  
+3) 建议优先阅读这两篇高分精读：生化建模用户可尝试PyOMES，NLP研究者可关注其类型驱动多任务策略。
+- 详情：[/202608/13/README](/202608/13/README)
 
 ### 精读区论文标签
-1. [Enhancing Scientific Named Entity Recognition via Large Language Models: A Type-driven Multi-task Learning Approach](/202608/12/2608.08636v1-enhancing-scientific-named-entity-recognition-via-large-language-models-a-type-driven-multi-task-learning-approach)  
-   标签：评分：9.0/10、query:llm-dm
-   evidence：利用大语言模型进行科学文本命名实体识别，助力文本挖掘
-2. [Multi-Granular Rationale-Guided Molecular LLM for Property Prediction](/202608/12/2608.10480v1-multi-granular-rationale-guided-molecular-llm-for-property-prediction)  
+1. [PyOMES: an open-source framework for biochemical process modelling](/202608/13/2608.06360v1-pyomes-an-open-source-framework-for-biochemical-process-modelling)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：分子性质预测中大语言模型应用，属于化工与药物领域
-3. [Process-Knowledge-Embedded Safe DRL for Real-Time Dispatch of Process Loads in Industrial Microgrids](/202608/12/2608.03149v1-process-knowledge-embedded-safe-drl-for-real-time-dispatch-of-process-loads-in-industrial-microgrids)  
+   evidence：化工领域内用于生物化学过程模拟的开源框架
+2. [Enhancing Scientific Named Entity Recognition via Large Language Models: A Type-driven Multi-task Learning Approach](/202608/13/2608.08636v1-enhancing-scientific-named-entity-recognition-via-large-language-models-a-type-driven-multi-task-learning-approach)  
+   标签：评分：9.0/10、query:llm-dm
+   evidence：利用大语言模型进行科学命名实体识别，支撑文本挖掘与知识发现
+3. [Symbolic Machine Learning for Vapor-Liquid Equilibrium Prediction in Cx-N2 Binary Mixtures](/202608/13/2608.11255v1-symbolic-machine-learning-for-vapor-liquid-equilibrium-prediction-in-cx-n2-binary-mixtures)  
+   标签：评分：9.0/10、query:chemical-llm
+   evidence：符号机器学习用于汽液相平衡预测，是人工智能在化学工程中的直接应用。
+4. [Chemically Meaningful Textualization Enables Explainable Validation of Metal-Organic Frameworks by Large Language Models](/202608/13/2608.11283v1-chemically-meaningful-textualization-enables-explainable-validation-of-metal-organic-frameworks-by-large-language-models)  
+   标签：评分：9.0/10、query:chemical-llm
+   evidence：利用LLM对材料化学中的金属有机框架结构进行可解释验证
+5. [PatternFormer: Learning Multiple Solution Patterns in Reaction--Diffusion Systems](/202608/13/2608.12286v1-patternformer-learning-multiple-solution-patterns-in-reaction--diffusion-systems)  
+   标签：评分：9.0/10、query:chemical-llm
+   evidence：基于大语言模型学习反应-扩散系统多解；直接将LLM应用于化工领域
+6. [Think Deep, Speak Once: Relit, A Recursive Latent Implicit Transformer Framework](/202608/13/2608.08113v1-think-deep-speak-once-relit-a-recursive-latent-implicit-transformer-framework)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：过程知识嵌入的安全深度强化学习用于工业过程负荷实时调度
-4. [MinerU.Chem: A High-Precision System for Optical Chemical Structure and Reaction Recognition](/202608/12/2608.03525v1-mineruchem-a-high-precision-system-for-optical-chemical-structure-and-reaction-recognition)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：面向化学文献的高精度AI识别系统，用于化学结构与反应识别，与化学工程中的人工智能高度相关。
-5. [GPTKB 2.0: Direct Construction of Disambiguated Knowledge Bases from Large Language Models](/202608/12/2608.03729v1-gptkb-20-direct-construction-of-disambiguated-knowledge-bases-from-large-language-models)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：利用大语言模型直接构建知识库，属于数据挖掘任务
-6. [Janus: An Algorithm-Evaluator Co-Evolution Framework for LLM-Driven Discovery under Expensive Evaluation Budgets](/202608/12/2608.08189v1-janus-an-algorithm-evaluator-co-evolution-framework-for-llm-driven-discovery-under-expensive-evaluation-budgets)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：聚焦于利用大模型驱动程序发现，并协同进化评估器；与大型语言模型应用直接相关。
+   evidence：面向大语言模型的潜在推理框架
 
 ### 速读区论文标签
-1. [MinerU.Chem: A High-Precision System for Optical Chemical Structure and Reaction Recognition](/202608/12/2608.03525v2-mineruchem-a-high-precision-system-for-optical-chemical-structure-and-reaction-recognition)  
+1. [DOCSCHISEL: Adaptive Tool Documentation Optimization Framework for LLM Agents](/202608/13/2608.10037v1-docschisel-adaptive-tool-documentation-optimization-framework-for-llm-agents)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：LLM智能体工具文档优化
+2. [Multi-Level Modeling of Large Language Model Inference Latency and Energy via Hybrid Analytical--Machine-Learning Predictors](/202608/13/2608.06723v1-multi-level-modeling-of-large-language-model-inference-latency-and-energy-via-hybrid-analytical--machine-learning-predictors)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：面向化学文献的结构与反应识别系统，为化学数据挖掘和AI应用提供数据支持
-2. [GPTKB 2.0: Direct Construction of Disambiguated Knowledge Bases from Large Language Models](/202608/12/2608.03729v2-gptkb-20-direct-construction-of-disambiguated-knowledge-bases-from-large-language-models)  
+   evidence：大语言模型推理延迟与能耗混合建模，与大语言模型相关
+3. [The Evolution of Mixture-of-Experts Architectures in Large Language Models: Routing, Topology, Load Balancing, and Expert Parallelism](/202608/13/2608.08650v1-the-evolution-of-mixture-of-experts-architectures-in-large-language-models-routing-topology-load-balancing-and-expert-parallelism)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：大语言模型混合专家架构综述，与大语言模型相关
+4. [DistillCache: KL-Guided Adaptive KV-Cache Eviction for Memory-Efficient LLM Inference](/202608/13/2608.08878v1-distillcache-kl-guided-adaptive-kv-cache-eviction-for-memory-efficient-llm-inference)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：大语言模型推理内存优化，直接匹配大语言模型需求
+5. [ChemWorld: Programmable Chemical Worlds for Controlled and Replayable Agent Experimentation](/202608/13/2608.10792v1-chemworld-programmable-chemical-worlds-for-controlled-and-replayable-agent-experimentation)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：面向AI智能体实验的可编程化学环境
+6. [Towards Automated Domain Model Extraction from Source Code using Heuristics and Open-Source LLMs](/202608/13/2608.12228v1-towards-automated-domain-model-extraction-from-source-code-using-heuristics-and-open-source-llms)  
    标签：评分：7.0/10、query:llm-dm
-   evidence：直接从大语言模型构建消歧知识库，属于基于LLM的知识与数据挖掘方法，符合LLM助力数据挖掘主题。
-3. [EdgeLM: Edge Demonstrations for Language Models' Table Understanding](/202608/12/2608.04390v1-edgelm-edge-demonstrations-for-language-models-table-understanding)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：面向大语言模型表格理解的边缘样例检索方法，直接适用于LLM辅助数据挖掘。
-4. [Thinking vs. NoThinking: Towards Interpreting Reasoning Mechanisms of Large Language Models via Sparse Autoencoders](/202608/12/2608.08168v1-thinking-vs-nothinking-towards-interpreting-reasoning-mechanisms-of-large-language-models-via-sparse-autoencoders)  
+   evidence：利用开源LLM与启发式从源代码自动提取领域模型，属于LLM辅助数据挖掘技术
+7. [PACE-SIMS: Checkpoint-Gated Autonomous SIMS Characterization with AI-Agent Quality Control](/202608/13/2608.12277v1-pace-sims-checkpoint-gated-autonomous-sims-characterization-with-ai-agent-quality-control)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：直接研究大型语言模型，用稀疏自编码器解释其推理机制，符合大语言模型检索需求。
-5. [From Relevance to Execution Utility: Reward-Aware Dynamic Execution Gating for Skill-Based LLM Agents](/202608/12/2608.09168v1-from-relevance-to-execution-utility-reward-aware-dynamic-execution-gating-for-skill-based-llm-agents)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：面向技能型LLM智能体的奖励感知动态执行门控
-6. [FlowScout: From Execution Feedback to Reliable Tool-Using Agent Workflows](/202608/12/2608.10039v1-flowscout-from-execution-feedback-to-reliable-tool-using-agent-workflows)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：基于大语言模型的智能体工作流生成
-7. [Physics-Based Molecular Fingerprints from Spectral Graph Theory Provide Efficient Geometry-Aware Measures of Chemical Similarity](/202608/12/2608.05336v1-physics-based-molecular-fingerprints-from-spectral-graph-theory-provide-efficient-geometry-aware-measures-of-chemical-similarity)  
-   标签：评分：6.0/10、query:coal-liquid
-   evidence：提出了基于物理的分子指纹用于几何感知的化学相似性度量；可应用于煤液化油等分子表征任务。
-8. [An inverse mixed-integer optimization framework for learning interpretable models of expert decision making](/202608/12/2608.05585v1-an-inverse-mixed-integer-optimization-framework-for-learning-interpretable-models-of-expert-decision-making)  
+   evidence：AI代理工作流用于自主化学表征
+8. [MicroEvo: Knowledge-Guided LLM Sampling for Efficient Microarchitecture Design Space Exploration](/202608/13/2608.06183v1-microevo-knowledge-guided-llm-sampling-for-efficient-microarchitecture-design-space-exploration)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：逆混合整数优化用于学习可解释的专家决策模型
-9. [Uncovering expert objectives in production planning via inverse optimization: An industrial case study](/202608/12/2608.07398v1-uncovering-expert-objectives-in-production-planning-via-inverse-optimization-an-industrial-case-study)  
+   evidence：LLM引导的优化用于设计空间探索，可迁移到化工过程优化
+9. [LLM-Based Embeddings for Program Analysis and Optimization](/202608/13/2608.07894v1-llm-based-embeddings-for-program-analysis-and-optimization)  
+   标签：评分：6.0/10、query:llm-dm
+   evidence：基于LLM的程序嵌入技术用于程序分析分类，可应用于LLM辅助的程序数据挖掘
+10. [Directed Neuro-Symbolic Stochastic Execution for Verification of Distributed Parallel AI Programs](/202608/13/2608.07947v1-directed-neuro-symbolic-stochastic-execution-for-verification-of-distributed-parallel-ai-programs)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：提出用逆向优化推断生产计划中的专家目标；该方法可迁移至化学工程过程优化。
-10. [A Domain-Specific Harness for End-to-End Automation of Optimization Research](/202608/12/2608.07407v1-a-domain-specific-harness-for-end-to-end-automation-of-optimization-research)  
+   evidence：大语言模型引导的程序验证，与大语言模型应用相关
+11. [Multi-modal Interactive Control of Robotic Arm based on Offline Large Language Models](/202608/13/2608.08183v1-multi-modal-interactive-control-of-robotic-arm-based-on-offline-large-language-models)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：在领域专用框架中利用前沿大语言模型自动化优化研究，契合大语言模型要求，但非化工领域。
-11. [Counterfactual Benchmarking and Training for Factuality Consistency and Order-Robust Grounded Reasoning in LLMs over Heterogeneous Knowledge](/202608/12/2608.07838v1-counterfactual-benchmarking-and-training-for-factuality-consistency-and-order-robust-grounded-reasoning-in-llms-over-heterogeneous-knowledge)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：面向LLM异构知识接地推理的基准与训练
+   evidence：基于离线大语言模型的机械臂多模态交互控制
 
 
 <div class="dpr-home-promo-card">

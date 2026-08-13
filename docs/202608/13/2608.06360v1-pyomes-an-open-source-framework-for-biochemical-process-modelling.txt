@@ -1,0 +1,482 @@
+Title: PyOMES: an open-source framework for biochemical process modelling
+
+URL Source: https://arxiv.org/pdf/2608.06360v1
+
+Published Time: Fri, 07 Aug 2026 01:20:42 GMT
+
+Number of Pages: 13
+
+Markdown Content:
+> August 2026 arXiv
+
+Research Article 
+
+# PyOMES: an open-source framework for biochemical process modelling 
+
+Ethan Errington, Tom Vinestock, Jaewook Lee, Miao Guo *
+
+Department of Engineering, King’s College London, London, UK 
+
+## Abstract 
+
+PyOMES is a Python-based, Open-source Modelling Environment for (bio)chemical process Simulation that aims to simplify the modelling of dynamic (including steady state) processes. This is done in a generalied, modular way to facilitate modelling a broad range of biological, chemical, and biochemical systems under a single modelling framework. PyOMES has been built to be accessible to a broad range of users - ranging from those with little modelling experience, such as experimentalists and students, through to more experienced power-users. Here, an introduction is provided to the PyOMES software including a summary of the design, architecture and vision. Use cases are then provided to demonstrate applicability of PyOMES to a number of (bio)chemical process modelling scenarios. Comparisons of predictions against existing benchmark software (i.e. PHREEQC) demonstrate the robustness of the package. Finally, a summary is provided of future directions for the PyOMES package - highlighting its establishment as a unified modelling framework and its potential for community-driven improvement as future developments. 
+
+Keywords bioprocess modelling, process systems engineering, open-source software, modelling framework, PyOMES. 
+
+1. INTRODUCTION 
+
+Our understanding of biological and chemical – “(bio)chemical” - systems has developed significantly in recent decades. This has been led by the contributions of experimental and theoretical lines of inquiry summed across many different scientific and engineering disciplines. Paired with recent advancements in the power and availability of computational resources, this now enables us to predict and control many important properties of (bio)chemical processes. Despite this, computational modelling of (bio)chemical processes still faces a significant structural challenge. Specifically, the expertise needed to simulate (bio)chemical processes exist at the intersection of many different scientific fields, while the software infrastructure needed to allow researchers to integrate these parts into a cohesive whole is lacking [1]. The result is a constraint on the number of practising (bio)chemical experimentalists that are capable of using computational modelling methods to inform and enhance the productivity of research and development pipelines. If this challenge can be addressed, (bio)chemical simulations can be used more widely, by a wider range of practitioners, and in closer dialogue with experimental approaches, to enhance the quality and rate of R&D. For example, there exists a broad range of literature demonstrating the benefits of simulation-capable models in areas such as model based design of experiment [2], model based predictive control [3], and digital twins [4]. In many cases, the development of tailored, user-centred modelling software can greatly help experimentalists incorporate (bio)chemical simulations into their research. In principle, all this requires is software available in a format that is easy to understand, easy to access, and easy to use. However, establishing apackage of this type is difficult exactly because of the challenge posed by covering several separable conceptual modelling areas intrinsic to handling dynamic and steady state (bio)chemical systems. These include understanding of mass & energy balances, thermodynamics, control   
+
+> Submitted: August 2026
+> *Corresponding Author: <miao.guo@kcl.ac.uk >
+> ©2026 by the Author(s). arXiv:2608.06360v1 [q-bio.QM] 6 Aug 2026 Errington et al. (2026)
+
+theory, mass transport phenomena, mathematical model formulation, and the solution of systems of differential equations. Accessible, integrated modelling tools remain a barrier to the wider adoption of modelling, particularly among experimentalists. As models increase in complexity, spreadsheet-and script-based implementations can become difficult to maintain, debug and reuse. Similar arguments regarding the limitations of Excel and script based modelling have been discussed in the fields of bioinformatics [5] and health economics [6]. Within biochemical process modelling, these barriers discourage the development of coupled dynamic models that simultaneously represent the core chemical/biological kinetics of interest as well as environmental and transport phenomena. Variables such as pH and gas transfer are important in many biological and chemical processes [7], but are under-modelled by experimentalists due to the limitations of existing modelling software. In this work, and in response to the previously mentioned problems, we introduce PyOMES - a Python-based, Open-source Modelling Environment for process Simulation - enabling simulation of dynamic (including steady-state) (bio)chemical processes. First, the code architecture and design ideas underlying the PyOMEs modelling framework are introduced, and then three separate use-case scenarios demonstrating PyOMES’ functionality are provided. 
+
+2. PACKAGE OVERVIEW 2.1. User Centered Design 
+
+PyOMES is designed with three main user types in mind: 1. Power-users - Users with a strong modelling background and knowledge of the PyOMES architecture. For these users, the modular design of PyOMES enables significant customizability for developing complex models based on the use of Protocols (see Section 2.3) in the package architecture. 2. Model-aware users - Users familiar with the main modelling concepts relevant to their systems of interest. These users will find that the architecture of PyOMES enables them to specify virtually all standard modelling use cases to high levels without the need to deeply understand the PyOMES architecture or rely on restrictive supporting functions. 3. Novice-users - Users with minimal experience in modelling (bio)chemical systems (including pure experimentalists and students). For these, PyOMES provides supporting functions that enable rapid development of common model concepts without need for detailed package understanding. This includes shortcut functions for common kinetic models, thermodynamic database parameters (see Section 2.4), and ODE solvers (see Section 2.6). 
+
+2.2. Package Architecture 
+
+PyOMES is an installable python package written in the Python programming language [8]. It allows users to design and simulate dynamic (including steady-state) (bio)chemical processes using an object-oriented programming approach. The architecture of PyOMES relies on the description of a (bio)chemical process according to a Simulation object which handles running simulations using a control volume approach (see Section 2.3) as shown in Figure 1. The Simulation object contains most of the information associated with the computational model. The ControlVolume object acts as a central building block for material characteristics and properties (see also Section 2.3). The 
+
+Phase object acts as a source of truth for thermodynamic and state accounting within a given ControlVolume . The Species object describes the chemical species present in any model (including those within biological organisms, to ensure mass balance and reaction stoichiometries are respected). Finally, the 
+
+Reaction objects act to describe transient phenomena that can occur within a given 
+
+ControlVolume object. Importantly, the 
+
+Reaction type is considered to include both chemical reactions (including bond breakage and formation) as well as mass exchange phenomena occurring within a single ControlVolume (e.g.  
+
+> 2PyOMES: an open-source framework for biochemical process modelling
+> Figure 1. A simplified UML Class Diagram describing the core classes present in the PyOMES python package.
+
+gas-liquid mass exchange). 
+
+2.3. Modular Design Principle 
+
+PyOMES has been developed with the vision of enabling modelling in a way that is as generalisable and modular as possible. This allows complex models to be developed from the aggregation of a number of relatively simple models, improving human readability. In doing so, the design approach can be summarised in terms of two major modular design axes: 1) conceptual modularity (i.e. the separation of conceptually distinct phenomena within any model), and 2) spatial modularity (i.e. separation of physical locations within a model using the 
+
+ControlVolume paradigm). 
+
+Conceptual Modularity : This is achieved through use of the Protocol functionality available within the python programming language. Use of the Protocol approach allows PyOMES to define a generalised, minimal architectural skeleton describing ways in which distinct modelling areas must interact, process, and pass information. This allows PyOMES to ship as a package with a small number of well-tested default implementations for common modelling use-cases while allowing power-users to develop advanced modelling scenarios either using their own custom code or other imported packages and software. 
+
+Spatial Modularity : The use of a control volume paradigm is central to the modelling approach of the PyOMES package and its modelling framework. In PyOMES, ControlVolume objects represent and decompose as distinct units in physical space with predefined characteristics ( e.g. molecular states, (bio)chemical properties and phases). In this way, the definition of any process model present in PyOMES is then describable as the phenomena arising from instantiation of one or more control volumes with pre-defined characteristics. The control-volume abstraction benefits PyOMES independently of how many compartments a model uses. Each 
+
+ControlVolume object acts as a self-contained unit against which mass, charge, and element conservation can be checked automatically, and a module in which mass transport phenomena can be described topologically without reference to the rest of the system (see Section 2.5). Additionally, the Simulation -ControlVolume 
+
+contract enables the scaling of models to multi-compartment systems by composing several control volumes through transport links - e.g. digester trains, chromatography columns, stratified fermenters. 
+
+2.4. Thermodynamic Framework 
+
+PyOMES represents the thermodynamic assumptions of a model through a dedicated object called the ThermoFramework . This object defines the thermodynamic model used to calculate quantities such as activities, activity 
+
+> 3Errington et al. (2026)
+
+coefficients, and equilibrium relationships, and acts as a shared source of thermodynamic information for the other layers of the package. This keeps the thermodynamic assumption of a model as a single, swappable choice that is adhered to across a PyOMES model. Crucially, ThermoFramework follows the same protocol-based extensibility used elsewhere in the framework (see Section 2.3) to enable users to easily supply custom models that satisfy their modelling needs. 
+
+2.5. Mass Transport Phenomena 
+
+The approach to modelling mass exchange in PyOMES is decomposed into three conceptual axes - physiochemical, spatial and temporal. 
+
+Physiochemical Decomposition : This distinguishes between physical transport and chemical mass exchange. Chemical transport involves the making and breaking of bonds -meaning a change in tracked mass between distinct chemical states (e.g. within Phase 
+
+objects). Physical transport involves the movement of material in space without chemical changes (e.g. across Phase objects). 
+
+Spatial Decomposition : Here, a distinction is made between mass transport occurring within a single ControlVolume object (intra-CV) and that occurring across ControlVolume objects (inter-CV). This dimension may be thought of as the spatial dimension of mass transport phenomena. 
+
+Temporal Decomposition : This distinguishes mass transport (based on the timescales over which they occur) as being either dynamic or instantaneous. Dynamic transport represents phenomena requiring time-resolved kinetic modelling through the use of ordinary differential equations (ODEs). Introduction of these phenomena require dedicated solvers to handle the logistics of ODE integration. Instantaneous transport represents phenomena that occur relatively quickly in the model; such cases are described using simple algebraic equations. Options present within the package allow for easy use of SciPy implementations [9]. 
+
+2.6. Solution of Differential Equations 
+
+PyOMES advances a simulation including kinetic phenomena using a two-axis solver architecture that separates how each control volume integrates its own local physics from how the whole multi-compartment system advances together. 
+
+Intra-ControlVolume : The StepSolver protocol enables assignment of specific algorithms for solving differential equations to individual 
+
+ControlVolume objects. This provides a simple basis for running single ControlVolume model objects as well as running multi-compartmental simulations in which the importance of inter-ControlVolume transport is negligible. 
+
+Inter-ControlVolume : The SystemSolver 
+
+protocol enables description of more solver strategies accounting for scenarios including flows across multiple ControlVolume objects in multi-compartment models. This axis is particularly important in handling areas such as differential algebraic equations (DAEs), important when modelling both quick equilibrium reactions and slower kinetic reactions within the same schema. 
+
+3. MODELLING USE CASES 
+
+Three use-cases of the PyOMES package will be presented to demonstrate functionality of key object types and their relation to standard (bio)chemical simulation. Each use case is developed with a focus of demonstrating how PyOMES can be used to answer different kinds of experimental research questions through the use of computational simulation. We start with a simple use case, and gradually build up the complexity of the modelled system to provide a gentle introduction to the packages. The use cases are visualised in Figure 2. 
+
+3.1. Aqueous pH Prediction 
+
+This use case models the relationship between composition and pH for an aqueous solution. The compositions considered are for mixtures of potassium dihydrogen phosphate (KH 2PO 4) and ammonium chloride (NH 4Cl) in the range of 0 to 100 mmol/L at a temperature of 25 C. These are equivalent to mass concentrations of 0 to   
+
+> 4PyOMES: an open-source framework for biochemical process modelling
+> Figure 2. Conceptual schematics for the three use-cases presented in this work - equilibrium pH of an aqueous solution in a closed system (left), dynamic equilibration of CO 2in a gas-liquid system connected to the atmosphere via a gas-permeable membrane (middle), and steady-state aerobic fermentation of E.Coli in a continuous stirred tank reactor (right).
+
+13.60 g L −1 KH 2PO 4 and 0 to 5.35 g L −1 NH 4Cl respectively. As part of the model it is assumed that both salts have already dissolved and dissociated into their constituent ions (Equations 1 and 2), and that solution equilibria are limited to water autoionisation (Equation 3), ammonium ion dissociation (Equation 4), and the various states of phosphate protonation (Equation 5 to 7). 
+
+N H 4Cl (s) → N H +4 (aq ) + Cl −(aq ) (1) 
+
+KH 2P O 4(s) → K+(aq ) + H2P O − 
+
+> 4
+
+(aq ) (2) 
+
+H2O(l) ⇌ H+(aq ) + OH −(aq ) (3) 
+
+N H +4 (aq ) ⇌ N H 3(aq ) + H+(aq ) (4) 
+
+H3P O 4(aq ) ⇌ H2P O − 
+
+> 4
+
+(aq ) + H+(aq ) (5) 
+
+H2P O − 
+
+> 4
+
+(aq ) ⇌ HP O 2− 
+
+> 4
+
+(aq ) + H+(aq ) (6) 
+
+HP O 2− 
+
+> 4
+
+(aq ) ⇌ P O 3− 
+
+> 4
+
+(aq ) + H+(aq ) (7) All equilibrium equations (Equations 3 to 7) are assumed to occur instantaneously. The Davies model [10] was used to account for the effect of the ionic strength of solution on solution non-ideality. Solution of calculations necessary to identify equilibrium pH was carried out using a Newton-Raphson based solver available within the PyOMES package based on a standard log K-based problem formulation. To establish reliability of predictions made by PyOMES, a number of predictions were also benchmarked against predictions made for the same system by the PHREEQC [11] software. For further information, see the Supporting Information. 
+
+3.2. Gas-Liquid Equilibration 
+
+This use case models the relationship between pH and time for (initially) pure water that remains in contact with atmospheric air. The composition (molar basis) of atmospheric air is assumed to be 20.946% oxygen (O 2), 78.084% nitrogen (N 2) and 400 ppm carbon dioxide (CO 2). All phases are assumed to maintain a constant temperature and pressure of 25 ◦C and 1 atm, respectively. The air volume is large relative to the liquid volume ( VG = 1000 L, VL = 0 .1 L), so gas-phase depletion was negligible. Under this pseudo-infinite-headspace assumption, the liquid concentration and pH trajectories are governed primarily by the volume-normalised mass-transfer coefficient kLa (see Equation 13). As part of the model, the transfer of material (N 2,O2, and CO 2) across the gas-liquid interface is assumed to occur according to the stoichiometry described in Equations 8 to 10. 
+
+O2(g) ⇌ O2(aq ) (8) 
+
+N2(g) ⇌ N2(aq ) (9) 
+
+CO 2(g) ⇌ CO 2(aq ) (10) Once in the aqueous phase, dissolved CO 2 was modelled using a lumped carbonate equilibrium, in which hydrated carbonic acid is not represented as a separate species. The carbonate speciation was described by: 
+
+CO 2,(aq ) + H2O ⇌ H+ + HCO − 
+
+> 3
+
+(aq ) (11) 
+
+HCO − 
+
+> 3
+
+(aq ) ⇌ CO 2− 
+
+> 3
+
+(aq ) + H+ (12) 
+
+5Errington et al. (2026) 
+
+As before, all aqueous equilibrium equations were assumed to occur instantaneously and solved as previously described (Section 3.1). In contrast, transfer across the gas-liquid interface was modelled following the first-order rate process described in Equation 13 
+
+dn L,i 
+
+dt 
+
+1
+
+VL
+
+= −dn G,i 
+
+dt 
+
+1
+
+VL
+
+= kLa(C∗ 
+
+> L,i
+
+− CL,i )
+
+(13) where n is the moles of substance i (mol), Vl is the liquid volume (L) kLa is the volumetric gas transfer coefficient (h −1), C∗ 
+
+> L,i
+
+is the equilibrium concentration of substance i (mol L −1), and CL,i 
+
+is the current concentration of the substance in solution (mol L −1) and L and G represent the liquid and gaseous phases respectively. Note that 
+
+kLa is the product of two terms, kL and a. kL is a kinetic constant for transfer of substance from the gas phase to the liquid phase (m hr −1) and a
+
+is the volume-normalised interfacial area of the gas liquid interface (m 2 m−3). These terms can be hard to separate, so are often left together as a lumped parameter. First, to determine the effect of this gas transfer on the pH of water that is initially pure, aconstant mass transfer coefficient ( kLa) of 96 h −1
+
+was assumed for each gas (N 2, O 2, and CO 2), based on [12]. To solve the ODE associated with mass transfer (Equation 13) the SciPy [9] implementation of the backward differentiation formula (BDF) solver was used. Finally, the effect of kLa on effective time to reach approximate equilibration was investigated by running a set of simulations for kLa varying in the range of 0.1 to 1000 h −1. For this, the point of effective equilibration was defined as the time at which the aqueous concentration of CO 2 reached 95% of its equilibrium value. 
+
+3.3. Aerobic Biomass Fermentation 
+
+This use case models the aerobic growth of a single-celled organism (E. coli ) within a gas-sparged continuous stirred tank reactor (CSTR). 
+
+E. coli growth was assumed to occur using acetic acid as the growth substrate [13] within a 2 L CSTR vessel. Constant operating conditions of 1.6 L broth volume and 37 ◦C were assumed. As part of the model, the growth of E. coli was assumed to occur according to the irreversible reaction stoichiometry outlined in Equation 14, following a literature value for the empirical composition of E. coli [14]. 
+
+CH 3COOH + aO 2 + bN H 3 →
+
+cCH 1.8O0.5N0.2 + dCO 2 + eH 2O (14) The values of stoichiometric coefficients ( a to 
+
+e) required were set to assume conservation of mass based on internal implementations within PyOMES. It was also assumed that gas-liquid mass transfer and aqueous equilibria could occur within the vessel according to the stoichiometries previously outlined (Sections 3.1 and 3.2). As before, all aqueous equilibrium equations were assumed to occur instantaneously and solved as described in Section 3.1 and dynamic gas-liquid mass transfer was modelled as described in Section 3.2, with the same value of kLa used. The rate of biomass growth and substrate depletion in the CSTR were modelled as occurring according to Monod-type kinetics (Equations 15-17). 
+
+dX dt = ( μ − D) X (15) 
+
+μ = μmax,S 
+
+ SKS + S
+
+  O2
+
+KO2 + O2
+
+
+
+(16) 
+
+dS dt = −
+
+ μYS
+
+
+
+X + D (Sin − S) (17) where X and S are the concentrations of biomass and the carbon substrate in the liquid phase, respectively (g L −1), Sin is the substrate concentration in the inlet stream (g L −1), O2 is the dissolved oxygen concentration in the liquid phase (g L −1), μ is the specific biomass growth rate (h −1), μmax ,S is the maximum specific growth rate under non-limiting substrate and oxygen conditions (h −1), KS and KO2 are the substrate and dissolved oxygen half-saturation constants, respectively (g L −1), YS is the yield of biomass growth on the substrate (g X g−1 
+
+> S
+
+), and D is the dilution rate (h −1). Values for YS , μmax,S , KS and KO2 were taken as 0.36 g X g−1 
+
+> S
+
+, 0.3 h −1, and 0.5 g L −1 and 0.2 mg 
+
+L−1 respectively. a  
+
+> 6PyOMES: an open-source framework for biochemical process modelling
+> Table 1. Composition of material present in the reactor feed.
+
+Chemical Concentration, g/L CH 3COOH 4.0 NH 4Cl 1.0 KH 2PO 4 3.0 
+
+The flowrate of liquid inlet and outlet were set equal at all times, maintaining a constant liquid volume. The dilution rate (D) was varied from 0.00 to 0.295 h−1 as part of the investigations, with each simulation run to steady state. Steady state volumetric biomass productivity was calculated as the product of biomass concentration and dilution rate ( P =
+
+DX ). Steady state biomass and carbon substrate concentration were also calculated. The assumed composition of the CSTR feed stream is summarised in Table 1. Beyond this, it was assumed that the composition of the vessel on start up was equal to that of the feed stream with the addition of a total of 0.05 g/L of E. coli .
+
+4. RESULTS AND DISCUSSION 4.1. Aqueous pH Prediction 
+
+Predicted pHs for the solutions are provided in Figure 3 alongside PHREEQC benchmark values. Results show PyOMES predicts the expected relationship between solution pH and the individual concentrations of KH 2PO 4 amd NH 4Cl. Additionally, curvature demonstrates the ability of the model to account for complex solution chemistry that may arise in systems of multiple equilibrium reactions as well as solution activity affects.  
+
+> Table 2. Average run times required for aqueous pH prediction by simulation package (n=500).
+
+Framework Run Time, ms PyOMES 0.66 PHREEQC 1.27 
+
+Beyond trend predictions, the results in Figure 3 also show strong agreement between the prediction of PHREEQC software and PyOMES for both activity models considered. More specifically, maximum deviations of <0.001 are observed for predictions made by the PyOMES and PHREEQC models for the modelled solutions. Assuming correctness of  
+
+> Figure 3. Model predictions for the aqueous pH prediction use case. The effect of solution concentrations on equilibrium pH according to the Davies activity model, simulated using PyOMES (top), and comparison of predictions made by PyOMES against PHREEQC [11] software as a benchmark (bottom).
+
+the well-established PHREEQC software [11] implementation, this provides evidence for the reliability of the new PyOMES implementation. Finally, average run times for the calculation are provided in Table 2. Results in Table 2 show an average run time of 0.66 ms per pH prediction made by PyOMES (depending on activity 
+
+7Errington et al. (2026) 
+
+model). This is approximately 50% faster than the average run times reported for PHREEQC (1.27 ms), suggesting PyOMES’ performance is competitive relative to the benchmark. This suggests the possibility of running thousands of pH computations within seconds when using PyOMES - a throughput that can facilitate use of PyOMES for Monte Carlo methods, or within wider model-based research approaches. 
+
+4.2. Gas-Liquid Equilibration 
+
+A time series of the predicted solution pH for water in contact with air at atmospheric pressure and the relationship of the effective equilibration time to kLa are shown in Figure 4. Results in Figure 4 correctly predict the drop in solution pH over time for the modelled water solution that would be expected for the modelled scenario. This arises from the dissolution of CO 2 into water (and associated formation of aqueous carbonate species) which tends to have an acidifying effect on aqueous solutions. Importantly, the predicted pH value is found to converge to the expected theoretical value for the given conditions [15]. By comparing results across a number of kLa
+
+values it is also possible to see the importance of kLa on the characteristic timescale taken for the modelled water-atmosphere system to reach effective equilibration. Specifically, results in Figure 4 show it is possible for the required equilibration time to span roughly four orders of magnitude over the kLa values considered. This ranges from a time of minutes to days for 
+
+kLa values within the range of 0.1 to 100h −1.This demonstrates how such trends predicted by PyOMES provide a powerful way of informing decision making during real experimental design. For example, this could allow researchers to identify solutions that are at risk of expiry if stored inadequately. Table 3 reports the mean wall-clock time required to simulate one hour of gas–liquid equilibration. Across the investigated kLa values, PyOMES required between 4.980 and 21.439 ms per simulated hour. These times are very reasonable for the possible use cases already described and provide capacity for running more advanced model-based investigations such as sensitivity       
+
+> Figure 4. Model predictions for evolution of solution pH over time resulting from absorption of atmospheric CO 2into pure water with
+> kLa= 96 h−1(top) and predicted time taken to reach 95% of the equilibrium value as a function of kLa(bottom).
+
+and uncertainty analysis in tractable timescales. The runtime depends on the kLa value as a result of use of an adaptive ODE solver, which employs shorter simulation timesteps for faster systems to maintain accuracy and stability. 
+
+4.3. Aerobic Fermentation 
+
+Results in Figure 5 show predicted steady state behaviour as a function of operating dilution rate       
+
+> 8PyOMES: an open-source framework for biochemical process modelling
+> Table 3. Average wall-clock runtimes for gas-liquid equilibration simulations per simulated hour of experimental time (n=500).
+> kLaValue, h −1Run Time, ms 0.1 4.980 10 14.400 1000 21.439
+
+for the modelled CSTR. The results obtained are consistent with previously reported trends [16]. Particularly, this includes the reduction in the concentration of biomass produced as dilution rate increases up to a value of 0.2 h −1 followed by the onset of reactor washout shortly thereafter. This is combined with associated increase in concentration of acetic acid as biomass concentration is reduced. Similarly, the expected relationship of dilution rate and reactor productivity is achieved - indicating the onset of a maximum productivity at acritical dilution rate shortly before the onset of the washout condition. Importantly, this indicates the ability of PyOMES to reliably and easily implement more complex model formulations that may be of interest to a number of (bio)chemical processing fields. A summary of typical run times associated with CSTR simulations carried out in this section are provided in Table 4. Results show the ability to handle the majority of CSTR simulations on the range of 1 to 10 s per run. Nonetheless, it is observed that simulation run time increases dramatically as the dilution rate approaches the washout condition for the reactor, with a dilution rate of 0.295 h−1 requiring more than 1 minute of simulation time, compared to just 4 seconds with a dilution rate of 0.20 h−1. This reflects the effect of dilution time on dynamics of the CSTR system. There is a particularly significant increase in the time required for the CSTR to reach steady-state as the dilution rate approaches the critical dilution rate, which is a well known process behaviour [17]. Reported computation times therefore suggest that PyOMES is able to handle the CSTR simulation within reasonable timeframes for practical use cases.         
+
+> Table 4. Wall-clock runtimes for selected CSTR simulations from initialisation to steady-state convergence at different dilution rates (n=1).
+> Dilution rate Run Time, s 0.010 1.19 0.100 1.68 0.200 4.03 0.250 6.77 0.290 41.76 0.295 78.57
+
+5. CONCLUSIONS AND FUTURE WORK 5.1. PyOMES as a tool for (bio)chemical process simulations 
+
+This work introduces the PyOMES package. The vision and architecture of the design laid out here may be understood as a foundation for understanding the package and its intended scope. The use cases considered in this report demonstrate that PyOMES is capable of modelling a broad range of (bio)chemical scenarios of interest to researchers and students working within the (bio)chemical sciences. Moreover, owing to the modular design of PyOMES, it is readily conceive how more complex modelling scenarios (than those shown here) could be established within the PyOMES modelling framework simply by repetition and expansion of the basic building blocks of the PyOMES architecture. This includes a number of features not explicitly shown in the uses cases such as the potential for multi-compartmental models, more sophisticated models for individual mass transport phenomena, and the ability to incorporate wider process behaviours such as control systems. Overall, it is therefore believed that PyOMES will find its place as a useful tool for the modelling and simulation of (bio)chemical process systems in future works. 
+
+5.2. User-Focused Continuous Development 
+
+The modularity and approach to user-design taken by the PyOMES package make it accessible to researchers and students working in a broad range of possible (bio)chemical processing contexts. The ability to model such a broad range of processes under one software creates a great opportunity for a more unified, free, and open-source package to be established across fields. For this reason, it is expected that the  
+
+> 9Errington et al. (2026)
+> Figure 5. Model predictions for the steady state conditions of an aerobic fermentation CSTR as a function of dilution rate - biomass and acetic concentrations (top) and Reactor Productivity (bottom). Dotted lines reflect theoretical values for assuming a carbon substrate-limited chemostat CSTR.
+
+future development of PyOMES has the potential to be directed by the efforts and interests of individual researchers using the platform. This may come about at least three main ways. Firstly, it may come from specific refinements to the canonical package itself based on input and troubleshooting raised by users. Secondly, it can come from user feedback and interest in implementation of well-known reference models within. Thirdly, it can come directly through the use and exploitation of the Protocol-led package architecture, which has been designed with the idea of enabling users to heavily customise the functionality of the package without the need for canonical updates to the package itself. 
+
+6. PACKAGE AVAILABILITY 
+
+The PyOMES package is available on GitHub: (github.com/MGuo-Lab/PyOMES ) under aGNU Affero General Public License version 3 (AGPLv3) licence [18]. 
+
+7. DECLARATIONS 
+
+Conflict of Interest: The authors declare no conflicts of interest. 
+
+Funding Acknowledgments: The authors gratefully acknowledge funding received from the UK Department for Environment Food and Rural Affairs (DEFRA) through EU Green ERA-Hub under consortium project ’DAiry Waste and REsidues upCYCLing into Microbial ProtEin (DARE2CYCLE)’.TV and MG are grateful for the funding from Quorn and the BBSRC, under project reference 2725958. JL and MG would like to acknowledge financial support from the King’s College London Net Zero Centre Ph.D. Scholarship scheme. 
+
+Authors’ Contributions: 
+
+EE: Software Design & Development, Conceptualisation, Methodology, Development & Analysis of Use Cases, and Writing - Original Draft TV: Software Design Discussion, Suggestion of Use Cases, Writing - Review & Editing JL: GUI Conceptualisation MG: Conceptualisation, Supervision, Funding Acquisition 
+
+8. REFERENCES 
+
+[1] T. Helikar, “The need for research-grade systems modeling technologies for life science education,” 
+
+Trends in Molecular Medicine , Feb. 2021. doi: 10. 1016/j.molmed.2020.11.005 
+
+10 PyOMES: an open-source framework for biochemical process modelling 
+
+[2] M. Geremia, S. Macchietto, and F. Bezzo, “A review on model-based design of experiments for parameter precision – open challenges, trends and future perspectives,” Chemical Engineering Science ,2026. doi: 10.1016/j.ces.2025.122347 
+
+[3] J. B. Rawlings, D. Q. Mayne, and M. M. Diehl, 
+
+Model Predictive Control: Theory, Computation, and Design . Nob Hill Publishing, 2026. [4] C. Rebello and I. Nogueira, “Digital twins in chemical engineering: An integrated framework for identification, implementation, online learning, and uncertainty assessment,” Computers & Chemical Engineering , 2025. doi: 10 . 1016 / j .compchemeng.2025.109178 
+
+[5] M. Djaffardjy et al., “Developing and reusing bioinformatics data analysis pipelines using scientific workflow systems,” Computational and Structural Biotechnology Journal , Jan. 2023. doi: 
+
+10.1016/j.csbj.2023.03.003 
+
+[6] G. Baio and A. Heath, “When simple becomes complicated: Why excel should lose its place at the top table,” Global and Regional Health Technology Assessment: Italian; Northern Europe and Spanish ,Feb. 2016. doi: 10.5301/grhta.5000247 
+
+[7] C. Gonz´ alez-Figueredo, R. Alejandro Flores-Estrella, and O. A. Rojas-Rej´ on, “Fermentation: Metabolism, kinetic models, and bioprocessing,” in Current Topics in Biochemical Engineering . Aug. 2019. doi: 
+
+10.5772/intechopen.82195 
+
+[8] Python Software Foundation, Python 3.10 ,version 3.10, Computer software, 2021. [Online]. Available: https : / / www . python . org / downloads/release/python-3100/ 
+
+[9] P. Virtanen et al., “SciPy 1.0: Fundamental Algorithms for Scientific Computing in Python,” 
+
+Nature Methods , vol. 17, no. 3, pp. 261–272, 2020. doi: 10.1038/s41592-019-0686-2 
+
+[10] C. Davies, Ion Association . London: Butterworths, 1962. [11] D. L. Parkhurst and C. Appelo, “Description of input and examples for PhreeqQC version 3 — A computer program for speciation, batch-reaction, one-dimensional transport, and inverse geochemical calculations,” U.S. Geological Survey, Tech. Rep. 6-A43, 2013. [12] T. Vinestock and M. Guo, “Parameter estimation and model comparison for mixed substrate biomass fermentation,” Systems and Control Transactions ,2026. doi: 10.69997/sct.178293 
+
+[13] I. S. FARMER and C. W. JONES, “The energetics of escherichia coli during aerobic growth in continuous culture,” European Journal of Biochemistry , Aug. 1976. doi: 10 . 1111 / j . 1432 - 1033 . 1976 . tb10639.x 
+
+[14] J. Bafna-R¨ uhrer et al., “Repeated glucose oscillations in high cell-density cultures influence stress-related functions of Escherichia coli,” PNAS Nexus , 2024. doi: 10.1093/pnasnexus/pgae376 
+
+[15] M. R. Peart, “Acid rain, storm period chemistry and their potential impact on stream communities in Hong Kong,” Chemosphere , 2000. doi: 10.1016/ S0045-6535(99)00386-0 
+
+[16] P. M. Doran, Bioprocess Engineering Principles , 2nd ed. Academic Press, 2013, isbn: 978-0-12-220851-5. [17] J. W. Perram, “Relaxation times in bacteriological culture and the approach to steady state,” Journal of Theoretical Biology , vol. 38, no. 3, pp. 571–578, 1973. doi: 10.1016/0022-5193(73)90257-9 
+
+[18] Free Software Foundation, GNU Affero General Public License, Version 3 , https : / / www . gnu . org/licenses/agpl-3.0.html , Nov. 2007. [19] A. Heinsbroek, PhreeqPython: An object-oriented python wrapper for the VIPhreeqc module ,version 1.6.2, 2026. [Online]. Available: https : //github.com/Vitens/phreeqpython 
+
+11 Errington et al. (2026) 
+
+# Supporting Information 
+
+9. SOLUTION OF INSTANTANEOUS MASS TRANSPORT EQUATIONS IN PYOMES 
+
+Instantaneous mass transport equilibrium (aqueous chemical reaction equilibria and physical gas-liquid equilibria) were calculated by solving the coupled mass-balance and charge-balance equations together with the equilibrium relationships expressed in terms of the logarithms of the equilibrium constants, ( log K), and species activities. A summary of log K values assumed for each aqueous equilibrium reaction considered within models is provided in Tables 5 and 6. Solution of system of equations produced by this formulation was handled by a PyOMES-native solver. This solver uses the Newton-Raphson method to find solutions based on numerical root finding. For further information refer to the PyOMES source code.  
+
+> Table 5. Thermodynamic data associated with aqueous chemical reaction equilibria modeled in the use cases of this work.
+
+Reaction logK Description 
+
+H2O(l) ⇌ H+(aq ) + OH −(aq ) -14.0 water autoionisation 
+
+H3P O 4(aq ) ⇌ H2P O 4−(aq ) + H+(aq ) -2.15 phosphate dissociation 1 
+
+H2P O 4−(aq ) ⇌ HP O 42−(aq ) + H+(aq ) -7.20 phosphate dissociation 2 
+
+HP O 42−(aq ) ⇌ P O 43−(aq ) + H+(aq ) -12.35 phosphate dissociation 3 
+
+N H +4 (aq ) ⇌ N H 3(aq ) + H+(aq ) -9.25 ammonium dissociation 
+
+CO 2(aq ) + H2O(l) ⇌ HCO − 
+
+> 3
+
+(aq ) + H+(aq ) -6.35 apparent carbonate dissociation 1 
+
+HCO − 
+
+> 3
+
+(aq ) ⇌ CO 2− 
+
+> 3
+
+(aq ) + H+(aq ) -10.33 bicarbonate dissociation 
+
+CH 3COOH (aq ) ⇌ CH 3COO −(aq ) + H+(aq ) -4.76 acetate dissociation  
+
+> Table 6. Thermodynamic data associated with gas-liquid equilibria modeled in the use cases of this work.
+
+Reaction Href , mol m −3 Pa −1 d ln( H),
+
+H2(g) ⇌ H2(aq ) 3.4x10 −4 2400 
+
+CO 2(g) ⇌ CO 2(aq ) 1.3x10 −5 1500 
+
+N2(g) ⇌ N2(aq ) 6.4x10 −6 1600 
+
+Kr = Y
+
+> i
+
+(γiCi)vi,r (18) where Kr is the equilibrium constant for reaction r, γi is the activity coefficient for species i at equilibrium, 
+
+Ci is the solution concentration of target species i, and vi is the stoichiometric coefficient associated with species i present within the associated reaction r with convention that vi is negative for reactants and positive for products. 
+
+Hi = Ci
+
+Pi
+
+(19) where Hi is the Henry constant relating the equilibrium partial pressure Pi (Pa) and solution concentration Ci
+
+(mol m −3] ) for compound i,
+
+9.1. Use of the PHREEQC software 
+
+The PHREEQC software [11] was selected as an alternative software implementation with which to benchmark the prediction accuracy and computational speed of the PyOMES package against. This was done using the phreeqpython python package [19] using the standard thermodynamic dataset provided within the PHREEQC vitens.dat dataset. This dataset relies on the the WATEQ Debye-H¨ uckel activity correction native to the PHREEQC software (see Equation 20. The WATEQ model differs slightly from the Davies equation (Equation 21) applied in the PyOMES software, though predictions were found empirically to be within good agreement for the use cases studied in this work. For further information, refer to [11]. 
+
+12 PyOMES: an open-source framework for biochemical process modelling 
+
+log 10 γi = − Az 2
+
+> i
+
+√I
+
+1 + Ba ◦
+
+> i
+
+√I + biI, (20) 
+
+log 10 γi = −Az 2
+
+> i
+
+√I
+
+1 + √I − 0.3I
+
+!
+
+, (21) 
+
+13
