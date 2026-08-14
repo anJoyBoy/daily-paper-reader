@@ -1,0 +1,263 @@
+Title: Localize, Then Reason: Visual Latent Structural Reasoning for Molecular Properties and Edits
+
+URL Source: https://arxiv.org/pdf/2608.13244v1
+
+Published Time: Fri, 14 Aug 2026 01:16:39 GMT
+
+Number of Pages: 9
+
+Markdown Content:
+# Localize, Then Reason: Visual Latent Structural Reasoning for Molecular Properties and Edits 
+
+## Xingqiao Lin 1,2 , Junmei Wang 2∗, Haocheng Tang 3∗
+
+> 1
+
+Department of Chemical Engineering, Carnegie Mellon University, Pittsburgh, Pennsylvania 15213, United States 
+
+> 2
+
+Department of Pharmaceutical Sciences and Computational Chemical Genomics Screening Center, School of Pharmacy, University of Pittsburgh, Pittsburgh, PA, USA 
+
+> 3
+
+Khoury College of Computer Science, Northeastern University, Boston, MA, USA 
+
+Abstract 
+
+Local chemical perception and property reasoning are both es-sential for understanding how molecular structure determines properties. Current LLM-based chemical reasoning methods either receive SMILES/molecular images together with de-scriptions of local motifs, or reason directly from molecular images. Neither approach enables the model to focus on chem-ically meaningful regions before reasoning. To address this gap, we propose Visual Latent Structural Reasoning (VLSR), an end-to-end framework that jointly learns localization and reasoning from molecular images. Central to our approach is a localize-then-reason strategy. VLSR first learns to lo-cate chemically meaningful regions in a molecular image. It then reasons about their property effects in a compact latent workspace before producing the final answer. Under the same inference setup, this design achieves 9.6× higher throughput than a comparable textual-reasoning baseline. 
+
+## 1 Introduction 
+
+Local structure perception is fundamental to molecular prop-erty prediction. Recent approaches increasingly incorporate molecular structural information into LLM-based models by providing multi-modal representations, such as SMILES with local motif annotations. However, these annotations explicitly reveal the relevant structural components to the model, reducing the need for the model to discover which regions of a molecule are chemically responsible for the queried property. This motivates a different paradigm: in-stead of providing structural explanations as inputs, a model should learn to localize chemically meaningful regions and subsequently reason over their property effects. Recent chemical LLMs and vision-language models (VLMs) can reason over increasingly rich molecular inputs (Zhang et al. 2024; Li et al. 2025; Tan et al. 2025). A com-mon approach is to input molecule structural descriptors. MSR provides extracted structural components, such as func-tional groups, as natural-language descriptions (Jang, Kim, and Ahn 2025). ChemVLR incorporates functional-group in-formation into the textual Chain-of-Thought (CoT) used for training (Zhao et al. 2026a). MPPReasoner jointly processes 
+
+> ∗
+
+Corresponding author. Copyright © 2027, Association for the Advancement of Artificial Intelligence (www.aaai.org). All rights reserved. 
+
+Figure 1: Three molecular property reasoning tasks: single-motif effects, motif interactions, and molecular comparisons. molecular images and SMILES and rewards textual reason-ing that describes tool-identified local structures (Zhuang et al. 2025). These methods teach the model to describe local chemistry in language. However, training a model to describe a functional group is not equivalent to learning how local structure influences the queried property. Visual localization provides a natural solution for this gap. In optical chemical structure recognition (OCSR), MolScribe localizes atoms before reconstructing molecular graphs, while GTR-VL models graph traversal through visual Chain-of-Thought reasoning (Qian et al. 2023; Wang et al. 2025). These works demonstrate that molecular depictions contain recoverable localized evidence. However, their objective is structural reconstruction: they recover what is present in an image, but not which regions matter for a downstream chem-ical question. This motivates the principle of localize, then reason .Rather than providing predefined motifs as explicit inputs, VLSR learns to identify property-relevant molecular regions as intermediate representations for downstream reasoning. The key challenge is not merely decomposing a molecule into structural components, but discovering which localized chemical patterns are informative for a specific property query and how they collectively contribute to the predic-tion. Accordingly, VLSR learns region-level representations under property supervision, where localization serves as an adaptive interface between molecular perception and prop-arXiv:2608.13244v1 [cs.CL] 13 Aug 2026 erty reasoning. Substructure annotations supervise region localization during training, but their boxes and labels are not included in the reasoning path or provided at inference. The region-level representations are processed together with the prop-erty question in a structured latent workspace. After multiple workspace updates, the model decodes only the final answer rather than an intermediate textual rationale. Our contributions are threefold: 
+
+• We introduce a localize-then-reason formulation for molecular property reasoning, in which the model learns to find local chemical structures before reasoning about their property effects. 
+
+• We develop VLSR, which combines learned chemical localization with a compact latent workspace that reasons without autoregressively generating intermediate text. 
+
+• VLSR outperforms specialized chemical models and sub-stantially larger general-purpose LLMs. Without addi-tional training, it can generalize to Schrödinger’s multiple FEP binding-affinity benchmarks. 
+
+## 2 Related Work 
+
+2.1 Molecular Structure Reasoning with LLMs 
+
+Chemical LLMs incorporate explicit structure either as model input or as CoT supervision. LLM-MPP and LLaMo combine SMILES, molecular graphs, and language, making graph structure directly available to the LLM (Jin et al. 2025; Park et al. 2024). MSR provides extracted components such as functional groups as natural-language descriptions, while TreeKD converts functional-group features into textual rules for property prediction (Jang, Kim, and Ahn 2025; Le et al. 2026). ChemVLR incorporates functional-group informa-tion into the textual CoT used for training (Zhao et al. 2026a). Similarly, MPPReasoner inputs a molecular image together with SMILES and rewards reasoning that describes tool-identified functional groups (Zhuang et al. 2025). These ap-proaches teach the model to express local chemistry through graphs or language. VLSR instead follows a localize-then-reason strategy: the model learns to locate relevant local structures in the molecular image and then determine how they affect the queried property. 
+
+2.2 Molecular Images and Local Structure 
+
+ChemVLM and ChemMLLM adapt multimodal language models to molecular images and chemical tasks, while ChemDFM-X aligns multiple chemical modalities (Li et al. 2025; Tan et al. 2025; Zhao et al. 2024). TinyChemVL fur-ther improves efficiency by reducing visual tokens (Zhao et al. 2026b). ChemSeek-OCR attempts to directly trans-fer the OCR model DeepSeek-OCR-2 to the OCSR task (Tang, Dang, and Wang 2026). These models demonstrate that molecular depictions can support chemical reasoning, but their objectives do not explicitly require the model to locate local chemical structures before predicting a prop-erty. Chemical localization has been studied for other pur-poses. SubGrapher segments functional groups and carbon backbones for molecular-image retrieval (Morin et al. 2025), while OCSR methods locate atoms and bonds to reconstruct molecular graphs or structural strings (Qian et al. 2023; Morin et al. 2023; Rajan et al. 2023). VLSR connects lo-calization with property reasoning: the model first learns to find local chemical structures and then reasons about their effects on the queried property. Post hoc graph explainers provide a complementary notion of chemical localization. GNNExplainer identifies compact subgraphs and node features that preserve a graph model’s prediction, whereas SubgraphX explicitly searches for im-portant subgraphs and accounts for interactions among them (Ying et al. 2019; Yuan et al. 2021). These approaches ex-plain a prediction over an explicit graph after it has been pro-duced. VLSR instead learns regions directly from depiction pixels and uses them as intermediate computational states before the property prediction. Consequently, spatial agree-ment alone is not sufficient evidence of useful reasoning; the relational controls and occlusion intervention test whether the localized regions also support the downstream decision. The regions are therefore part of the model’s computation, not merely a visualization of its output. 
+
+2.3 Textual and Latent Chemical Reasoning 
+
+CoT expresses intermediate reasoning through generated text (Wei et al. 2022). Although text can name functional groups and explain chemical effects, it may not precisely pre-serve fine-grained structural details, such as attachment sites, neighboring context, and correspondences between molecu-lar changes. Continuous latent reasoning offers an alternative by maintaining intermediate information in hidden states. Coconut introduces continuous reasoning for general tasks, while LatentChem applies latent computation to chemical problems (Hao et al. 2025; Ye et al. 2026). VLSR introduces a structured latent workspace for molecular property rea-soning, with distinct latent roles for structural evidence, the queried property, and the predicted effect. This organization allows the model to connect visual structure with property outcomes without converting every intermediate detail into text. 
+
+## 3 Problem Formulation 
+
+We formulate molecular property reasoning from depictions and a property query. Each example contains a natural-language query q and either one molecular image IA or a pair 
+
+(IA, I B ). Single-molecule questions ask how local structure affects a property; paired questions ask how an edit changes that property. The answer y may be a binary or directional label, a categorical answer, or a continuous value: 
+
+ˆy = fθ (IA, I B , q ), (1) where IB is omitted for single-molecule tasks. We require the model to derive local structure R from the images before estimating pθ (y | IA, I B , q, R ). RDKit-derived boxes and labels (Landrum and RDKit Contributors 2026) are train-ing targets rather than observed variables in this conditional distribution. They include functional groups, ring systems, and hetero-atom regions. At test time, the model must locate Textual Chain-of-Thought (CoT) Latent Reasoning VLSR                      
+
+> Explicit textual reasoning with many discrete steps Reasoning through continuous latent states Implicit latent reasoning over structural workspace Question Latent workspace Answer
+> Structure State + Property State + Effect State
+> Question Continuous hidden state Answer
+> Question Textual CoT Answer
+> Latent Token Latent workspace
+> Textual Token (Answer / CoT) Question Token
+> Molecule A Molecule B Question
+> Visual Encoder + Alignment ZA, Z B→Z̄{B →A} , Z ̄{A →B} →ELLM Tokenizer Will molecule B have higher solubility than molecule A?
+> Local Queries - > Query to Mol - > Localized Chemcial Regions
+> Latent Structual Workspace LLM Decoder
+> - > - >
+> Query Tokens U = {u 1, u 2, . . . , u m}
+> BBBP / HIV / BACE / QM9 / Lipo...
+> Image Input Output
+
+...  
+
+> VLSR
+> Binary or Regression output
+> Localized Chemcial Regions
+> . . . < - >
+> Patch & Edit Tokens (Z, E)
+> - > Edit / Property / Effect State
+> Hybrid Matching
+> ->  ->
+> Region Token R A, R B
+
+Figure 2: Left: Comparison of textual Chain-of-Thought, continuous latent reasoning, and VLSR. Right: Detailed illustration of the VLSR framework. these structures, preserve their context, and identify edits di-rectly from the depictions. Localization guides the prediction but does not remove access to the full image. 
+
+## 4 Method 
+
+4.1 Overview 
+
+VLSR receives one or two molecular depictions and a property query. It encodes image patches, aggregates them into candidate chemical regions, and, for paired inputs, aligns the two depictions before interpreting their differ-ence. Three latent tokens— ⟨LAT _EDIT ⟩, ⟨LAT _PROP ⟩,and ⟨LAT _EFFECT ⟩—then organize structural evidence, the queried property, and its predicted effect. The pipeline is 
+
+(I, q ) or ( IA, I B , q ) → Z → (R, E ) → L → y, (2) where Z, R, E, and L denote image tokens, localized regions, edit evidence, and latent reasoning states, respectively; E is omitted for single-image inputs. 
+
+4.2 Generic Patch Encoding 
+
+The Qwen-VL vision encoder (Bai et al. 2023; Qwen Team 2026) maps each depiction to patch tokens: 
+
+ZA = fvision (IA), ZB = fvision (IB ), (3) where ZA, Z B ∈ RN ×d; single-molecule tasks use only ZA.Because patch boundaries need not coincide with chemical structures, VLSR next forms region-level representations. 
+
+4.3 Chemical Region Localization 
+
+Given Z ∈ RN ×d, trainable region queries U retrieve local chemical evidence through cross-attention: 
+
+A = softmax 
+
+ (U W Q)( ZW K )⊤
+
+√d
+
+
+
+, R = AZW V .
+
+(4) The attention maps A provide soft spatial grounding, while 
+
+R contains region tokens that can integrate multi-patch mo-tifs and ring context. To obtain localization supervision, we derive chemical regions from RDKit molecular graphs, in-cluding functional groups, ring systems, and hetero-atom-centered regions. Their atom coordinates are projected onto the 2D molecular depiction to obtain image-space bounding boxes and region types. RDKit-derived regions supervise this bottleneck dur-ing training. A Hungarian one-to-one assignment (Kuhn 1955) provides the primary matching, supplemented by a lightweight one-to-many hybrid branch (Jia et al. 2023). Boxes and region labels are auxiliary targets only: they are not passed to the reasoning core and are absent at inference. 
+
+4.4 Correspondence Before Edit Reasoning 
+
+For paired questions, VLSR uses bidirectional soft align-ment rather than index-wise patch subtraction. For (X, Y ) ∈{(A, B ), (B, A )},
+
+¯ZY →X = CrossAttn( ZX , Z Y , Z Y ),
+
+∆X = ¯ZY →X − ZX , PX = ¯ZY →X ⊙ ZX ,EX = MLP edit 
+
+ZX , ¯ZY →X , ∆X , P X
+
+.
+
+(5) Learned pooling yields E = EditPool([ EA; EB ]) . The dif-ference emphasizes change, the product retains shared con-text, and the two directions preserve additions and removals without requiring atom maps. 
+
+4.5 Reasoning over Local Evidence 
+
+After the language backbone encodes the prompt, the hidden states at the three special-token positions initialize the latent Figure 3: Training pipeline of VLSR. We first perform OCSR-style continued pre-training on large-scale molecular image data, then conduct supervised fine-tuning, and finally apply GRPO with answer-level rewards. workspace: 
+
+(L0edit , L 0prop , L 0effect ) = Gather( Hq ; pedit , p prop , p effect ),
+
+(6) where Hq contains the prompt states. With the question states 
+
+Q, image tokens Z, region tokens R, and optional edit tokens 
+
+E, the reasoning core performs M Transformer updates: 
+
+H0 = [ Q, Z, R, E, L 0edit , L 0prop , L 0effect ],Hℓ+1 = TransformerLayer ℓ(Hℓ), ℓ < M. (7) The final edit, property, and effect states condition answer generation. They preserve the roles of structural evidence, query semantics, and predicted outcome without decoding an intermediate textual rationale. 
+
+4.6 Training Strategy 
+
+VLSR uses three training stages. 
+
+Stage I: Continued Pre-training. We perform OCSR-style continued pre-training on one million synthetic Pub-Chem molecules (Kim et al. 2023) and 680K patent exam-ples, following MolScribe-style data construction (Qian et al. 2023). The vision encoder remains frozen. 
+
+Stage II: Supervised Fine-tuning. We construct FGBench-Scaffold from FGBench (Liu et al. 2025) using pair-aware Bemis–Murcko scaffold components (Wu et al. 2018; Bemis and Murcko 1996), an ECFP4 similarity threshold of 0.7, and stratified component allocation. Its 625,936 examples comprise 507,000 training, 56,348 validation, and 62,588 test instances. LoRA (Hu et al. 2022) jointly optimizes answer prediction and auxiliary region localization. To evaluate molecular generalization under reduced scaf-fold leakage, we split molecular pairs into indivisible chem-ical components before train/validation/test allocation. The resulting split prevents component overlap between training and test sets and enforces a maximum ECFP4 similarity of 0.7 between test and training components. Compared with the original FGBench partition, this reduces the nearest-training similarity from 0.8596 to 0.4127 while eliminating test units with similarity above 0.7. 
+
+Stage III: GRPO Optimization. We apply Group Relative Policy Optimization (GRPO) (Shao et al. 2024) to a deter-ministically sampled subset of SFT training records, strati-fied by answer outcome, property class, and action type. The answer-level reward combines correctness, regression close-ness, sign consistency, and output cleanliness; it does not access annotations, attention maps, or latent states. 
+
+4.7 Learning Objective 
+
+The answer loss is 
+
+Lanswer = −
+
+> |y|
+
+X
+
+> t=1
+
+log pθ (yt | y<t , x ). (8) The supervised objective is 
+
+Ltotal = Lanswer + 0 .05 Lce attn + 0 .05 Liou attn 
+
++ 0 .01 Ldiv + 0 .02 Lent + 0 .02 Lfg 
+
++ 0 .02 Lce hyb + 0 .02 Liou hyb + 0 .01 Lfg hyb .
+
+(9) For Hungarian-matched pairs, attention cross-entropy and soft-IoU supervise coverage, diversity and entropy regularize the maps, and Lfg predicts the region type. The hybrid branch applies the corresponding attention and type losses to its one-to-many matches. Losses are averaged over valid pairs. All targets and auxiliary heads are removed at inference. 
+
+## 5 Experiments 
+
+The evaluation tests the localize-then-reason claim. We first compare learned localization with symbolic inputs and generic image patches. We then use random-region and com-ponent ablations to ask whether the model depends on mean-ingful local evidence and whether it can use that evidence for reasoning. Renderer shifts test whether localization survives changes in depiction layout, while an independent protein-conditioned benchmark tests transfer beyond the training task. 5.1 Experimental Setup 
+
+We evaluate all methods on FGBench-Scaffold, our pair-aware scaffold-component split of FGBench. The benchmark contains questions about single-motif effects, motif interac-tions, and molecular comparisons. Each example provides a property query together with one or two molecular represen-tations. Image-input models receive RDKit-rendered depic-tions, whereas symbolic baselines receive the corresponding SMILES. The required answer is either a binary decision or a continuous property change. 
+
+5.2 Baselines 
+
+We compare VLSR with both SMILES-input and image-input baselines. The symbolic group includes instruction-based chemical LLMs, LatentChem (Ye et al. 2026), and Qwen3.5-4B models (Qwen Team 2026) fine-tuned on the same reasoning data. The visual group includes general VLM backbones, ChemVLM-26B (Li et al. 2025), ChemDFM-X (Zhao et al. 2024), and supervised Qwen3.5-4B variants. The protocols cover direct prediction, explicit Think-style textual reasoning, and latent reasoning. We also evaluate Molecular Structural Reasoning (MSR), which supplies an LLM with an extracted textual description of molecular structure (Jang, Kim, and Ahn 2025). All task-specific baselines are trained and evaluated using the same FGBench-Scaffold split. 
+
+5.3 Main Results 
+
+Figure 4(a) summarizes the main comparison. VLSR achieves the best overall performance among image-input methods and outperforms the strongest symbolic baseline. Relative to Qwen3.5-4B + MSR-SFT, accuracy rises from 0.767 to 0.842, F1 from 0.679 to 0.786, and balanced accu-racy from 0.745 to 0.829. Regression also improves. These results establish overall performance; the controlled tests be-low ask whether learning where to look explains the gain. Increasing model scale or generating longer rationales is not sufficient. Qwen3.5-27B improves over smaller untuned visual baselines on classification but remains behind task-specific models, and Think-style reasoning does not consis-tently improve regression. VLSR instead learns where the relevant chemistry lies before applying latent reasoning. 
+
+5.4 Efficiency Analysis 
+
+Figure 4(b) compares inference throughput on the full test set. VLSR keeps intermediate reasoning within a fixed-depth latent workspace and decodes only the final answer. It pro-cesses 39.84 samples/s, compared with 4.13 samples/s for image-input Qwen3.5-4B-SFT with textual reasoning, cor-responding to a 9.6× throughput improvement. Thus, the latent workspace improves efficiency without removing the learned localization that supports prediction. 
+
+5.5 Visual Analysis 
+
+Localization. Matched IoU measures whether each learned query overlaps an annotated chemical region. On held-out molecules, learned queries outperform random re-gions for functional groups, rings, and hetero-atom regions (Figure 5(a)). Distinct queries also attend to different an-notated structures within the same molecule (Figure 5(b)). These results indicate that the queries recover localized chemical structures rather than only encoding the global molecular image. 
+
+Occlusion intervention. We further test whether the lo-calized regions contain prediction-relevant information by masking either the attention-ranked proposal or a size-matched random region at inference time. All intervention conditions use the same samples, checkpoint, prompts, and decoding configuration. Learned-region masking reduces ac-curacy to 0.789 and raw-pooled Pearson correlation to 0.576, compared with 0.791 and 0.626 , respectively, for random masks averaged over 20 deterministic draws using seeds 17– 36 (Table 1). The accuracy gap is negligible, but the larger Pearson drop under learned-region masking indicates that the proposals carry more regression-relevant evidence than equally sized random regions. Occlusion alone does not es-tablish a causal chemical mechanism. 
+
+Relational reasoning. To separate localization from rea-soning over localized evidence, we replace learned image regions with RDKit-derived region descriptors and their relative spatial relationships. Adding these descriptors to SMILES increases Pearson correlation from 0.639 to 0.674. Removing chemical regions yields a Pearson correlation of 0.600, while random region inputs yield 0.604. Combining SMILES with image features achieves 0.793 accuracy and 0.674 Pearson correlation. None of these controls matches VLSR, which achieves 0.842 accuracy and 0.718 Pearson correlation. Together with the localization and occlusion re-sults, these controls support the proposed pipeline: VLSR identifies chemically organized regions and relates them to the queried property within its latent workspace. 
+
+Renderer robustness. Finally, we test whether the learned pipeline depends on canonical RDKit layouts. VLSR obtains 0.788 accuracy and 0.632 Pearson correlation on PyMOL2D depictions, and 0.799 accuracy and 0.640 Pearson correla-tion under 3D-projected RDKit depictions, compared with 0.842 and 0.718 on canonical images. The 3D projection in-troduces unusual orientations, compressed bonds, crossings, and partial occlusion. The retained performance indicates that VLSR can recover useful local structure under substan-tial depiction shifts. 
+
+5.6 Zero-Shot Evaluation on Protein-Conditioned FEP-Derived Ligand Comparisons 
+
+To evaluate whether VLSR can transfer molecular edit reasoning beyond the training distribution, we conduct a zero-shot evaluation on protein-conditioned ligand com-parison tasks derived from FEP benchmarks. We combine 317 ligand-pair comparisons from the Schrödinger JACS and Merck subsets with 467 comparisons from additional Schrödinger pairwise datasets (Wang et al. 2015; Hahn and Wagner 2021; Hahn et al. 2022; Ross et al. 2023), covering 28 protein targets and 784 ligand comparisons in total. No FEP labels, affinity values, or protein contexts are used during training. Furthermore, no fine-tuning, calibration, or Figure 4: Summary of experimental results. (a) Accuracy comparison with representative SMILES-input, image-input, and chemical VLM baselines. (b) Inference throughput on the full test set. (c) Accuracy drop under ablations, where larger drops indicate more important components. 
+
+Figure 5: Chemical-region localization. (a) Matched IoU with held-out region annotations. (b) Different queries lo-calize distinct structures within the same molecule. model selection is performed on this evaluation set. The model receives a ligand pair together with the corresponding target protein sequence as contextual information, but does not access binding pockets, ligand poses, docking structures, or three-dimensional protein–ligand complexes. To reduce overlap with training data, both ligands in every retained pair have maximum ECFP4 Tanimoto similarity below 0.7 with molecules used during CPT and SFT (Rogers and Hahn 2010). The task is formulated as directional ligand comparison: given two ligands and a target protein context, the model predicts which ligand has stronger binding affinity. Free-energy calculations are used only to derive pairwise labels and are never provided as supervision targets. Therefore, this experiment evaluates the transferability of depiction-based molecular edit reasoning under protein-conditioned contexts, rather than quantitative FEP prediction. As shown in Table 2, VLSR achieves 0.691 accuracy, out-performing the strongest SMILES-based baseline, Qwen3.5-4B + MSR-SFT (0.628), by 6.3 percentage points. This result suggests that the learned localization and latent reasoning                                       
+
+> Setting Acc ↑F1 ↑Bal. Acc ↑Pearson ↑
+> Input representation controls
+> SMILES only 0.773 0.702 0.762 0.639 SMILES + Chem desc 0.777 0.705 0.765 0.674 Remove chemical regions 0.770 0.703 0.742 0.600 Random region input 0.763 0.706 0.732 0.604 SMILES + Image 0.793 0.726 0.781 0.674
+> VLSR under renderer shifts
+> VLSR (3D-proj RDKit) 0.799 0.721 0.782 0.640 VLSR (PyMOL2D) 0.788 0.704 0.769 0.632
+> Inference-time localization occlusion
+> Random mask 0.791 0.720 0.776 0.626 Learned mask 0.789 0.715 0.773 0.576 VLSR 0.842 0.786 0.829 0.718
+
+Table 1: Input controls and renderer robustness. RDKit de-scriptors bypass localization, whereas patch controls lack explicit region grouping. VLSR learns localized regions and spatial relations for joint reasoning. Renderer shifts alter molecular layouts, with 3D projection adding overlap and occlusion. mechanism can generalize to ligand comparison scenarios where the property context differs from the training bench-mark. We further compare with structure-augmented reason-ing baselines. In a tool-assisted setting, DeepSeek-V4-Flash combined with MSR provides textualized molecular struc-ture descriptions. MSR improves the Instruct setting from 0.540 to 0.589, but does not consistently improve Think-style prompting. These results indicate that explicit structural descriptions can provide useful information, while textual-ized structure alone does not replace identifying and aligning molecular edits directly from visual representations. This evaluation has several limitations. The task only measures pairwise affinity direction conditioned on pro-tein sequence and does not model the physical determinants Model Protocol Acc ↑                  
+
+> SMILES-based Input DeepSeek-V4-Flash Instruct 0.540 DeepSeek-V4-Flash + MSR Instruct 0.589 DeepSeek-V4-Flash Think 0.533 DeepSeek-V4-Flash + MSR Think 0.520 Qwen3.5-4B + MSR-SFT Instruct 0.628 LatentChem Latent 0.432 Image-based Input ChemDFM-X Instruct 0.363 ChemVLM-26B Instruct 0.377 VLSR (Ours) Implicit Latent 0.691
+
+Table 2: Accuracy on the zero-shot protein-conditioned lig-and comparison benchmark. The task evaluates directional affinity ranking from ligand pairs and target protein context. No FEP labels or affinity values are used during training.  
+
+> (a) lig_163 crystal pose (b) lig_165 pose projection
+
+Figure 6: Post hoc structural interpretation of a correctly pre-dicted HIF-2 α comparison. The lig_163 crystal pose shows the edited site near His293 and a structural water; lig_165 projects the OH →NH 2 edit onto the same pose. The struc-ture was not provided to VLSR. of protein–ligand interactions. Since no binding geometry, pocket information, or three-dimensional complex structure is provided, the result should not be interpreted as recover-ing protein–ligand physics or performing quantitative free-energy estimation. Instead, it measures whether molecular edit reasoning learned from two-dimensional depictions can transfer to a more challenging protein-conditioned compari-son setting. 
+
+HIF-2 α case study. VLSR correctly predicts the ap-proximately 20-fold potency loss for the lig_163 →lig_165 OH →NH 2 edit (Schindler et al. 2020). Mapping the pair to the PT2385-bound structure (PDB 5TBM) (Wallace et al. 2016) places the edited group near His293 and a structural water (Figure 6). The lig_165 pose is projected for interpre-tation and was not provided to the model. 
+
+5.7 Ablation Study 
+
+Figure 4(c) tests whether the learned regions contribute to the gain. Removing the learned regions causes a clear drop, and replacing them with random regions degrades performance further. Additional token capacity alone is therefore insuffi-cient; the model benefits from finding useful local evidence. Removing the workspace reduces classification and re-gression performance, showing that localization is not suf-ficient unless the model relates what it finds to the query. Removing edit alignment also hurts, particularly when cor-responding structures appear at different image positions. Together, the ablations support the intended order: locate the evidence, establish correspondence when needed, and reason about its property effect. 
+
+5.8 Limitations 
+
+VLSR uses RDKit-derived local chemical region boxes and labels as training targets rather than inference inputs; it there-fore does not eliminate chemical supervision, and the an-notation inventory may bias the learned regions. CPT is used only for molecular-image understanding and contains no property-reasoning supervision. Completely excluding molecular overlap with general chemical pretraining corpora is impractical for foundation models; we therefore evalu-ate task generalization using scaffold-controlled splits and held-out molecules. Finally, 2D depictions cannot recover conformational energetics or protein–ligand contacts absent from the input. The FEP-derived results thus demonstrate di-rectional transfer rather than full recovery of these physical effects. Because region supervision is defined by rectangu-lar boxes, overlapping motifs and diffuse electronic effects may not correspond to a single target. Matched IoU should therefore be read as spatial agreement, while chemically valid counterfactual edits and multi-renderer consistency offer im-portant future tests of causal faithfulness. This limitation is most relevant when a queried property depends on distributed electronic context rather than a compact functional group. Such cases may require larger or relationally defined regions than the present annotation inventory provides. 
+
+## 6 Conclusion 
+
+VLSR establishes a localize-then-reason framework for molecular visual reasoning, learning chemically relevant re-gions before integrating their property effects within a com-pact latent workspace. Across scaffold-controlled evalua-tions, this design improves both classification and regres-sion performance, while the ablation results show that re-gion localization, edit alignment, relative spatial relation-ships, and latent reasoning make complementary contribu-tions. By avoiding lengthy textual rationales and decoding only the final answer, VLSR achieves 9.6× higher infer-ence throughput than the corresponding image-input reason-ing baseline. Its robustness across molecular depiction styles and its transfer to protein-conditioned comparisons without additional training further indicate that the learned regional representations capture reusable chemical evidence. Overall, these results demonstrate that explicitly connecting visual localization with property reasoning provides an accurate, efficient, and inspectable foundation for molecular predic-tion from 2D depictions. Acknowledgments 
+
+This work was supported by funds from the National Insti-tutes of Health (R01GM147673, R01GM149705) and the National Science Foundation (1955260). The authors would like to thank the computing resources provided by the Cen-ter for Research Computing (facility RRID: SCR 022735) at the University of Pittsburgh (NSF award number OAC-2117681), and the Pittsburgh Supercomputer Center (grant number BIO210185). 
+
+## References 
+
+Bai, J.; Bai, S.; Yang, S.; Wang, S.; Tan, S.; Wang, P.; Lin, J.; Zhou, C.; and Zhou, J. 2023. Qwen-VL: A Versatile Vision-Language Model for Understanding, Localization, Text Reading, and Beyond. arXiv:2308.12966. Bemis, G. W.; and Murcko, M. A. 1996. The Properties of Known Drugs. 1. Molecular Frameworks. Journal of Medicinal Chemistry , 39(15): 2887–2893. Hahn, D.; Bayly, C.; Boby, M. L.; Bruce Macdonald, H.; Chodera, J.; Gapsys, V.; Mey, A.; Mobley, D.; Perez Ben-ito, L.; Schindler, C.; Tresadern, G.; and Warren, G. 2022. Best Practices for Constructing, Preparing, and Evaluating Protein-Ligand Binding Affinity Benchmarks. Living Jour-nal of Computational Molecular Science , 4(1): 1497. Hahn, D. F.; and Wagner, J. 2021. openforcefield/protein-ligand-benchmark: 0.2.0 Addition of New Targets. Zenodo, doi:10.5281/zenodo.5679599. Hao, S.; Sukhbaatar, S.; Su, D.; Li, X.; Hu, Z.; Weston, J.; and Tian, Y. 2025. Training Large Language Models to Reason in a Continuous Latent Space. In Conference on Language Modeling .Hu, E. J.; Shen, Y.; Wallis, P.; Allen-Zhu, Z.; Li, Y.; Wang, S.; Wang, L.; and Chen, W. 2022. LoRA: Low-Rank Adaptation of Large Language Models. In International Conference on Learning Representations .Jang, Y.; Kim, J.; and Ahn, S. 2025. Structural Reasoning Improves Molecular Understanding of LLM. In Che, W.; Nabende, J.; Shutova, E.; and Pilehvar, M. T., eds., Pro-ceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) , 21016– 21036. Vienna, Austria: Association for Computational Lin-guistics. ISBN 979-8-89176-251-0. Jia, D.; Yuan, Y.; He, H.; Wu, X.; Yu, H.; Lin, W.; Sun, L.; Zhang, C.; and Hu, H. 2023. DETRs with Hybrid Matching. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , 19702–19712. Jin, C.; Guo, S.; Zhou, S.; and Guan, J. 2025. Effective and Explainable Molecular Property Prediction by Chain-of-Thought Enabled Large Language Models and Multi-Modal Molecular Information Fusion. Journal of Chemical Infor-mation and Modeling , 65(11): 5438–5455. Kim, S.; Chen, J.; Cheng, T.; Gindulyte, A.; He, J.; He, S.; Li, Q.; Shoemaker, B. A.; Thiessen, P. A.; Yu, B.; Zaslavsky, L.; Zhang, J.; and Bolton, E. E. 2023. PubChem 2023 Update. 
+
+Nucleic Acids Research , 51(D1): D1373–D1380. Kuhn, H. W. 1955. The Hungarian Method for the Assign-ment Problem. Naval Research Logistics Quarterly , 2(1–2): 83–97. Landrum, G.; and RDKit Contributors. 2026. rd-kit/rdkit: 2026_03_1 (Q1 2026) Release. Zenodo, doi:10.5281/zenodo.19250388. Le, K.; Dey, S.; Martínez Galindo, M.; Lopez, V.; Hua, T.; Chawla, N. V.; and Lam, H. T. 2026. Generalist Large Lan-guage Models for Molecular Property Prediction: Distilling Knowledge from Specialist Models. arXiv:2603.12344. Li, J.; Zhang, D.; Wang, X.; Hao, Z.; Lei, J.; Tan, Q.; Zhou, C.; Liu, W.; Yang, Y.; Xiong, X.; Wang, W.; Chen, Z.; Wang, W.; Li, W.; Zhang, S.; Su, M.; Ouyang, W.; Li, Y.; and Zhou, D. 2025. ChemVLM: Exploring the Power of Multimodal Large Language Models in Chemistry Area. Proceedings of the AAAI Conference on Artificial Intelligence , 39(1): 415– 423. Liu, X.; Ouyang, S.; Zhong, X.; Han, J.; and Zhao, H. 2025. FGBench: A Dataset and Benchmark for Molecular Property Reasoning at Functional Group-Level in Large Language Models. arXiv:2508.01055. Morin, L.; Danelljan, M.; Agea, M. I.; Nassar, A.; Weber, V.; Meijer, I.; Staar, P.; and Yu, F. 2023. MolGrapher: Graph-Based Visual Recognition of Chemical Structures. In 
+
+Proceedings of the IEEE/CVF International Conference on Computer Vision , 19552–19561. Morin, L.; Meijer, G. I.; Weber, V.; Van Gool, L.; and Staar, P. W. J. 2025. SubGrapher: Visual Fingerprinting of Chemical Structures. Journal of Cheminformatics , 17(1): 149. Park, J.; Bae, M.; Ko, D.; and Kim, H. J. 2024. LLaMo: Large Language Model-Based Molecular Graph Assistant. In Advances in Neural Information Processing Systems , vol-ume 37, 131972–132000. Qian, Y.; Guo, J.; Tu, Z.; Li, Z.; Coley, C. W.; and Barzilay, R. 2023. MolScribe: Robust Molecular Structure Recogni-tion with Image-to-Graph Generation. Journal of Chemical Information and Modeling , 63(7): 1925–1934. Qwen Team. 2026. Qwen3.5: Towards Native Multimodal Agents. Qwen Blog, https://qwen.ai/blog?id=qwen3.5. Rajan, K.; Brinkhaus, H. O.; Agea, M. I.; Zielesny, A.; and Steinbeck, C. 2023. DECIMER.ai: An Open Platform for Automated Optical Chemical Structure Identification, Seg-mentation and Recognition in Scientific Publications. Nature Communications , 14(1): 5045. Rogers, D.; and Hahn, M. 2010. Extended-Connectivity Fin-gerprints. Journal of Chemical Information and Modeling ,50(5): 742–754. Ross, G. A.; Lu, C.; Scarabelli, G.; Albanese, S. K.; Houang, E.; Abel, R.; Harder, E. D.; and Wang, L. 2023. The Maximal and Current Accuracy of Rigorous Protein-Ligand Binding Free Energy Calculations. Communications Chemistry , 6(1): 222. Schindler, C. E. M.; Baumann, H.; Blum, A.; Böse, D.; Buchstaller, H.-P.; Burgdorf, L.; Cappel, D.; Chekler, E.; Czodrowski, P.; Dorsch, D.; Eguida, M. K. I.; Follows, B.; Fuchß, T.; Grädler, U.; Gunera, J.; Johnson, T.; Jorand Le-brun, C.; Karra, S.; Klein, M.; Knehans, T.; Koetzner, L.; Krier, M.; Leiendecker, M.; Leuthner, B.; Li, L.; Mochalkin, I.; Musil, D.; Neagu, C.; Rippmann, F.; Schiemann, K.; Schulz, R.; Steinbrecher, T.; Tanzer, E.-M.; Unzue Lopez, A.; Viacava Follis, A.; Wegener, A.; and Kuhn, D. 2020. Large-Scale Assessment of Binding Free Energy Calculations in Active Drug Discovery Projects. Journal of Chemical Infor-mation and Modeling , 60(11): 5457–5474. Shao, Z.; Wang, P.; Zhu, Q.; Xu, R.; Song, J.; Bi, X.; Zhang, H.; Zhang, M.; Li, Y. K.; Wu, Y.; and Guo, D. 2024. DeepSeekMath: Pushing the Limits of Mathematical Rea-soning in Open Language Models. arXiv:2402.03300. Tan, Q.; Zhou, D.; Xia, P.; Liu, W.; Ouyang, W.; Bai, L.; Li, Y.; and Fu, T. 2025. ChemMLLM: Chemical Multimodal Large Language Model. arXiv:2505.16326. Tang, H.; Dang, X.; and Wang, J. 2026. Fine-tuning DeepSeek-OCR-2 for Molecular Structure Recognition. arXiv:2604.03476. Wallace, E. M.; Rizzi, J. P.; Han, G.; Wehn, P. M.; Cao, Z.; Du, X.; Cheng, T.; Czerwinski, R. M.; Dixon, D. D.; Goggin, B. S.; Grina, J. A.; Halfmann, M. M.; Maddie, M. A.; Olive, S. R.; Schlachter, S. T.; Tan, H.; Wang, B.; Wang, K.; Xie, S.; Xu, R.; Yang, H.; and Josey, J. A. 2016. A Small-Molecule Antagonist of HIF2 α Is Efficacious in Preclinical Models of Renal Cell Carcinoma. Cancer Research , 76(18): 5491– 5500. Wang, J.; Yang, H.; Wu, J.; He, Y.; Wei, X.; Wang, Y.; Liu, C.; Ge, L.; Wu, L.; Wang, B.; Lin, D.; and He, C. 2025. GTR-CoT: Graph Traversal as Visual Chain of Thought for Molecular Structure Recognition. arXiv:2506.07553. Wang, L.; Wu, Y.; Deng, Y.; Kim, B.; Pierce, L.; Krilov, G.; Lupyan, D.; Robinson, S.; Dahlgren, M. K.; Greenwood, J.; Romero, D. L.; Masse, C.; Knight, J. L.; Steinbrecher, T.; Beuming, T.; Damm, W.; Harder, E.; Sherman, W.; Brewer, M.; Wester, R.; Murcko, M.; Frye, L.; Farid, R.; Lin, T.; Mob-ley, D. L.; Jorgensen, W. L.; Berne, B. J.; Friesner, R. A.; and Abel, R. 2015. Accurate and Reliable Prediction of Rela-tive Ligand Binding Potency in Prospective Drug Discovery by Way of a Modern Free-Energy Calculation Protocol and Force Field. Journal of the American Chemical Society ,137(7): 2695–2703. Wei, J.; Wang, X.; Schuurmans, D.; Bosma, M.; Ichter, B.; Xia, F.; Chi, E. H.; Le, Q. V.; and Zhou, D. 2022. Chain-of-Thought Prompting Elicits Reasoning in Large Language Models. In Advances in Neural Information Processing Sys-tems , volume 35, 24824–24837. Wu, Z.; Ramsundar, B.; Feinberg, E. N.; Gomes, J.; Ge-niesse, C.; Pappu, A. S.; Leswing, K.; and Pande, V. 2018. MoleculeNet: A Benchmark for Molecular Machine Learn-ing. Chemical Science , 9: 513–530. Ye, X.; Mao, Y.; Zhang, J.; Liu, Y.; Hao, L.; Wu, F.; Li, Z.; Liao, Y.; Wang, Z.; Liu, Z.; Yin, Z.; Yuan, L.; Torr, P.; Sun, H.; Zeng, X.; Wang, M.; Cong, L.; Gao, S.; and Tang, X. 2026. LatentChem: From Textual CoT to Latent Thinking in Chemical Reasoning. arXiv:2602.07075. Ying, Z.; Bourgeois, D.; You, J.; Zitnik, M.; and Leskovec, J. 2019. GNNExplainer: Generating Explanations for Graph Neural Networks. In Advances in Neural Information Pro-cessing Systems , volume 32. Yuan, H.; Yu, H.; Wang, J.; Li, K.; and Ji, S. 2021. On Explainability of Graph Neural Networks via Subgraph Ex-plorations. In Proceedings of the 38th International Confer-ence on Machine Learning , volume 139 of Proceedings of Machine Learning Research , 12241–12252. Zhang, D.; Liu, W.; Tan, Q.; Chen, J.; Yan, H.; Yan, Y.; Li, J.; Huang, W.; Yue, X.; Ouyang, W.; Zhou, D.; Zhang, S.; Su, M.; Zhong, H.-S.; and Li, Y. 2024. ChemLLM: A Chemical Large Language Model. arXiv:2402.06852. Zhao, X.; Cai, X.; Cheng, X.; Chen, X.; and Xu, B. 2026a. ChemVLR: Prioritizing Reasoning in Perception for Chem-ical Vision-Language Understanding. In Findings of the As-sociation for Computational Linguistics: ACL 2026 , 24096– 24115. San Diego, California: Association for Computa-tional Linguistics. Zhao, X.; Zeng, S.; Cai, X.; Cheng, X.; Zhang, D.; Chen, X.; and Xu, B. 2026b. TinyChemVL: Advancing Chemical Vision-Language Models via Efficient Visual Token Reduc-tion and Complex Reaction Tasks. Proceedings of the AAAI Conference on Artificial Intelligence , 40(2): 1596–1604. Zhao, Z.; Chen, B.; Li, J.; Chen, L.; Wen, L.; Wang, P.; Zhu, Z.; Zhang, D.; Wan, Z.; Li, Y.; Dai, Z.; Chen, X.; and Yu, K. 2024. ChemDFM-X: Towards Large Multimodal Model for Chemistry. arXiv:2409.13194. Zhuang, J.; Shi, Y.; Hou, J.; He, Y.; Ye, M.; Xu, M.; Su, Y.; Zhang, L.; Qian, Y.; Zhang, L.; Ke, G.; and Cai, H. 2025. Reasoning-Enhanced Large Language Models for Molecular Property Prediction. arXiv:2510.10248.
