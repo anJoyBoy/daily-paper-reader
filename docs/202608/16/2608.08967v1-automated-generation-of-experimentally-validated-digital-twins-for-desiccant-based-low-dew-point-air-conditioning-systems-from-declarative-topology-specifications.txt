@@ -1,0 +1,992 @@
+Title: Automated generation of experimentally validated digital twins for desiccant-based low-dew-point air-conditioning systems from declarative topology specifications
+
+URL Source: https://arxiv.org/pdf/2608.08967v1
+
+Published Time: Tue, 11 Aug 2026 01:40:22 GMT
+
+Number of Pages: 49
+
+Markdown Content:
+## Automated generation of experimentally validated digital twins for desiccant-based low-dew-point air-conditioning systems from declarative topology specifications 
+
+Younghwan Joo a,b, ∗, Jeonghoon Han a, Sang Hyun Oh a, Soosik Bang a,Sung-il Kim a,b, ∗∗ 
+
+> a
+
+Energy Efficiency Research Division, Korea Institute of Energy Research, 152 Gajeong-ro, Yuseong-gu, Daejeon, 34129, Republic of Korea 
+
+> b
+
+Energy Engineering, University of Science & Technology, 217 Gajeong-ro, Yuseong-gu, Daejeon, 34129, Republic of Korea 
+
+Abstract 
+
+In battery manufacturing, the low-dew-point air conditioning of dry rooms is among the largest energy consumers, and a physics-based digital twin of-fers insight for operating-point optimization beyond the installed monitoring points. Building one and calibrating it to field data each demand distinct expertise, which limits industrial uptake. We present a framework that gen-erates a dynamic digital twin of an HVAC system from a declarative topol-ogy specification, concise enough to draft from a natural-language plant de-scription, compiled against a purpose-built physical component library with wiring, solver, and telemetry synthesized automatically. The models carry equipment-level physics: the desiccant wheel couples heat and mass trans-fer through an interchangeable sorption-isotherm component, so an undis-closed commercial sorbent is calibrated as an effective isotherm rather than asserted as a material. For experimental validation we built an industrial-grade, ten-component low-dew-point system whose commercial desiccant-wheel unit holds a chamber near −40 ◦C frost point, and operated it in both 
+
+> ∗
+
+Corresponding author 
+
+> ∗∗
+
+Corresponding author 
+
+Email addresses: yhjoo@kier.re.kr (Younghwan Joo), praygod@kier.re.kr 
+
+(Sung-il Kim) arXiv:2608.08967v1 [eess.SY] 10 Aug 2026 dehumidification and bypass regimes. Generation reached a runnable model fifteen times faster than expert manual construction, and a single parame-ter set, fitted only to three closed-loop humidity nodes, predicts the bypass regime within 0.1 ◦C, the reactivation-heater power within 5%, and measured input-step responses. Identifiability analysis shows why this is prediction, not fitting: ordinary operating points constrain only one parameter combi-nation, and the deep-dry equilibrium level of the recirculating loop supplies the missing signal. The framework shortens the path from plant description to measurement-validated twin; its criteria-based calibration is a step toward twins calibrated, not only constructed, automatically. 
+
+Keywords: Desiccant wheel dehumidification, Low-dew-point air conditioning, Heat and mass transfer, Digital twin, Automated model generation 
+
+1. Introduction 
+
+In the cleanrooms and drylabs of battery manufacturing, where product quality hinges on tight humidity control, low-dew-point air conditioning is among the largest energy consumers, on the order of 43% of the energy of battery cell manufacturing [1, 2, 3]. Finding better operating points for these systems would save a large part of that energy, but the search must evaluate operating conditions the plant has never run, where no model, physical or data-driven, can promise accuracy in advance. A physics-based digital twin, calibrated against a modest set of field measurements, is the reasonable in-strument for that search: it proposes operating candidates constrained by conservation laws and equipment physics rather than by the reach of the operating records, and each candidate the plant then tries returns measure-ments that tighten the calibration [4, 5, 6]. Building such a twin is the hard part. It takes modeling expertise that is scarce outside specialist groups, and a model built carefully for one unit describes only that unit. HVAC is not a single system but dozens to hundreds of variants across a site, shaped by purpose from general comfort conditioning to industrial dehumidification, so hand-building a twin for each installation does not scale. Existing work on HVAC digital twins reflects this: fault detection, optimization, and online updating all run on top of an already-built 
+
+model, and the construction of the model itself stays a black box [7, 8, 9, 10]. The bottleneck is the model, not its use. 2This paper asks whether the twin can instead be generated from a declar-ative description of the system. If a plant’s topology is stated declaratively, a physical model can be synthesized from it automatically; and the specifica-tion itself can be authored from a field engineer’s natural-language account of the system together with a handful of P&IDs, with a large language model (LLM) bridging the two. The pathway does not depend on who drives it, an engineer or an automated agent. What this paper implements and validates is the path from specification to twin: a physical twin of a complete HVAC system, resolved to equipment-level physics, generated from a declarative topology specification, that holds up against measurements from the system it represents. The natural-language front end enters once, as an end-to-end demonstration in the case study. Automated model generation is not itself new. It has matured along two branches: one generating building energy models from BIM or building-stock data [11, 12, 13, 14, 15], the other generating digital twins of industrial pro-cess plants from P&ID and asset data [16, 17]. Neither reaches the physics an HVAC twin needs for optimization, which sits a level below the flowsheet of unit operations: a desiccant wheel is at once a heat exchanger, a moisture ex-changer, and an adsorption process, coupling a nonlinear sorption isotherm, finite sorption kinetics, and carryover between its rotating zones. This is not a matter of difficulty but of what the application requires to be useful. Des-iccant modeling at this fidelity is well established [18, 19, 20, 21], but each study characterizes a single, known sorbent by hand, whereas the sorbent in a commercial rotor is typically undisclosed. No prior work generates physi-cal models of complete HVAC systems with equipment-level physics from a declarative specification, at this depth and across commonly used equipment, and validates the result against an operating industrial system whose sorbent is unknown. We develop the framework on an operating low-dew-point desiccant air-handling system at KIER, built around a Munters ML420 desiccant wheel of undisclosed sorbent. Within the framework the sorbent is an interchange-able component; for this system we calibrate an effective isotherm against measurement, keeping the calibration minimal and accounting for the one genuine unknown rather than tuning the model point by point. A single pa-rameter set then reproduces the measured steady-state behavior across the wheel’s active and bypassed regimes, so the validation tests the generated physics rather than a curve fitted to isolated data, a distinction we make precise in Section 6. 3The paper’s two contributions carry equal weight: a generated model earns the name of twin only when it answers to measurement, so construc-tion and validation enter as stages of one pipeline. The first is the gener-ation framework, which from a declarative YAML specification synthesizes a Simulink model, supplying a standard psychrometric fluid-property bus, a reusable component block library designed to span commonly used HVAC equipment, automatic wiring with mass- and energy-balance closure, solver configuration, and telemetry-tap insertion, and we quantify the construction effort it saves against manual model building. We do not automate the au-thoring of the underlying component physics; what the framework makes rou-tine and reproducible is the composition of validated equipment-level physics from a declarative description. The second contribution is the experimen-tal validation just described, on an industrial system with unknown sor-bent, where a single parameter set reproduces the measured behavior across regimes and an identifiability analysis reports which parameters the data actually constrain. The declarative specification that drives the framework is also the form in which an autonomous agent could construct a twin on demand, a direction we pursue in future work. 
+
+2. Automated model-generation framework 
+
+Figure 1 shows the framework end to end. A topology specification writ-ten in YAML declares the system: the components it contains, how their air streams connect, the operating inputs that drive them, and the signals to be observed. A builder compiles this specification against a library of physical component blocks into a runnable Simulink model, configures its solver, and inserts telemetry taps, and the generated model then enters the calibration and validation workflow of Sections 4 and 5. The pipeline also includes a specification-authoring stage in front of the builder: the YAML can be writ-ten directly by an engineer, or produced from a natural-language description of the system and a few P&IDs by an LLM, supported by surveyed sizing ranges for common industrial HVAC equipment when exact values are un-available. We demonstrate this front stage once, end to end, in the case study; the quantitative claims of the paper concern the path from specification to validated model. The framework rests on a single idea: it reduces the construction of a system digital twin with equipment-level physics from a modeling problem to a composition problem. Every component exchanges the same moist-air 4Component Library  
+
+> Regeneration
+> Air In
+> Simulink Model
+> Process
+> Air In
+> Cooling
+> Coil
+> Desiccant Wheel (process side)
+> Supply
+> Fan
+> Conditioned
+> Zone
+> Regeneration
+> Heater
+> Desiccant
+> Wheel (regeneration side)
+> Exhaust
+> Validation Calibration
+> Builder
+> · Block instantiation
+> · FluidBus wiring
+> · Solver configuration
+> · Telemetry taps
+> Cooling Coil
+> Supply Fan Regeneration Heater
+> Desiccant Wheel
+> YAML Topology Specification
+> Natural Language
+> Description
+> “A dedicated HVAC system with cooling coil, desiccant wheel, supply fan, and reheat coil.”
+> P&ID / Diagrams
+
+Stage 1 (INPUT) 
+
+Stage 2 (COMPILE)  Stage 3 (VALIDATE) 
+
++
+
+> Dew-point Sensors
+> Electric-power Metering
+
+Figure 1: Overview of the automated generation and validation framework. A declarative YAML topology specification is compiled against a reusable component library sharing a standardized moist-air bus interface (FluidBus). The builder synthesizes a runnable Simulink model (block instantiation, bus wiring, solver configuration, and telemetry taps), which is then calibrated and validated against an operating industrial low-dew-point des-iccant air-handling system using dew-point and electric-power measurements. 
+
+state over a standardized bus, so a system is fully specified by naming its blocks and their connections, and everything else (wiring, balance closure, solver setup, instrumentation) follows mechanically from the specification. The point of this reduction is to guide whoever drives the generation, a person authoring a specification or the code assembling the model from it, so that neither loses its way nor has to solve a harder problem than the application requires. The remainder of this section presents the framework in that order: the interface that performs the reduction (2.1), the component vocabulary built on it (2.2), the synthesis of a model from a specification (2.3), the 5residual difficulties that the framework absorbs rather than passes on (2.4), and the range of system structures the same machinery covers (2.5). 
+
+2.1. Standard moist-air bus interface 
+
+All air-stream connections in the framework carry a single bus signal, the FluidBus, holding four state variables in SI units: temperature (K), pres-sure (Pa), mass flow rate (kg/s), and relative humidity (0–1). Any derived psychrometric quantity (humidity ratio, dew point, enthalpy) is computed inside the blocks from this state through a shared set of property functions following standard psychrometric formulations [22], so that all components evaluate moist-air properties consistently and closed air loops conserve mass and energy across block boundaries. The restriction to four variables is a design decision rather than a simpli-fication of convenience. Because every outlet and every inlet speak the same contract, connecting any two ports is well defined without further judgment: the builder does not need to reason about which quantities a particular pair-ing exchanges, and the author of a specification does not need to know how any block represents its internal physics. Composition becomes mechanical, which is precisely what makes automatic wiring (by code or, prospectively, by an agent) a tractable problem. Component models of heterogeneous origin (Simscape blocks, custom physical models) are wrapped behind this inter-face, with non-stream quantities such as heat and moisture loads exposed as separate scalar ports. 
+
+2.2. Component block library 
+
+The component vocabulary is catalogued in a machine-readable library declaration that records, for every block type, its port signature on the bus and its mask-parameter schema (Table 1). The library spans the equipment that commonly composes industrial air-handling systems: desiccant wheels, cooling coils, heaters, humidifiers, mixers and flow splitters, and conditioned spaces, a vocabulary in the tradition of component libraries for building simulation [23], centered here on industrial dehumidification. Air flow rates are imposed through the specification (source flow rates at the boundaries and split ratios at the dividers) rather than resolved by the components. The governing physics of the blocks central to this study are presented in Section 4; standard components follow established formulations. The mask parameters of a block are the information a specification must supply to instantiate it in a new system, and the library deliberately keeps 6this set small. Each additional parameter is a value the specification author, again a person or an agent, must know or guess, and any parameter that cannot be traced to a datasheet or a measurement ultimately becomes a calibration burden. The blocks therefore expose the minimal parameter set that preserves the depth needed for operating-point and energy prediction, a restraint that Section 4 revisits when the sources of every model input are accounted for. The sorbent of the desiccant wheel illustrates the same principle applied to material properties. Rather than hard-coding one material, the wheel block treats the sorption isotherm as an interchangeable component: isotherm models for a set of candidate sorbents are registered in a common lookup interface and selected per instance through a mask parameter. How this supports systems whose sorbent is undisclosed (the situation of most com-mercial rotors, including the one in our case study) is developed in Section 4. 
+
+2.3. From declarative specification to executable model 
+
+A topology specification declares, in order, the model metadata, the boundary air sources and their conditions, the component instances with their mask overrides and control inputs, the flow and control connections, the observed outputs, any special handling such as feedback points, and the solver settings. The specification is the single source of truth for the model: every block, wire, and parameter value in the generated Simulink diagram derives from it, and regenerating from the same file reproduces the model identically. The excerpt below, taken from the case-study specification of Section 3, shows this anatomy; the complete diagram it generates, and its manually constructed counterpart, are compared in Section 5.1.   
+
+> # topo14 specification (excerpt) metadata: model_name: Topo14_KIER_NIR_OP3_DeepDry components: - name: Rotor block_type: Rotor_Bus mask_parameters: desiccant_material: Zeolite4A_E18 D_rotor: 0.65 # m k_LDF: 0.04 # m^3 kg^-1 s^-1
+
+7ab_frac: 0.667 - name: AHU_Cooler block_type: Cooler_Bus # ... 7 more components connections: flow_connections: - { from: Mixer/1, to: Rotor/1, signal_type: FluidBus } - { from: Rotor/1, to: Splitter/1, signal_type: FluidBus } # ... solver: type: ode23t stop_time: 12000.0 
+
+Synthesis begins with validation. The builder checks the specification structurally against the library catalogue (block types, port indices, telemetry targets) and physically against admissible ranges: temperatures must fall within a plausible HVAC envelope in kelvin, pressures near atmospheric in pascals, humidities within the unit interval, and the selected sorbent must be compatible with the declared regeneration temperature. Consistency of component sizing with the imposed flows is a precondition for a convergent simulation, so ill-posed specifications are rejected before any model is built, with diagnostics that identify the likely authoring error, most commonly a unit mistake, for which the message proposes the SI conversion. Only a specification that passes these checks proceeds to synthesis: components are instantiated from the library, bus connections are wired, unused ports are terminated, feedback points receive the treatment of Section 2.4, the solver is configured, telemetry taps are inserted, and a build report is emitted for downstream analysis. 
+
+2.4. Closed-loop topologies and solver handling 
+
+Recirculating air paths, the rule rather than the exception in industrial dehumidification, close algebraic loops through the model. The specification marks each feedback point, and the builder breaks the loop with an initialized memory state carrying a declared starting condition for the bus variables, so that closed-loop models initialize and integrate reliably. Solver selection is likewise part of the specification and its defaults: stiff integrators suited to the topology class are configured automatically, so that neither the specifi-cation author nor the generated model’s user tunes solvers by hand. These 8are exactly the difficulties that historically made closed-loop HVAC models expert work, and the framework’s role is to absorb them rather than pass them on. Telemetry taps declared in the specification are inserted as a communi-cation subsystem at build time, making every generated model twin-ready; online operation against the physical system is beyond this paper’s scope and is pursued separately. 
+
+2.5. Generality 
+
+The same machinery covers a range of system structures, which we illus-trate with four representative topologies rather than an exhaustive gallery: a once-through outdoor-air handling unit (open topology), a recirculating closed loop through a desiccant wheel (the feedback structure of Section 2.4), an isolated rotor model used for single-component analysis, and a bypass vari-ant in which the wheel and its regeneration path are removed from the air path by a local edit to the specification. In total, fourteen topology fami-lies have been generated with the framework during this work. The bypass case deserves note: the two operating configurations validated in Section 5 (dehumidification and bypass) are not two hand-built models but two speci-fications differing in a few lines, which is itself evidence of what declarative generation buys. The framework is designed for this structural generality; its experimental validation in this paper is on one industrial system, in two operating regimes, as Sections 3–5 develop. 
+
+3. Case-study system 
+
+We develop and validate the framework on an operating low-dew-point air-handling system at the Korea Institute of Energy Research (KIER), which conditions a process chamber, the type of conditioned space that, in produc-tion settings, would house humidity-sensitive manufacturing steps (Fig. 2). The system is industrial in kind rather than a laboratory mock-up: its des-iccant unit, air-handling unit, and chamber are commercial equipment oper-ated by the facility’s PLC, and it was running its normal duty throughout the measurement period. 
+
+3.1. System description 
+
+Dehumidification is provided by a Munters ML420 desiccant wheel unit with two sectors (process and reactivation, with no purge sector), regenerated 9Table 1: Component block library: physical blocks, their port signatures on the standard moist-air bus (FluidBus: T , P , ˙m, RH), and the principal mask parameters a specification must supply. 
+
+Block Bus ports (auxiliary ports) Principal mask parameters Desiccant wheel process in/out, regeneration in/out (rotation speed) sorbent material, Dr, Lr,
+
+kLDF , adsorption-sector fraction fab (three-sector purge variant available) Cooling coil air in/out, chilled-water side (heat load, condensate) tube count, rows, fin area, coolant supply temperature Heater air in/out (heat duty / setpoint) 
+
+U A , fin efficiency Humidifier air in/out (water addition) supply-water temperature (target humidity via input) Mixer two air inlets, one outlet — (adiabatic mixing) Flow splitter one inlet, two outlets split ratio Conditioned space supply in, return out (heat load, moisture source) volume Vroom , leakage/return conductances Kleak , Kreturn 
+
+at approximately 130 ◦C and rated at 420 m 3/h of process air against 155 m3/h of reactivation air. The wheel sits inside a recirculating loop: outdoor make-up air, pre-cooled by a unit packaged with the desiccant system, mixes with return air from the chamber, and the mixed stream passes the process sector of the wheel; the dried stream splits between supply air to the chamber and a branch that is heated and fed back through the reactivation sector in counter-flow. The cooling coil of the air-handling unit downstream is served by chilled water from a dedicated precision chiller, while the pre-cooler is a self-contained packaged refrigeration unit, holding its outlet near 8 ◦C under local control (Section 3.2). The reference airflow structure, established by 10 OA  MA             
+
+> DH
+> EA (exhaust)
+> SA
+> RA
+> dew point airflow electric power chilled water
+> pre-
+> cooler
+> process
+> (2/3)
+> regen.
+> (1/3)
+> desiccant wheel
+> regen.
+> heater
+> (≈130 °C)
+> cooling
+> coil (5 °C) heater
+> (off) humidifier
+> (off) chamber
+> precision
+> chiller (5 °C)
+> W
+> W
+> W
+> WW
+> W
+> Munters ML420 with pre-cooler AHU chamber and PLC rack precision chiller
+
+Figure 2: The industrial low-dew-point air-handling system used as the validation testbed: schematic of the air paths, the two cold sources, and the instrumentation, with photographs of the principal equipment linked to the corresponding components. Details are given in Section 3. 
+
+mass-balance closure of the measured airflows (Section 4), maintains mixed, exhaust, and supply flows in the ratio MA : EA : SA = 3 : 1 : 2 (421, 171, and 250 m 3/h respectively, with 232 m 3/h of outdoor air and 189 m 3/h of return air) (Table 2). The facility operates the system in two regimes as a matter of routine. In dehumidification mode (ON), the full closed loop through the wheel is active and the chamber reaches deep-dry conditions, with dew points near 
+
+−40 ◦C at the wheel outlet. In bypass mode (OFF), the wheel, pre-cooler, and reactivation path are inactive; the recirculating air routes around the wheel, and the chamber is held by the condensing cooling coil alone against laboratory-air infiltration, at dew points near +5 ◦C (Fig. 3). These two regimes form the validation pair used throughout Sections 4 and 5; they also span the two standard dehumidification routes, desiccant and condensing 11 [24]. They are attractive as a pair precisely because they are operationally natural rather than contrived for the study. On the modeling side, the two configurations are not two hand-built models but two topology specifications differing in a few lines, as noted in Section 2.5. OA MA EA (exhaust) 
+
+> 1/3 2/3
+> MA : EA : SA = 3 : 1 : 2
+
+(a) Dehumidification mode (ON)   
+
+> pre-cooler process (2/3) regen. (1/3)
+> desiccant wheel
+> regen. heater ( 130 °C)
+> cooling coil (5 °C) heater (off) humidifier (off) chamber
+> DH SA RA
+> OA MA EA (exhaust)
+> 1/3 infiltration (lab air)
+> RA
+
+(b) Bypass mode (OFF)  
+
+> pre-cooler process (2/3) regen. (1/3)
+> desiccant wheel
+> regen. heater ( 130 °C)
+> cooling coil (5 °C) condensing reheat (20 °C) humidifier (off) chamber
+> chamber
+
+Figure 3: The two operating configurations used for validation. (a) Dehumidification mode (ON): recirculating closed loop through the desiccant wheel, with a one-third regeneration split downstream of the process outlet fed back through the regeneration sector in counter-flow. (b) Bypass mode (OFF): the wheel, pre-cooler, and regeneration path are inactive (greyed); the recirculating air routes around the wheel and the chamber is conditioned by the condensing cooling coil alone, with laboratory-air infiltration as the moisture load. Circles mark the measurement nodes used in Section 5. 
+
+12 3.2. Instrumentation 
+
+All measurements come from the facility’s PLC, accessed read-only through its monitoring interface, which provides live values and logged histories at intervals of a few seconds. Four groups of channels are used in this study. Polymer/QCM dew-point transmitters (SUTO S220; −100 to +20 ◦C Td measurement range, ±2 ◦C Td accuracy over −70 to 0 ◦C Td) are installed at the supply air, the wheel process outlet, and the return air; a fourth dew-point channel inside the chamber showed a consistent high bias against the sur-rounding sensors during commissioning checks and is therefore excluded from the validation set, the chamber condition being represented by the return-air measurement instead. Dry-bulb temperatures are available at the principal points from the equipment controllers, including the air-handling unit sup-ply temperature and the chilled-water supply temperature (Pt100). Airflow stations report the volumetric flows of the principal streams. Electric power is metered per device (among others the reactivation heater, the supply-air compressor and fans, and the chiller), alongside aggregate channels. The pre-cooler exposes no monitoring points beyond its electric-power channel; its outlet temperature is regulated to a fixed setpoint at the equipment panel and is not logged. The validation data are taken from steady operating windows in each regime, one in dehumidification mode and one in bypass mode, identified from the logged histories; the window statistics and their use in the vali-dation are given in Section 5. How the raw channels are conditioned into the quantities the validation uses, including the mass-balance closure of the airflow readings and the interpretation of the power channels, is part of the validation methodology and is treated in Section 4. 
+
+3.3. Characteristics that shape the validation methodology 
+
+Three characteristics of this system determine how the generated model can be validated, and Section 4 builds the methodology around them. First, the sorbent of the ML420 wheel is not disclosed by the manu-facturer, which is the usual situation for commercial desiccant rotors. The wheel model therefore cannot be parameterized from a published isotherm of a known material; instead, the framework’s interchangeable-isotherm mech-anism (Section 2.2) is used to calibrate an effective isotherm from measure-ment, a procedure developed in Section 4 together with the analysis of which parameters the data actually constrain. 13 Second, the operating range spans dew points from +5 ◦C down to −40 ◦C. In the deep-dry range, relative-humidity sensing loses resolution (the quan-tities of interest live in the last fraction of a percent of relative humidity), so agreement is assessed on dew-point temperature directly, and dew point is adopted as the primary validation metric throughout (Section 4). Third, the system runs as a recirculating loop, so any error in a single component’s outlet state is fed back to its inlet and accumulated pass over pass rather than washed out. Validation therefore cannot stop at single-pass component checks: the generated model must be run to closed-loop equilibrium and judged there, which motivates the drift-based equilibrium criteria of Section 4 and, in Section 5, turns the loop’s sensitivity into an asset: the closed-loop response separates parameter variants that single-pass observations cannot distinguish. 
+
+4. Physical component models and validation methodology 
+
+The models generated by the framework combine two custom component models built for this work (the desiccant wheel and the conditioned chamber) with standard moist-air components. This section presents the governing physics of the custom blocks (4.1, 4.2), summarizes the standard components (4.3), and then sets out the methodology by which the generated system model is calibrated and judged against measurement (4.4). 
+
+4.1. Desiccant wheel model 
+
+The wheel is modeled as lumped zones corresponding to its sectors: two zones for the case-study unit, the process (adsorption) sector and the regen-eration sector, with area fractions 2/3 and 1/3, and the same formulation extends to three-sector wheels that carry a purge zone, which the library supports as a variant block. Each zone carries two states, the moisture con-tent of the desiccant matrix wr,i and its temperature Tr,i , where the zone index runs over the two sectors, i ∈ { proc , regen }, and j denotes the other zone of the pair (Fig. 4). Each sector is represented by its mass-averaged state (the angular distribution within a sector is not resolved, in contrast to spatially resolved formulations [25]), and wheel rotation enters explicitly as a carryover term: matrix mass and energy cross between zones at a rate proportional to the rotation speed ω.The moisture balance of zone i reads 14 Table 2: Case-study system and instrumentation summary: desiccant unit ratings (Munters ML420), reference airflow structure, cooling provisions (a chilled-water air-handling coil and a packaged pre-cooler), and measurement channels (dew point, airflow, per-device electric power). 
+
+Item Value 
+
+Desiccant unit (Munters ML420) 
+
+Sectors Process / reactivation (no purge) Process air flow 420 m 3 h−1 (rated) Reactivation air flow 155 m 3 h−1 (rated) Regeneration temperature ≈130 ◦C
+
+Reference airflow structure (mass-balance closure) 
+
+Ratio MA : EA : SA 3 : 1 : 2 Mixed / exhaust / supply (MA/EA/SA) 421 / 171 / 250 m 3 h−1
+
+Outdoor / return (OA/RA) 232 / 189 m 3 h−1
+
+Chamber bleed 61 m 3 h−1
+
+Cooling provisions 
+
+AHU cooling coil Chilled water from a dedicated precision chiller (≈5 ◦C) Outdoor-air pre-cooler Self-contained packaged unit, outlet ≈8 ◦C
+
+Instrumentation 
+
+Dew point SUTO S220 transmitters at SA, wheel outlet (DH), RA (−100 to +20 ◦C T d; ±2 ◦Cover −70 to 0 ◦C T d)Temperature Controller channels incl. AHU supply, chilled-water supply (Pt100) Airflow Volumetric-flow stations on the principal streams Electric power Per-device metering (kW, 
+
+≈15 s logging) 15 (a) Two-zone wheel: counter-flow sectors + rotation carryover 
+
+desiccant wheel 
+
+process air in 
+
+Cin , Tin 
+
+process out regen. air in (hot) exhaust 
+
+process (adsorption) zone (2/3) 
+
+wr, proc , Tr, proc 
+
+regeneration (1/3) 
+
+wr, regen , Tr, regen 
+
+ω    
+
+> wheel rotation ⇒inter-zone carryover of wr,Tr
+
+(b) Channel unit cell: hydraulic-diameter reduction                 
+
+> actual channel packing
+> (varies, often unspecified)
+> corrugated honeycomb
+> reduce to Dh
+> wc≈1.5 mm ( Dh)
+> air core laminar in-channel flow ( Re ≈150 ):
+> Nu = 2.98, h≈50 W m −2K−1
+> bulk air gas film solid LDF sorbed phase
+> 1/( kmAs)1/( kLDF mr)
+
+1/( keff As) = 1/( kmAs) + 1/( kLDF mr)  
+
+> (gas-film conductance in series with solid-side LDF conductance; kmvia Chilton –Colburn analogy)
+
+(c) Per-zone control volume + isotherm closure  
+
+> control volume, zone i
+
+wr, i, Tr, i
+
+mr, i, cp, r
+
++ hads ̇ mads 
+
+> (adsorption heat)
+
+εṁ m (Cin − C*)
+
+> convective moisture
+
+ε̇ m c p(Tin − Tr, i)  
+
+> convective heat
+> carryover (adjacent zone)
+> isotherm lookup RH eq (wr,Tr)
+> wr
+> RH eq
+
+C*Figure 4: Two-zone lumped model of the desiccant wheel. (a) Wheel geometry: pro-cess (2/3) and regeneration (1/3) sectors with counter-flow air streams; wheel rotation exchanges matrix mass and energy between zones (carryover). (b) Channel transfer model: the channel is reduced to an equivalent square channel of hydraulic diameter 
+
+Dh = wc ≈ 1.5 mm, and the gas-film conductance from the Chilton–Colburn analogy combines in series with the solid-side linear-driving-force (LDF) conductance in the form of Eq. 6. (c) Per-zone state variables ( wr , Tr ) and NTU-effectiveness heat/mass exchange closed by the sorption-isotherm lookup RH eq (wr , T r ).
+
+mr,i 
+
+dw r,i 
+
+dt = εm,i 
+
+˙mi
+
+ρair 
+
+(Cin,i − C∗
+
+i )
+
+| {z }
+
+˙mads,i 
+
++ ρpor Lr
+
+ Dr
+
+2
+
+2 ω
+
+2 (wr,j − wr,i )
+
+| {z }
+
+carryover 
+
+(1) where the air-side mass exchange is written in NTU-effectiveness form [26], εm,i = 1 − exp( −NTU m,i ) with NTU m,i = kef f As,i ρair / ˙mi, which keeps the exchange bounded by its thermodynamic limit at any flow rate and re-mains well-posed as ˙mi → 0. The driving potential is the difference between the inlet vapor concentration and the equilibrium concentration at the matrix surface, 16 C∗ 
+
+> i
+
+= psat (Tr,i ) RH eq (wr,i , T r,i )
+
+Rw Tr,i 
+
+(2) where RH eq (w, T ) is the sorption-isotherm closure, implemented as a two-dimensional lookup so that the sorbent is an interchangeable component of the model (Section 2.2); the isotherm family used for the case study is developed below. The heat balance of zone i carries the convective exchange, the rotational carryover, and the heat of adsorption: 
+
+mr,i cp,r 
+
+dT r,i 
+
+dt = εi ˙micp,air (Tin,i −Tr,i ) + ρpor Lr
+
+ Dr
+
+> 2
+
+2 ω 
+
+> 2
+
+cp,r (Tr,j −Tr,i ) + hads ˙mads,i 
+
+(3) with εi = 1 − exp( −NTU i), NTU i = hA s,i /( ˙ micp,air ), and the sign con-vention that adsorption ( ˙mads > 0) releases heat and desorption absorbs it. The specific heat of adsorption hads is a sorbent property taken from the literature for each registered material. The air-side outlet states follow from the same effectiveness factors, 
+
+Cout,i = C∗ 
+
+> i
+
++ ( Cin,i − C∗ 
+
+> i
+
+) e−NTU m,i , Tout,i = Tr,i + ( Tin,i − Tr,i ) e−NTU i (4) so that the heat of adsorption is assigned entirely to the matrix and reaches the air only through the raised matrix temperature Tr,i . In the low-flow limit the outlet states approach the matrix states, Cout,i → C∗ 
+
+> i
+
+and 
+
+Tout,i → Tr,i , which is what keeps the block well-posed when a stream is shut off. 
+
+Transfer coefficients. The channel microstructure of commercial wheels is often unspecified and varies between products (corrugated, honeycomb, and other matrix geometries), so the model reduces the channel to an equiva-lent square duct of hydraulic diameter Dh = 4 A/P = wc. At the case-study operating conditions the channel Reynolds number is of order 10 2,well within the laminar regime; with the flow thermally fully developed over the wheel depth, the constant-wall-temperature Nusselt number for a square duct applies, N u = 2 .98 [27], giving the gas-film heat-transfer coefficient 
+
+h = N u k air /D h ≈ 50 W m −2K−1. (The implemented correlation also cov-ers developing and turbulent branches, but the operating point does not 17 reach them.) The gas-film mass-transfer coefficient follows from the Chilton– Colburn analogy [28], 
+
+km = hρair cp,air 
+
+Le −2/3 (5) and is combined in series with a solid-side linear-driving-force (LDF) co-efficient kLDF [29], which lumps the intra-particle sorption kinetics. The two act on different bases, the gas film on the transfer area and the solid up-take on the sector’s desiccant mass, so the combination is written between conductances: the gas-film conductance kmAs,i in series with the solid-side conductance kLDF mr,i ,
+
+1
+
+kef f As,i 
+
+= 1
+
+km As,i 
+
++ 1
+
+kLDF mr,i 
+
+(6) Because the driving potential here is a vapor concentration rather than a matrix loading, kLDF carries units of m3 kg −1 s−1, and relates to the loading-based coefficient k (s−1) conventional in the LDF literature by kLDF =
+
+k ∂w/∂C ; the two are numerically similar in magnitude for this sorbent but are not the same quantity. A gas-film-only formulation transfers moisture at whatever rate the film allows and, for this wheel, overpredicts single-pass up-take; the finite solid-side kinetics is what lets one model reproduce both the static depth and the closed-loop dynamics, as Section 5 quantifies. Geome-try closes through the unit cell: face area Ac = π 
+
+> 4
+
+D2 
+
+> r
+
+fzone , channel velocity 
+
+V = ˙ m/ (ρair Acϕ), and transfer area As = 4 ϕA cLr/w c for porosity ϕ.
+
+Sorption isotherm and its calibrated family. Registered sorbents are described by their published isotherm models and compiled to the RH eq (w, T ) lookup; for the zeolite family used here, the model is a triple-site Langmuir (TSL) with site affinities bk(T ) = b0,k exp( Ek/RT ) [30]. Because the case-study sor-bent is undisclosed, no library material can be asserted a priori; Section 4.4 describes the screening that selects a base material, and the calibration then acts on a one-parameter family of the base isotherm. The family rescales the site activation energies, E′ 
+
+> k
+
+= sE k, while renormalizing the pre-exponentials, 
+
+b′ 
+
+> 0,k
+
+= b0,k exp 
+
+Ek(1 − s)
+
+R T ref 
+
+
+
+(7) so that at T = Tref the scaled exponent sE k/RT ref and the compensating 
+
+Ek(1 −s)/RT ref recombine to the original Ek/RT ref : bk(Tref ), and with it the 18 isotherm at the process temperature, is pinned exactly, and the scale factor s
+
+modifies only the isotherm’s decline toward regeneration temperatures. The construction makes s a pure desorption-side knob, structurally orthogonal to any calibration performed at process conditions (Fig. 6), a property that Section 4.4 relies on to keep the calibration ledger disjoint. 
+
+4.2. Conditioned-chamber model 
+
+Low-dew-point chambers are operated at positive gauge pressure so that leakage flows outward, which makes infiltration-versus-leakage physics the first-order moisture behavior of the room. The chamber model tracks dry air and water vapor separately, 
+
+dm dry 
+
+dt = ˙ mdry,in − ˙mdry,out − ˙mdry,leak (8) 
+
+dm wv 
+
+dt = ˙ mdry,in Yin − ˙mdry,out Yout + ˙ msource − ˙mwv,leak (9) with Y the humidity ratio and ˙msource an internal moisture source that accepts scheduled scenarios. The chamber is treated as well-mixed, so the outgoing streams carry the chamber’s own composition, Yout = mwv /m dry 
+
+and ˙mwv,leak = ˙mleak Yout . Dry-basis and total flows are related by ˙m =˙mdry (1 + Y ) and the inventories by m = mdry + mwv , with composition-dependent mixture specific heats, cv = cp − Rmix .The energy balance accounts for the enthalpy carried by every stream crossing the envelope, the leakage outflow and the moisture source included: 
+
+cvmdT room 
+
+dt = − cv
+
+dm dry 
+
+dt + dm wv 
+
+dt 
+
+
+
+Troom + ˙ min cp,in Tin 
+
+− ( ˙ mout + ˙ mleak ) cpTroom + ˙ msource cp,wv Tsource + ˙Q
+
+(10) where Tsource is the temperature at which the ingress vapor enters, taken as ambient. 1 
+
+> 1The enthalpy of the ingress stream is carried for thermodynamic consistency. At the calibrated ingress rates its steady-state effect on the chamber temperature is below 0.03 K ,and none of the comparisons of Section 5 depend on it.
+
+19 Pressure closes pneumatically: the room acts as a capacitance whose pressure follows from its air inventory, and the outward flows follow from the pressure differences, 
+
+Proom = mtotal Rmix Troom 
+
+Vroom 
+
+,
+
+˙mleak = Kleak (Proom − Pamb ),
+
+˙mout = Kreturn (Proom − Preturn )
+
+(11) with Kreturn ≫ Kleak since the return duct is the intended flow path. The ratio fixes the bleed fraction by design, ˙mleak / ˙mRA = Kleak /K return , which the measured airflow closure of the case study reproduces. One interface rule follows from the framework rather than the physics: the chamber’s bus output carries ambient pressure rather than Proom , because propagating the room’s gauge pressure around a recirculating topology would accumulate pressure pass over pass, an instance of the interface discipline of Section 2.1 applied to closed loops. 
+
+4.3. Other components 
+
+The chilled-water cooling coil is built on the Simscape Moist Air and Thermal Liquid domains, with the coil itself a thermal-liquid-to-moist-air heat exchanger [31]; its governing equations are given in the cited documen-tation. The one point of physical consequence for this study is that the coil’s outlet humidity is bounded by saturation at the coil surface temperature (the apparatus dew point), which is what limits how far condensing cooling alone can dehumidify in the bypass regime, the OFF configuration of Section 3.1 in which the recirculating air routes around the wheel. The outdoor-air pre-cooler, a packaged unit whose internal construction is not documented (Section 3), is represented by the same coil block with an equivalent geome-try sized so that the coil reproduces the unit’s regulated outlet temperature; its sizing is thus fixed by an independently known equipment setting rather than by any validation measurement. The remaining components (heater, humidifier, mixer, and splitter) are lightweight Simulink implementations of their elementary physics (sensible heating, vapor addition, adiabatic mixing, and flow division on the shared property functions) and warrant no further description. 20 4.4. Validation methodology System-level validation. The desiccant wheel’s operating point is determined jointly with the loop it serves: in recirculation, the wheel’s inlet state is a function of its own past output, and the chamber, coils, and mixing all shift the equilibrium the wheel settles into. Component-level tests against isolated inlet conditions therefore cannot certify the quantity that matters, the closed-loop equilibrium, and validation in this work is performed at system level, on the generated model of the full topology, with an isolated-rotor case retained as one comparison among several rather than as the validation itself. 
+
+Sorbent screening and base selection. Calibration of the sorbent starts from the fact established in Section 3.3: the wheel’s material is unknown, and asserting any particular library material would be a guess. All eight registered sorbents are therefore screened in the generated model, each with its isotherm taken from published measurements: zeolites 4A and 3A [30], the commercial CECA 3A, regular-density silica gel, and AQSOA Z02 [32], zeolite 13X [33], MOF-801 [34, 35], and AQSOA Z01 [36]. Each variant is rebuilt with only the sorbent changed and run to closed-loop equilibrium under the measured operating conditions. Screening proceeds in two stages, of which the first tests the data rather than the material. A tabulated isotherm can be evaluated only inside the temperature range its published fit covers; beyond that range the lookup holds at its boundary, so a candidate whose fit stops short of the reactivation temperature is not being simulated at the reactivation condition at all, and its outcome is not comparable with the rest. The framework raises exactly this at build time, as one of the admissibility checks of Section 2.3: a sorbent whose validity range does not span the declared regeneration temperature is flagged before the model is run. At the 129 .9 ◦C reactivation temperature delivered in this system three of the eight candidates fail the test, their published fits reaching only 100, 80, and 60 ◦C; they are reported with the screening but excluded from the ranking. The five admissible candidates are then ranked on the process-outlet frost point their loops settle at, and the best of them, zeolite 4A [30, 37], is adopted as the base shape (Section 5.2). Every subsequent adjustment acts on the one-parameter family of Eq. 7 built on that base, never on free isotherm coefficients. 
+
+Parameterization discipline. A system model of this scale takes dozens of inputs, and a reader is entitled to ask how many of them were adjusted until 21 the answers came out right: with enough free parameters, agreement demon-strates nothing [38]. The answer is kept auditable by classifying every model input by its source (Table 3): physical constants and sorbent properties from the literature, geometry and ratings from datasheets and drawings, operating inputs from the measured windows, and exactly four calibrated quantities. The table states, for each calibrated quantity, the single measured constraint it was set against; the three closed-loop humidity nodes are consumed, one each, by the isotherm-family parameter and the two ingress rates, and every quantity Section 5 compares against measurement lies outside this ledger. Agreement is assessed on dew-point temperature (Section 3.3), with model states converted through the framework’s own property functions so that model readout and sensor convention share the same lens. Below 0 ◦C the facility’s transmitters report the frost point (the saturation temperature over ice) per the manufacturer’s specification [39], and model states are accord-ingly converted through the over-ice saturation branch; sub-zero agreement in Section 5 is assessed on frost point throughout. 
+
+Separation of calibration roles. Even four parameters invite a sharper objec-tion: if a knob was turned until the model met a measurement, then meeting that measurement proves little. The calibration therefore keeps its ledger disjoint. The transport parameter Dr is set by open-loop, single-pass behav-ior at measured inlet states, without reference to any closed-loop quantity. The isotherm-family parameter s is set by the level at which the recirculating loop settles at the process-outlet station, and the two ingress rates follow in one step from the measured supply- and return-air humidity gaps: computed rather than searched, but computed from the very nodes they reconcile, so they are counted as calibration, not as evidence. Three closed-loop nodes stand against three degrees of freedom, yet none of the three knobs can drive its own residual to zero: each enters the model through a fixed physical form, a one-parameter isotherm family or a constant ingress rate, not as a per-node offset that could absorb whatever error remains. The residuals that survive are therefore informative, and their sub-degree size (Section 5) measures how well those fixed forms describe the plant. The predictive weight of the vali-dation rests entirely on quantities this ledger never saw: the bypass regime, the reactivation power, and the measured input-step responses of Section 5. 
+
+Identifiability. It is fair to ask whether observations at the system’s ordinary operating points could have determined the rotor parameters directly, in the 22 Table 3: Model parameterization. (a) Sources of the model inputs. (b) Calibration ledger: the four calibrated quantities, each with the single measured constraint it was set against and the residual that remains. 
+
+(a) Sources of the model inputs 
+
+Category Model inputs Source Physical constants and sorbent properties TSL isotherm parameters (three sites: ns, b0, E)of the registered sorbents; heat of adsorption hads ;moist-air property functions Literature [30] Geometry and equipment ratings Rotor length and sector split fab = 2 /3; channel width wc; AHU coil geometry (tube count, rows, fin pitch: original drawing values); pre-cooler equivalent-coil sizing (fixed by its regulated 8 ◦Coutlet, Section 3); heater ratings; rotation speed Datasheets, drawings, and equipment settings (Section 3) Fixed assumption Solid-side LDF coefficient kLDF = 0 .04 m3 kg −1 s−1 (Section 4.1) Held fixed (Section 5.2) Measured operating inputs Reference airflow structure OA 232 / EA 171 / MA 421 / SA 250 / RA 189 m 3/h with 61 m 3/h bleed (mass-balance closure of the PLC readings); boundary air states over the measurement windows; chilled-water supply temperature; regeneration air temperature at the wheel inlet, 
+
+129 .9 ◦C (panel Pt100) Measurement windows (Sections 3.2, 4.4) 
+
+(b) Calibration ledger: the four calibrated quantities 
+
+Symbol Quantity Value Measured constraint it was set against Residual 
+
+Dr Rotor diameter 0.65 m Process-outlet frost point, 
+
+−40 .02 ◦C, in open-loop single pass — (open loop) 
+
+s Isotherm-family scale 1.8 Closed-loop equilibrium level at the process outlet 
+
+−0.53 ◦C
+
+˙msource,AHU AHU-path moisture ingress 
+
+1.06 × 10 −5
+
+kg/s Measured supply-air humidity gap 
+
+−0.16 ◦C
+
+˙msource,ch Chamber moisture ingress 
+
+2.45 × 10 −6
+
+kg/s Measured return-air humidity gap 
+
+−0.19 ◦CLedger. The three closed-loop humidity nodes are consumed, one each, by s and the two ingress rates; Dr is set outside the loop, so no closed-loop residual attaches to it. What Section 5 then compares against measurement was available to none of the four. 
+
+23 manner of grey-box parameter estimation [40]. They could not, and showing this is part of the methodology: a sensitivity analysis over fan-varied operat-ing points, examined in the manner of practical identifiability analysis [41], shows that these data constrain a single combination of the rotor parameters, the solid-side uptake conductance, and cannot separate the desorption side from it; what does expose the desorption side is the deep-dry equilibrium level itself. Section 5.2 presents the analysis and Section 5.3 the resolution; the calibration accordingly assigns s to the deep-dry closed-loop level and leaves the fan-varied data to constrain the conductance they actually measure. The methodology reports this identifiability structure rather than asserting that all parameters were identified. 
+
+Equilibrium qualification. Closed-loop model results are admitted into the validation only when qualified by drift rate over the terminal evaluation win-dow (drift below 0.0040 ◦C per 1000 s), not by their endpoint value; slow drifts masquerade as plausible endpoints long before equilibrium, and endpoint-based comparison would reward them. 
+
+Energy comparison. Over the same measurement windows as the dew-point comparisons, per-device electric power channels are averaged and compared with the corresponding model duties. The primary energy comparison is the reactivation heater, a resistive load for which electrical power equals thermal duty with minimal assumption. Interpretation of the power channels is part of the methodology: the heater’s metering covers one of its two heating banks, established by circuit inspection, by the ratio of logged power to duty over sixty hours of operation, and by consistency of the back-calculated reactivation inlet temperature; the comparison accordingly uses twice the metered value. Standby consumption of the desiccant unit in the bypass regime lies outside the model’s scope and is excluded from the comparison. 
+
+5. Results 
+
+5.1. Generation efficiency (C1) 
+
+The framework’s first claim is that a validated physical model of an HVAC system can be produced from a declarative specification at a small fraction of the effort of building it by hand. We measured this on the case-study topology (topo14, the dehumidification configuration) by comparing an ex-pert building the model manually in Simulink against the generator, both 24 starting from the same component library and the same parameter sheet, so that the comparison isolates construction effort rather than the parameter research that precedes it (Table 4). 
+
+> Table 4: Construction effort for the same validated topology: expert manual build versus automated generation.
+
+Metric Manual (expert) Automated Time to runnable model 22 min 12 s (hands-on) 87.9 s (cold, engine start-up incl.) / ∼44 s (warm) Errors / rework 1 (missing solver max-step → oscillation 
+
+→ 1 min 40 s rework) 0 (3/3 deterministic) Parameter entries 47 + init 4 + solver 3 (manual) 0 (from YAML) Wiring operations 28+ (manual) 0Reproducibility — bit-for-bit identical (3 runs) 
+
+Speed-up — 15 × (cold, conservative) / 
+
+∼30 × (warm) 
+
+Manual construction reached a runnable model in 22 min 12 s of hands-on work and incurred one rework cycle, a missing solver max-step setting that produced numerical oscillation and had to be diagnosed and corrected; it required 47 mask-parameter entries and on the order of 28 wiring operations entered by hand. The generator produced the same model in 87.9 s from a cold start, engine start-up included, and in roughly 44 s warm, with no man-ual parameter entry and no wiring: every value and every connection derives from the YAML file. The construction is deterministic: regenerating from the same specification reproduces the model identically, and three succes-sive generations were bit-for-bit identical. Taken conservatively against the cold-start time, this is a fifteenfold reduction in construction effort, rising to about thirtyfold warm. Two qualifications attach to the number. The comparison excludes the communication and telemetry layer, the taps that make the model twin-ready, because building those by hand is not something an expert completes 25 in a comparable sitting; the measured ratio is therefore a lower bound on the automation gain, taken over only the part a human can realistically do. And the value is not the speed as such but that the declarative route yields a model carrying the physical depth documented in Section 4; the fifteenfold figure is the token of that route rather than its point. Figure 5 places the two top-level diagrams side by side: the connectivity is identical, and the layouts differ only in the incidental choices a human makes and a generator does not. That they can differ at all without either being wrong is the point: once the wiring is complete and correct, the arrangement on the canvas is a convenience for the human reader, not a property of the model. 
+
+5.2. The identification problem 
+
+With the construction claim established, the remainder of this section concerns the physical validation. It begins not with agreement but with the obstacle that has to be cleared before agreement means anything. The sorbent of the wheel is undisclosed (Section 3.3), so no isotherm can be asserted a priori, and the two-stage screening of Section 4.4 was run over all eight registered materials (Fig. 6a). Two facts follow. The first is that no library isotherm reaches the measured depth unmod-ified. The admissible candidates settle between −17 .5 and +13 .7 ◦C at the process outlet against −40 .02 ◦C measured, the best of them short by 22 .6 ◦C, and no candidate at all, the three excluded ones included, comes within 17 ◦Cof the measurement. Some calibration of the isotherm is therefore unavoid-able, and the question is only what is allowed to move. One of the excluded candidates, zeolite 13X, does settle deeper than any admissible one; it is set aside because its published fit ends at 100 ◦C and so cannot be evaluated at this system’s reactivation temperature, not because it performs poorly, and since boundary clamping understates desorption its true depth would be greater still. Admitting it would mean extrapolating a fitted isotherm 30 ◦Cbeyond its measured range, which is the kind of unstated assumption the screening is meant to keep out. The second is what separates the candidates, and it is not the material. Among the five admissible the split is complete: the two triple-site Langmuir zeolite fits settle on the dry branch and all three fits carried in Hill form stay near saturation, with 27 ◦C of empty range between the groups. Yet the CECA 3A fit is nominally the same zeolite as candidate 3A, and carries the same isotherm classification, and it stays trapped. What the screening separates is the isotherm fit and its formulation rather than the nominal 26 (a) manual expert build (22 min hands-on) MoistAir_In m_dot_coolant MoistAir_Out Q_load m_dot_condensed 
+
+PCU 
+
+MoistAir_In1 MoistAir_In2 MoistAir_Out MoistAir_In Q_load M_load MoistAir_Out P_room T_room 
+
+NIR_Room 
+
+MoistAir_Process_In MoistAir_Regen_In RPM MoistAir_Process_Out MoistAir_Regen_Out 
+
+Rotor 
+
+MoistAir_In Ratio MoistAir_Out1 MoistAir_Out2 MoistAir_In m_dot_coolant MoistAir_Out Q_load m_dot_condensed 
+
+AHU_Cooler 
+
+MoistAir_In T_heater MoistAir_Out Q_heater 
+
+AHU_Heater 
+
+MoistAir_In m_dot_water MoistAir_Out 
+
+AHU_Humidifier 
+
+MoistAir_In T_heater MoistAir_Out Q_heater 
+
+Regen_Heater OA_Src OA_T OA_P OA_m OA_RH FeedbackDelay 1EA_Out AHU_Heater_Temp 
+
+DH OA TPm_dot RH EA <RH> MA 
+
+pre-cooler desiccant wheel regeneration heater air-handling unit (coil, heater, humidifier) conditioned chamber 
+
+(b) auto-generated (88 s) OA_Src OA_T OA_P OA_m OA_RH MoistAir_In m_dot_coolant MoistAir_Out Q_load m_dot_condensed 
+
+Pre_Cooler 
+
+MoistAir_In1 MoistAir_In2 MoistAir_Out 
+
+Mixer 
+
+MoistAir_Process_In MoistAir_Regen_In RPM MoistAir_Process_Out MoistAir_Regen_Out 
+
+Rotor 
+
+MoistAir_In Ratio MoistAir_Out1 MoistAir_Out2 
+
+Splitter Split_Ratio 
+
+MoistAir_In T_heater MoistAir_Out Q_heater 
+
+Regen_Heater Regen_Heater_Temp 
+
+MoistAir_In m_dot_coolant MoistAir_Out Q_load m_dot_condensed 
+
+AHU_Cooler 
+
+MoistAir_In T_heater MoistAir_Out Q_heater 
+
+AHU_Heater AHU_Heater_Temp MoistAir_In m_dot_water MoistAir_Out 
+
+AHU_Humidifier AHU_Humid_Rate 
+
+MoistAir_In Q_load M_load MoistAir_Out P_room T_room 
+
+Room Room_Q_Load Room_M_Load FeedbackDelay Pre_Cooler_PC_Q_load Pre_Cooler_PC_m_dot_cond AHU_Cooler_AHU_Q_load AHU_Cooler_AHU_m_dot_cond AHU_Heater_AHU_Q_heater Regen_Heater_Regen_Q_heater Room_P_room Room_T_room 1EA_Out Telem_Clock GoTo_sim_t BusSel_pc_out_T GoTo_pc_out_T BusSel_pc_out_RH GoTo_pc_out_RH GoTo_pc_Q GoTo_pc_condensed BusSel_ma_T GoTo_ma_T BusSel_ma_RH GoTo_ma_RH BusSel_dh_T GoTo_dh_T BusSel_dh_RH GoTo_dh_RH BusSel_dh_m_dot GoTo_dh_m_dot BusSel_rotor_regen_T GoTo_rotor_regen_T BusSel_rotor_regen_RH GoTo_rotor_regen_RH BusSel_regen_heater_T GoTo_regen_heater_T GoTo_regen_heater_Q BusSel_ahu_T GoTo_ahu_T BusSel_ahu_RH GoTo_ahu_RH GoTo_ahu_cooler_Q GoTo_ahu_cooler_cond BusSel_nir_T GoTo_nir_T BusSel_nir_RH GoTo_nir_RH GoTo_nir_T_room UDP_Telemetry TCP_Control From_pc_m_dot_coolant_cmd From_rotor_rpm_cmd From_ahu_m_dot_coolant_cmd 
+
+<T> <T> <T> TPm_dot RH <RH> <RH> <T> <T> <RH> <RH> <T> <m_dot> <RH> <T> <RH> 
+
+pre-cooler desiccant wheel regeneration heater air-handling unit (coil, heater, humidifier) conditioned chamber Figure 5: Top-level diagrams of the same topology built (a) manually by an expert user (22 min hands-on, one rework cycle) and (b) by the generator (88 s including engine start-up): connectivity is identical, while the generated layout is deterministic and reproducible. Colored frames mark the principal components in both panels (regeneration side in or-ange). 
+
+27 material class, which is the same reason the wheel’s own sorbent cannot simply be looked up. Zeolite 4A, the best of the admissible candidates and marginally ahead of zeolite 3A, is adopted as the base shape on which the one-parameter family of Section 4.1 is built. The screening, like the parameter perturbations below and the isotherm-family sweep of Section 5.3, consists of generated model variants, each rebuilt from a lightly edited specification; a calibration of this breadth is practical only because construction is cheap, which is where the efficiency of Section 5.1 stops being a convenience and becomes part of the validation methodology. −40 −30 −20 −10 0 10                   
+
+> Process-outlet frost point [°C]
+> Zeolite 13X
+> Zeolite 4A
+> Zeolite 3A MOF-801 AQSOA Z01 CECA 3A Silica gel RD AQSOA Z02
+> fit ≤100 °C fit ≤80 °C fit ≤60 °C measured (−40.02 °C)
+> 22.6 °C short admissible outside isotherm validity range (130 °C)
+> 10 −410 −310 −210 −110 0
+> Equilibrium relative humidity [ –]
+> 0.00 0.05 0.10 0.15 0.20 0.25 0.30
+> Uptake  w [kg kg −1]
+> at fixed RH, larger sholds less water
+> 130 °C (regeneration) unless noted
+> all s, 25 °C (process)
+> s= 1.0
+> s= 1.2
+> s= 1.5
+> s= 1.8 (calibrated)
+> (a) (b)
+
+Figure 6: Sorbent-side calibration. (a) Two-stage screening of the eight registered sorbents at the measured operating condition: candidates whose published isotherm fit does not span the 129 .9 ◦C reactivation temperature are drawn open and excluded from the ranking (Section 4.4), and of the five admissible candidates none reaches the measured process-outlet frost point, the best falling 22 .6 ◦C short. Sub-zero values are frost points (Section 4.4). (b) The E-scaled isotherm family: renormalizing the site-affinity pre-exponentials pins the process-temperature isotherm (the 25 ◦C curve is common to all variants) while amplifying only its decline toward regeneration temperature, so the scale factor s acts as a pure desorption-side knob; s = 1 .8 is the calibrated member. 
+
+Granting that a calibration is needed, the sharper question is whether observations at the system’s ordinary operating points can determine the wheel’s parameters individually, or only some combination of them. They determine only a combination. Perturbing each rotor parameter by +20% (the kinetic coefficient kLDF , the dimensions Dr and Lr, the sector fraction 
+
+fab , the channel width wc, and the isotherm-family scale s) and recording the chamber and supply-air dew-point responses over fan-varied operating points 28 yields the sensitivity matrix 
+
+Sij = ∂T dp,i 
+
+∂ ln θj
+
+≈ ∆Tdp,ij 
+
+0.20 (12) whose rows are the measurement stations at the three fan-varied operat-ing points, whose columns are the six wheel parameters θj , and whose entries carry units of ◦C (Table 5). The kinetic coefficient, rotor length, and sec-tor fraction respond at −2.9 to −3.8 ◦C per perturbation, the diameter at 
+
+−3.2 to −4.8 ◦C with its excess over the others varying by operating point, the channel width at a fraction of a degree, and s at under a degree. The singular-value spectrum of the matrix has an effective rank of one: the second singular value sits an order of magnitude below the first ( σ1/σ 2 ≈ 10 ), with dominant direction V1 ∝ [1 , 1.3, 1, 1, ≈0, ≈0] over these six axes (Fig. 7). In physical terms, each singular value is the frost-point response, in ◦C, that the measurements offer along one independent combination of fractional pa-rameter changes, and the entries of V1 are the weights of the best-observed combination: these operating points respond by about 18 ◦C along the di-rection that moves kLDF , Lr, fab , and (with weight 1.3) Dr together, and by less than 2 ◦C along every direction orthogonal to it. That direction has a precise physical reading. The matrix inventory scales as D2 
+
+> r
+
+Lrfab , so what the steady-state data constrain is essentially the single product kLDF mr, the solid-side uptake conductance; the diameter’s addi-tional flow-side effect supplies the weak second direction. Two consequences follow. Any combination of parameters preserving the conductance product is indistinguishable at these operating points. And the desorption side, though not strictly invisible, is unidentifiable here: the response to s is a fifth the size of the conductance responses and nearly parallel to them, so no fit to these data can separate a change in the isotherm family from a small change in conductance. (The wheel’s own outlet station is excluded from the matrix: as its air approaches zero humidity the frost-point scale stretches without bound, and temperature-unit sensitivities there are ill-posed; the next sec-tion turns that same stretching into the identifying signal.) A steady-state fit at ordinary operating points therefore determines one number, and the regeneration side of the isotherm must be identified elsewhere. 
+
+5.3. Resolution by the deep-dry closed-loop level 
+
+The regeneration side is identified where its effect is large. The isotherm-family scale s is pinned at process temperature by construction (Section 4.1), 29 kLDF Drotor Lrotor fab wc s
+
+OP1 OP6 OP5                
+
+> -3.2 -3.2 -3.2 -3.2 +0.7 -0.7 -2.9 -4.8 -2.9 -2.9 +0.6 -0.7 -3.8 -4.8 -2.9 -3.8 +0.6 -0.7
+
+−6
+
+−4
+
+−20246
+
+> Δfrost point per +20% [°C]
+
+σ1 σ2 σ3 σ4 σ5 σ6
+
+10 −3
+
+10 −2
+
+10 −1
+
+10 0
+
+10 1
+
+10 2
+
+> Singular value [°C]
+
+10% σmax    
+
+> 18.2 1.7 0.7 0.03
+> ≈0≈0
+
+effective rank = 1 
+
+σ1/σ2 = 10.5 
+
+the data constrain one combination ( V1, right) 
+
+0.0 0.5 1.0 
+
+V1 loading [ –]
+
+kLDF 
+
+Drotor 
+
+Lrotor 
+
+fab 
+
+wc
+
+s
+
+> +0.46 +0.60 +0.44 +0.46 -0.09 +0.10
+
+(a) (b) Figure 7: Identifiability of the wheel parameters at the system’s ordinary operating points. (a) Chamber frost-point sensitivity to +20% parameter perturbations over fan-varied op-erating points (heatmap): the kinetic coefficient, rotor dimensions, and sector fraction respond in near-fixed proportion, while the channel width and the isotherm-family scale 
+
+s respond at a fraction of their size. (b) Singular-value spectrum of the chamber and supply-air sensitivity matrix: effective rank one ( σ1/σ 2 ≈ 10 ), with the dominant direc-tion V1 identifying the solid-side uptake conductance kLDF mr (with mr ∝ D2 
+
+> r
+
+Lr fab ); the response to s lies in the near-null space, so the desorption side is unidentifiable from these data (Section 5.2). 
+
+30 Table 5: Chamber frost-point sensitivity to +20% parameter perturbations over fan-varied operating points, and the singular-value structure of the chamber and supply-air sensitivity matrix. 
+
+Parameter ∆frost point per +20% ( ◦C, chamber) Note 
+
+kLDF (LDF coefficient) −2.9 to −3.8 product-direction component 1 
+
+Dr (rotor diameter) −3.2 to −4.8 weight ≈ 1.3,operating-point dependent; the excess flow-side effect forms the second direction 
+
+Lr (rotor length) −2.9 to −3.2 component ≈ 1
+
+fab (adsorption-sector fraction) −2.9 to −3.8 component 1 
+
+wc (channel width) ≈ +0 .6 ≈ 0 (outside the collinear subspace) 
+
+s (isotherm E-scale) −0.66 to −0.70 
+
+(supply air −0.75 
+
+to −0.82 )weak and degenerate: parallel to the conductance direction, carried by 
+
+V4 (σ4/σ 1 ≈ 0.0015 )
+
+SVD (chamber and supply air, 6 × 6): σ = [18 .2, 1.7, 0.7, 0.03 , ∼0, ∼0] ,
+
+σ1/σ 2 = 10 .5, effective rank 1; V1 ∝ [1 , 1.3, 1, 1, ≈0, ≈0] → kLDF mr
+
+and at the fan-varied operating points of Section 5.2 its trace is marginal; as the system dries, the wheel’s working state couples ever more strongly to how completely the matrix regenerates, and the response to s grows by an order of magnitude. In single-pass operation at the measured deep-dry inlet, the variants s = 1 .5, 1.7, 2.0 place the process-outlet frost point at −31 .6,
+
+−35 .7, and −40 .1 ◦C, a spread of 8.5 ◦C between isotherms that the fan-varied observations of Section 5.2 could barely tell apart. In recirculation the same separation appears as the level at which the loop settles. At the measured regeneration boundary, every variant settles into a stationary equilibrium of its own (terminal drift rates at or below 0.0083 ◦C per 1000 s): the grid 31 s = 1 .2–2.0 spans about 18 ◦C at the process outlet, a step of 0.1 in s near the measured level moves the equilibrium by about 1.7 ◦C, and the calibrated 
+
+s = 1 .8 settles within 0.6 ◦C of the measured level (Fig. 8). 0 10 20 30 
+
+Time [ 10 3 s] 
+
+−45 
+
+−40 
+
+−35 
+
+−30 
+
+−25 
+
+> Process-outlet frost point [°C]
+
+s = 1.2 
+
+s = 1.5 
+
+s = 1.7 
+
+s = 1.8 (cal.) 
+
+s = 2.0 
+
+> measured ( −40.02 °C)
+
+18 °C         
+
+> Figure 8: Level-based identification of the isotherm family in recirculation. Closed-loop process-outlet frost-point trajectories for the variants s= 1 .2to 2.0 at the measured regeneration boundary; the dashed line is the measured level and the calibrated member
+> s= 1 .8is drawn in bold. Each variant settles at a level of its own, and it is that level, not the fact of settling, which identifies s(Section 5.3).
+
+This deep-dry equilibrium level is the measurement the calibration as-signs to s (Section 4.4). The assignment is bookkeeping, not a prediction (the level is a fitted constraint and is counted as one), but it settles where the information lives: the desorption side of an effective isotherm is pinned by the deep-dry equilibrium the loop itself reaches, not by accumulating fur-ther steady-state points at ordinary operating conditions, which Section 5.2 32 shows cannot separate it from the transport parameters. For recirculating dehumidification systems this identifies which measurement a generated twin actually needs, and it is why the validation that follows rests on quantities withheld from the calibration rather than on the level that identified s.
+
+5.4. Prediction against withheld measurements 
+
+The calibration of Section 4.4 consumes the three closed-loop humidity nodes and nothing else. With the single parameter set fixed (Zeolite 4A E-scaled at s = 1 .8, Dr = 0 .65 m, fab = 0 .667 , and the two ingress rates), the generated closed-loop model settles within 0.6 ◦C of all three: process-outlet frost point −40 .55 ◦C against −40 .02 measured, supply air −31 .39 against 
+
+−31 .23 , return air −30 .08 against −29 .89 , every equilibrium drift-qualified in the sense of Section 4.4. These residuals measure the consistency of the calibration’s fixed physical forms, and this paper does not count them as predictions. The predictions are what the same parameter set gets right about measurements it never saw (Table 6, Fig. 9). In the figure, each measured value is the mean of the logged samples over its steady evaluation window, with an error bar spanning one standard deviation of those samples; model values are single drift-qualified equilibria (Section 4.4) and carry no comparable statistic. The first is the other operating regime. In bypass mode (a different generated topology, the wheel out of the path, the chamber held by the con-densing coil alone) the model settles at a chamber dew point of +5 .02 ◦Cagainst +5 .10 measured. The second is the energy channel: the reactivation heater, never a calibration target, is metered at 5.171 kW against a model reactivation duty of 5.42 kW, an agreement of +4.8% obtained with the re-generation inlet temperature held at its measured value rather than adjusted (metering interpretation in Section 5.5). The remaining rows of the table are measured input steps, each compared within its own measurement session so that the comparison is a response, not a level. Where the plant does not respond, the model predicts that it should not: a rotor-speed step from 60 to 50 Hz moves the measured chamber dew point by no more than 0.1 ◦C, and the model responds with −0.4 ◦C at the chamber ( −1.2 ◦C at the process outlet, where the measured channel itself wanders non-monotonically by about 1 ◦C); a chilled-water step from 5 to 7 ◦Cleaves the measured supply-air dew point inside its ±0.5–0.9 ◦C wander, and the model responds by no more than 0.06 ◦C, the coil being non-condensing 33 Table 6: Prediction against measurements withheld from calibration: the bypass-regime chamber, the reactivation-heater power, and three measured input steps (rotor speed, chilled water, air-handling heater setpoint), each compared with the response of the same calibrated parameter set, including the two cases where the correct response is none. 
+
+Quantity (withheld from calibration) Model Measured ∆
+
+Bypass-regime chamber dew point ( ◦C) 
+
++5 .02 +5 .10 −0.08 
+
+Reactivation heater duty (kW) 5.42 5.171 ( 2 × 2.586 ,twin-bank) 
+
++4 .8%Rotor 60 to 50 Hz: chamber dew-point response ( ◦C) 
+
+−0.4 ≤ 0.1 (below noise) null-match Chilled water 5 to 7 ◦C: supply-air dew-point response (◦C) 
+
+≤ 0.06 ±0.5–0.9 (noise wander) null-match AHU heater 20 to 22 ◦C: supply-air temperature response ( ◦C) 
+
++2 .19 +2 .0 +0 .19 
+
+at these states. Where the plant does respond, the model tracks it: an air-handling heater setpoint step from 20 to 22 ◦C raises the measured supply-air temperature by 2.0 ◦C, against 2.19 ◦C in the model. The humidity channel of that step is excluded from the comparison: the plant’s humidification is governed by a relative-humidity controller, so a temperature step moves its humidity command through the control layer, which the physical model does not represent. Finally, an isolated single-pass model of the calibrated wheel, driven by measured boundary conditions, reproduces the process-outlet frost point to +1 .54 ◦C; this is reported as a cross-check rather than a prediction, since its mixed-air inlet state is itself an estimate. 
+
+5.5. Energy comparison 
+
+Over the same measurement windows as the humidity comparisons, the per-device electric-power channels are compared with the corresponding model duties (Table 6, Fig. 9). The primary comparison is the reactivation heater, the dominant energy input of desiccant dehumidification [42] and a resistive load whose electrical power equals its thermal duty with minimal assump-tion. The heater is built as two identical banks and the facility meters one 34 −40 −35 −30 DH, closed loop (ON) SA, supply (ON) RA, return (ON) Chamber, bypass (OFF) DH, single pass (ON) Measured (±1 σ)Model, calibration node (fit) Model, prediction Model, cross-check 4 6 −2 0 2       
+
+> Model −measured [°C]
+> -0.53 -0.16 -0.19 -0.08 +1.54
+> 0246
+> Power [kW]
+> Regen. heater Humidifier Pre-cooler
+> 2 × 2.586 = 5.171 5.42 ( Δ+4.8%) 1.35 2.21 0.00 0.00 thermal duty (implied COP 1.64)
+> Measured (electric) Model duty (prediction) Model (thermal duty)
+> Dew-point / frost-point temperature [°C]
+> (a) (b)
+
+Figure 9: Model–measurement agreement across both operating regimes with a single parameter set. (a) Humidity comparison: the three closed-loop nodes consumed by cali-bration (muted, shown as fit consistency), the bypass-regime chamber (prediction), and the isolated single-pass cross-check; sub-zero values are frost points (Section 4.4). Filled mark-ers show measurement-window means with ±1σ bands, open markers the drift-qualified model equilibria; the right panel gives the residuals. (b) Electric-power comparison over the same windows: the regeneration heater (twin-bank metering, 2 × 2.586 = 5 .171 kW, prediction) and the humidifier; pre-cooler electric consumption is reported alongside the model thermal duty (implied COP, not directly comparable). 
+
+of them, so the comparison uses twice the metered value: 2 × 2.586 = 5 .171 
+
+kW against a model reactivation duty of 5.42 kW, an agreement of +4.8%, obtained with the regeneration inlet temperature held at its measured value (Section 4.4) rather than adjusted. A second, qualitative check is the humidifier, metered at zero through-out, consistent with its being off in both regimes. The pre-cooler is reported as corroboration rather than a calibrated match: its metered electric power set against the model’s thermal duty implies a coefficient of performance of about 1.6, plausible for the small packaged refrigeration unit it is, though the package exposes no thermal measurement that would allow a closer com-parison (Section 3.2). The cold source of the air-handling coil (a precision chiller that runs its compressor continuously and trims with a heater) does not admit an electric-to-duty comparison at all, and its channels, together with the fans and the desiccant unit’s standby consumption in the bypass regime, lie outside the comparison. 35 6. Discussion 
+
+What an automated generation framework finally owes its user is not a model that runs but a model that behaves like the equipment. The executable model of Section 2 is the necessary half of that deliverable; the calibrated, measurement-tested twin of Sections 4 and 5 is the other, and this is why a paper about automatic construction spends much of its length on calibra-tion and validation: the two are stages of one pipeline. The dependence also runs in the practical direction, as Section 5.2 noted: every screening, sweep, and perturbation of the calibration is a regenerated model variant, an ex-perimental style that hand-built models do not support at reasonable cost. Generation without validation is unfinished, and validation of this breadth is impractical without generation. The calibration that closes the pipeline must then withstand the obvious objection: with enough adjustment, any model meets any measurement. The answer is structural rather than arithmetic, and it is kept in one place: the ledger of Section 4.4 names each of the four calibrated quantities and the single measurement it was set against, the three closed-loop humidity nodes are thereby spent, and their sub-degree residuals are counted as consistency of the fixed physical forms, not as evidence. What the model is judged on is everything the ledger never touched: the bypass regime, the reactivation power, the measured input-step responses, reproduced by the same parameter set with no further adjustment (Section 5.4). Nor are the freedoms interchangeable. Each calibrated quantity draws on a different aspect of the data (single-pass depth, closed-loop level, station-to-station humidity gaps), and each enters through a fixed physical form with no freedom to absorb the others’ errors; in particular, the identifiability analysis of Section 5.2 is why the isotherm-family parameter could not have been set at ordinary operating points and is set instead at the deep-dry level, where its effect is an order of magnitude larger. The choice of knob itself rests on mechanism rather than search. Deep dehumidification lives or dies on the desorption side: each pass, the wheel can remove only what regeneration has cleared from the matrix, so the depth the recirculating loop reaches is governed by how completely the isotherm de-clines toward regeneration temperature, the dependence Section 5.3 exposes as the separation of the family variants’ equilibrium levels. The scale factor 
+
+s is the parameter this mechanism points to, not the parameter a residual search happened to land on. 36 What s = 1 .8 means is then worth stating plainly. Read as a correction to zeolite 4A itself it would nearly double the site activation energies (58.6 to 105.5 kJ/mol), well beyond the measured sorption energetics of water on zeolite 4A [37]. But the calibration claims no such thing, because the wheel’s sorbent is not zeolite 4A: it is an undisclosed commercial formulation for which 4A is only the screened base shape (Section 4.4), and the family parameter was constructed to carry exactly the one part of the isotherm that no process-condition measurement of any candidate material could pin: its decline toward regeneration temperature. What the calibrated value asserts is that the actual matrix retains substantially less moisture at 130 ◦C than the 4A literature isotherm would predict; operationally, that its regeneration is nearly complete at rated reactivation temperature, which is what a wheel engineered for deep dehumidification is built to achieve. Part of the value may equally be compensating desorption-side physics that the two-zone lumped closure omits (the angular distribution of carryover, gradients within a sector, the temperature dependence of the sorption kinetics), and the present data cannot apportion the excess between material difference and model form. We therefore report s as an effective parameter and its magnitude as the measured size of that combined gap, not as a sorption property of anything. Resolving the angular distribution within a sector would remove the model-form part of that ambiguity, and we did not do it. The choice is a trade-off, not an oversight: a generated twin is built to be regenerated in numbers and searched across operating points, and spatial discretization buys fidelity with exactly the currency that purpose spends, simulation speed and deployability. Our position is to let the lumped closure absorb what it can, which is what the effective isotherm family does, and to pay for spa-tial resolution only where the physics refuses to be absorbed; nothing in the present measurements shows that refusal. The methodological finding beneath the calibrated value is the one Sec-tion 5 demonstrated: steady-state observation of this system at ordinary operating points constrains a single solid-side conductance product and can-not separate the desorption branch from it, and the deep-dry equilibrium level the recirculating loop itself reaches is the datum that identifies the remainder. For recirculating dehumidification systems, that is a statement about which measurements a generated twin actually needs, arguably more transferable than any parameter value in this paper. The calibration’s validity domain reads the same way. At the manufac-turer’s rated design point, whose inlet condition lies outside the facility’s op-37 erating windows, the calibrated wheel reproduces the direction of the rated performance but falls roughly 8 ◦C short of its depth in frost point, even though the facility’s own deep-dry outlet sits at the rated humidity (0.078 against 0.08 g/kg), so the shortfall belongs to the effective parameters, not the plant. An effective isotherm identified at one site’s regimes carries those regimes; we report the design-point comparison as the measured edge of that domain rather than absorb it, because absorbing it would cost exactly the parameterization discipline of Section 4.4 that the rest of the argument stands on. A held-out flow sweep from the same measurement period, the supply fan stepped across its range within one session, localizes the one structural simplification the data exposed: with the constant ingress rates of Table 3 the sweep’s humidity spans do not close, and reconstructing the ingress from the monitored humidity gaps at each fan setting closes them while following a near-quadratic pressure law. The refinement this marks is a pressure-dependent ingress submodel, a change of boundary model, not of wheel physics. The limitations are the mirror of these choices. The sorbent remains unidentified, so the calibrated isotherm is a surrogate fitted to measurement: adequate for the twin’s purpose, but not a characterization of the material. Since undisclosed sorbents are the industrial norm for commercial wheels, we regard the surrogate procedure as part of the method rather than a com-promise of it. The validation covers one site, two operating regimes, and the measured input steps of Section 5.4; a regeneration-temperature sweep and genuine transient validation were not available within the facility’s duty schedule and stand as the natural next experiments, and the boundary ac-counting would benefit from logged outdoor-air humidity, whose absence re-stricted the flow-sweep comparison to within-session spans. Validation is system-level by necessity (Section 4.4): it certifies the closed-loop behavior the application cares about, but it does not certify each component in isola-tion. Finally, some facts about a system belong to no single block: the two cooling coils of this plant draw on separate cold sources (a precision chiller dedicated to the air-handling coil, and a packaged refrigeration unit inside the desiccant system), yet the specification can state each coil’s cold side only as parameter values local to that coil, with no way to say whether two coils share a plant or, as here, do not. Identity and distinctness of resources are system-level facts, and expressing them calls for an ontology above the component library, in the spirit of building metadata schemas [43], which we leave as future work. 38 The calibration procedure, finally, is systematized but not automated: screening, single-pass calibration, level-based identification, and drift qualifi-cation each run on explicit, machine-checkable criteria over machine-readable inputs. Folding that loop into the generation pipeline, so that a specifica-tion, a component library, and a measurement window yield a calibrated twin without an analyst in between, is the natural continuation of this work, for which scalable calibration machinery is already demonstrated [44], and oper-ating such twins on-line against the live system is the subject of a companion effort. The fourteen topology specifications built with the framework over the course of this project suggest the construction side generalizes; what this paper establishes is the harder half of the claim: that a generated model can be brought to answer to measurement, with its remaining freedoms counted and its remaining errors named. 
+
+7. Conclusion 
+
+This paper set out to remove the construction of the model itself as the bottleneck of physics-based HVAC digital twins. The framework presented here generates a dynamic Simulink twin from a declarative topology spec-ification: a purpose-built library of physical component models sharing a standard moist-air bus, compiled into a wired, solver-configured, telemetry-equipped model with no manual assembly. The physics carried by the gen-erated models reaches the depth that low-dew-point applications require, in-cluding a desiccant-wheel model whose sorption isotherm is an interchange-able component, which is what allows a wheel of undisclosed sorbent, the ordinary condition of commercial rotors, to be calibrated as an effective isotherm under an explicit identifiability discipline. On the industrial-grade low-dew-point system designed and built for this study, the framework reached a runnable model in 88 seconds against 22 min-utes of expert manual construction, a fifteenfold reduction taken conserva-tively. A single calibrated parameter set, with four degrees of freedom whose ledger Section 4 states in full, holds the dehumidification loop within 0.6 ◦Cof its three measured humidity nodes and then, without further adjustment, predicts the bypass-regime chamber to within 0.1 ◦C, the reactivation-heater power to within 5%, and the measured responses to rotor-speed, chilled-water, and heater-setpoint steps, including the two cases where the correct response is none. 39 The validation also produced a finding about method that we expect to outlive this particular system. Steady-state observations of a recirculating de-humidification loop at ordinary operating points constrain a single solid-side conductance product and cannot separate the desorption side of the isotherm from it, however many such points are measured; the deep-dry equilibrium level that the loop itself reaches is the datum that identifies the remainder. For calibrating generated twins of recirculating systems, this points away from accumulating further steady-state points at moderate conditions and toward the loop’s own deep equilibrium as the informative measurement. The validation covers one site, two regimes, and a set of measured in-put steps, and the calibrated isotherm remains a surrogate for an unidenti-fied material; a regeneration-temperature sweep and transient step tests are the natural next experiments. Beyond that, the calibration procedure itself (screening, single-pass calibration, level-based identification, drift qualifica-tion) runs on explicit criteria over machine-readable data, and folding it into the generation pipeline would carry automation the rest of the way from plant description to calibrated twin. Operating such twins on-line, synchronized with the live plant and searching for better operating points, is the subject of ongoing work. 
+
+CRediT authorship contribution statement Younghwan Joo: Conceptualization, Methodology, Software, Valida-tion, Formal analysis, Investigation, Data curation, Visualization, Writing – original draft, Writing – review & editing. Jeonghoon Han: Investigation, Resources, Visualization, Writing – review & editing. Sang Hyun Oh: In-vestigation, Resources, Writing – review & editing. Soosik Bang: Formal analysis, Validation, Writing – review & editing. Sung-il Kim: Supervision, Project administration, Funding acquisition, Writing – review & editing. 
+
+Declaration of competing interest 
+
+The authors declare that they have no known competing financial inter-ests or personal relationships that could have appeared to influence the work reported in this paper. 40 Acknowledgements 
+
+This work was conducted under the framework of Research and Develop-ment Program of the Korea Institute of Energy Research (KIER) (C6-2419-63). 
+
+Data availability 
+
+The measurement and validation data supporting this study are openly available at figshare (DOI: 10.6084/m9.figshare.33170660). The archived dataset comprises the humidity and electric-power validation measurements together with their metering-window statistics, the closed-loop frost-point time series used for the drift-based equilibrium assessment, the measured re-sponse to the operating levers, the static single-pass reference measurements, and the outputs of the sensitivity and identifiability analysis. A data dic-tionary maps each measurement channel to the corresponding node in the paper, and documents the conditioning applied to the raw channels: the ex-clusion of the chamber dew-point channel for the high bias noted in Section 4, and the two-bank interpretation of the reactivation-heater power metering. Equipment specifications derive from manufacturer datasheets and are not redistributable; in particular, the desiccant sorbent of the case-study wheel is undisclosed by the manufacturer, which is a premise of the calibra-tion methodology rather than an omission. The model-generation framework and the generated Simulink models are not publicly released. 
+
+Nomenclature Latin symbols 
+
+Symbol Description Unit 
+
+Ac sector face area m2
+
+As transfer (surface) area m2
+
+bk, b0,k TSL site affinity and its pre-exponential —
+
+C, C∗ vapor concentration; equilibrium concentration at matrix surface kg m −3
+
+cp, cv specific heat at constant pressure / volume J kg −1 K−1
+
+Dh hydraulic diameter m
+
+Dr rotor diameter m41 Symbol Description Unit 
+
+Ek TSL site activation energy J mol −1
+
+fab , fzone adsorption-sector / zone area fraction —
+
+h gas-film heat-transfer coefficient W m −2 K−1
+
+hads specific heat of adsorption J kg −1
+
+Kleak , Kreturn leakage / return-path flow conductance kg s −1 Pa −1
+
+kef f effective (series) mass-transfer coefficient m s −1
+
+kLDF solid-side linear-driving-force coefficient m3 kg −1 s−1
+
+km gas-film mass-transfer coefficient m s −1
+
+Lr rotor length m
+
+Le Lewis number —
+
+mdry , mwv dry-air / water-vapor mass in chamber kg 
+
+mr,i desiccant matrix mass of zone i kg 
+
+˙m mass flow rate kg s −1
+
+NTU , NTU m number of transfer units (heat / mass) —
+
+N u Nusselt number —
+
+P pressure Pa 
+
+psat saturation vapor pressure Pa 
+
+˙Q heat load W
+
+R universal gas constant J mol −1 K−1
+
+Rw, Rmix specific gas constant (water vapor / moist-air mixture) J kg −1 K−1
+
+RH eq equilibrium relative humidity (isotherm closure) —
+
+Sij sensitivity-matrix entry ◦C
+
+s isotherm-family scale factor —
+
+T temperature K
+
+Tdp dew-point (below 0 ◦C, frost-point) temperature 
+
+> ◦
+
+C
+
+Tr,i matrix temperature of zone i K
+
+Tref reference temperature (298.15 K) K
+
+V channel velocity m s −1
+
+Vroom chamber volume m3
+
+V1 dominant right singular vector —
+
+wc channel width m
+
+wr,i matrix moisture content of zone i kg kg −1
+
+42 Symbol Description Unit 
+
+Y humidity ratio kg kg −1
+
+Greek symbols 
+
+Symbol Description Unit 
+
+ε, εm heat / mass exchange effectiveness —
+
+ρair , ρpor air / porous-matrix density kg m −3
+
+θj model parameter subject to sensitivity perturbation —
+
+σk singular value of the sensitivity matrix ◦C
+
+ϕ matrix porosity —
+
+ω wheel rotation speed rad s −1
+
+Subscripts 
+
+Sub Meaning 
+
+ab adsorption sector 
+
+amb ambient 
+
+i, j rotor zone index (proc / regen) 
+
+in , out inlet / outlet 
+
+proc , regen process / regeneration sector 
+
+r rotor matrix 
+
+Abbreviations 
+
+Abbr Meaning AHU air-handling unit DH dehumidified (wheel process-outlet) stream HVAC heating, ventilation and air conditioning LDF linear driving force MA / OA / RA / SA / EA mixed / outdoor / return / supply / exhaust air PLC programmable logic controller TSL triple-site Langmuir YAML the specification markup format 43 Declaration of generative AI and AI-assisted technologies in the writing process 
+
+During the preparation of this work the authors used a generative AI assistant in order to improve the readability and language of the manuscript. After using this tool, the authors reviewed and edited the content as needed and take full responsibility for the content of the published article. 
+
+References 
+
+[1] C. Yuan, Y. Deng, T. Li, F. Yang, Manufacturing energy analysis of lithium ion battery pack for electric vehicles, CIRP annals 66 (1) (2017/01/01/) 53–56. doi:10.1016/j.cirp.2017.04.109. [2] B. Guan, T. Zhang, X. Liu, On-site performance investigation of a desiccant wheel deep-dehumidification system applied in lithium bat-tery manufacturing plant, Energy and Buildings 232 (2021) 110659. doi:10.1016/j.enbuild.2020.110659. [3] Z. Ma, X. Chang, T. Zhang, X. Liu, B. Guan, On-site measure-ment and optimization of energy efficiency of the cascading desic-cant wheel deep dehumidification systems in the lithium-ion bat-tery manufacturing factory, Energy and Buildings 304 (2024) 113833. doi:10.1016/j.enbuild.2023.113833. [4] L. Rajulapati, S. Chinta, B. Shyamala, R. Rengaswamy, Integration of machine learning and first principles models, AIChE Journal 68 (6) (Apr. 2022). doi:10.1002/aic.17715. [5] R. Wang, Z. Cao, X. Zhou, Y. Wen, R. Tan, Phyllis: Physics-Informed Lifelong Reinforcement Learning for Data Center Cooling Control, in: Proceedings of the 14th ACM International Conference on Future En-ergy Systems, ACM, 2023, pp. 114–126. doi:10.1145/3575813.3595189. [6] J. Zhang, X. Zhao, Digital twin of wind farms via physics-informed deep learning, Energy Conversion and Management 293 (2023) 117507. doi:10.1016/j.enconman.2023.117507. 44 [7] K. Chen, X. Zhu, B. Anduv, X. Jin, Z. Du, Digital twins model and its updating method for heating, ventilation and air conditioning sys-tem using broad learning system algorithm, Energy 251 (2022) 124040. doi:10.1016/j.energy.2022.124040. [8] H. H. Hosamo, P. R. Svennevig, K. Svidt, D. Han, H. K. Nielsen, A Dig-ital Twin predictive maintenance framework of air handling units based on automatic fault detection and diagnostics, Energy and Buildings 261 (2022) 111988. doi:10.1016/j.enbuild.2022.111988. [9] H. Hosamo, M. H. Hosamo, H. K. Nielsen, P. R. Svennevig, K. Svidt, Digital Twin of HVAC system (HVACDT) for multiobjective optimiza-tion of energy consumption and thermal comfort based on BIM frame-work with ANN-MOGA, Advances in Building Energy Research 17 (2) (2022) 125–171. doi:10.1080/17512549.2022.2136240. [10] S. Abrazeh, S.-R. Mohseni, M. J. Zeitouni, A. Parvaresh, A. Fathol-lahi, M. Gheisarnejad, M.-H. Khooban, Virtual Hardware-in-the-Loop FMU Co-Simulation Based Digital Twins for Heating, Ventila-tion, and Air-Conditioning (HVAC) Systems, IEEE Transactions on Emerging Topics in Computational Intelligence 7 (1) (2023) 65–75. doi:10.1109/tetci.2022.3168507. [11] P. Remmen, M. Lauster, M. Mans, M. Fuchs, T. Osterhage, D. Müller, TEASER: An open tool for urban energy modelling of building stocks, Journal of Building Performance Simulation 11 (1) (2017) 84–98. doi:10.1080/19401493.2017.1283539. [12] A. Andriamamonjy, D. Saelens, R. Klein, An automated IFC-based workflow for building energy performance simulation with Modelica, Automation in Construction 91 (2018) 166–181. doi:10.1016/j.autcon.2018.03.019. [13] D. Sturzenegger, D. Gyalistras, V. Semeraro, M. Morari, R. S. Smith, BRCM Matlab Toolbox: Model generation for model predictive building control, in: 2014 American Control Conference, IEEE, 2014, pp. 1063– 1069. doi:10.1109/acc.2014.6858967. [14] D. Jansen, V. Richter, L. Maier, J. Frisch, C. van Treeck, D. Müller, Open-source framework for automated generation of 45 building energy performance simulation models and beyond from BIM Data, Automation in Construction 179 (2025) 106427. doi:10.1016/j.autcon.2025.106427. [15] M. Wetter, J. Hu, A. Prakash, P. Ehrlich, G. Fierro, M. Graho-vac, M. Pritoni, L. Rivalin, D. Robin, Modelica-json: Transform-ing energy models to digitize the control delivery process, in: Build-ing Simulation Conference Proceedings, Vol. 17, KU Leuven, 2021. doi:10.26868/25222708.2021.30141. [16] G. S. Martinez, S. Sierla, T. Karhela, V. Vyatkin, Automatic Generation of a Simulation-Based Digital Twin of an Industrial Process Plant, in: IECON 2018 - 44th Annual Conference of the IEEE Industrial Electron-ics Society, IEEE, 2018, pp. 3084–3089. doi:10.1109/iecon.2018.8591464. [17] S. Sierla, M. Azangoo, K. Rainio, N. Papakonstantinou, A. Fay, P. Honkamaa, V. Vyatkin, Roadmap to semi-automatic generation of digital twins for brownfield process plants, Journal of Industrial Infor-mation Integration 27 (2022) 100282. doi:10.1016/j.jii.2021.100282. [18] T. Ge, Y. Li, R. Wang, Y. Dai, A review of the mathematical models for predicting rotary desiccant wheel, Renewable and Sustainable Energy Reviews 12 (6) (2008) 1485–1528. doi:10.1016/j.rser.2007.01.012. [19] X. Zhang, Y. Dai, R. Wang, A simulation study of heat and mass trans-fer in a honeycombed rotary desiccant dehumidifier, Applied Thermal Engineering 23 (8) (2003) 989–1003. doi:10.1016/s1359-4311(03)00047-4. [20] J. Woods, E. Kozubal, A desiccant-enhanced evaporative air conditioner: Numerical model and experiments, Energy Conversion and Management 65 (2013) 208–220. doi:10.1016/j.enconman.2012.08.007. [21] B. Guan, X. Liu, T. Zhang, Z. Ma, L. Chen, X. Chen, Experimental and numerical investigation of a novel hybrid deep-dehumidification system using liquid desiccant, Energy Conversion and Management 192 (2019) 396–411. doi:10.1016/j.enconman.2019.04.043. [22] S. Herrmann, H.-J. Kretzschmar, D. P. Gatley, Thermody-namic Properties of Real Moist Air, Dry Air, Steam, Water, 46 and Ice (RP-1485), HVAC&R Research 15 (5) (2009) 961–986. doi:10.1080/10789669.2009.10390874. [23] M. Wetter, W. Zuo, T. S. Nouidui, X. Pang, Modelica Buildings li-brary, Journal of Building Performance Simulation 7 (4) (2013) 253–270. doi:10.1080/19401493.2013.765506. [24] F. Ge, C. Wang, Exergy analysis of dehumidification systems: A com-parison between the condensing dehumidification and the desiccant wheel dehumidification, Energy Conversion and Management 224 (2020) 113343. doi:10.1016/j.enconman.2020.113343. [25] L. Sphaier, W. Worek, Analysis of heat and mass transfer in porous sorbents used in rotary regenerators, International Jour-nal of Heat and Mass Transfer 47 (14-16) (2004) 3415–3430. doi:10.1016/j.ijheatmasstransfer.2004.01.016. [26] C. R. Ruivo, G. Angrisani, The effectiveness method to predict the behaviour of a desiccant wheel: An attempt of experimen-tal validation, Applied Thermal Engineering 71 (2) (2014) 643–651. doi:10.1016/j.applthermaleng.2013.10.028. [27] R. Shah, A. London, Rectangular Ducts, Laminar Flow Forced Convec-tion in Ducts (1978) 196–222doi:10.1016/b978-0-12-020051-1.50012-7. [28] T. H. Chilton, A. P. Colburn, Mass Transfer (Absorption) Co-efficients Prediction from Data on Heat Transfer and Fluid Fric-tion, Industrial & Engineering Chemistry 26 (11) (1934) 1183–1187. doi:10.1021/ie50299a012. [29] E. Glueckauf, Theory of chromatography. Part 10.—Formulæ for diffu-sion into spheres and their application to chromatography, Trans. Fara-day Soc. 51 (0) (1955) 1540–1551. doi:10.1039/tf9555101540. [30] Y. Wang, Measurements and Modeling of Water Adsorption Isotherms of Zeolite Linde-Type A Crystals, Industrial & Engineering Chemistry Research 59 (17) (2020) 8304–8314. doi:10.1021/acs.iecr.9b06891. [31] The MathWorks, Inc., Heat Exchanger (TL-MA) — Simscape Fluids Reference, The MathWorks, Inc. (2024). 47 [32] M. Goldsworthy, Measurements of water vapour sorption isotherms for RD silica gel, AQSOA-Z01, AQSOA-Z02, AQSOA-Z05 and CECA ze-olite 3A, Microporous and Mesoporous Materials 196 (2014) 59–67. doi:10.1016/j.micromeso.2014.04.046. [33] K. N. Son, T.-M. J. Richardson, G. E. Cmarik, Equilibrium Adsorption Isotherms for H2O on Zeolite 13X, Journal of Chemical & Engineering Data 64 (3) (2019) 1063–1071. doi:10.1021/acs.jced.8b00961. [34] B. Han, A. Chakraborty, Adsorption characteristics of methyl-functional ligand MOF-801 and water systems: Adsorption chiller modelling and performances, Applied Thermal Engineering 175 (2020) 115393. doi:10.1016/j.applthermaleng.2020.115393. [35] H. Furukawa, F. Gándara, Y.-B. Zhang, J. Jiang, W. L. Queen, M. R. Hudson, O. M. Yaghi, Water Adsorption in Porous Metal–Organic Frameworks and Related Materials, Journal of the American Chemical Society 136 (11) (2014) 4369–4381. doi:10.1021/ja500330a. [36] H.-W. B. Teo, A. Chakraborty, W. Fan, Improved adsorption character-istics data for AQSOA types zeolites and water systems under static and dynamic conditions, Microporous and Mesoporous Materials 242 (2017) 109–117. doi:10.1016/j.micromeso.2017.01.015. [37] A. Gorbach, M. Stegmaier, G. Eigenberger, Measurement and Modeling of Water Vapor Adsorption on Zeolite 4A—Equilibria and Kinetics, Ad-sorption 10 (1) (2004) 29–46. doi:10.1023/b:adso.0000024033.60103.ff. [38] A. Chong, Y. Gu, H. Jia, Calibrating building energy simulation models: A review of the basics to guide future work, Energy and Buildings 253 (2021) 111533. doi:10.1016/j.enbuild.2021.111533. [39] SUTO iTEC GmbH, S220 Dew Point Sensor: Instruction Manual, IM 2026-1 (2026). [40] R. De Coninck, F. Magnusson, J. Åkesson, L. Helsen, Toolbox for de-velopment and validation of grey-box building models for forecasting and control, Journal of Building Performance Simulation 9 (3) (2015) 288–303. doi:10.1080/19401493.2015.1046933. 48 [41] R. Brun, P. Reichert, H. R. Künsch, Practical identifiability analysis of large environmental simulation models, Water Resources Research 37 (4) (2001) 1015–1030. doi:10.1029/2000wr900350. [42] M. Abdelgaied, A. Kabeel, Y. Zakaria, Performance improve-ment of desiccant air conditioner coupled with humidification-dehumidification desalination unit using solar reheating of regener-ation air, Energy Conversion and Management 198 (2019) 111808. doi:10.1016/j.enconman.2019.111808. [43] B. Balaji, A. Bhattacharya, G. Fierro, J. Gao, J. Gluck, D. Hong, A. Jo-hansen, J. Koh, J. Ploennigs, Y. Agarwal, M. Bergés, D. Culler, R. K. Gupta, M. B. Kjærgaard, M. Srivastava, K. Whitehouse, Brick : Meta-data schema for portable smart building applications, Applied Energy 226 (2018) 1273–1292. doi:10.1016/j.apenergy.2018.02.091. [44] A. Chakrabarty, E. Maddalena, H. Qiao, C. Laughman, Scalable Bayesian optimization for model calibration: Case study on coupled building and HVAC dynamics, Energy and Buildings 253 (2021) 111460. doi:10.1016/j.enbuild.2021.111460. 49

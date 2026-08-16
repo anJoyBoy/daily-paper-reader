@@ -1,0 +1,384 @@
+Title: A Dataset of Equilibrium State Configurations of Adsorption in Zeolites
+
+URL Source: https://arxiv.org/pdf/2608.08848v1
+
+Published Time: Tue, 11 Aug 2026 01:32:03 GMT
+
+Number of Pages: 15
+
+Markdown Content:
+# A Dataset of Equilibrium State Configurations of Adsorption in Zeolites 
+
+## Marko Petkovic ∗ Rachna Ramesh ∗ Vlado Menkovski † Sofia Calero ∗‡
+
+Abstract 
+
+Zeolites are crystalline nanoporous materials widely used in adsorption, separation, and catalytic processes. Molecular simulations are commonly used to predict adsorption properties, but most high-throughput adsorption datasets report only ensemble-averaged quantities such as loadings or isotherms, rather than the molecular configurations from which these averages are obtained. Here, we present AdsZeo, a coordinate-resolved dataset of equilibrium methane adsorption configurations in aluminium-substituted, sodium-containing zeolite frameworks. The processed release contains 4,775 framework realisations derived from 191 zeolite topologies. Each framework realisation was simulated at 13 methane pressures between 0.1 and 100 bar at 298 K using grand canonical Monte Carlo simulations, giving 62,075 production simulations in total. In addition to scalar adsorption records, the dataset stores production-frame methane pseudo-atom coordinates, mobile Na + cation coordinates, framework atomic coordinates, per-frame loading and energy statistics, and simulation metadata in a processed DuckDB database. The release contains 12,415,000 saved production-frame records and 1,245,376,215 saved particle-coordinate records. AdsZeo provides coordinate-resolved adsorption data across variations in framework topology, aluminium content and distribution, sodium cation arrangement, pressure, and methane loading, enabling reuse for adsorption analysis, spatial statistics, density estimation, and machine-learning models for molecular configuration generation in charged zeolite pores. 
+
+# 1 Background & Summary 
+
+Nanoporous crystalline materials, such as zeolites and Metal-Organic Frameworks (MOFs), are widely studied for adsorption, separation, gas storage, and catalytic processes 1–3 . Predicting adsorption in these materials requires sampling molecular configurations under specified thermodynamic conditions, because adsorption properties are ensemble averages over many possible arrangements of guest molecules, framework atoms, and extra-framework species. Configuration-level adsorption data are also needed for machine learning models that aim to emulate equilibrium states, generate adsorbate configurations, or accelerate molecular simulations, rather than only predict scalar adsorption properties. Grand canonical Monte Carlo (GCMC) simulations are therefore a standard tool for computing adsorption isotherms, Henry coefficients, heats of adsorption, and selectivities in porous materials 4,5 . In GCMC, molecu-lar configurations are sampled in the grand-canonical ensemble through Monte Carlo moves such as insertions, deletions, translations, rotations, and reinsertion moves, allowing finite-temperature adsorp-tion equilibria to be estimated at fixed chemical potential, volume, and temperature 6. Compared with electronic-structure methods such as density functional theory, which are typically too expensive for extensive finite-temperature sampling over many pressures, compositions, and frameworks, GCMC pro-vides a practical route to high-throughput adsorption prediction. However, GCMC can still be com-putationally demanding, especially for systems with low insertion or move acceptance rates, such as dense adsorbate phases, strongly interacting molecules including water, heterogeneous adsorption sites, or flexible frameworks 7,8 .Machine learning offers a route to reduce this sampling cost. Deep generative models are well suited to learning complex, high-dimensional probability distributions and have demonstrated substantial suc-cess in applications including text generation 9, image synthesis 10 , and protein design 11 . In molecular simulation, Boltzmann generators 12 were developed specifically to generate samples from equilibrium  
+
+> ∗Department of Applied Physics and Science Education, Eindhoven University of Technology, Eindhoven, the Nether-lands.
+> †Department of Mathematics and Computer Science, Eindhoven University of Technology, Eindhoven, the Netherlands.
+> ‡Corresponding author: s.calero@tue.nl .
+
+1arXiv:2608.08848v1 [cond-mat.mtrl-sci] 9 Aug 2026 0 10 20 30             
+
+> x [Å]
+> 0510 15 20 25 30 35 40
+> y [Å]
+> a
+> 010 20 30
+> x [Å]
+> 010 20 30
+> z [Å]
+> b
+> 010 20 30 40
+> y [Å]
+> 010 20 30
+> z [Å]
+> c
+> OSi Al CH 4Na +
+
+Figure 1: Spatial distribution of methane molecules and sodium cations within a mordenite zeolite framework. distributions and have been applied to molecular conformations 13 , molecular dynamics trajectories 14 ,and peptide systems 15 . These studies demonstrate the potential of generative models for equilibrium sampling, but they have mostly focused on individual molecular systems or relatively small biomolecu-lar examples. Extending such approaches to adsorption in nanoporous materials introduces additional sources of complexity, because the sampled configuration space depends on host frameworks contain-ing hundreds to thousands of atoms, adsorbate loading, pressure, and, in charged frameworks, mobile extra-framework species. For adsorption in porous materials, generative models could learn equilibrium distributions of adsorbates and extra-framework cations, propose more efficient Monte Carlo moves, ini-tialise simulations closer to equilibrium, or approximate adsorbate density fields directly. However, these models require training data at the level of molecular configurations rather than only scalar adsorption properties. Most existing high-throughput adsorption datasets are not designed to store the molecular config-urations generated during adsorption simulations. Instead, they usually report averaged adsorption properties, such as loadings, isotherms, selectivities, Henry coefficients, or heats of adsorption 16–19 .These properties are essential for comparing materials and training property-prediction models, but they do not retain the individual adsorbate configurations from which the averages were computed. Recent datasets such as Open DAC do include atomistic MOF–adsorbate structures 20,21 , but these are based on selected adsorbate placements and subsequent relaxation, often involving one or a small number of adsorbate molecules. They are therefore different from datasets that store pressure-dependent equilib-rium configurations sampled across adsorption isotherms. As a result, there is a shortage of curated adsorption datasets that expose equilibrium configurations for training and benchmarking models that generate molecular adsorption configurations. Here, we present AdsZeo: a dataset of methane adsorption in aluminium-substituted zeolite frame-works. Configuration-level adsorption data can vary not only with pressure and loading, but also with the underlying pore topology, framework composition, adsorbate identity, and the presence of mobile extra-framework species. Capturing these sources of variation is important for machine learning models that aim to learn molecular distributions rather than only scalar adsorption properties. The present dataset provides a systematic collection across several of these factors. It contains 191 framework topologies and 25 aluminium-substituted framework realisations per topology, yielding 4,775 distinct framework realisa-tions. Each framework realisation was simulated at 13 pressures between 0.1 and 100 bar, and the release stores scalar isotherm records together with production-frame coordinates of methane pseudo-atoms and sodium cations. The combination of diverse zeolite topologies, Al content and substitution patterns, charge-balancing sodium cations, and pressure-dependent methane configurations provides a substantial configuration-level resource for adsorption environments that are more structured than purely siliceous host–guest systems. An example of the distribution of methane and sodium cations in a saved adsorption configuration in a mordenite framework can be seen in Figure 1. The dataset is intended primarily for training and evaluating machine learning models for molecular configuration generation, density estima-tion, and simulation acceleration, while also providing a foundation for future extensions to mixtures, flexible adsorbates or frameworks, and other classes of porous materials. Figure 2 summarises the dataset 2construction and the main archived data types. IZA parent 
+
+> frameworks
+> 191 topologies
+> Supercell
+> construction
+> cell vectors > 24 Å
+> Si to Al
+> substitution
+> 4,775 structures
+> Na+ charge
+> balancing
+> 1 Na+ per Al
+> Methane GCMC
+> 13 pressures @ 298K
+> 62,075 simulations
+> DuckDB database
+> 4,775 isotherms
+> 1.25B coordinates
+
+Dataset scale across archived records                 
+
+> Log-scale counts queried from DuckDB; methane isotherms are counted once per structure.
+> 10^2 10^3 10^4 10^5 10^6 10^7 10^8 10^9 10^10
+> Topologies 191
+> Structures / isotherms 4,775
+> Simulation runs 62,075
+> Methane loading points 62,075
+> Scalar table rows 1,489,800
+> Framework atoms 6,910,350
+> Saved production frames 12,415,000
+> Particle coordinate rows 1,245,376,215
+> Record count (log10 scale)
+
+Figure 2: Schematic overview of the dataset creation process and the main archived output scales. Parent zeolite frameworks were expanded into simulation cells, substituted with aluminium, charge-balanced with sodium, simulated with methane in the grand canonical ensemble, and stored in a pro-cessed DuckDB database containing scalar and coordinate-level records. The lower histogram shows the order-of-magnitude range of the archived tables, with methane isotherms counted once per framework realisation. 
+
+# 2 Methods 
+
+The dataset was generated through a sequence of framework preparation, aluminium substitution, charge-balancing cation placement, GCMC simulation using RASPA 5, and post-processing steps. Parent all-silica framework structures representing the selected zeolite topologies were obtained from crystallo-graphic data and converted into simulation-ready supercells. For each topology, multiple aluminium-substituted framework realisations were generated, with charge neutrality maintained by adding one extra-framework Na + cation per Al substitution. Methane adsorption was then simulated independently for each framework realisation on a fixed pressure grid. The processed dataset stores scalar adsorption records together with production-frame coordinates of methane and Na + cations. 
+
+## 2.1 Framework preparation and aluminium substitution 
+
+Parent all-silica framework structures were initialised from crystallographic data obtained from the In-ternational Zeolite Association database. 22 . Only framework topologies for which an accessible volume is reported in the IZA database were retained. This selection resulted in 191 parent framework topologies. The crystallographic unit cells were processed with the porran package to generate simulation-ready atomic coordinates, unit-cell information, and periodic boundary conditions 23 . Each parent framework was expanded into a periodic supercell such that all lattice vector lengths exceeded 24 ˚ A. This criterion was chosen to satisfy the minimum-image requirement for the 12.0 ˚ A non-bonded cutoff used in the simulations. Framework atoms were treated as rigid during adsorption simulations, consistent with common high-throughput zeolite adsorption workflows. Framework coordinates are stored as fractional coordinates together with the corresponding unit-cell vectors. Framework compositional disorder was introduced through explicit Si →Al substitutions on tetrahe-dral sites. For each framework topology, 25 aluminium-substituted framework realisations were gener-ated, spanning different Al substitution counts. The substitution level ranged from a single Al atom per supercell to a maximum aluminium fraction approaching 25% of the available tetrahedral sites. Interme-diate substitution counts were selected by linear interpolation between these bounds and rounded to the nearest integer. For each substitution count, Al sites were selected using a distance-maximisation proce-dure to obtain an approximately uniform spatial distribution of Al atoms throughout the simulation cell. 3L¨ owenstein’s rule was not explicitly enforced, following the force-field treatment used for aluminosilicate zeolites in Ref. 24 .Each Si →Al substitution introduces one negative framework charge. Charge neutrality was therefore maintained by adding one extra-framework Na + cation per Al atom. Initial Na + positions were generated randomly in the simulation cell. During the Monte Carlo simulations, Na + cations were treated as mobile particles, while their total number remained fixed by the framework charge balance. The resulting processed set contains 4,775 framework realisations from 191 zeolite topologies. 
+
+## 2.2 Force-field model 
+
+Methane adsorption was simulated using a classical, non-reactive force field assembled from previously validated zeolite adsorption models. Methane was represented with the united-atom hydrocarbon model of Calero et al. 25 , in which each CH 4 molecule is described by a single neutral pseudo-atom. The aluminosilicate framework and Na + cation parameters were based on the zeolite force field of Garcia-Sanchez et al. 26 , including the updated framework and cation parameters shown to describe adsorption in sodium-containing zeolites. For framework realisations containing Al–O–Al environments, the additional Oaa oxygen type introduced by Romero-Marimon et al. 24 was included. This oxygen type was assigned the same Lennard-Jones interaction parameters as the other framework oxygen types, while its charge was adjusted according to the local aluminium environment. Non-bonded interactions were described by Lennard-Jones 12-6 and Coulombic terms, 
+
+Uij (rij ) = 4 ϵij 
+
+" σij 
+
+rij 
+
+12 
+
+−
+
+ σij 
+
+rij 
+
+6#
+
++ qiqj
+
+4πε 0rij 
+
+. (1) Here, rij is the distance between particles i and j, ϵij and σij are the Lennard-Jones energy and size parameters, and qi and qj are partial charges. Lennard-Jones interactions were shifted at a cutoff of 12.0 ˚ A, and tail corrections were not applied. Long-range electrostatic interactions were evaluated using Ewald summation. Lorentz–Berthelot mixing rules were used generally, with explicit pair interactions specified for the contributing adsorbate–framework and adsorbate–cation interactions. Framework atoms were treated as rigid, while methane pseudo-atoms and Na + cations were mobile during the Monte Carlo simulations. Framework oxygen atoms were typed according to their local T–O–T environment. O denotes an oxygen atom connected to two Si atoms, O a denotes an oxygen atom connected to one Si and one Al atom, and O aa denotes an oxygen atom connected to two Al atoms. Silicon, aluminium, and oxygen framework atoms carried fixed partial charges. Silicon and aluminium did not contribute Lennard-Jones interactions directly in the simulations. The contributing Lennard-Jones pair interactions are listed in Table 1, and the pseudo-atom charges are listed in Table 2. Table 1: Contributing Lennard-Jones interactions used in the methane adsorption simulations. Inter-actions explicitly set to none in the simulation input files are not shown. Coulomb interactions are determined by the pseudo-atom charges in Table 2 and evaluated using Ewald summation.                       
+
+> Site iSite jϵij /k B/ K σij / ˚ ACH 4CH 4158.5 3.72 CH 4O / O a/ O aa 115.00 3.47 CH 4Na +553.061 2.176 Na +O / O a/ O aa 23.0 3.4
+
+## 2.3 Grand canonical Monte Carlo simulations 
+
+Methane adsorption was simulated with RASPA2 in the grand canonical ensemble 5. All simulations were performed at 298 K. Each framework realisation was simulated independently at 13 logarithmically spaced pressures between 0.1 and 100 bar. No continuation between pressures was used, and no repeated simulations with different random seeds were performed. Each simulation consisted of 5,000 initialisation cycles followed by 200,000 production cycles. One Monte Carlo cycle was defined as max(20 , N ) trial moves, where N is the instantaneous number of methane molecules and Na + cations in the simulation cell. Methane exchange with the gas reservoir was 4Table 2: Pseudo-atom charges used in the simulations. O, O a, and O aa denote oxygen atoms connected to zero, one, or two Al atoms, respectively.                  
+
+> Site type Description Charge / e
+> Si Framework silicon 0.78598 Al Framework aluminium 0.48598 OSi–O–Si framework oxygen -0.39299 OaSi–O–Al framework oxygen -0.41384 Oaa Al–O–Al framework oxygen -0.43469 Na +Extra-framework sodium cation 0.38340 CH 4United-atom methane pseudo-atom 0.00000
+
+sampled through insertion and deletion moves. Configurational sampling used translation and reinsertion moves for methane and translation and reinsertion moves for Na + cations. The Na + population was fixed by framework charge balance, whereas the number of methane molecules fluctuated according to the imposed chemical potential. All move types were selected with equal probability. During production, configurations were saved every 1,000 cycles, resulting in 200 saved production frames per simulation. Scalar adsorption quantities, including methane loading, molecule counts, sodium counts, and energy terms, were recorded from the same production runs. Simulations with zero methane loading were retained in the dataset because they are part of the equilibrium adsorption response at low pressure or in framework realisations with limited accessible pore volume. 
+
+## 2.4 Coordinate extraction and data representation 
+
+The released database stores production-frame coordinates of methane pseudo-atoms and Na + cations together with scalar adsorption records and framework metadata. Methane coordinates correspond to the centers of the united-atom methane model rather than to all-atom methane geometries. Adsorbate and cation coordinates are stored in Cartesian coordinates in ˚ A and are wrapped into the primary simulation cell. Framework coordinates are stored separately in fractional coordinates together with the unit-cell vectors, allowing the framework, methane, and Na + coordinates to be reconstructed in a common periodic cell. Because the number of methane molecules fluctuates in the grand canonical ensemble, the number of methane pseudo-atoms varies between saved frames. The number of Na + cations is fixed for a given framework realisation and equals the number of Al substitutions. All records are linked through topology, structure, aluminium realisation, pressure, and frame identifiers. The processed data are stored in a DuckDB database to support efficient querying of scalar adsorption properties and configuration-level records. 
+
+## 2.5 Simulation completeness and quality control 
+
+All 4,775 framework realisations were simulated on the full 13-point pressure grid, yielding 62,075 ad-sorption simulations. All simulations completed successfully and are included in the released dataset. Post-processing checks verified the consistency of framework identifiers, pressure labels, methane and sodium counts, unit-cell metadata, and coordinate records. Charge neutrality was checked from the number of Al substitutions and Na + cations for each framework realisation. Additional validation simulations were performed for selected framework-composition combinations for which experimental methane adsorption data were available. These comparisons were used to as-sess whether the force-field and simulation settings reproduce experimental adsorption behaviour for representative systems. 
+
+# 3 Data Records 
+
+The processed dataset has been deposited to Zenodo and is available from the AdsZeo Zenodo record 27 .The deposited processed-data file is the DuckDB database zeolite stats.duckdb , which contains eight tables: structures , framework atoms , runs , cycle stats , positions , isotherms , batch ingest , and 
+
+parse report . The dataset should be cited using the Zenodo record. 5Table 3: Overview of the processed DuckDB tables. Record counts correspond to the deposited processed release. Table Record count Contents 
+
+structures 4,775 One row per framework realisation, including topol-ogy code, structure identifier, cell parameters, cell volume, atom counts, and Si/Al ratio. 
+
+framework atoms 6,910,350 Framework atom element labels, fractional coordi-nates, and charges. 
+
+runs 62,075 One row per pressure-specific simulation, including pressure, temperature, cycle settings, source paths, parse status, and final energy statistics. 
+
+cycle stats 12,415,000 Saved production-frame records with frame index, methane count, sodium count, total potential energy, energy components, and running adsorption quanti-ties. 
+
+positions 1,245,376,215 Cartesian coordinates for methane pseudo-atoms and Na + cations by run, frame, species, and atom index. 
+
+isotherms 1,489,800 Absolute and excess methane loading records and reported uncertainties. 
+
+batch ingest 51 Batch-level ingestion metadata. 
+
+parse report 0 Parsing warnings, errors, or skipped files. The structures table contains one row per framework realisation. It stores the zeolite topology code, structure identifier, unit-cell parameters, supercell information, cell volume, atom counts, and Si/Al ratio. The framework atoms table stores the host-framework atoms associated with each framework realisation, including element labels, fractional coordinates, and charges. The runs table stores one row per pressure-specific simulation and includes the thermodynamic state point, simulation settings, source paths, parse status, and final reported energy statistics. The cycle stats table contains 200 saved records per simulation run. These records include frame index, methane and sodium counts, total potential energy, energy components, and running adsorption quantities in multiple units. The positions table stores Cartesian coordinates for methane pseudo-atoms and Na + cations by run, frame, species, and atom index. The isotherms table stores absolute and excess methane loading values and reported uncertainties. The batch ingest and parse report 
+
+tables document ingestion status and parsing issues. Figure 3 illustrates the relationships between the database tables and the identifiers required to join framework metadata, simulation runs, scalar records, and coordinate records. 
+
+# 4 Technical Validation 
+
+The dataset was validated for production-sampling stability, consistency between saved coordinate records and scalar adsorption quantities, geometric validity of the saved configurations, and pressure-dependent adsorption behaviour. These checks were designed to verify that the saved production-frame coordinates are consistent with equilibrated GCMC sampling and with the scalar adsorption records generated by RASPA. The processed database was also checked for completeness and internal consistency. All 62,075 simulations, corresponding to 4,775 framework realisations at 13 pressures, were successfully parsed. Each simulation contains the expected 200 saved production records, giving 12,415,000 saved production frames in total. A comparison with experimental methane adsorption data is provided as an additional external validation of the simulated adsorption behaviour. 
+
+## 4.1 Monte Carlo production stability 
+
+The stability of the saved production sampling was assessed using block-wise statistics and representa-tive production traces. For each simulation, the 200 saved production records were divided into four consecutive blocks of 50 records. The average methane count in each block was compared with the 6structures 
+
+metadata  4.8k 
+
+structure_id 
+
+framework_code 
+
+cell_parameters 
+
+framework_atoms 
+
+framework atoms  6.91M 
+
+structure_id 
+
+element 
+
+fractional coords 
+
+runs 
+
+run_metadata  62.1k 
+
+run_id 
+
+structure_id 
+
+pressure 
+
+cycle stats 
+
+frame-level  12.41M 
+
+run_id 
+
+frame_index 
+
+energy 
+
+counts 
+
+positions 
+
+coordinate level  1.25B 
+
+run_id 
+
+frame_index 
+
+species 
+
+x/y/z 
+
+isotherms 
+
+scalar recors  1.49M 
+
+run_id 
+
+loading 
+
+uncertainty 
+
+parse_report 
+
+ingestion checks  0
+
+run_id 
+
+issue_type 
+
+message 
+
+batch_ingest 
+
+ingestion metadata  51 
+
+zip_name 
+
+status 
+
+run_count Figure 3: Relational structure of the processed database. Structure identifiers link framework metadata and framework atoms to pressure-specific simulation runs, while run identifiers link each simulation to saved cycle statistics, scalar isotherm records, and methane and sodium coordinate records. 7average over all 200 saved production records. This provides a direct check for residual drift within the saved production segment and for simulations in which the production average would be dominated by a non-stationary part of the production sequence. The same block-wise analysis was also applied to the total potential energy traces as a qualitative check of production stability. Across the full dataset, the signed methane-count block deviations were centred at zero, with a 5 -95% interval from −0.745 to 0.750 CH 4 per unit cell. The absolute block deviation had a mean of 0.337 CH 4 per unit cell, a median of 0.250 CH 4 per unit cell, and a 95th percentile of 0.960 CH 4 per unit cell. The largest observed absolute block deviation was 7.935 CH 4 per unit cell. Relative block deviations were evaluated only for simulations with an average methane count of at least 4 CH 4 per unit cell, so that near-zero-loading simulations were not dominated by large relative errors coming from a deviation of 1 methane molecule per unit cell. For this subset, the absolute relative block deviation had a mean of 1.46%, a median of 0.79%, and a 95th percentile of 5.26%. Figure 4 shows representative production traces and the full-dataset block statistics. The example traces at 1, 10, and 100 bar fluctuate around stable mean methane counts of 32.3, 50.5, and 60.0 CH 4, respectively, without visible long-time drift over the saved production records. The corresponding potential-energy traces show stationary fluctuations around pressure-dependent mean energies. The block-resolved signed deviations remain centred close to zero for all four production blocks, indicating that the saved production records do not show a appreciable, systematic first-to-last-block drift across the dataset. 0 50000 100000 150000 200000                
+
+> Production cycle
+> 20 40 60 80 100 120
+> Methane count
+> a
+> 050000 100000 150000 200000
+> Production cycle
+> −295.5 −295.0 −294.5 −294.0 −293.5
+> Energy [10 3 kJ mol −1 ]
+> b
+> −1 01
+> Block deviation [CH 4/unit cell]
+> 010000 20000 30000
+> Runs
+> c
+> −10 −5 0510
+> Relative block deviation [%]
+> 010000 20000 30000
+> Runs
+> d
+> 1234
+> Production block
+> −0.5 0.0 0.5
+> Signed deviation [CH 4/unit cell]
+> e
+> 1 bar (36.0 CH 4)10 bar (86.8 CH 4)100 bar (120.9 CH 4)
+
+Figure 4: Monte Carlo production stability. (a) Representative methane-count traces for simulations at 1, 10, and 100 bar; mean methane counts over the saved production records are given in parentheses. (b) Corresponding total potential-energy traces. (c) Distribution of signed block-average methane-count deviations relative to the full saved-production average. (d) Distribution of absolute relative block deviations for simulations with an average methane count of at least 4 CH 4 per unit cell. (e) Signed block deviations for the four consecutive production blocks, showing that the deviations remain centred close to zero throughout the saved production segment. 84.2 Consistency between saved configurations and scalar adsorption records 
+
+A central purpose of the dataset is to provide coordinate-level adsorption samples together with scalar adsorption quantities. We therefore checked whether the scalar methane loading can be reconstructed from the saved production-frame coordinates. For each simulation, methane pseudo-atoms were counted in each of the 200 saved frames and averaged over the saved production records. The resulting coordinate-derived loading was then compared with the scalar loading reported by RASPA. This comparison validates that the saved methane coordinates, frame identifiers, pressure identifiers, and scalar adsorption records refer to the same production simulations. Exact equality is not expected, because the coordinate-derived loading is calculated from the 200 saved production frames, whereas the RASPA scalar average is accumulated internally over the full production run of 200,000 cycles. The comparison therefore measures consistency between the saved coordinate samples and the scalar production averages, rather than identity between two independently stored quantities. The coordinate-derived loadings agreed closely with the RASPA-reported loadings over the full load-ing range of the dataset (Figure 5). Across all 62,075 simulations, the mean absolute deviation was 0.1794 CH 4 per unit cell, the root-mean-square deviation was 0.2439 CH 4 per unit cell, and the maxi-mum absolute deviation was 2.3317 CH 4 per unit cell. The signed error distribution was centred near zero, indicating no appreciable systematic offset between the coordinate-derived and RASPA-reported loadings. 0 100 200 300      
+
+> RASPA loading [CH 4/unit cell]
+> 050 100 150 200 250 300 350
+> Coordinate-derived loading [CH 4/unit cell]
+> a
+> 0100 200 300
+> RASPA loading [CH 4/unit cell]
+> 0.0 0.5 1.0 1.5 2.0
+> Absolute error [CH 4/unit cell]
+> b
+> −0.5 0.0 0.5
+> Coordinate - RASPA [CH 4/unit cell]
+> 01000 2000 3000 4000
+> Runs
+> c
+
+Figure 5: Consistency between saved coordinate records and scalar adsorption records. (a) Parity plot comparing methane loading reconstructed from saved production-frame coordinates with the RASPA-reported methane loading. The dashed line indicates exact agreement. (b) Absolute loading error as a function of RASPA-reported loading. (c) Distribution of signed loading differences, defined as coordinate-derived loading minus RASPA-reported loading. 
+
+## 4.3 Geometric validity of saved configurations 
+
+The saved production-frame coordinates were validated to ensure that the processed configurations are physically meaningful under periodic boundary conditions. During post-processing, methane pseudo-atoms and Na + cations were wrapped into the primary simulation cell. The number of methane coordi-nate records in each saved frame was checked against the corresponding saved methane count, and the number of Na + cations was checked against the number of Al substitutions in the associated framework realisation. Frames with zero methane loading were also verified to contain no methane coordinates while retaining the expected Na + cation records. No non-finite coordinates were found in the processed dataset. As an additional check for coordinate artefacts, minimum-image pair distances were computed for representative high-loading configurations. This analysis was performed for the 100 bar simulations using every 25th saved production frame, since these configurations provide the most stringent test for short-range overlaps involving adsorbed methane. The checked pair types were CH 4–CH 4, CH 4–framework O, CH 4–Na +, Na +–framework O, and Na +–Na +. The resulting shell-normalised pair-distance distributions are shown in Figure 6. The distributions show no intensity at unphysically short distances, indicating that the checked configurations do not show evidence of duplicated atoms, failed coordinate wrapping, or malformed coordinate records. The shortest pronounced feature is observed for CH 4–Na +
+
+separations, followed by Na +–O and methane-containing framework distances at larger separations. The 9broad Na +–Na + distribution reflects the range of cation arrangements present across the generated framework realisations. 0 1 2 3 4 5      
+
+> Minimum-image distance [Å]
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Shell-normalized pair density
+> a
+> CH 4-CH 4
+> CH 4-O CH 4-Na +
+> Na +-O Na +-Na +
+
+Figure 6: Geometric validation of saved configurations. Shell-normalised minimum-image pair-distance distributions were computed for the 100 bar simulations using every 25th saved production frame. The checked pair types were CH 4–CH 4, CH 4–framework O, CH 4–Na +, Na +–framework O, and Na +–Na +.Each distribution is normalised by its maximum value to compare the onset and characteristic distance ranges of the different pair types. The absence of density at very short distances provides a check against unphysical overlaps, duplicated coordinates, and coordinate-wrapping artefacts. 
+
+## 4.4 Pressure-dependent adsorption behaviour 
+
+The scalar adsorption records were further checked for physically consistent pressure-dependent be-haviour. For each framework realisation, the methane loading was evaluated across the full pressure grid and the resulting isotherm was tested for monotonicity. All simulated isotherms increased monotonically with pressure, as expected for equilibrium methane adsorption in the pressure range considered here. This check provides a simple but important validation that the pressure labels, loading records, and parsed simulation outputs are internally consistent. Figure 7 summarises the distribution of methane loadings across the dataset as a function of pressure. The individual isotherms show a broad range of adsorption responses, reflecting differences in framework topology, Al distribution, Na + cation arrangement, and available adsorption volume. At low pressure, most framework realisations exhibit near-zere methan loading, while the spread in loading increases with pressure as framework-specific adsorption capacities and adsorption-site distributions become more important. The pressure-resolved loading distributions therefore confirm that the dataset contains a diverse set of adsorption behaviours while remaining free of obvious unphysical trends such as negative loadings or decreasing isotherms. 
+
+## 4.5 Comparison with experimental methane adsorption data 
+
+As an external validation of the simulated adsorption behaviour, methane isotherms were compared with experimental data for three sodium-exchanged zeolite systems: Na-ZSM-5, NaY, and NaX 28–30 .For each system, ten framework realisations were generated from the corresponding parent pure-silica IZA framework by introducing the appropriate number of Al substitutions and charge-balancing Na +
+
+cations. The number of Al atoms per unit cell used for the comparison were 3 Al atoms for Na-ZSM-5, 60 Al atoms for NaY, and 86 Al atoms for NaX. Al substitutions were generated subject to the non-Loewenstein constraint, and methane adsorption isotherms were simulated using the same force-field and GCMC settings as used for the dataset-generation runs. 10 0.1 1 10 100 
+
+> Pressure [bar]
+> 01234567
+> Methane loading [mol kg −1 ]
+> a
+
+Figure 7: Pressure-dependent methane loading distribution across the dataset. Thin grey lines show individual simulated isotherms, while the pressure-resolved density distributions summarise the spread of methane loading values at each pressure point. The loading range broadens with increasing pressure, reflecting variation in framework topology, Al distribution, Na + cation arrangement, and accessible adsorption volume. All isotherms were verified to increase monotonically with pressure. The comparison is shown in Figure 8. The simulations reproduce the overall pressure-dependent uptake trends and give adsorption magnitudes that are broadly consistent with experiment. Agreement is particularly good for NaX over the available pressure range, where the simulated and experimental curves follow a similar loading increase with pressure. For Na-ZSM-5, the experimental data cover only the low-pressure region relative to the simulated pressure range; within this overlap, the simulations capture the low loading regime and then predict the continued increase toward higher-pressure saturation. For NaY, the simulated curve follows the experimental trend but gives higher loadings at elevated pressure. Quantitative agreement with experiment is not expected to be exact in this comparison, because the simulated structures were generated by substituting Al into ideal pure-silica frameworks rather than by using experimentally refined or fully optimised structures for each specific zeolite sample. Differences in unit-cell dimensions, Al siting, cation positions, sample composition, and experimental conditions can all affect methane uptake. The comparison should therefore be interpreted as an external consistency check rather than a direct force-field refit. Overall, the agreement supports that the dataset captures realistic methane adsorption behaviour while retaining the systematic, generated-structure design needed for coordinate-resolved machine-learning applications. 
+
+# 5 Usage Notes 
+
+The processed database can be queried directly with DuckDB from Python, R, or the DuckDB command-line client. A companion notebook, working_with_adszeo_data.ipynb , provides executable examples for inspecting the schema, constructing a run-level index, selecting a leakage-aware machine-learning split, retrieving one framework realisation and one saved production frame, converting framework fractional coordinates to Cartesian coordinates, and packaging a frame as arrays for downstream models. The notebook is intended as the recommended starting point for users who want to build machine-learning datasets from the deposited DuckDB file. Typical workflows should begin by selecting structure id and run id values from structures and 
+
+runs . These identifiers can then be joined to isotherms for scalar adsorption quantities, to cycle stats 
+
+for saved production-frame statistics, and to positions for methane and Na + coordinates. Because 11 10 −1 10 0 10 1 10 2          
+
+> Pressure [bar]
+> 0.0 0.5 1.0 1.5 2.0 2.5
+> Methane loading [mol kg −1 ] aNa-ZSM-5
+> 10 −1 10 010 110 2
+> Pressure [bar]
+> 012345
+> Methane loading [mol kg −1 ] bNaY
+> 10 −1 10 010 110 2
+> Pressure [bar]
+> 012345
+> Methane loading [mol kg −1 ] cNaX
+> Experiment Simulation mean
+
+Figure 8: Comparison between simulated and experimental methane adsorption isotherms for selected sodium-exchanged zeolites. Experimental data are shown as open red circles and the mean simulated loading over ten generated framework realisations is shown as a blue line. Comparisons are shown for (a) Na-ZSM-5, (b) NaY, and (c) NaX. The simulations use the same force-field and GCMC settings as the dataset-generation runs. Deviations from experiment are expected because the simulated structures were generated from ideal pure-silica frameworks with substituted Al and Na + cations, rather than from sample-specific experimentally refined structures. 
+
+positions is the largest table, coordinate queries should be restricted to a manifest of selected run id ,
+
+frame index , pressure, and species values rather than scanning the full table. Users who only need scalar adsorption properties can work with structures , runs , cycle stats , and isotherms without loading coordinate records. For machine-learning applications, data splits should be defined before retrieving coordinates. Ran-dom frame-level splits are usually inappropriate because frames from the same production run are corre-lated, pressure points from the same framework realisation share the same host framework, and framework realisations derived from the same topology are related. Conservative benchmarks for configuration gen-eration or density estimation should split by framework code to test transfer to unseen topologies. Less stringent benchmarks may split by structure id to test interpolation across aluminium-substitution realisations, but frames from the same run id should remain in the same split. The coordinate representation should be chosen to match the modelling task. Framework atoms are stored in fractional coordinates together with the unit-cell parameters, while methane pseudo-atoms and Na + cations are stored as wrapped Cartesian coordinates in ˚ A. Periodic boundary conditions should therefore be handled explicitly when computing distances, voxel grids, density fields, or equivariant graph inputs. The number of methane pseudo-atoms varies between frames in the grand canonical ensemble, whereas the number of Na + cations is fixed for a given framework realisation by the number of aluminium substitutions. Zero-loading frames are valid samples and should be retained unless the modelling task explicitly excludes them. The scalar isotherm records and the saved coordinate frames describe the same production simulations but are not identical averages. Scalar adsorption quantities reported by RASPA are accumulated over the full production run, while coordinate-derived quantities are estimated from the 200 saved frames. For generative modelling, density estimation, or simulation-acceleration tasks, pressure, temperature, framework topology, aluminium content, cell parameters, and Na + coordinates should be treated as conditioning information. The saved configurations are Monte Carlo samples from rigid-framework sim-ulations with the force field described above and should not be interpreted as experimental trajectories. 
+
+# 6 Data Availability 
+
+The dataset is available from Zenodo at https://doi.org/10.5281/zenodo.21445386 27 .12 7 Code Availability 
+
+All code used to submit the RASPA simulations, parse the RASPA output, construct the processed DuckDB database, analyse the dataset, and generate the manuscript figures is available at https: //github.com/Rachna-R/AdsZeo . The repository includes the extraction scripts, figure-generation scripts, and the RASPA simulation template used for the production calculations. The Zenodo repository at https://zenodo.org/records/21445386 contains a companion usage notebook at working_with_a dszeo_data.ipynb showing how to work with the dataset. RASPA input preparation was performed using Python 3.13.1, pymatgen 2025.5.2, and NumPy 2.3.5. Python 3.13.1 and QCG-PilotJob 0.14.2 were used to submit the simulation jobs to the computing cluster, and the adsorption simulations were performed using RASPA 2.0.47. Data extraction, analysis, and figure generation were performed using Python 3.14.4, DuckDB 1.5.4, pandas 3.0.3, NumPy 2.4.6, and Matplotlib 3.11.0. These packages and software can be found at the following URLs: 
+
+• Python: https://www.python.org/ 
+
+• RASPA: https://iraspa.org/raspa 
+
+• QCG-PilotJob: https://qcg-pilotjob.readthedocs.io/en/develop/ 
+
+• pymatgen: https://pymatgen.org/ 
+
+• NumPy: https://numpy.org/ 
+
+• matplotlib: https://matplotlib.org/ 
+
+• duckdb: https://duckdb.org/ 
+
+• pandas: https://pandas.pydata.org/ 
+
+# Funding 
+
+This work used the Dutch national e-infrastructure with the support of the SURF Cooperative using grant no. EINF-18440. This work was funded by the European Union’s Horizon Europe as part of the SUPERVAL project (The Sustainable Photo-Electrochemical Valorization of flue gases), grant agreement no. 101115456. 
+
+# References 
+
+[1] Eduardo P´ erez-Botella, Susana Valencia, and Fernando Rey. Zeolites in adsorption processes: State of the art and future prospects. Chemical reviews , 122(24):17647–17695, 2022. [2] JeongYong Lee, Omar K Farha, John Roberts, Karl A Scheidt, SonBinh T Nguyen, and Joseph T Hupp. Metal–organic framework materials as catalysts. Chemical Society Reviews , 38(5):1450–1459, 2009. [3] Hao Li, Libo Li, Rui-Biao Lin, Wei Zhou, Zhangjing Zhang, Shengchang Xiang, and Banglin Chen. Porous metal-organic frameworks for gas storage and separation: Status and challenges. Energy-Chem , 1(1):100006, 2019. [4] Tina D¨ uren, Youn-Sang Bae, and Randall Q Snurr. Using molecular simulation to characterise metal–organic frameworks for adsorption applications. Chemical Society Reviews , 38(5):1237–1247, 2009. [5] David Dubbeldam, Sof´ ıa Calero, Donald E Ellis, and Randall Q Snurr. RASPA: molecular simulation software for adsorption and diffusion in flexible nanoporous materials. Molecular Simulation , 42(2): 81–101, 2016. [6] David Dubbeldam, Ariana Torres-Knoop, and Krista S Walton. On the inner workings of monte carlo codes. Molecular Simulation , 39(14-15):1253–1292, 2013. 13 [7] Daniel W Siderius, Harold W Hatch, and Vincent K Shen. Flat-histogram monte carlo simulation of water adsorption in metal–organic frameworks. The Journal of Physical Chemistry B , 128(19): 4830–4845, 2024. [8] Zhenzi Yu, Dylan M Anstine, Salah Eddine Boulfelfel, Chenkai Gu, Coray M Colina, and David S Sholl. Incorporating flexibility effects into metal–organic framework adsorption simulations using different models. ACS Applied Materials & Interfaces , 13(51):61305–61315, 2021. [9] Tom Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared D Kaplan, Prafulla Dhariwal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, et al. Language models are few-shot learners. Advances in neural information processing systems , 33:1877–1901, 2020. [10] Robin Rombach, Andreas Blattmann, Dominik Lorenz, Patrick Esser, and Bj¨ orn Ommer. High-resolution image synthesis with latent diffusion models. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 10684–10695, 2022. [11] Joseph L Watson, David Juergens, Nathaniel R Bennett, Brian L Trippe, Jason Yim, Helen E Eisenach, Woody Ahern, Andrew J Borst, Robert J Ragotte, Lukas F Milles, et al. De novo design of protein structure and function with rfdiffusion. Nature , 620(7976):1089–1100, 2023. [12] Frank No´ e, Simon Olsson, Jonas K¨ ohler, and Hao Wu. Boltzmann generators: Sampling equilibrium states of many-body systems with deep learning. Science , 365(6457):eaaw1147, 2019. [13] Bowen Jing, Gabriele Corso, Jeffrey Chang, Regina Barzilay, and Tommi Jaakkola. Torsional dif-fusion for molecular conformer generation. Advances in neural information processing systems , 35: 24240–24253, 2022. [14] Leon Klein, Andreas Kr¨ amer, and Frank No´ e. Equivariant flow matching. Advances in Neural Information Processing Systems , 36:59886–59910, 2023. [15] Leon Klein and Frank No´ e. Transferable boltzmann generators. Advances in Neural Information Processing Systems , 37:45281–45314, 2024. [16] N Scott Bobbitt, Kaihang Shi, Benjamin J Bucior, Haoyuan Chen, Nathaniel Tracy-Amoroso, Zhao Li, Yangzesheng Sun, Julia H Merlin, J Ilja Siepmann, Daniel W Siderius, et al. MOFX-DB: An online database of computational adsorption data for nanoporous materials. Journal of Chemical & Engineering Data , 68(2):483–498, 2023. [17] Peter G Boyd, Arunraj Chidambaram, Enrique Garc´ ıa-D´ ıez, Christopher P Ireland, Thomas D Daff, Richard Bounds, Andrzej Gladysiak, Pascal Schouwink, Seyed Mohamad Moosavi, M Mercedes Maroto-Valer, et al. Data-driven design of metal–organic frameworks for wet flue gas CO2 capture. 
+
+Nature , 576(7786):253–256, 2019. [18] Cigdem Altintas, Gokay Avci, Hilal Daglar, Ayda Nemati Vesali Azar, Sadiye Velioglu, Ilknur Eru-car, and Seda Keskin. Database for CO2 separation performances of MOFs based on computational materials screening. ACS applied materials & interfaces , 10(20):17257–17268, 2018. [19] Felipe Lopes Oliveira, Conor Cleeton, Rodrigo Neumann Barros Ferreira, Binquan Luan, Amir H Farmahini, Lev Sarkisov, and Mathias Steiner. Crafted: An exploratory database of simulated adsorption isotherms of metal-organic frameworks. Scientific Data , 10(1):230, 2023. [20] Anuroop Sriram, Sihoon Choi, Xiaohan Yu, Logan M Brabson, Abhishek Das, Zachary Ulissi, Matt Uyttendaele, Andrew J Medford, and David S Sholl. The open DAC 2023 dataset and challenges for sorbent discovery in direct air capture, 2024. [21] Anuroop Sriram, Logan M Brabson, Xiaohan Yu, Sihoon Choi, Kareem Abdelmaqsoud, Elias Moubarak, Pim de Haan, Sindy L¨ owe, Johann Brehmer, John R Kitchin, et al. The open DAC 2025 dataset for sorbent discovery in direct air capture. arXiv preprint arXiv:2508.03162 , 2025. [22] Christian Baerlocher, Lynne B McCusker, and David H Olson. Atlas of zeolite framework types .Elsevier, 2007. [23] Marko Petkovic and Koen Wortelboer. marko-petkovic/porran: Porran, March 2025. URL https: //doi.org/10.5281/zenodo.15050436 .14 [24] Pablo Romero-Marimon, Juan Jose Gutierrez-Sevillano, and Sofia Calero. Adsorption of carbon dioxide in non-l¨ owenstein zeolites. Chemistry of Materials , 35(13):5222–5231, 2023. [25] Sof´ ıa Calero, David Dubbeldam, Rajamani Krishna, Berend Smit, Thijs JH Vlugt, Joeri FM De-nayer, Johan A Martens, and Theo LM Maesen. Understanding the role of sodium during adsorption: a force field for alkanes in sodium-exchanged faujasites. Journal of the American Chemical Society ,126(36):11377–11386, 2004. [26] Almudena Garcia-Sanchez, Conchi O Ania, Jos´ e B Parra, David Dubbeldam, Thijs JH Vlugt, Rajamani Krishna, and Sofia Calero. Transferable force field for carbon dioxide adsorption in zeolites. The Journal of Physical Chemistry C , 113(20):8814–8820, 2009. [27] Marko Petkovic, Rachna Ramesh, Vlado Menkovski, and Sofia Calero. AdsZeo: A dataset of equilibrium state configurations of adsorption in zeolite. Zenodo, July 2026. URL https: //doi.org/10.5281/zenodo.21445386 .[28] JA Dunne, M Rao, S Sircar, RJ Gorte, and AL Myers. Calorimetric heats of adsorption and adsorption isotherms. 2. O2, N2, Ar, CO2, CH4, C2H6, and SF6 on NaX, H-ZSM-5, and Na-ZSM-5 zeolites. Langmuir , 12(24):5896–5904, 1996. [29] Orhan Talu, Si Yang Zhang, and David T Hayhurst. Effect of cations on methane adsorption by nay, mgy, cay, sry, and bay zeolites. The Journal of Physical Chemistry , 97(49):12894–12898, 1993. [30] EV Chkhaidze, AA Fomkin, VV Serpinskii, and GV Tsitsishuili. Adsorption of methane on nax zeolite in the subcritical and supercritical regions. Bull. Acad. Sci. USSR, Div. Chem. Sci.(Engl. Transl.);(United States) , 34(5 PT 1), 1985. 15
