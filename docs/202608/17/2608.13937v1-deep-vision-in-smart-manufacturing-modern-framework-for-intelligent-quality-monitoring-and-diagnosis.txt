@@ -1,0 +1,2088 @@
+Title: Deep Vision in Smart Manufacturing: MODERN Framework for Intelligent Quality Monitoring and Diagnosis
+
+URL Source: https://arxiv.org/pdf/2608.13937v1
+
+Published Time: Mon, 17 Aug 2026 00:23:57 GMT
+
+Number of Pages: 51
+
+Markdown Content:
+# Deep Vision in Smart Manufacturing: MODERN Framework for Intelligent Quality Monitoring and Diagnosis 
+
+Yicheng Kang 
+
+Farmer School of Business, Miami University, OH. USA, kangy10@miamioh.edu 
+
+Yuling Jiao 
+
+School of Mathematics & Statistics, Wuhan University, Hubei, China, yulingjiaomath@whu.edu.cn 
+
+Xin Geng 
+
+Miami Herbert Business School, University of Miami, FL. USA, xgeng@bus.miami.edu 
+
+Mahesh Nagarajan 
+
+Sauder School of Business, The University of British Columbia, BC. Canada, mahesh.nagarajan@sauder.ubc.ca 
+
+Smart manufacturing processes are often installed with a large number of sensors, imaging devices and computers, which not only enable instant communication across various modules of a production system but also aid in intelligent manufacturing management. In this paper, we introduce “MODERN”, a deep learning framework for quality monitoring and fault isolation, which integrates these enhanced capabilities into the practice of industrial quality control. Using the architecture of an inception residual neural network, we develop a control chart that monitors the likelihood of a product containing defects. We also propose a faulty region estimator that identifies the defective area using transfer learning. To extend our framework to cases where there are not sufficient training data, we suggest a transfer monitoring technique that requires only a small sample size and a hypothesis testing approach for quantitatively assessing the applicability of our method. Theoretically, we establish the minimax optimal convergence rate for both our defect likelihood estimation and fault diagnosis. Our results lead to a seemingly counter-intuitive managerial implication - it may not always be in a manufacturer’s best interests to keep upgrading its monitoring equipment regardless of the cost. Empirically, we demonstrate the superior performance of our method in comparison with a state-of-the-art approach using both simulated experiments and real data. 
+
+Key words : artificial intelligence, deep learning, image monitoring, quality management, transfer monitoring. 
+
+## 1. Introduction 
+
+1.1. Background and Motivation 
+
+Over (nearly) 100 years since Statistical Process Control (SPC) was introduced by Shewhart (1931), SPC methods have always been widely used across industries, especially manufacturing, to monitor production process and control product quality. Among others, control charts as the main technique of SPC aim to quickly detect any assignable causes of variation so that investigation and correction can be done in time. If used effectively, SPC methods play an important role in decreasing the 
+
+1arXiv:2608.13937v1 [stat.ML] 14 Aug 2026 Kang et al.: An Inception Framework for Image-Based SPC 
+
+> 2
+
+production variation and reducing the overall cost of quality. As reported by the American Society for Quality 1, the true quality-related costs could reach to 15-20% of sales revenue, some going as high as 40% of the operating expenses in manufacturing firms. Hence, setting up effective control charts can help firms substantially reduce cost and make direct contribution to profit. Aside from the practical impact, there are many theoretical studies of SPC control charts in the management science literature. Starting from the classic Shewhart’s x-bar chart and p-chart, researchers have developed many control charts with more sophisticated design for quality characteristics of either continuous variables or attributes (see, e.g., Page 1961, Montgomery and Klatt 1972, Lowry et al. 1992, Hawkins et al. 2003). The traditional design of control charts involves selecting the sample size, sample frequency, and control limits to satisfy certain statistical and/or economic require-ments. Examples include the sensitivity to false alarm leading to requirement on in-control (IC) 
+
+average run length (ARL) and the timeliness of delivery of out-of-control (OC) signals. Naturally, given the costs of sampling, investigating, and correcting, traditional designs often seek to mini-mize the average long-run total cost (see, for example, Jensen et al. 1984, Tagaras and Lee 1988, Calabrese 1995, Porteus and Angelus 1997, Wang and Lee 2015, Wang 2016, Montgomery 2019). It is noteworthy that, even though control charts are important tools for quality monitoring, the research on this topic has quieted down in the past decade. This is because the design and analysis of traditional control charts have been well understood. However, in recent years the landscape of quality monitoring has been drastically changed by rapid advancements of emerging technologies, necessitating a fresh look at the SPC techniques in modern manufacturing. The high degree of automation in modern manufacturing comes with quality monitoring systems which use powerful technologies including computer vision, robotics, and artificial intelligence – such digitization throughout the entire manufacturing process is referred to as smart manufacturing ,an example of Industry 4.0 (Olsen and Tomlin 2020). In contrast, in traditional manufacturing settings, human workers and analog machines are tasked with picking non-conforming products. These impose severe restrictions on their ability to keep up with high production volumes. Thus, only a fraction of products are sampled. Because of this, the design of traditional control charts focuses on sample size and inspection frequency. In smart factories, these trade-offs are largely absent. Sensors and cameras are able to unceasingly “watch” the products and capture information about product specifics such as dimension, surface defects and spatial patterns in real time. Since the essential objective of SPC, i.e., to monitor the potential process shifts and inform decision-making in real time, remains the same even in Industry 4.0, the SPC control charts need    
+
+> 1Source: https://asq.org/quality-resources/cost-of-quality .Kang et al.: An Inception Framework for Image-Based SPC
+> 3
+
+to evolve and adapt to the technologies. In fact, the investment in the advanced quality inspection technology has set a even higher requirement for the responsiveness and accuracy of the control chart. Specifically, to harness the power of the computer vision for smart manufacturing quality control, how should manufacturers recognize and classify high volume of images captured by cam-eras, and how should the image data be processed and analyzed to inform the control decisions in a timely fashion and offer post-signal diagnosis with high accuracy? This new challenge motivates us to exploit advanced artificial intelligence techniques, coupled with appropriate statistical methods, to build a general framework for image-based quality monitoring and fault diagnosis. 
+
+1.2. Literature Review on Image-Based Quality Control 
+
+Machine learning, especially deep learning, has revolutionized image analysis. While classical anal-ysis methods could be easily rendered infeasible because of the high dimensional input (pixels in millions) of an image, methods based on deep learning can effectively deal with the dimensionality issue and efficiently extract image features for analysis. In particular, deep convolutional neural networks (CNNs) (De Ketelaere et al. 2022), the most commonly adopted deep learning basis, use an architecture of many convolutional and pooling layers to gradually reduce the dimensionality of the input data while keeping the most relevant features preserved. Specifically, convolutional layers are mathematical filters that preserve the translation-invariant features of images. They are usually followed by pooling layers which detect the locations and strengths of those features. The combined use of convolutional and pooling layers vastly reduces the number of parameters required by fully connected neural networks. Because of their effectiveness in image analysis, CNNs are widely used for image-related management in operations, marketing, and information systems (see, e.g., Li et al. 2022, Liu et al. 2020, Hu and Hong 2022). For image-based quality management, methods using CNNs have been studied in several industrial settings, including surface grading in ceramic tile production (L´ opez et al. 2008), anomaly detection in rolling processes in the steel industry (Feng and Qiu 2018), monitoring nonconforming patterns in textile manufacturing (Bui and Apley 2018), surface uniformity inspection in the liquid crystal display industry (Jiang et al. 2005), and defect detection in the welding industry (Zhang et al. 2019, Park et al. 2019). We refer the readers to Babic et al. (2021) and Diers and Pigorsch (2023) for surveys on the CNN applications to industrial inspection. In all of the above papers, images of products are collected, and the quality characteristics (e.g., product geometry or surface finish) extracted from these images are used to determine whether the manufactured products meet the quality standards. Therefore, these papers only deal with one aspect of quality control, namely, identifying defective products via inspection. By contrast, we Kang et al.: An Inception Framework for Image-Based SPC 
+
+4
+
+focus on the charting methods that detect persistent quality shifts in the process via monitoring. Given the on-going nature of a typical manufacturing process, using control charts to manage the potential quality abnormality reduces the possible delay of out-of-control signal delivery, lowering the quality-related costs. Therefore, departing from the above line of works, our main research output is an image-based SPC control chart rather than a product quality inspection technique. The underlying logic for an image-based control chart to work is to check the conformity of a manufactured product by comparing its image with the pre-determined image of a good-quality product. So far, two types of monitoring methods have been proposed in the literature. However, they all impose restrictive assumptions on the captured images, limiting their use in many practical settings. Here we aim to propose a flexible method that is able to handle a large variety of images. To illustrate the limitations of the existing methods and the capability of our approach, we provide three types of images in different contexts; see Figure 1 below. First, Figure 1(a) is an image of a tile  
+
+> Figure 1 An illustration for the insufficiency of the existing image-based quality monitoring.
+
+(a) A tile surface (b) A textile fabric sample (c) Microscopic structures of salt  
+
+> Note: Image (a) has a deterministic pattern to conform to. Image (b) satisfies Markov Field conditions and its conformity can be defined in a stochastic sense. Image (c) does not have either property and no existing process monitoring method can treat this type of images well.
+
+with no surface defects. This image encompasses characteristics of good-quality products and can be used as a gold standard with distinct deterministic features. As a result, when monitoring this tile production process, images with significant deviation from the gold standard would be deemed out-of-control (OC). Most existing image monitoring methods in the literature are designed under the assumption that there is a gold standard image (see, e.g., Jin and Shi 1999, Lin 2007b,a, Megahed et al. 2012, Koosha et al. 2017, Feng and Qiu 2018, Kang 2022). Second, Figure 1(b) displays an image of a textile fabric sample. Clearly, in this setting, there does not exist a gold standard as Kang et al.: An Inception Framework for Image-Based SPC 
+
+> 5
+
+two good-quality products may look completely different in the sense that there is no pixel-to-pixel match between them. In fact, the in-control (IC) textile weave patterns exhibit stochastic behavior and are not deterministically repeated. Images of this type are considered in Levina and Bickel (2006) and Bui and Apley (2018). Their method relies crucially on the assumption that the joint distribution of pixel intensities (i.e., the brightness measure at each pixel location) must follow a Markov Field (MF) model. Specifically, the marginal distributions of individual pixels are the same regardless of the pixel location (i.e., the stationarity condition), and the dependence of a pixel’s intensity on the other pixels is only through several neighboring pixels (i.e., the locality condition). These conditions seem to hold for Figure 1(b), but it may not be the case in other applications. Lastly, Figure 1(c) shows an image of the microscopic structures of margarita salt. In contrast to the previous two images, this image neither has a gold standard, as the minuscule cubes of salt are randomly placed together, nor does it satisfy the stationarity condition, as the small cubes appear brighter than the larger ones. Thus, the existing methods will all fail at the process monitoring and quality control for products with this type of images. To the best of our knowledge, we are the first to build a general CNN-based framework for image-based SPC control chart that has the capability to handle a variety of images without making restrictive assumptions (e.g., gold standard, locality, or stationarity). 
+
+1.3. Results Overview and Contributions 
+
+Our work has three sets of contributions. First, we provide a ready-made and implementable quality control technique that can be adapted in smart manufacturing. Second, we show that our method has attractive theoretical properties. Third, we are able to provide managerial insights on interpreting the results as well as guidance on decisions that may improve monitoring and control. We detail our contributions as follows. 
+
+Practical Contribution. The foremost contribution of our research is to propose MODERN – Monitoring with Deep Residual Network – a deep learning framework for image-based SPC qual-ity control. The proposed framework accomplishes the following two goals that ensure successful manufacturing quality control: (i) quality monitoring , i.e., quick delivery of a signal if the produc-tion process starts working abnormally, and (ii) post-signal diagnosis , i.e., accurate isolation of the faulty region of the defective products after an OC signal is given by the control chart. Using the architecture of a deep neural network with residual connections, we are able to describe a wide range of deterministic and stochastic IC behaviors, filling the gap in the literature of image-based control charts. Based on the general framework and the neural network model, we provide an Kang et al.: An Inception Framework for Image-Based SPC 
+
+> 6
+
+exponentially weighted moving average (EWMA) control chart (MODERN-Chart) to monitor pos-sible process shifts and signal abnormality in real time. Our proposed monitoring technique has a desirable re-starting mechanism that accumulates the evidence when the observed images suggest a process shift and resets to the initial state when the data suggest otherwise. The implication is that our control chart is able to detect small but persistent shifts for the manufacturing process, which may be overlooked if only inspection methods are used for individual products. Moreover, the proposed chart is easy to implement and thus can be adopted in practice without much difficulty. In addition, by modifying the initialization and the final layer of the neural network, we develop a faulty region estimator to facilitate the post-signal diagnosis (MODERN-Diagnosis) by locating the defective area in the OC images. We show that the faulty region estimator can be calibrated on a relatively small dataset of defective images. It is worth noting that the MODERN framework is not restrictive in terms of the specific choice of the neural network. Since its implementation remains the same if a different neural network is used, it can evolve at the same pace as deep learning technology. In this sense, our research provides a road map for dynamically integrating deep learning technology into the practice of quality control. We also establish an important generalization that ensures a convenient implementation of MOD-ERN framework in a wide range of manufacturing processes. Since different production lines have different sets of IC/OC images, a common but major challenge to apply deep learning to a specific setting is to quickly train the neural network from scratch to a sufficient level, especially when there is a relatively small set of training images. To overcome this obstacle, we propose a novel 
+
+transfer monitoring technique that consists of two components, namely, an applicability test and an augmented bootstrap algorithm for control limit determination. Given a specific manufacturing setting, we first conduct an applicability test assessing whether our pre-trained MODERN-Network is capable of distinguishing the IC and OC images at hand. The applicability test also safeguards against misuses of the framework, avoiding the cost of quality mismanagement. Then, we propose the augmented bootstrap algorithm that adapts the control limit of our MODERN-Chart to the specific setting. Notably, compared to retraining the neural network, the sample size required for our augmented bootstrap algorithm to recompute the control limit is significantly smaller. Hence, in the context of image-based quality control, our transfer monitoring solves the notorious problem of the formidable sample size requirement of deep learning technology. Furthermore, we provide the mathematical basis for this sample size reduction property by proving that the convergence rate by transfer monitoring is much faster than the convergence rate achieved by retraining the neural network. Kang et al.: An Inception Framework for Image-Based SPC 
+
+> 7
+
+Theoretical Contribution. For both the defect likelihood estimation and post-signal fault diagnosis based on the proposed framework, we establish the minimax asymptotic optimality . Specifically, we first prove that the error of our quality control signaling and defect region isolation will approach to zero as the sample size grows. We then show, using novel techniques, that our neural network estimation achieves the minimax optimal rate of convergence. That is, no other methods can attain a faster rate, suggesting that our MODERN framework makes very efficient use of the training sample. The main theoretical challenge is that the underlying deep CNNs have a complex nonlinear structure, which prevents us from applying conventional approximation tools and using basis series such as polynomials, splines, or wavelets (see, e.g., Kang 2022). As a result of this difficulty, the associated optimization problem cannot be reduced to solving a finite set of stationary equations. While the desired approximation result has been established for fully connected neural networks in recent developments of deep learning theory (e.g., Shen et al. 2019), no such result exists for CNNs. To address this gap, we adapt existing techniques to approximate the loss functional in an infinite-dimensional space by constructing and bounding it by locally quadratic functionals. Ultimately, we show that the same convergence rate holds for CNNs as well. We also address an important matter in image-based quality control: the impact of mislabeling. Industrial images can get labeled erroneously due to negligence of the quality personnel or poor resolution of the image. Thus, in Industry 4.0, it is crucial for quality managers to understand the effect of mislabeling when quality control is integrated with deep learning technology. Our research shows that the estimation error of the defect likelihood can be decomposed into two terms: the CNN convergence rate and the image mislabeling rate. This allows quality managers to set a bound on the mislabeling rate relative to the total sample size, with the understanding that the deep learning-based quality control becomes less effective if the bound is exceeded. 
+
+Managerial Contribution. As an extension to the previous two contributions, we also offer man-agerial insights for manufacturers who are transitioning to Industry 4.0. First, compared to image-based quality control using MODERN framework, the traditional manual inspection approach inevitably suffers from incompleteness and subjectivity: Human operators are easily subject to errors and fatigue, and they may have different training and visual perceptions. Overcoming these drawbacks, MODERN framework for smart manufacturing quality control achieves higher efficiency (machines do not need rest) and greater repeatability (human subjectivity is eliminated). Second, our convergence results have useful implications on the equipment/device investment. Despite the benefit of accumulating additional training images (the estimation error would diminish), the con-vergence rate is found to be decreasing in the image resolution, suggesting that it may not always Kang et al.: An Inception Framework for Image-Based SPC 
+
+> 8
+
+be in a manufacturer’s best interests to keep upgrading its monitoring equipment for higher image resolution. Instead, the manufacturer should consider image quality together with labeling quality. In other words, if mislabeling does not occur or occurs at a tolerable level (i.e., within the afore-mentioned asymptotic bound), then it would be beneficial for the manufacturer to not upgrade or even downgrade their imaging equipment. On the other hand, if the mislabeling rate relative to the total sample size exceeds the asymptotic bound, our deep learning-based quality control becomes less effective. In such cases, higher-resolution images are necessary to allow precise labeling and thus investments in equipment upgrades are warranted. Third, our MODERN framework offers 
+
+interpretable diagnosis to quality managers. Following an OC signal given by MODERN-Chart, MODERN-Diagnosis identifies the specific faulty part of the defective product that triggers the OC signal, providing useful information about the root cause. Finally, we conduct a series of extensive numerical studies to showcase the performance of the proposed MODERN framework. First, using DAGM, a commonly used benchmark dataset for industrial image analysis, we evaluate the numerical performance of our method. MODERN-Chart is observed to give a signal at the exact change point (where process just starts to shift) most of the time, a satisfactory performance for quality monitoring. The numerical assessment also reports that our faulty region estimator does well in locating the defect, even though the estimator is trained on a small set of OC images. Second, we compare our method with a state-of-the-art approach in simulated experiments. Since the images in our setting typically do not have a gold standard, the comparison is done with the Markov Field (MF) approach suggested by Bui and Apley (2018). Using synthetic images that satisfy the Markov Field conditions, we show that our method performs better than the MF approach in terms of timely signal delivery and accurate faulty area isolation. Third, we demonstrate the proposed method on two sets of real product images, one from a commutation system manufacturer and the other from a machine software supplier. Our method is shown to deliver the OC signal quickly and flag the faulty area. We also apply the MF approach to the same sets of images and find that it may send a false alarm before the process starts to shift. 
+
+1.4. Organization of the Paper 
+
+The remainder of this paper is organized as follows. Section 2 describes our model for the image data analysis based on a deep CNN of inception architecture with residual connections. Sec-tion 3 introduces the proposed MODERN framework. Section 4 discusses theoretical results and their implications. Section 5 presents a benchmark dataset of industrial images and evaluates the Kang et al.: An Inception Framework for Image-Based SPC 
+
+> 9
+
+proposed method using numerical studies. Section 6 summarizes the work and suggests possible extensions beyond industrial manufacturing. Technical details are relegated to the appendix. 
+
+## 2. Model Descriptions 
+
+Extracting information from images is challenging because image data are unstructured and con-tain complex spatial patterns. Although composed of pixels, an image cannot simply be treated as a collection of individual pixels; otherwise, the spatial information, which captures the main characterizations of the image, would be lost. Therefore, it is necessary to create a set of mean-ingful features that best represent the image. Manually defining such features is time-consuming and often domain-specific, making it impractical and non-generalizable. The recent development of deep learning offers a much more efficient tool for image analysis. In particular, deep CNNs automate the step of feature extraction by learning the representative features from data. Since its invention, deep CNNs have seen a number of successes in difficult tasks such as image classification (Krizhevsky et al. 2017), image segmentation (Long et al. 2015), human pose estimation (Toshev and Szegedy 2014) and object tracking (Wang and Yeung 2013). Refer to Stevens et al. (2020) for a more detailed discussion. In the following, we describe our image analysis model, which is built upon the deep convolutional neural networks. First, we introduce the transformation layers as the basic building blocks for the network. Then, in order to deal with a large amount of layers, we incorporate an efficient deep CNN design into our model. 
+
+2.1. Basic Building Blocks 
+
+A CNN involves various types of transformation layers. The output of each layer serves as the input into the next one. It is through these layers that a CNN learns the key attributes of an image. Typically, the first several layers extract basic image features, deeper layers detect complete objects, and the final layer returns outcome variables with meaningful interpretations. Same as most of CNNs seen in literature (e.g., Krizhevsky et al. 2012, LeCun et al. 2015), our model utilizes four types of transformation layers: convolutional, activation, pooling and fully connected layers. We briefly describe each type next. 
+
+2.1.1. Convolutional Layer. Consider an input image represented by a pixel matrix, Xin ,and a corresponding kernel , which is a weight matrix, {K(i, j ) : −k ≤ i, j ≤ k}, of size 2 k + 1 2.Then, the output data of a convolutional layer, denoted by Xout , is element-wise computed by sliding the kernel on all input locations and performing the weighted sum. Specifically, the pixel at   
+
+> 2Odd-sized kernels are often used in convolutional layers for analytical convenience. Kang et al.: An Inception Framework for Image-Based SPC
+> 10
+
+location ( m, n ) of the transformation output is defined as the scalar product of the kernel K with the neighborhood of input pixel Xin (m, n ): 
+
+Xout (m, n ) = 
+
+> k
+
+X
+
+> i=−kk
+
+X
+
+> i=−k
+
+Xin (m + i, n + j) · K(i, j ) + b, 
+
+where b is the bias parameter associated with the kernel. Note that the size of the output image can vary according to different designs of the layer. For example, the number of pixels the kernel slides, called stride , can affect the output size; i.e., the larger the stride, the smaller the output image. Another factor is how the convolution is defined on the boundary of the input image, referred to as 
+
+padding . There are two approaches for padding. Same padding adds pixels of value zero around the border so that the output image has the same size as the input image, whereas valid padding means sliding the convolution kernel within the input image, resulting in an output image smaller than the input. Therefore, the dimension of Xout is determined by the dimension of Xin , the kernel size, the stride, and the padding approach. Moreover, there can be several kernels in a convolutional layer, each called a filter . The number of filters defines the width of the layer, which is also the number of output images of that layer. The hyperparameters of the convolutional layer, i.e., stride, padding, kernel size, and filter quantity are all specified by the CNN’s architecture (or user). The learnable parameters, including the kernel elements and biases, are estimated from data. The key rationale behind convolutions is two-fold. First, it is a localized operation in the sense that it only examines how nearby pixels are arranged, disregarding pixels from far away. This is a reasonable design because patterns of objects in images are indeed localized. Second, the convolution transformation is translation invariant, because the same kernel is applied across the input image. This ensures that the location of an object does not matter if that object is to be detected in an image. For instance, if we want to recognize an airplane, we are not concerned with whether the airplane is in the upper left or lower right corner of the image. This parameter-sharing design facilitates a significant reduction of the number of parameters in the layer. 
+
+2.1.2. Activation Layer. An activation layer applies an element-wise nonlinear activation function to input from the previous layer. Thus, the dimensions of the output and input are the same. While convolutional layers, no matter how many times they are applied to input data, only result in an affine/linear functional form, the nonlinearity introduced by activation layers allows the CNNs to approximate more complex functional relationships. There are a few popular choices for activation functions. We use one of the best-performing activation functions, namely, the ReLU (rectified linear unit) activation in our model: ReLU( x) = max {0, x } .Kang et al.: An Inception Framework for Image-Based SPC 
+
+> 11
+
+Therefore, the ReLU activation layer has a threshold property: pixels without the feature defined by the corresponding kernel are suppressed to zero values in the subsequent layers. Due to this property, ReLU activation layers can detect signal strengths and signal locations in our model. 
+
+2.1.3. Pooling Layer. A pooling layer is often inserted between convolutional layers to trans-form the features of the input data in a collective manner. Two commonly seen pooling operations, namely, max pooling and average pooling, are used in our model. Max [average] pooling takes the maximum [average] over each neighborhood of the input image as the new pixel of the output image. Similar to convolutional layers, it has hyperparameters such as the stride and the size of the pooled neighborhood that determine the output dimension. Moreover, if the previous layer has multiple filters, pooling operates independently on every filter so it has the same width. Intuitively, the output images from a convolution layer followed by a ReLU activation tend to have a high magnitude at places where features associated with some kernels are detected. By keeping the maximum or the average in the neighborhood as the down-sized output, the pooling layer ensures that the detected features are preserved. A convolutional layer, activation layer and pooling layer together form important building blocks for constructing CNNs. Most CNNs use the three-layer building blocks in a repeated fashion, with varying dimensions. Typically, as the network gets deeper, the output image progressively shrinks in size while the number of filters increases. 
+
+2.1.4. Fully Connected Layer. Fully connected layers are usually at the end of a CNN, where the final output is about to be produced. Output images from the previous layer are first flattened as a vector, which is then fed into a fully connected layer that operates as follows. Let 
+
+Zin be an input vector of length lin and WFC be the weight matrix of size lout × lin associated with the fully connected layer. Then, the output vector Zout is computed as 
+
+Zout = WFC Zin + bFC ,
+
+where bFC is the bias parameter of length lout . Hence, the fully connected layer includes a total of lout × lin + lout learnable parameters. Unlike convolutional layers where each output pixel is connected only to a local region of the input, units in a fully connected layer are connected to the entire subsequent layer. As such, the flattened vector is often regarded as derived image features. The main purpose of fully connected layers is to map these features to target variables with contextual interpretations. For quality monitoring where the objective is to signal whether the process has shifted, the target variable is the probability of the process being OC. Given that the Kang et al.: An Inception Framework for Image-Based SPC 
+
+> 12
+
+output unit from a fully connected layer can take any real value, we relate it to the OC probability via the logistic function, defined as 
+
+p(z) = ez
+
+1 + ez ,
+
+where z is the output from a fully connected layer. In the post-signal diagnosis model, however, the last layer output z is a five-dimension variable that represents the location of the faulty region, and there is no need to apply the logistic function in that case. See Section 3.3 for details. 
+
+2.2. Inception Architecture with Residual Connections 
+
+Applying multiple transformation layers of different types gives a CNN model. If the number of convolutional layers is relatively small, the CNN model is too shallow to perform satisfactorily. 
+
+Deep CNNs refer to those with many (usually > 100) convolutional layers, and the resulting model capability is increased. Indeed, with depth, the CNN model is able to approximate much more complex functional relationships and even capture the hierarchical information when we need to understand the context. For instance, a shallow network could only identify a person’s shape in a photo, but a deep network could identify the person’s face and the mouth in the face. The inception architecture, initially proposed by Szegedy et al. (2015), is an efficient deep CNN design for computer vision. At the ImageNet Large-Scale Visual Recognition Challenge in 2014, the first incarnation of inception-style CNN, “GoogLeNet”, outperformed “AlexNet”, which was the state-of-the-art deep CNN at that time (Krizhevsky et al. 2012). Since then, the inception design has been improved and further refined by Szegedy et al. (2016) and Szegedy et al. (2017). The inception design aligns with the intuition that visual information should be processed at various scales and then aggregated so that the next stage can abstract features from different scales simultaneously. Based on this rationale, the key feature of an inception architecture is filter concatenation , which concatenates the output images from different filters to become what is called an inception module; and the inception-style CNNs involve repeated use of the inception modules, which are stacked upon each other in the network. Figure 2(a) provides a graphical illustration of filter concatenation using a generic inception module as an example. A major challenge with deep CNNs is that the training becomes harder as the depth increases. Indeed, features carried by an early layer could easily vanish after undergoing a long chain of trans-formation, leading to ineffective training of that layer. The residual connection design suggested by He et al. (2016) addresses this issue. The main idea is to skip layers by adding the input to the output before the next activation layer, forcing the features learned from the shallower layers to be carried over to the deeper layers; see Figure 2(b) for an illustration and note that the residual Kang et al.: An Inception Framework for Image-Based SPC 
+
+13     
+
+> Figure 2 Graphical illustration of filter concatenation and residual connection in a generic inception module. Relu Ac(va(on +Previous Layer Incep(on Module Filter Concat. 1x1 Conv 3x3 Conv 5x5 Conv 3x3 MaxPool Previous Layer
+
+(a) An example of filter concatenation. Relu Ac(va(on +Previous Layer Incep(on Module Filter Concat. 1x1 Conv 3x3 Conv 5x5 Conv 3x3 MaxPool Previous Layer (b) An illustration of residual connection.  
+
+> Note: Several filters of a transformation layer are concatenated into an inception module. Then, that inception module and the previous layer are fed together into the next activation layer.
+
+connection is represented by the “+” box. Hence, adding residual connections to the inception architecture accelerates the training of the networks while maintaining the performance. This idea was incorporated by Szegedy et al. (2017) in their latest version of inception design “Inception ResNet”, which shows high computational efficiency and excellent approximation performance. Therefore, we will adopt the residual inception architecture for the neural network in our image data analysis model, which is further described next. 
+
+2.3. The Network Architecture and Hyperparameters in Our Model 
+
+Our model utilizes the basic building blocks of various transformation layers from Section 2.1 and incorporates the residual inception architecture from Section 2.2. Being a deep CNN model with numerous layers where multiple inception modules are applied at different places, the model has a complex structure and many hyperparameters; In particular, our network has about 23.4 million learnable parameters. To present our inception residual CNN model, Figure 3 provides a complete schematic view of the network architecture and hyperparameters. At the center of the figure, there is a (linear) top-level structure comprising six main modules of operations, namely, “Stem”, “InceptionRes-A”, “Reduction-A”, “InceptionRes-B”, “Reduction-B” and “InceptionRes-C”. Note that “InceptionRes-A” module is repeated five times in the architecture, “InceptionRes-B” ten times, and “InceptionRes-C” five times. Moreover, the inception modules in Figure 3, e.g., filter concatenations and residual connections, operate in the way as described in Section 2.2. The main modules are further depicted as indicated alongside the main structure with detailed information. As the main element of the network, convolutional layers are used many times. Each of them is represented by a box named “Conv”, with all the relevant hyperparameters reported in Kang et al.: An Inception Framework for Image-Based SPC 
+
+14 
+
+the box. Specifically, kernel size is given (e.g., 3 ×3) on top and “(filter quantity, stride, padding approach)” are given in the parenthesis. Furthermore, the box named “MaxPool” refers to a pooling layer with max operation and the hyperparameters are given as “[stride, padding approach]” in the box. Lastly, after the six main modules of operations, the “Final Layers” in the figure refer to an average pooling layer and a fully connected layer with the logistic function. To avoid overfitting, we set a dropout probability 0 .6 to the output data before applying the softmax function. 
+
+Figure 3 The complete schematic view of MODERN-Net architecture. Relu Ac(va(on Relu Ac(va(on 1x1 Conv (1792,1,S)  
+
+> +
+> 3x1 Conv (192,1,S) 1x3 Conv (192,1,S) 1x1 Conv (192,1,S) 1x1 Conv (192,1,S) Filter Concat. Previous Layer 1x1 Conv (192,1,S) 3x3 Conv (192,1,S) 3x3 Conv (256,2,V) 3x3 Conv (384,2,V) 3x3 MaxPool [2,V] Filter Concat. Previous Layer 1x1 Conv (256,1,S) 3x3 Conv (256,1,S) 3x3 Conv (256,2,V) 3x3 Conv (384,2,V) 3x3 MaxPool [2,V] 1x1 Conv (256,1,S) 3x3 Conv (256,2,V) 1x1 Conv (256,1,S) 3x3 MaxPool [2,V] 3x3 Conv (32,1,V) 3x3 Conv (32,2,V) 3x3 Conv (192,1,V) 3x3 Conv (64,1,S) 3x3 Conv (256,2,V) 1x1 Conv (80,1,S)
+
+5x Incep(onRes-C 10x Incep(onRes-B 5x Incep(onRes-A Reduc(on-B Reduc(on-A Stem Input Image Final Layers Relu Ac(va(on Relu Ac(va(on 1x1 Conv (256,1,S) 1x1 Conv (32,1,S) 3x3 Conv (32,1,S) 1x1 Conv (32,1,S) 1x1 Conv (32,1,S) 3x3 Conv (32,1,S) 3x3 Conv (32,1,S) 
+
+> +
+> Relu Ac(va(on Relu Ac(va(on 1x1 Conv (896,1,S) 7x1 Conv (128,1,S) 1x7 Conv (128,1,S) 1x1 Conv (128,1,S) 1x1 Conv (128,1,S)
+> +
+> Filter Concat. Filter Concat. Filter Concat.
+
+## 3. The Proposed MODERN Framework 
+
+The underlying architecture of MODERN has been described in Figure 3. In this section, we specify how the network is trained and, more importantly, how the control chart and the faulty region estimator are constructed using the MODERN framework. We also show how to extend the applicability of our MODERN framework to different industrial settings. Kang et al.: An Inception Framework for Image-Based SPC 
+
+> 15
+
+3.1. The Training of MODERN-Net 
+
+We first discuss the core technique for training the CNN in our model, i.e., the stochastic gradient descent method with non-constant learning rate. Recall that our quality control uses the MODERN framework to accomplish two tasks, signaling OC events during the process monitoring and isolating the faulty regions on defective products. Although the outputs of these two tasks are different, they are based on a common set of image features. Hence, we focus on the first task, where the objective of the CNN is to estimate the probability of the input image containing defects. In Section 3.3, we will modify this network to become the faulty region estimator. Let F represent our focal network, which is referred to as MODERN-Net hereafter. Furthermore, we use F (X; V) to denote the outcome probability from applying MODERN-Net F to an input image X using the collection of learnable parameters V. Then, given a set of training images, 
+
+{(Xi, y i) : 1 ≤ i ≤ N }, where the i-th image Xi is either normal ( yi = 0) or defective ( yi = 1), we train MODERN-Net by finding the parameters in V to minimize the cross-entropy loss 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+L (yi, F (Xi; V)) = 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+−
+
+n
+
+yi log ( F (Xi; V)) + (1 − yi) log (1 − F (Xi; V)) 
+
+o
+
+.
+
+One way to solve the above minimization problem is through gradient descent method, which is to iteratively update the decision variable V along the steepest descent until convergence. Specifically, the gradient-descent update is 
+
+V ← V − α · ∆V, ∆V = 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+∂L (yi, F (Xi; V)) 
+
+∂V ,
+
+where α ∈ (0 , 1] is the learning rate . We modify the above method in two aspects. First, instead of processing all pairs {(Xi, y i)} before making a gradient step, we process randomly sampled smaller batches to decide the gradient-descent update. That is, the gradient step is given by ∆V = 1
+
+Nk
+
+X
+
+> Xi∈B k
+
+∂L (yi, F (Xi; V)) 
+
+∂V ,
+
+where Bk denotes the k-th batch of size Nk. By estimating the gradient on a few samples at a time, we prevent the optimization process from getting stuck in local minima. We process the smaller random samples until all training pairs have been used in the gradient step calculations. This is called an epoch . Epochs of updates are repeated until the cross-entropy loss converges. The training set is shuffled at each epoch, so that the gradient-descent update is accompanied by stochasticity of sampling. By introducing randomness to this process, we ensure that the sequence of gradients estimated over small batches is representative of the gradients computed across the full set. Kang et al.: An Inception Framework for Image-Based SPC 
+
+16 
+
+The second modification to the gradient-descent update is that we consider variable, rather than constant, learning rate. With a constant learning rate α, the algorithm may converge slowly if α is too small but could diverge if α is too large, limiting the performance of the network. Therefore, it is beneficial to vary the learning rate as the iteration progresses. Based on the work of Smith (2017), we adopt the optimal learning rate policy with the triangular cyclical schedule: At the j-th iteration ( j = 1 , , 2, · · · ), the learning rate is 
+
+αj =
+
+(
+
+αL + ( αU − αL) j−l·CC , l · C < j ≤ (l + 1) CαU − (αU − αL) j−(l+1) ·CC , (l + 1) C < j ≤ (l + 2) C , l = 0 , 2, 4, · · · ,
+
+where αL and αU are the lower and upper bounds of the learning rate and C is half the cycle, all of which are predetermined. Using the above variable learning rates in the cyclical schedule, near optimal learning rates are attained throughout the training, and thus the efficiency is improved. The above stochastic gradient descent method with variable learning rates can solve the cross-entropy loss minimization. The optimal solution leads to our trained MODERN-Net. Let bV denote the estimated V after training. Define 
+
+bp = F
+
+
+
+X; bV
+
+
+
+to be the estimated probability of the product being defective given the input image X. Therefore, 
+
+bp is the key output of MODERN-Net for us to construct the control chart (referred to as MODERN-Chart) for quality monitoring. 
+
+3.2. Quality Monitoring by MODERN-Chart 
+
+Let {Xt : t ≥ 1} denote the images being collected from a manufacturing process. Since we are concerned about the process becoming OC, a signal should be delivered if bp is too high and the process should be stopped for root cause investigation. If bp remains low, then the process should keep running. Hence, we are only interested in detecting any upward shift in the sequence {bpt =
+
+F (Xt; bV) : t ≥ 1}. To this end, we propose the following recursive charting statistics: 
+
+Et = max {0, λ (bpt − μIC ) + (1 − λ)Et−1} , (1) where E0 = 0, λ ∈ (0 , 1) is a weighting parameter, and μIC is the mean of bpt when the process is IC. Clearly, Et incorporates the accumulation of the possible OC evidence, which is represented by the upward deviation of bpt from μIC , over time. In particular, assuming that bpt − μIC ≥ 0 for all t, the accumulative OC evidence captured by Et is an exponentially weighted moving average (EWMA): 
+
+> t
+
+X
+
+> s=1
+
+λ(1 − λ)t−s(bps − μIC ).Kang et al.: An Inception Framework for Image-Based SPC 
+
+17 
+
+One can verify that the asymptotic variance of this EWMA sequence is ( λσ 2
+
+> IC
+
+)/(2 − λ), where σIC 
+
+is the standard deviation of bpt when the process is IC. Therefore, a signal of upward shift should be sent if 
+
+Et > ρ 
+
+r λ
+
+2 − λ σ2
+
+> IC
+
+, (2) where ρ > 0 is a parameter chosen to achieve a pre-specified IC average run length (ARL 0). Therefore, our MODERN-Chart is defined as the combination of the charting statistics (1) and the signal criterion (2). It is worth noting that, compared with a conventional EWMA, MODERN-Chart has a desirable feature: The charting statistic Et is reset to 0 every time when λ(bpt − μIC ) + (1 − λ)Et−1 < 0. Since there is little evidence suggesting OC in those cases, keeping the negative value in the charting statistics would only reduce the chart’s sensitivity to upward shifts. Hence, such a re-starting mechanism helps MODERN-Chart to respond quickly to quality degrading. Four parameters need to be determined in order to use MODERN-Chart: λ, μIC , σ2 
+
+> IC
+
+and ρ.The choice of λ has been well studied in the literature, and we adopt one of the popular choices, 
+
+λ = 0 .1, throughout our discussion (see Prabhu and Runger 1997 for a similar setup). To estimate 
+
+μIC and σ2
+
+> IC
+
+, suppose that the training dataset can be written as C = C0 ∪ C 1, where C0 = {XIC  
+
+> k
+
+: k =1, · · · , n IC } and C1 = {XOC  
+
+> k
+
+: k = 1 , · · · , n OC } respectively denote the set of IC and OC images. Then, the estimated μIC and σ2 
+
+> IC
+
+are given by 
+
+bμIC = 1
+
+nIC 
+
+> nIC
+
+X
+
+> k=1
+
+F
+
+
+
+XIC  
+
+> k
+
+; bV
+
+
+
+, bσ2 
+
+> IC
+
+= 1
+
+nIC − 1
+
+> nIC
+
+X
+
+> k=1
+
+
+
+F
+
+
+
+XIC  
+
+> k
+
+; bV
+
+
+
+− bμIC 
+
+2
+
+.
+
+The value of ρ is directly related to the signal-triggering criterion and thus should be carefully chosen to achieve the desired IC average run length, ARL 0. Unlike the above three parameters, which are relatively straightforward to determine, the control limit is difficult to choose efficiently and properly. The foremost obstacle is that the distribution of the charting statistics is non-stationary, so it lacks analytical formula and is hard to estimate. A common way to estimate ARL 0
+
+is to use computationally intensive methods such as Monte Carlo simulation. Given a pre-specified ARL 0, we propose an algorithm, Augmented Bootstrap (AB), to select the control limit ρ. The algorithm is based on the idea of bootstrapping but uses image transformation to expand the set of IC images. The enlarged sample size can facilitate a more effective and efficient estimation of ARL 0. Specifically, consider the following operations 3 on an image: (1) Rotate the image counter-clockwise by 90 degrees. (2) Rotate the image counter-clockwise by 180 degrees. (3)   
+
+> 3We do not consider other rotational degrees (e.g., 30 degrees) in the augmentation because they would require image extension to address the boundary problem. Kang et al.: An Inception Framework for Image-Based SPC
+
+18 
+
+Rotate the image counter-clockwise by 270 degrees. (4) Flip the image horizontally. (5) Flip the image vertically. (6) Apply no transformation at all. Define T to be the collection of operations (1)-(5) and let T0 be the set of all six operations above. The selection process of ρ is given by Algorithm 1 (the proposed AB algorithm). 
+
+Algorithm 1 Augmented Bootstrap (AB) Algorithm  
+
+> 1:
+
+Given an ARL 0, estimate the range of ρ ∈ (ρ, ¯ρ), and initialize ρ = ( ρ + ¯ ρ)/2.  
+
+> 2:
+
+while |ARL( ρ) − ARL 0| > ϵ do ▷ ϵ is the desired precision  
+
+> 3:
+
+for r = 1 , 2, · · · , R do ▷ R is the simulation number  
+
+> 4:
+
+Set b = 1.  
+
+> 5:
+
+repeat  
+
+> 6:
+
+Randomly draw with replacement an IC image, Xb, from C0 
+
+> 7:
+
+Randomly apply an operation from T0 to Xb, resulting in ˜Xb 
+
+> 8:
+
+Compute Eb = max 
+
+n
+
+0, λ 
+
+
+
+F
+
+ ˜Xb; bV
+
+
+
+− bμIC 
+
+
+
++ (1 − λ)Eb−1
+
+o
+
+▷ Recall E0 = 0  
+
+> 9:
+
+b ← b + 1  
+
+> 10:
+
+until Eb ≥ ρp(λbσ2
+
+> IC
+
+)/(2 − λ) 
+
+> 11:
+
+Let RL( r) = b − 1 
+
+> 12:
+
+end for  
+
+> 13:
+
+Compute ARL( ρ) = 1 /R PRr=1 RL( r).  
+
+> 14:
+
+if ARL( ρ) < ARL 0 then  
+
+> 15:
+
+ρ ← ρ and ρ ← (ρ + ¯ ρ)/2 
+
+> 16:
+
+else  
+
+> 17:
+
+¯ρ ← ρ and ρ ← (ρ + ¯ ρ)/2 
+
+> 18:
+
+end if  
+
+> 19:
+
+end while 
+
+In the above algorithm, the bootstrap resampling on line 6 ensures the effectiveness of the algorithm in finding the corresponding ρ given an ARL 0. Furthermore, the data augmentation on line 7 mitigates the possible issue of limited IC sample size (augmented by a factor 6), enhancing the algorithm efficiency. The number of run lengths simulated is governed by the choice of simulation number R, which is usually chosen to be a relatively large number. Lastly, we use a bisection search method on lines 15 and 18 for fast convergence because ARL( ρ) is increasing in ρ.Kang et al.: An Inception Framework for Image-Based SPC 
+
+> 19
+
+3.3. MODERN-Diagnosis: A Faulty Region Estimator 
+
+After MODERN-Chart gives a signal, the manufacturing process often needs to stop, and post-signal diagnosis is initiated. The diagnosis is critical for the ensuing repair process, so a quick and accurate isolation of the defective area can greatly reduce the equipment downtime. Motivated by this practical need, we propose a faulty region estimator, named MODERN-Diagnosis, to be used along with MODERN-Chart. The output of MODERN-Diagnosis is an ellipses-shaped mark on the OC image within which the defect is located; see Figure 8 in Appendix B.1 for an example. The shape of the mark is not important, as we can easily adapt to cases where the faulty region is marked differently, e.g., using rectangular boxes. Since MODERN-Diagnosis works on the same images that have been monitored by MODERN-Chart, it is built upon the same underlying CNN. Hence, to obtain our faulty region estimator, we re-purpose MODERN-Net F by making the following two changes: (i) We remove the logistic link from the last layer, and (ii) we reconstruct the last layer such that it outputs five numbers instead of a probability. The five numbers, denoted by z = ( z1, · · · , z 5)′ are used to fully describe an ellipse in a plane: the x - and y-coordinates of the center, the lengths of the major and minor axes, and the angle between the major axis and the x -axis. Denote the re-purposed network by G (·; U)with U being the collection of learnable parameters in G . Next, we estimate U by minimizing the following weighted L1 loss: 1
+
+nOC 
+
+> nOC
+
+X
+
+> i=1
+
+L1 (zi, G (XOC  
+
+> i
+
+; U)) = 1
+
+nOC 
+
+> nOC
+
+X
+
+> i=1
+
+w′ |G (XOC  
+
+> i
+
+; U) − zi| , (3) where zi denotes the five parameters of the ellipse in XOC  
+
+> i
+
+, and w = ( w1, · · · , w 5)′ are pre-specified weights representing the relative importance of the five parameters. For example, if both the location and the size of the faulty region are important, then an equal-weighted L1 loss where 
+
+wi = 1 for i = 1 , · · · , 5 would be used; however, in some applications, the location of the defective area is more informative during the root cause investigation, and therefore the center coordinates in the loss function would receive more weights. Similar to F (·; V), G (·; U) is trained using stochastic gradient descent with variable learning rates. Different from the training of F (·; V), the training of G (·; U) only uses the OC image set C1,which is much smaller than C0 in most manufacturing settings (defective products are usually in small quantity compared to non-defective ones). To address the issue, we apply the idea of feature reuse from the transfer learning literature (e.g., Zhuang et al. 2020). Specifically, in the stochastic gradient descent algorithm, the parameter values in U are initialized to be the same as those in 
+
+bV except for the last layer, which are randomly initialized. In this way, the knowledge learned by Kang et al.: An Inception Framework for Image-Based SPC 
+
+20 
+
+F (·; bV) is carried onto G (·; U). Since there usually are commonalities in the image features used for IC/OC classification and those for fault isolation, via the above transfer learning technique, we can train MODERN-Diagnosis in a more efficient and effective manner. Finally, we remark that our MODERN framework is not limited to a specific CNN architecture. In our discussion, we adopt the Inception-ResNet architecture as it is widely regarded as state-of-the-art in the deep learning literature. However, the proposed monitoring and diagnostic methods can be carried out in the same manner with other CNN architectures. For illustration, refer to Appendix B.4 for a comparison study using “AlexNet”. 
+
+3.4. Transfer Monitoring: Extending the Applicability of MODERN Framework 
+
+Once the networks F (·; bV) and G (·; bU) are trained over image data from a certain manufacturing process, the proposed MODERN framework can be used for that process. However, it is not appro-priate to directly apply the trained networks in a different manufacturing process, simply because the images observed in one setting may not be representative in the other and thus the results may be misleading. Moreover, it is often not practically feasible to sufficiently train the networks from scratch due to the lack of enough OC images as most manufacturers have relatively limited OC data. Thus, it would be desirable for managers to know whether and how the networks trained somewhere else can be applied in their own settings. In this subsection, we propose a two-step procedure to measure and extend the applicability of MODERN framework trained in a specific setting. The first step is applicability test , where the direct applicability of our framework is quantitatively measured by a hypothesis testing approach; moreover, we provide a graphical tool for the ease of applicability assessment. If the applicability test is passed, then the second step is transfer monitoring , where the knowledge learned by the pre-trained network is transferred to find the new control limit for the monitoring problem at hand. We describe these two steps in detail below. Recall that our network F (·; bV) is trained on IC/OC images from sets C0 and C1. In a different manufacturing setting, a possibly much smaller set of IC and OC images would typically be available as the training data. Let S0 = {SIC  
+
+> 1
+
+, · · · , SIC  
+
+> m0
+
+} be the set of m0 IC images and S1 = {SOC  
+
+> 1
+
+, · · · , SOC  
+
+> m1
+
+}
+
+be the set of m1 OC images in this new setting. We apply F (·; bV) to S0 and S1, and define two sets of outcome probabilities 
+
+bP0 =
+
+n
+
+F
+
+
+
+SIC  
+
+> k
+
+; bV
+
+
+
+: 1 ≤ k ≤ m0
+
+o
+
+, bP1 =
+
+n
+
+F
+
+
+
+SOC  
+
+> k
+
+; bV
+
+
+
+: 1 ≤ k ≤ m1
+
+o
+
+.
+
+Then, a two-sample t-test is used for our applicability test, with the test statistic being 
+
+tapp = P1 − P 0
+
+rbσ2
+
+> app
+
+ 1 
+
+> m0
+
++ 1
+
+> m1
+
+ , P0 = 1
+
+m0
+
+> m0
+
+X
+
+> k=1
+
+F (SIC  
+
+> k
+
+; bV), P1 = 1
+
+m1
+
+> m1
+
+X
+
+> k=1
+
+F (SOC  
+
+> k
+
+; bV),Kang et al.: An Inception Framework for Image-Based SPC 
+
+> 21
+
+bσ2 
+
+> app
+
+=
+
+Pm0
+
+> k=1
+
+
+
+F (SIC  
+
+> k
+
+; bV) − P 0
+
+2
+
++ Pm1
+
+> k=1
+
+
+
+F (SOC  
+
+> k
+
+; bV) − P 1
+
+2
+
+m0 + m1 − 2 .
+
+If the corresponding p-value (based on the t distribution with m0 + m1 − 2 degrees of freedom) is smaller than a pre-specified threshold (e.g., 0 .05), then we consider F (·; bV) capable of distinguishing images in S1 from those in S0 and thus applicable to the new manufacturing process. Finally, as for G (·; bU), its applicability can be directly assessed by visualizing G (SOC  
+
+> k
+
+; bU) for SOC  
+
+> k
+
+∈ S 1. If the defective areas cannot be properly located, then more OC images are needed for further training. When the applicability test is passed for the network F (·; bV), MODERN-Chart should be re-constructed for the new manufacturing process. Particularly, the control limit should be updated as it may change for different settings even though the underlying network is deemed directly applicable. Indeed, our applicability test only measures the ability of F (·; bV) to separate bP1 from 
+
+bP0. The statistical distributions of {F (XIC  
+
+> k
+
+; bV) : Xk ∈ C 0} (old setting) and {F (SIC  
+
+> k
+
+; bV) : Sk ∈ S 0}
+
+(new setting) may be quite different, rendering the original control limit invalid. To recompute the control limit, we enter the second step, transfer monitoring. Specifically, we replace the original image set C0 with the new image set S0 and call our augmented bootstrap algorithm again to find the parameter ρ. Notably, with augmented bootstrap, we only need a few hundred images to achieve a commonly used ARL 0 values (e.g., 200, 500 or 1000). This is much smaller sample size requirement in comparison with tens of thousands of images typically needed for sufficiently training a deep neural network. Therefore, due to its efficiency and practicality, transfer monitoring substantially extends the applicability of our MODERN framework. Finally, we remark that the two-step procedure described above does not depend on the specific original training set. It could be from a real-life manufacturing process, or just a simulated/synthetic data set. In this paper, we trained our networks F (·; bV) and G (·; bU) over a benchmark dataset DAGM (to be introduced in Section 5.2 later), which includes a wide variety of industrial textures and defect types. Through the applicability test and transfer monitoring, we can apply MODERN framework to both simulated and real-life settings; see Section 5 for details. 
+
+## 4. Asymptotic Properties 
+
+In addition to its practical relevance, our proposed MODERN framework also has strong theoretical properties, which in turn offers useful managerial insights for practitioners. In Subsection 4.1, by adapting some recent theoretical techniques in fully-connected neural networks for convolutional neural networks, we establish the minimax asymptotics for defect likelihood estimation and fault diagnosis. In Subsection 4.2, we show that the AB algorithm in transfer monitoring achieves the convergence rate of √n.Kang et al.: An Inception Framework for Image-Based SPC 
+
+22 
+
+4.1. Theoretical Results in Estimation and Diagnostics 
+
+In this subsection, we show the consistency of the two networks F (·; V) and G (·; U), characterize their respective rates of convergence, and discuss the implications of the derived asymptotic prop-erties. First, we show that F (·; V) is able to estimate the OC likelihood with increasing accuracy (i.e., the estimation error approaches 0) as the training set grows larger. Consider an image X
+
+and its binary label y. We assume that the conditional distribution y|X is Bernoulli with the probability of the image being OC equal to P(f ∗(X)), where P(x) = 1 /(1 + exp( −x)) is the logis-tic function. Thus, f ∗ represents the log-odds of the true OC probability, and our network after training, F(·; bV), is trying to approximate the function P(f ∗). This logistic regression setup ensures that the OC/IC probability is always bounded in (0 , 1). Therefore, as the total sample size grows, we accumulate both IC and OC images. Let ν denote the distribution of X, and we assume that there exists a positive constant B such that the support of ν is included in [ −B, B ]d, where d is the dimension (i.e., resolution) of X. Moreover, let D be the number of layers and W be the maximal number of filters of all layers in our CNN. Then, the following theorem establishes the asymptotic consistency of MODERN-Net and identifies its convergence rate for estimating f ∗.
+
+Theorem 1. Assume the following conditions hold: (i) f ∗(x) is Lipschitz continuous; (ii) DW =
+
+O(N d/ (2 d+4) ); and (iii) (DW )2 log( DW ) < N e −1, where N = nIC + nOC is the training sample size and e is Euler’s constant. Then we have 
+
+E
+
+ log F (·; bV)1 − F (·; bV)
+
+!
+
+− f ∗
+
+> 2
+> L2(ν)
+
+ = O
+
+
+
+N −2/(2+ d) log 3/2 N
+
+
+
+.
+
+Our next result shows that the faulty region estimator G (·; U) (i.e., MODERN-Diagnosis) is also consistent. Given an OC image XOC ∈ Rd, let its defective area be characterized by an ellipse 
+
+z ∈ R5; moreover, suppose the true functional relationship between the image and its faulty region is given by g∗ : Rd → R5. Therefore, our trained network G(·; bU) aims to approximate the function 
+
+g∗. Recall that the network is trained by minimizing the sample weighted L1 loss given by (3). Let L(g∗) = E {w′|g∗(XOC ) − z|} denote the weighted L1 loss at the population level. Then, the following theorem gives the convergence rate for both the loss function of our network and the faulty region estimator, establishing the asymptotic consistency. 
+
+Theorem 2. Suppose that g∗(x) is Lipschitz continuous. (i) If we assume the conditions in Theorem 1 with N replaced by nOC , then we have 
+
+E
+
+h
+
+L(G (·; bU)) − L (g∗)
+
+i
+
+= O
+
+
+
+n−1/(2+ d) 
+
+> OC
+
+log 3/2 nOC 
+
+
+
+.Kang et al.: An Inception Framework for Image-Based SPC 
+
+> 23
+
+(ii) If we further assume that there exists a1, a 2 > 0 such that for any |c| ≤ a1,
+
+Fz|XOC (g∗(x) + c) − Fz|XOC (g∗(x)) ≥ a2|c|, a.s. ,
+
+where Fz|XOC (·) is the cumulative distribution function of z given XOC , then we have 
+
+E
+
+
+
+G (·; bU) − g∗ 2
+
+> L2(ν)
+
+
+
+= O
+
+
+
+n−1/(2+ d) 
+
+> OC
+
+log 3/2 nOC 
+
+
+
+.
+
+Theoretical implications. The convergence rate O(N −2/(2+ d)) established in Theorem 1 achieves the minimax (robust) optimal rate up to a log factor in nonparametric estimation of d-dimensional Lipschitz targets (Korostelev and Tsybakov 2012). It means that our MODERN-Net makes quite efficient use of the training images. Notably, our neural network, constructed as a nonlinear approximation to the target f ∗, enjoys the same optimal convergence rate as those lin-earizing methods (e.g., splines) in the conventional setting. In Theorem 2, the convergence rate of G
+
+under the functional L is of interest, because the parameter bU is obtained by L1 loss minimization. Note that the weighted L1 loss function is used because of its numerical robustness to outliers. The additional assumption in Theorem 2(ii) is a mild condition. It indicates that there exists a neighborhood around g∗(x) in which the perturbation of the conditional probability distribution function Fz|XOC is larger than the fluctuation of g∗(x). Similar calibration assumptions are common in the statistics literature (Belloni and Chernozhukov 2011, Madrid Padilla and Chatterjee 2022). 
+
+Practical implications - part 1. The results from the above theorems show that our estimation errors approach 0 as the sample size grows, which confirms the benefits from acquiring additional training images. Notably, the convergence rates identified in both theorems become slower as d
+
+(i.e, the dimension of the images, which is equivalent to the image’s resolution) increases. In the context of image data analysis, intuition may suggest that images with higher resolution are always preferred and thus more advanced imaging devices are always beneficial. However, a meaningful and interesting practical implication of our results is that upgrading the monitoring equipment (e.g., cameras), which is usually for generating higher-resolution images, may not help enhance the accuracy of our MODERN framework. This counter-intuitive finding can be explained by the nature of deep-learning models in computer vision: with higher resolution, there are a greater number of image patterns or features for the model to sift through, making it more challenging to uncover the patterns associated with IC/OC classification. In practice, does this mean that manufacturers should never upgrade their equipment? Moreover, should they even downgrade their devices to get images of low resolutions? The answer is indeed yes according to Theorem 1 and Theorem 2. We note, however, an important question arises in such a scenario concerning whether we can still tell Kang et al.: An Inception Framework for Image-Based SPC 
+
+24 
+
+the OC images apart from those IC images, with each image having only a few pixels. That is, are we still able to label the images correctly? Motivated by this question, we analyze the impact of mislabeling on MODERN-Net’s performance. Suppose that the true binary label y of an image X may be contaminated. Denote the observed but contaminated version by ˜ y. Formally, we have ˜y =
+
+ y, with probablity 1 − δ;1 − y, with probability δ. 
+
+As a result, the training data are {(Xi, ˜yi) : 1 ≤ i ≤ N }, and our neural network ˜ F(·; ˆ V) is obtained by minimizing the contaminated cross-entropy loss 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+˜L (˜ yi, F (Xi; V)) = − 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+n
+
+˜yi log ( F (Xi; V)) + (1 − ˜yi) log (1 − F (Xi; V)) 
+
+o
+
+.
+
+Our next theorem quantifies the impact from mislabeling. 
+
+Theorem 3. Assume that the conditions in Theorem 1 hold. We have 
+
+E
+
+ log ˜F (·; bV)1 − ˜F (·; bV)
+
+!
+
+− f ∗
+
+> 2
+> L2(ν)
+
+ = O
+
+
+
+N −2/(2+ d) log 3/2 N
+
+
+
++ O (δ) .
+
+Practical implications - part 2 . Theorem 3 suggests that, if the mislabeling rate exceeds 
+
+N −2/(2+ d) log 3/2 N , it starts to degrade the performance of the neural network. On the other hand, if the mislabeling rate is below or at the order of N −2/(2+ d) log 3/2 N , the asymptotic performance of the neural network would be intact. Now based on Theorem 1 – 3, our practical guidelines for manufacturers are as follows. It would be beneficial for them to work with low-resolution images by not upgrading or even downgrading their imaging devices, provided that the images are labeled at a high-fidelity level, with the asymptotic bound set at N −2/(2+ d) log 3/2 N , for both IC/OC classification and faulty region isolation. In the case where existing cameras cannot render satisfactory labeling accuracy (i.e., the mislabeling rate exceeds the asymptotic bound), it becomes necessary to collect higher-resolution images to allow precise labeling. Investments in equipment upgrades are then justified. 
+
+4.2. Theoretical Results in Transfer Monitoring 
+
+Our primary result in transfer monitoring is for quantifying the sample size reduction. Once it is determined that our trained network is applicable in the new setting, we only need to utilize the IC image set with our AB algorithm for searching a new control limit. In other words, the size of the IC set is tied to the efficiency of the AB algorithm. Our next theorem establishes the convergence rate of the algorithm in terms of the IC sample size. Kang et al.: An Inception Framework for Image-Based SPC 
+
+> 25
+
+Before formally stating the theorem, let us introduce some notations. For any given ρ, let ARL( ρ) and [ARL( ρ) denote the true ARL on the population level and the ARL determined by the AB algorithm, respectively. Let F0 denote the cumulative distribution function (CDF) of log ( F (X; V)/(1 − F (X; V)) when X is IC. Let S denote the collection of finite-variation func-tions that satisfy the run length regularity condition (18) in the appendix. 
+
+Theorem 4. Assume that S contains an open neighborhood of F0 and the origin where the distance is defined by the L∞-norm. Then we have 
+
+[ARL( ρ) − ARL( ρ) = Op
+
+ 1
+
+n1/2
+
+> IC
+
+
+
+,
+
+where Op(·) denotes the convergence in probability. 
+
+Remark. It can be seen that the AB algorithm achieves the typical convergence rate of n−1/2 
+
+> IC
+
+,which is much faster than N −2/(2+ d) log 3/2 N , the convergence rate in Theorem 1, given that d
+
+is often in the range of tens of thousands for images. Indeed, our transfer monitoring technique estimates a single number instead of a high-dimensional distribution, allowing significant sample size reduction. Theorem 4 provides the theoretical basis for this useful property. 
+
+## 5. Numerical Studies 
+
+In this section, we conduct a series of numerical studies to demonstrate the performance of the proposed MODERN framework in different settings and data environments. First, we conduct numerical experiments regarding the impact of image resolution on MODERN-Net’s performance. Second, we evaluate MODERN-Chart and MODERN-Diagnosis using a benchmark dataset called DAGM. Then, we compare our method with a state-of-the-art approach in simulated experiments. Finally, we apply the proposed method in two manufacturing settings (commutator manufacturing and leather manufacturing) and test it on the real-life data. 
+
+5.1. The Impact of Image Resolution 
+
+Our theoretical results in Subsection 4.1 suggest that increasing image resolutions can be detrimen-tal to our neural network’s performance in the asymptotic setting. In this subsection, we analyze the impact of image resolution with finite samples. We first simulate both IC and OC images in the low-resolution (128 × 128), medium-resolution (256 × 256) and high-resolution (512 × 512) scenarios. Then we train our MODERN-Net and evaluate its classification accuracy in the three scenarios, respectively. Specifically, all IC image pixel intensities are generated from I.I.D. standard normal distributions. The OC images are generated in the same way except that the intensity level Kang et al.: An Inception Framework for Image-Based SPC 
+
+26   
+
+> Figure 4 Simulated IC (left) and OC (right) image
+> Note: The blue circle in the OC image indicates the pixel locations where the intensity levels have been shifted.
+
+is shifted to a fixed value for the five pixels in the center of the image. Figure 4 shows an IC and OC image in our experiment. For each resolution level, we generate 100 images for training, validation and testing, respectively, with 50% of all the images being IC and others being OC. The classification accuracy is defined to be the proportion of correctly classified images in the testing set. The shift size of 1, 2 and 3 are considered. The simulation results are summarized in Table 1. It can be seen from the table that, as the shift size grows (i.e., the OC signal strengthens), the neural network in the low-resolution scenario is able to detect the signal quite well. However, this is not the case in the high-resolution scenario, consistent with our theoretical findings.  
+
+> Table 1 The impact of image resolution on classification accuracy.
+
+Shift size Low Medium High 1 0.46 0.47 0.47 2 0.59 0.51 0.46 3 1.00 0.96 0.46  
+
+> Note: Entries in the table are the proportion of correctly classified images.
+
+5.2. Performance Evaluation Using DAGM DAGM: A Benchmark Dataset. DAGM is a dataset created for the industrial image pro-cessing competition at the 29th Annual Symposium of the German Association for Pattern Recog-nition. After the competition, it has been used as a benchmark dataset in academic research (e.g., Weimer et al. 2016, Wang et al. 2018, Zhang et al. 2023). The images are artificially generated by a number of different texture and defect models. Although synthetic, the images are quite similar to real world textures of manufactured materials. The dataset consists of 10 classes of textured surfaces, encompassing a good range of industrial applications. In classes 1 through 6, each contains 1000 IC images and 150 OC images. In classes 7 through 10, each contains 2000 IC images and 300 OC images. The defect in each OC image is labeled by a surrounding ellipse. Each Kang et al.: An Inception Framework for Image-Based SPC 
+
+> 27
+
+image has 512 × 512 pixels and the dataset is publicly available from the Heidelberg Laboratory for Image Processing at the University of Heidelberg ( https://hci.iwr.uni-heidelberg.de/ content/weakly-supervised-learning-industrial-optical-inspection ). We provide a sam-ple of DAGM images in Appendix B to show what the images look like. From the sample, we can observe that some surface defects are hard for human eyes to discern; moreover, all these back-ground textures contain certain random patterns (i.e., no gold standard), and some of them clearly do not meet the locality and stationarity assumptions of the Markov Field approach. Therefore, this dataset serves as a perfect benchmark to evaluate the performance of our proposed method for quality monitoring and diagnosis. 
+
+Numerical Setup and Results. We divide DAGM dataset into training (60%), validation (25%), and testing (15%) sets. Our model is calibrated using the training and validation sets. Its performance is examined using the testing set. First, we augment the training set to enlarge the data size. Recall that T is the set of five image transformations defined in Section 3.2. For each OC image in the training set, apply all five transformations in T , whereas for each IC image in the training set, apply randomly one of the transformations in T . This results in 16,850 IC images and 7410 OC images in the augmented training set. Next, we train MODERN-Net F (·; V)with the following implementation details. The cross-entropy loss is minimized using stochastic gradient descent with batch size Nk = 16. The variable learning rate schedule is implemented with 
+
+αL = 0 .001, αU = 0 .01, and C = 2000. The validation set is used for determining when to terminate the iterations in the stochastic gradient descent algorithm. Stopping the iterations too early results in underfitting while letting the algorithm run for too long causes overfitting. Three measures are calculated on the validation set as the number of epochs increases: the proportions of correct classification of OC images (sensitivity), IC images (specificity) and the average of the two. We observe from the training progression that the validation performance stabilizes after 120 epochs, so we stopped the training process at the 150-th epoch; see details in Appendix B.1. Lastly, we examine the monitoring performance of our control chart using the testing set. Let t be the time index and t = 1 denotes the beginning of the monitoring. For each class of DAGM, we randomly draw with replacement from the testing set an IC image for t = 1 , · · · , 20 and OC image for t ≥ 21. After an image is drawn, randomly apply one transformation in T0 to the image and compute the charting statistic by (1) and (2). This process continues until the control chart delivers a signal. Therefore, t = 21 is the change point when the process becomes OC and the time point of the signal is the control chart’s OC run length. We repeat this process 100 times and report the OC average run length (ARL 1) in Table 2. ARL 0 is set equal to 1,000 and the control limit is found to Kang et al.: An Inception Framework for Image-Based SPC 
+
+28 
+
+be 0 .0275 by the AB algorithm 4. We also report in Table 2 the proportions of runs our chart signals before and exactly at the change point (the column “Prop.Early” and “Prop.On” respectively). Results show that the proposed chart gives a signal right at the change point most of the time.  
+
+> Table 2 The numerical performance of the proposed method on the DAGM testing set.
+
+Class ARL 1 sdARL 1 Prop.Early Prop.On SDSC sdSDSC 1 20.64 0.2533 0.02 0.98 0.8293 0.0280 2 20.96 0.0400 0.01 0.99 0.7157 0.0270 3 21.00 0.0000 0.00 1.00 0.7974 0.0131 4 20.82 0.1218 0.03 0.97 0.7696 0.0348 5 21.00 0.0000 0.00 1.00 0.8719 0.0135 6 21.00 0.0000 0.00 1.00 0.6548 0.0425 7 20.45 0.2618 0.06 0.94 0.8820 0.0133 8 21.01 0.0100 0.00 0.99 0.6036 0.0336 9 20.88 0.1104 0.02 0.98 0.8352 0.0101 10 20.88 0.0844 0.02 0.98 0.7072 0.0159   
+
+> Note: Column sdARL reports the standard error of ARL 1of the 100 repeated simulations. Column sdSDSC shows the standard error of the average SDSC in each class.
+
+Now, we turn to evaluate the fault isolation performance – how close MODERN-Diagnosis can identify the ellipse defective area in OC images? We use the Sorensen-Dice similarity coefficient (SDSC) as the performance metric: SDSC = 2 × Area(EstimatedRegion ∩ TrueRegion) Area(EstimatedRegion) + Area(TrueRegion) .
+
+The metric is between 0 and 1, with 1 being the case of perfect estimation. To begin the evaluation, we first train the network G (·; U) on the OC images from the previously augmented training set. Note that even though the training set is expanded, the number OC images is still relatively small. To address this issue and to save training time, we utilize the following transfer learning technique. The parameter values in U are initialized to be the same as those in 
+
+bV except for the last layer, which are randomly initialized (recall that last fully connected layer of 
+
+G has 5 outputs while F has only 2 in the last layer). Here the idea is to transfer the knowledge learned by F (·; bV) to G (·; U) because those image features crucial for IC/OC classification should also be important for fault isolation. Then bU is obtained by minimizing the weighted L1 loss with the weight w chosen to be (2 , 2, 1, 1, 1) ′; see equation (3). Assigning more weight to the center coordinates prioritizes fault location over fault size. In our training progression, we observe that     
+
+> 4Our numerical experiment can be done similarly given a different ARL 0value. For instance, a smaller value (e.g., 500) would lead to a lower control limit, rendering that the control chart signals an alarm every 500 observations (instead of 1,000) while the process is IC. For simplicity, here we only report the results for ARL 0= 1,000. Kang et al.: An Inception Framework for Image-Based SPC
+
+29 
+
+the validation SDSC stabilizes after 250 epochs, so we stopped the training process at the 275-th epoch; see details in Appendix B.1 Then, we apply G (·; bU) to all the test OC images in each class and report the average SDSC and its standard error in Table 2. Our findings suggest that G (·; bU) is able to estimate the faulty region reasonably well. To further visualize the fine performance of our faulty region estimator, we show in Figure 5 the OC images corresponding to the median SDSC in each class. The figure clearly shows that, even though the estimated ellipses do not fully overlap with the true ones, the defective areas have all been accurately highlighted, which is sufficient for practical use.   
+
+> Figure 5 Performance of MODERN-Diagnosis: Estimated vs true faulty regions.
+> Note: The blue solid and red dashed ellipses represent the true and estimated faulty regions, respectively.
+
+5.3. Comparison with Markov Field Method 
+
+In this subsection, we compare our MODERN framework with a state-of-the-art image-based qual-ity control method, namely, the Markov Field (MF) approach suggested by Bui and Apley (2018). While MODERN framework can deal with images of any kind, the MF method is designed partic-ularly for images that satisfy the locality and stationarity conditions; i.e., MF works the best for those images. Hence, to have a fair comparison, we apply both methods to a set of simulated images with the above Markov Field properties. In this way, we can also demonstrate the performance of the proposed MODERN framework with synthetic data. The images in our simulated example are generated by the following auto-regressive (AR) model: 
+
+X(i, j ) = ϕ1X(i − 1, j ) + ϕ2X(i, j − 1) + ε(i, j ), 1 ≤ i, j ≤ n, Kang et al.: An Inception Framework for Image-Based SPC 
+
+30 
+
+where X(i, j ) is the intensity level of image X at the ( i, j )-th pixel, ϕ1 and ϕ2 are the AR coef-ficients, n = 512 represents the image resolution, and {ε(i, j )} are i.i.d. random noises with the distribution N (0 , σ 2). When the production process is IC, we set ϕ1 = 0 .65, ϕ2 = 0 .35 and σ = 0 .1. We consider two types of defects in the center area where pixel intensities are also generated by the AR model. Specifically, type-1 defect has ϕ1 = 0 .65, ϕ2 = 0 .35 and σ = 10 −6, whereas type-2 defect has ϕ1 = ϕ2 = 0 and σ = 0 .1. Thus, type-1 defect is a change in the noise level and type-2 defect is a change in the correlation. Note that, since our MODERN-Net is trained on the benchmark dataset DAGM, we need to employ the transfer monitoring technique (introduced in Section 3.4) before we apply the trained network to the simulated AR images. To that end, we conduct the applicability test first and the result shows that MODERN-Net is capable of distinguishing the IC and OC (of both types) images quite well even though it has not been trained on any of these AR images. For visual illustrations of the IC/OC images from the AR model and the applicability test, refer to Appendix B.2 for details. For each method, we simulate the monitoring process with the change point occurring at t = 21 (i.e., feeding the first OC image as the 21-st input) and repeat the simulation 100 times. Table 3 summarizes the results concerning the ARL 1, where ARL 0 is set equal to 200 for both methods. Here, we focus on comparing the timeliness of signal delivery, so we discard those runs in which a signal is given before the change point in the repeated simulations (hence only “Prop.On” is shown in the table and “Prop.Early” is excluded). From Table 3, it is clear that our method delivers the signal in a much timelier manner than the MF approach does. In addition, the performance of MODERN is stable, with the standard error of ARL 1 being zero. By contrast, the MF method almost never signals at the change point and the ARL 1 is large, meaning the cost of delayed signaling would be high.  
+
+> Table 3 Comparison between MODERN framework and the MF method in simulated experiments.
+
+Fault Type Method ARL 1 sdARL 1 Prop.On SDSC sdSDSC MODERN 21.00 0.0000 1.00 0.6286 0.0084 1 MF 153.75 6.7987 0.01 0.0000 0.0000 t-stat 19 .5258 ∗∗ 74 .8333 ∗∗ 
+
+MODERN 21.00 0.0000 1.00 0.6208 0.0057 2 MF 150.58 6.3956 0.00 0.5762 0.0097 t-stat 20 .2608 ∗∗ 3.9642 ∗∗       
+
+> Note: The row of t-stat shows the t-statistics that compare the two methods, and ∗∗ means p-values < . 01.
+
+Next, we compare the fault isolation performance by respectively applying MODERN-Diagnosis and MF method to 100 simulated OC images. The average values of SDSC and their standard Kang et al.: An Inception Framework for Image-Based SPC 
+
+> 31
+
+errors are shown in Table 3. Several observations from the results are noteworthy. First, our pro-posed method isolates the fault reasonably well for both types of defect. The SDSC metric is reasonably high and the standard error is quite small. Second, the MF approach is better at locating type-2 fault (change in correlation) than type-1 fault (change in noise level). In fact, it fails to detect any defective pixels for any type-1 OC image. Lastly, the proposed method out-performs the MF approach in both cases. For type-1 OC images, the MF method is dominated by MODERN-Diagnosis, whereas for type-2 defect both methods can achieve comparable perfor-mances. In Appendix B.2, we provide representative visual results for fault isolation given by the two methods, confirming our observations above. 
+
+5.4. Application to Manufacturing of Electric Commutators 
+
+Electric commutators are an integral part of every electric motor that powers windshield wipers or washing machines. Quality monitoring and diagnosis are critical in their manufacturing pro-cess, which has entered the Industry 4.0 era. Recognizing such an important application area, we demonstrate our MODERN framework in the context of electric commutator manufacturing based on real-life images. These images are made available by Kolektor Mobility, a global commutation system supplier ( https://www.kolektor.com/commutators ). Our sample includes 14 IC images and 1 OC image with a surface defect. Before we use the trained MODERN-Net in this specific setting, we conduct the applicability test as in Section 3.4. Both test statistic value and graphical tool indicate that the network F (·; bV) is able to separate the OC image from the others in the manufacturing process considered here. Representative electric commutator images and the details of the applicability test are provided in Appendix B.3. We setup the quality monitoring and diagnosis process as follows. From all the IC images, ten are used to determine the charting parameters, including the control limit. The remaining images are used for monitoring, where the first three images are IC, and the OC image is input from the fourth time point onward. Because of the small sample size, we let IC average run length ARL 0 = 25, and the control limit is found to be 0 .708 by the AB algorithm. Then, we apply the proposed MODERN framework to monitor the process. Including the 10 IC images used in control limit calculation, we plot MODERN-Chart for 16 time points; moreover, the fault isolation is given by MODERN-Diagnosis. The results are visualized by Figure 6(a). The figure shows that our chart delivers the signal at the exact change point (i.e, t = 15). For the identified faulty region, although the ellipse does not surround the entire defective area, it flags the part requiring attention, providing helpful information for the quality personnel investigating the root cause. Moreover, we also apply the MF approach to these images for comparison. The Kang et al.: An Inception Framework for Image-Based SPC 
+
+32 
+
+Figure 6 Comparison between MODERN framework and MF method in electric commutator manufacturing. 0e+00  1e−06  2e−06  3e−06  4e−06 2 4 6 8 10 12 14 16 Time Index Control Limit Monitoring Starts MODERN Charting Statistics 
+
+(a) MODERN framework: charting statistics (left) and the faulty isolation (right). 80  100  120  140  160  180 2 4 6 8 10 12 14 16 Time Index Control Limit Monitoring Starts MF Charting Statistics 
+
+(b) MF method: charting statistics (left) and the faulty isolation (right). 
+
+corresponding monitoring and fault isolation results are shown in Figure 6(b). For the control chart, we observe that, although it gives the signal at the change point, it also has a false signal before the process becomes OC (the point above the control limit before the monitoring starts). As for the fault isolation, the MF approach is able to flag some of the defective pixels, a comparable diagnosis performance to our network G (·; bU). 
+
+5.5. Application to Leather Manufacturing 
+
+In this subsection, we apply our method to some real images in leather manufacturing. The leather images were obtained from the MVTec Anomaly Detection Database (Bergmann et al. 2021), which is made available by MVTec Software GmbH ( https://www.mvtec.com/ ), a leading international manufacturer of machine vision software. There are 277 IC images and 19 OC images with cut defects. Our applicability test statistic has a value of 16 .204 and a p-value < 0.001. Therefore, we deem our pre-trained MODERN F (·; bV) applicable in this setting. Next, we used 245 (out of 277) IC images to determine the control limit to achieve ARL 0 = 50. The remaining 32 IC images Kang et al.: An Inception Framework for Image-Based SPC 
+
+33 
+
+together with the OC images are reserved for the monitoring phase. As monitoring begins, the first 10 images are randomly drawn from the 32 IC images and the subsequent images are randomly drawn from the OC images. In Figure 7, with the same setup as in Figure 6, we compare our results with those given by the MF approach. 
+
+Figure 7 Comparison between MODERN framework and MF method in leather manufacturing. 0.0  0.1  0.2  0.3  0.4  0.5 0 4 8 12 16 20 24 28 Time Index Control Limit Monitoring Starts MODERN Charting Statistics 
+
+(a) MODERN framework: charting statistics (left) and the faulty isolation (right). 50  100  150  200  250 4 8 12 16 20 24 28 Time Index Control Limit Monitoring Starts MF Charting Statistics 
+
+(b) MF method: charting statistics (left) and the faulty isolation (right). 
+
+In the control charts, we have included 10 IC images prior to the monitoring phase. Therefore, the process is OC at t = 21 and onward. It can be seen that both methods provide a warning at 
+
+t = 22. However, the MF method has two false signals while the process is still IC. Additionally, after the process has shifted, the MF chart returned to the IC state a few times, whereas our MODERN chart correctly suggests a persistent shift. This is because the EWMA mechanism in our MODERN chart is good at accumulating OC evidence overtime. As for the fault isolation, both methods have labeled the defective region reasonably well. 
+
+## 6. Concluding Remarks and Possible Generalizations 
+
+We have proposed a deep learning-based framework (MODERN) for quality monitoring and fault diagnosis in a smart manufacturing system. By utilizing the powerful architecture of inception Kang et al.: An Inception Framework for Image-Based SPC 
+
+> 34
+
+residual neural networks, our charting method achieves fast signaling when the process becomes abnormal, and our faulty region estimator identifies the defective area well in post-signal diagnosis. To extend our method to cases where there are not enough image data to sufficiently train the net-works, we also have proposed a transfer monitoring technique that only requires a small sample size and suggested a hypothesis testing approach for assessing the method’s applicability. Theoretically, we have established the optimal convergence rate for both our defect likelihood estimation and fault isolation. This result leads to an interesting and important implication - upgrading monitor-ing equipment (even for free) may not help a manufacturer’s quality control practice. The decision whether to upgrade should instead be based on the fidelity level of image labels. This applies to both monitoring and diagnosis. In numerical studies, comparisons with a state-of-the-art approach show that the proposed method performs well. Finally, we have demonstrated our method with real applications to electric commutator and leather manufacturing. As an important next step in advancing this research, we plan to conduct randomized controlled experiments with industry partners to evaluate the efficacy of MODERN framework in real settings and to gain additional operational insights. The proposed quality control framework is not limited to industrial manufacturing. In the food industry, for instance, advanced optics are now available for visualizing both the physical appear-ance (e.g., shape and size) and the nutritional parameters (e.g., fat, sugar and fibers) of a food product. Our method can be integrated into the production process for automated food quality monitoring and inspection. In the farming business, images from drones can provide farmers with real-time information about when the fruits are ready to be picked. In this setting, our frame-work can be used for crop surveillance in a smart farming facility. In environmental monitoring, the Landsat project of NASA ( https://landsat.gsfc.nasa.gov/ ) has launched 8 satellites to monitor the Earth surface. The image sequences can be used for monitoring changes in forestation, water resource availability, and urban landscapes. We anticipate that our method can be useful in these applications as well. 
+
+## References        
+
+> Babic, M., M. A. Farahani, T. Wuest. 2021. Image based quality inspection in smart manufacturing systems: A literature review. Procedia CIRP 103 262–267. Belloni, A., V. Chernozhukov. 2011. L1-penalized quantile regression in high-dimensional sparse models.
+> The Annals of Statistics 39 82–130. Bergmann, Paul, Kilian Batzner, Michael Fauser, David Sattlegger, Carsten Steger. 2021. The mvtec anomaly detection dataset: a comprehensive real-world dataset for unsupervised anomaly detection.
+> International Journal of Computer Vision 129 (4) 1038–1059. Kang et al.: An Inception Framework for Image-Based SPC
+
+35 Bui, A. T., D. W. Apley. 2018. A monitoring and diagnostic approach for stochastic textured surfaces. 
+
+Technometrics 60 (1) 1–13. Calabrese, J. M. 1995. Bayesian process control for attributes. Management science 41 (4) 637–645. De Ketelaere, B., N. Wouters, I. Kalfas, R. Van Belleghem, W. Saeys. 2022. A fresh look at computer vision for industrial quality control. Quality Engineering 34 (1) 152–158. Diers, J., C. Pigorsch. 2023. A survey of methods for automated quality control based on images. 
+
+International Journal of Computer Vision 1–29. Feng, L., P. Qiu. 2018. Difference detection between two images for image monitoring. Technometrics 
+
+60 (3) 345–359. Hawkins, D. M., P. Qiu, C. W. Kang. 2003. The changepoint model for statistical process control. Journal of Quality Technology 35 (4) 355–366. He, K., X. Zhang, S. Ren, J. Sun. 2016. Deep residual learning for image recognition. Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition . 770–778. Hu, Y., Y. Hong. 2022. Shedr: an end-to-end deep neural event detection and recommendation framework for hyperlocal news using social media. INFORMS Journal on Computing 34 (2) 790–806. Jensen, D.R., Y.V. Hui, P.M. Ghare. 1984. Monitoring an input-output model for production. i. the control charts. Management Science 30 (10) 1197–1206. Jiang, B.C., C-C Wang, H-C Liu. 2005. Liquid crystal display surface uniformity defect inspection using analysis of variance and exponentially weighted moving average techniques. International Journal of Production Research 43 (1) 67–80. Jin, J., J. Shi. 1999. Feature-preserving data compression of stamping tonnage information using wavelets. 
+
+Technometrics 41 (4) 327–339. Kang, Y. 2022. Statistical quality control using image intelligence: A sparse learning approach. Naval Research Logistics (NRL) 69 (7) 996–1008. Koosha, M., R. Noorossana, F. Megahed. 2017. Statistical process monitoring via image data using wavelets. Quality and Reliability Engineering International 33 (8) 2059–2073. Korostelev, A. P., A. B. Tsybakov. 2012. Minimax theory of image reconstruction , vol. 82. Springer Science & Business Media. Krizhevsky, A., I. Sutskever, G. E. Hinton. 2012. Imagenet classification with deep convolutional neural networks. Advances in neural information processing systems 25 .Krizhevsky, A., I. Sutskever, G. E. Hinton. 2017. Imagenet classification with deep convolutional neural networks. Communications of the ACM 60 (6) 84–90. LeCun, Y., Y. Bengio, G. Hinton. 2015. Deep learning. nature 521 (7553) 436–444. Kang et al.: An Inception Framework for Image-Based SPC 
+
+36 Levina, E., P. J. Bickel. 2006. Texture synthesis and nonparametric resampling of random fields. The Annals of Statistics 34 1751 – 1773. Li, H., D. Simchi-Levi, M. X. Wu, W. Zhu. 2022. Estimating and exploiting the impact of photo layout: A structural approach. Management Science .Lin, H.D. 2007a. Automated visual inspection of ripple defects using wavelet characteristic based multivariate statistical approach. Image and Vision Computing 25 (11) 1785–1801. Lin, H.D. 2007b. Computer-aided visual inspection of surface defects in ceramic capacitor chips. Journal of Materials Processing Technology 189 (1-3) 19–25. Liu, L., D. Dzyabura, N. Mizik. 2020. Visual listening in: Extracting brand image portrayed on social media. Marketing Science 39 (4) 669–686. Long, J., E. Shelhamer, T. Darrell. 2015. Fully convolutional networks for semantic segmentation. 
+
+Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition . 3431–3440. L´ opez, F., J. M. Valiente, J. M. Prats, A. Ferrer. 2008. Performance evaluation of soft color texture descriptors for surface grading using experimental design and logistic regression. Pattern Recognition 
+
+41 (5) 1744–1755. Lowry, C. A., W. H. Woodall, C. W. Champ, S. E. Rigdon. 1992. A multivariate exponentially weighted moving average control chart. Technometrics 34 (1) 46–53. Madrid Padilla, O. H., S. Chatterjee. 2022. Risk bounds for quantile trend filtering. Biometrika 109 (3) 751–768. Megahed, F. M., L. J. Wells, J. A. Camelio, W. H. Woodall. 2012. A spatiotemporal method for the monitoring of image data. Quality and Reliability Engineering International 28 (8) 967–980. Montgomery, D. C. 2019. Introduction to Statistical Quality Control . 8th ed. Wiley, New York. Montgomery, D. C., P. J. Klatt. 1972. Economic design of t 2 control charts to maintain current control of a process. Management Science 19 (1) 76–89. Olsen, T. L., B. Tomlin. 2020. Industry 4.0: Opportunities and challenges for operations management. 
+
+Manufacturing & Service Operations Management 22 (1) 113–122. Page, E.S. 1961. Cumulative sum charts. Technometrics 3(1) 1–9. Park, J-K., W. An, D. Kang. 2019. Convolutional neural network based surface inspection system for non-patterned welding defects. International Journal of Precision Engineering and Manufacturing 20 
+
+363–374. Porteus, E. L., A. Angelus. 1997. Opportunities for improved statistical process control. Management Science 43 (9) 1214–1228. Prabhu, S. S., G. C. Runger. 1997. Designing a multivariate ewma control chart. Journal of Quality Technology 29 (1) 8–15. Kang et al.: An Inception Framework for Image-Based SPC 
+
+37 Shen, Z., H. Yang, S. Zhang. 2019. Deep network approximation characterized by number of neurons. 
+
+arXiv preprint arXiv:1906.05497 .Smith, L. N. 2017. Cyclical learning rates for training neural networks. 2017 IEEE winter conference on applications of computer vision (WACV) . IEEE, 464–472. Stevens, E., L. Antiga, T. Viehmann. 2020. Deep learning with PyTorch . Manning Publications. Szegedy, C., S. Ioffe, V. Vanhoucke, A. Alemi. 2017. Inception-v4, inception-resnet and the impact of residual connections on learning. Proceedings of the AAAI Conference on Artificial Intelligence ,vol. 31. 4278–4284. Szegedy, C., W. Liu, Y. Jia, P. Sermanet, S. Reed, D. Anguelov, D. Erhan, V. Vanhoucke, A. Rabinovich. 2015. Going deeper with convolutions. Proceedings of the IEEE conference on computer vision and pattern recognition . 1–9. Szegedy, C., V. Vanhoucke, S. Ioffe, J. Shlens, Z. Wojna. 2016. Rethinking the inception architecture for computer vision. Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition .2818–2826. Tagaras, G., H.L. Lee. 1988. Economic design of control charts with different control limits for different assignable causes. Management Science 34 (11) 1347–1366. Toshev, A., C. Szegedy. 2014. Deeppose: Human pose estimation via deep neural networks. Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition . 1653–1660. Wang, J. 2016. Minimizing the false alarm rate in systems with transient abnormality. Naval Research Logistics (NRL) 63 (4) 320–334. Wang, J., C. Lee. 2015. Multistate bayesian control chart over a finite horizon. Operations Research 63 (4) 949–964. Wang, N., D. Yeung. 2013. Learning a deep compact image representation for visual tracking. Advances in Neural Information Processing Systems 26 809–817. Wang, T., Y. Chen, M. Qiao, H. Snoussi. 2018. A fast and robust convolutional neural network-based defect detection model in product quality control. The International Journal of Advanced Manufacturing Technology 94 3465–3471. Weimer, D., B. Scholz-Reiter, M. Shpitalni. 2016. Design of deep convolutional neural network architectures for automated feature extraction in industrial inspection. CIRP annals 65 (1) 417–420. Zhang, H., Z. Chen, C. Zhang, J. Xi, X. Le. 2019. Weld defect detection based on deep learning method. 
+
+2019 IEEE 15th international conference on automation science and engineering (CASE) . IEEE, 1574–1579. Zhang, H., Z. Wu, Z. Wang, Z. Chen, Y-G Jiang. 2023. Prototypical residual networks for anomaly detection and localization. Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition . 16281–16291. Kang et al.: An Inception Framework for Image-Based SPC 
+
+38 Zhuang, F., Z. Qi, K. Duan, D. Xi, Y. Zhu, H. Zhu, H. Xiong, Q. He. 2020. A comprehensive survey on transfer learning. Proceedings of the IEEE 109 (1) 43–76. Kang et al.: An Inception Framework for Image-Based SPC 
+
+1
+
+Appendix A: Proofs of Theorems 1, 2, 3 and 4 
+
+Lemma 1. Let (X, Y ) be a random variable sampled from p(x, y ) with the Bernoulli random variable 
+
+Y ∼ Bernoulli( σ(f ∗(X))) , where σ(t) = 1 /(1 + e−t). Let 
+
+D∗(x) = arg min  
+
+> D
+
+E(X,Y )∼p(x,y ) − [Y log( σ(D(x))) + (1 − Y ) log(1 − σ(D(x)))] .
+
+Then D∗ = f ∗, a.s. 
+
+Proof. D∗(x) is the minimizer of 
+
+E(X,Y )∼p(x,y ) − [Y log( σ(D(X))) + (1 − Y ) log(1 − σ(D(X)))] =E(X,Y )∼p(x,y )[Y log(1 + exp −D(X)) + (1 − Y ) log(1 + exp D(X))] =EX [EY |X [Y log(1 + exp −D(X)) + (1 − Y ) log(1 + exp D(X))]] =EX [log(1 + exp −D(X))/(1 + exp −f ∗(X)) + log(1 + exp D(X))/(1 + exp f ∗(X))] The above criterion is a convex functional of D(·). By setting the first variation to zero yields D∗ = f ∗, a.s. 
+
+Proof of Theorem 1. According to Lemma 1, the underlying f ∗ is the minimizer of the cross entropy loss at the population level 
+
+L(D) = EX [EY |X [Y log(1 + exp −D(X)) + (1 − Y ) log(1 + exp D(X))]] . (4) Then we can estimate f ∗ non-parametrically with deep neural networks. Let {Zi}Ni=1 = {(Xi, Y i)}Ni=1 be samples from p(x, y ). Let ND,W,B be the set of ReLU neural networks Dϕ with parameter ϕ, depth D, width 
+
+W, and ∥Dϕ∥∞ ≤ B . Define the estimator as the minimizer of the following cross entropy loss at the sample level 
+
+bDϕ(x) = arg min 
+
+> Dϕ∈N D,W,B
+
+bL(Dϕ)= 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+Yi log(1 + exp −Dϕ(Xi)) + (1 − Yi) log(1 + exp Dϕ(Xi)). (5) Next we bound the nonparametric estimation error ∥D(x) − bDϕ(x)∥L2(ν) where ν is the marginal distribution of X.First we show the landscape of the restriction of L on ND,W,B behaves like quadratic functional around 
+
+D∗.
+
+C1,B ∥D − D∗∥2 
+
+> L2(ν)
+
+≤ L (D) − L (D∗) ≤ C2,B ∥D − D∗∥2
+
+> L2(ν)
+
+, ∀D ∈ N D,W,B , (6) where C1,B = exp −B   
+
+> (1+exp B)3
+
+, C 2,B = exp B . We use C1, ..., C 5 to denote universal numerical constants in the fol-lowing. 
+
+Proof of (6). By the proof of Lemma 1, we have ∀D ∈ N D,W,B
+
+L(D) − L (D∗) = EX [log 1 + exp −D(X)
+
+1 + exp −D∗(X) /(1 + exp −D∗(X)) + log 1 + exp D(X)
+
+1 + exp D∗(X) /(1 + exp D∗(X))] .Kang et al.: An Inception Framework for Image-Based SPC 
+
+2
+
+∀a ∈ [−B , B], define 
+
+g(b) = (1 + exp −a)−1 log( 1 + exp −b
+
+1 + exp −a ) + (1 + exp a)−1 log( 1 + exp b
+
+1 + exp a ) : b ∈ [−B , B] → R.
+
+The fact g(a) = g′(a) = 0 and Taylor expansion implies, 
+
+g(b) = g′′ (ξ)2 (b − a)2,
+
+where ξ ∈ [−B , B]. The desired results in (6) follow from 2 exp −B 
+
+(1 + exp B )3 ≤ g′′ (ξ) = (1 + exp −a)−1 exp −ξ
+
+(1 + exp −ξ )2 + (1 + exp a)−1 exp ξ
+
+(1 + exp ξ )2 ≤ 2 exp B .
+
+It follow from (6) that ∀ ¯Dϕ ∈ N D,W,B ,
+
+C1,B ∥ bDϕ − D∗∥2 
+
+> L2(ν)
+
+≤ L ( bDϕ) − L (D∗)= L( bDϕ) − bL( bDϕ) + bL( bDϕ) − bL( ¯Dϕ) + bL( ¯Dϕ) − L ( ¯Dϕ) + L( ¯Dϕ) − L (D∗)
+
+≤ 2 sup 
+
+> D∈N D,W,B
+
+|L (D) − bL(D)| + C2,B inf 
+
+> D∈N D,W,B
+
+∥D − D∗∥2
+
+> L2(ν)
+
+, (7) where we use the definition of bDϕ and ¯Dϕ. Let Z = ( X, Y ) be the random variable pair drawn from p(x, y ). Define 
+
+b(D, Z ) = Y log(1 + exp −D(X)) + (1 − Y ) log(1 + exp D(X)).
+
+It is easy to check that b(D, Z ) is 1-Lipschitz on D, i.e., 
+
+|b(D, Z ) − b( ˜D, Z )| ≤ | D(x) − ˜D(x)|. (8) Let eZi be a i.i.d. copy of Zi, and σi(ϵi) be the i.i.d. Rademacher random (standard normal) variables that are independent with eZi and Zi, i = 1 , ...N. We need the following results (9)-(11) to upper bounding the expected value of the right hand side term in (7). 
+
+E{Oi}Ni=1 [sup 
+
+> D
+
+|L (D) − bL(D)|] ≤ 4C1G(N ), (9) where G(N ) is the Gaussian complexity (Bartlett and Mendelson 2002) of ND,W,B defined as 
+
+G(N ) = E{Zi,ϵ i}Ni [ sup 
+
+> D∈N D,W,B
+
+| 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+ϵib(D, Z i)|].
+
+Proof of (9). Clearly, 
+
+L(D) = EZ [b(D, Z )] = 1
+
+N E eZi [b(D, eZi],
+
+and 
+
+bL(D) = 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+b(D, Z i).
+
+Let 
+
+R(N ) = 1
+
+N E{Zi,σ i}Ni [ sup 
+
+> D∈N D,W,B
+
+|
+
+> N
+
+X
+
+> i=1
+
+σib(D, Z i)|]Kang et al.: An Inception Framework for Image-Based SPC 
+
+3be the Rademacher complexity of ND,W,B (Bartlett and Mendelson 2002). Then, 
+
+E{Zi}Ni=1 [sup 
+
+> D
+
+|L (D) − bL(D)|]= 1
+
+N E{Zi}Ni [sup 
+
+> D
+
+|
+
+> N
+
+X
+
+> i=1
+
+(E eZi [b(D, eZi)] − b(D, Z i)) |]
+
+≤ 1
+
+N E{Zi, eZi}Ni
+
+[sup 
+
+> D
+
+|b(D, eZi) − b(D, Z i)|]= 1
+
+N E{Zi, eZi,σ i}Ni
+
+[sup 
+
+> D
+
+|
+
+> N
+
+X
+
+> i=1
+
+σi(b(D, eZi) − b(D, Z i)) |]
+
+≤ 1
+
+N E{Zi,σ i}Ni [sup 
+
+> D
+
+|
+
+> N
+
+X
+
+> i=1
+
+σib(D, Z i)|] + 1
+
+N E{ eZi,σ i}Ni
+
+[sup 
+
+> D
+
+|
+
+> N
+
+X
+
+> i=1
+
+σib(D, eZi)|]= 2 R(b ◦ N )
+
+≤ 4R(N )
+
+≤ 4C1G(N ),
+
+where, the first inequality follows from the Jensen’s inequality, and the second equality holds since both 
+
+σi(b(D, eZi) − b(D, Z i)) and b(D, eZi) − b(D, Z i) are governed by the same law, and the last equality holds since the distribution of the two terms are the same, and in the third inequality we use the Lipschitz contraction property of Rademacher complexity, see Theorem 12 in Bartlett and Mendelson (2002), and (8), and the last inequality holds since the relationship between the Gaussian complexity and the Rademacher complexity, see for Lemma 4 in Bartlett and Mendelson (2002). Next, we bound the Gaussian complexity. 
+
+G(N ) ≤ C2B
+
+s
+
+N
+
+(DW )2 log DW log N
+
+(DW )2 log DW exp − log 2 N  
+
+> (DW )2 log DW
+
+. (10) 
+
+Proof of (10). Since N is closed under negation, 
+
+G(N ) = E{Zi,ϵ i}Ni [ sup 
+
+> D∈N D,W,B
+
+1
+
+n
+
+> N
+
+X
+
+> i=1
+
+ϵib(D, Z i)] = EZi [Eϵi [ sup 
+
+> D∈N D,W,B
+
+1
+
+N
+
+> N
+
+X
+
+> i=1
+
+ϵib(D, Z i)] |{ Zi}Ni=1 ].
+
+Conditioning on {Zi}Ni=1 , ∀D, eD ∈ N D,W,B it easy to check 
+
+Vϵi [ 1
+
+N
+
+> n
+
+X
+
+> i=1
+
+ϵi(b(D, Z i) − b( eD, Z i))] = dN ,2(D, eD)
+
+√N ,
+
+where, 
+
+dN ,2(D, eD) = 1
+
+√N
+
+vuut NX
+
+> i=1
+
+(b(D, Z i) − b( eD, Z i)) 2.
+
+Denote C(N , d N , δ ) as the covering number of ND,W,B under the metric dN ,2 with radius δ, and let Pdim N
+
+be the Pseudo-dimension of ND,W,B . Since the diameter of ND,W,B under dN ,2 is at most B, we have 
+
+G(N ) ≤ C3
+
+√N E{Zi}Ni=1 [
+
+Z B
+
+> 0
+
+q
+
+log C(N , d N ,2, δ )d δ]
+
+≤ C3
+
+√N E{Zi}Ni=1 [
+
+Z B
+
+> 0
+
+q
+
+log C(N , d N ,∞, δ )d δ]Kang et al.: An Inception Framework for Image-Based SPC 
+
+4
+
+≤ C3
+
+√N
+
+Z B
+
+> 0
+
+r
+
+Pdim N log 2eBNδPdim N
+
+dδ, 
+
+≤ C4B( N
+
+Pdim N
+
+)1/2 log( N
+
+Pdim N
+
+) exp − log 2( N 
+
+> Pdim N)
+
+≤ C2B
+
+s
+
+N
+
+(DW )2 log DW log N
+
+(DW )2 log DW exp − log 2 N 
+
+> (DW )2 log DW
+
+where, the first inequality follows from the chaining Theorem 8.1.3 in Vershynin (2018), and the second inequality holds due to C(N , d N ,2, δ ) ≤ C(N , d N ,∞, δ ), and in the third inequality we used the relationship between the matric entropy and the Pseudo-dimension of the ReLU networks ND,W,B (Anthony and Bartlett 1999), i.e., log C(N , d N ,∞, δ )) ≤ Pdim N log 2eBNδPdim N
+
+,
+
+and the fourth inequality follows by some calculation, and the last inequality holds due to the upper bound of Pseudo-dimension for the ReLU network ND,W,B satisfying Pdim N ≤ C5(DW )2 log DW ,
+
+see Bartlett et al. (2019). Last, we bound the approximation error inf D∈N W,D,B ∥D − D∗∥L2(ν).
+
+Lemma 2. For any function D∗ : [ −B, B ]d → R with Lipschitz constant L there exist a ReLU network ¯D
+
+with depth O(12 D + C1,d ) and width O(C2,d W) such that 
+
+∥D∗ − ¯D∥L∞ ≤ 19 L√dB (DW )−2/d , (11) 
+
+where C1,d = 14 + 2 d, C2,d = 3 d+3 .
+
+Proof. This Lemma follows directly from Theorem 1.1 of Shen et al. (2019). Now, combing the results (7) − (11), we have 
+
+E{Zi}Ni=1 ∥ bDϕ − D∗∥2
+
+> L2(ν)
+
+≤ Cd, B (
+
+s
+
+N
+
+(DW )2 log DW log N
+
+(DW )2 log DW exp − log 2 N  
+
+> (DW )2 log DW
+
++(19 L√dB (DW )−2/d )2)
+
+≤ Cd, B,B,L (
+
+r (DW )2 log( WD )
+
+N log N + ( DW )−4/d )
+
+≤ Cd, B,B,L N −2/(2+ d) log 3/2 N, 
+
+where, the last inequality holds since we set DW = O(N d/ (2 d+4) ) and some algebra. 
+
+Proof of Theorem 2. With L1 loss, it is easy to check that 
+
+g∗ ∈ arg min  
+
+> measurable g
+
+L(g) = EX,z [w′|g(X) − z|]. (12) To estimate g∗, we consider the following deep estimator ˆg ∈ arg min 
+
+> g∈N W,D,B
+
+bL(g) = 
+
+> n
+
+X
+
+> j=1
+
+ω′|g(Xj ) − zj |,
+
+where Xj , j = 1 , ..., n are OC images and zj ∈ R5 denote the elliptic parameter corresponding to the defect domain, ω is the weight (we set ω = 1 /5 for ease of presentation.) We first in Lemma (3) show that the prediction error L(ˆ g) − L (g∗) can be bounded by a empirical process (variance) that indexed by network class NW,D,B plus the approximation error (bias) Kang et al.: An Inception Framework for Image-Based SPC 
+
+5
+
+Lemma 3. 
+
+E[L(ˆ g) − L (g∗)] ≤ E[2 sup 
+
+> g∈N D,W,B
+
+|L (g) − bL(g)| + inf 
+
+> g∈N D,W,B
+
+∥g − g∗∥L1(ν)].
+
+Proof. ∀¯g ∈ N D,W,B
+
+L(ˆ g) − L (g∗)= L(ˆ g) − bL(ˆ g) + bL(ˆ g) − bL(¯ g) + bL(¯ g) − L (¯ g) + L(¯ g) − L (g∗)
+
+≤ 2 sup 
+
+> g∈N D,W,B
+
+|L (g) − bL(g)| + inf 
+
+> D∈N W,D,B
+
+∥g − g∗∥L1(ν), (13) where we use the definition of ˆ gϕ and ¯ g and 1-Lipschitz property of L(g) in (12). Next, we bound the two terms in right hand side of Lemma 3 separately in the following two Lemmas, respectively. 
+
+Lemma 4. 
+
+E[2 sup 
+
+> g∈N D,W,B
+
+|L (g) − bL(g)|] ≤ C2B
+
+s
+
+N
+
+(DW )2 log DW log N
+
+(DW )2 log DW exp − log 2 N  
+
+> (DW )2 log DW
+
+.
+
+Proof. The same proof process as for deriving (9)-(10) 
+
+Lemma 5. For any function g∗ : [ −B, B ]d → R with Lipschitz constant L there exist a ReLU network ¯g
+
+with depth O(12 D + C1,d ) and width O(C2,d W) such that 
+
+inf 
+
+> g∈N W,D,B
+
+∥g∗ − g∥L1(μ) ≤ ∥ g∗ − ¯g∥L∞ ≤ 19 L√dB (DW )−2/d ,
+
+where C1,d = 14 + 2 d, C2,d = 3 d+3 .
+
+Proof. Since inf g∈N W,D,B ∥g∗ − g∥L1(μ) ≤ inf g∈N W,D,B ∥g∗ − g∥L∞ , Lemma 5 fellows from Lemma 2. Now, combing the results in Lemma 3-Lemma 5, we have 
+
+E[L(ˆ g) − L (g∗)] 
+
+≤ Cd, B (
+
+s
+
+N
+
+(DW )2 log DW log N
+
+(DW )2 log DW exp − log 2 N  
+
+> (DW )2 log DW
+
++19 L√dB (DW )−2/d )
+
+≤ Cd, B,B,L (
+
+r (DW )2 log( WD )
+
+N log N + ( DW )−2/d )
+
+≤ Cd, B,B,L N −1/(2+ d) log 3/2 N, 
+
+where, the last inequality holds since we set DW = O(N d/ (2 d+4) ) and some algebra. Next, we show part (ii) of the theorem. Since we set B = 2 ∥g∗∥L∞ , then ∥ˆg − g∗∥2 
+
+> L2(ν)
+
+≤ min {∥ ˆg −
+
+g∗∥2
+
+> L2(ν)
+
+, 1.5B∥ ˆg − g∗∥L1(ν)}. By the above display and the additional calibration assumption, we can show (similar as that in Belloni and Chernozhukov 2011, Madrid Padilla and Chatterjee 2022) 
+
+∥ˆg − g∗∥2 
+
+> L2(ν)
+
+≤ Cc1,c 2,B (L(ˆ g) − L (g∗)) , (14) where Cc1,c 2,B is a constant only depends on c1, c 2, B. This immediately implies that 
+
+E(Xi,z i)Ni=1 [∥ˆg − g∗∥2
+
+> L2(ν)
+
+] = O(N −1/(2+ d) log 3/2 N ).Kang et al.: An Inception Framework for Image-Based SPC 
+
+6Lastly, we make a remark concerning the convergence rate established in Theorem 2 for E∥G (·; bU) −
+
+g∗∥2
+
+> L2(ν)
+
+. It is slower than the minimax optimal rate as established in Theorem 1. This is due to the technical difficulty brought up by the L1 loss. If the least square loss is adopted and the objective function in the minimization, we can still obtain the same optimal rate according to our above proof. 
+
+Proof of Theorem 3. We use ( X, ˜Y ) ∼ ˜p(x, y ) to denote the noisy random pair of ( X, ˜Y ) whose distribu-tion is p(x, y ) in Lemma 1. Define ˜L(D) = EX [E˜Y |X [ ˜Y log(1 + exp −D(X)) + (1 − ˜Y ) log(1 + exp D(X))]] . (15) By some routine calculations, we have ˜Y =
+
+ 1, with probablity (1 − δ)σ(f ∗(X)) + δ(1 − σ(f ∗X)); 0, with probability (1 − δ)(1 − σ(f ∗(X))) + δσ (f ∗X).
+
+Plugging the above expression into (15) and using the definition of L(D) in (4) we have ˜L(D) = L(D) + EX [log( 1 + exp −D(X)
+
+1 + exp D(X) )δ(1 − 2σ(f ∗(X)))] .
+
+It follows from the boundedness of D that 
+
+| ˜L(D) − L (D)| ≤ | exp D(X) + exp D(X) || 1 − 2σ(f ∗(X)) |δ ≤ 3(1 + C2,B )δ. (16) Let ˜bDϕ(x) = arg min 
+
+> Dϕ∈N D,W,B
+
+bL(Dϕ)= 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+˜Yi log(1 + exp −Dϕ(Xi)) + (1 − ˜Yi) log(1 + exp Dϕ(Xi)), (17) where {(Xi, ˜Yi)} are i.i.d. random pairs with distribution ˜ p(x, y ). By the same arguments in Theorem 1, we can derive ˜L( ˜bD) − ˜L(f ∗) = ˜L( ˜bD) − ˜L(D∗) ≤ O (N −2/(2+ d) log 3/2 N ).
+
+Combing the above equation, (16) and (6), we have 
+
+C1,B ∥ ˜bD − D∗∥2 
+
+> L2(ν)
+
+≤ L ( ˜bD) − L (D∗) ≤ ˜L( ˜bD) − ˜L(D∗) + 6(1 + C2,B )δ ≤ O (N −2/(2+ d) log 3/2 N ) + O(δ).
+
+Proof of Theorem 4. Next, we prove Theorem 4. We first introduce some notations. For a given sequence 
+
+x = {xt : t ≥ t}, denote the corresponding EWMA transformation by E(xt). That is, 
+
+E(x0) = 0 , E(xt) = max {0, λx t + (1 − λ)E(xt−1)} , for t ≥ 1.
+
+Let At denote the subset in Rt defined by 
+
+At =
+
+(
+
+(x1, . . . , x t) ∈ Rt : E(x1) ≤ ρ
+
+r λσ 2
+
+> IC
+
+2 − λ , . . . , E(xt−1) ≤ ρ
+
+r λσ 2
+
+> IC
+
+2 − λ , E(xt) > ρ 
+
+r λσ 2
+
+> IC
+
+2 − λ
+
+)
+
+.Kang et al.: An Inception Framework for Image-Based SPC 
+
+7Let F0 denote the cumulative distribution function (CDF) of log ( F (X; V)/(1 − F (X; V)) when X is IC. Let B(F ; ϵ) denote the open ball of radius ϵ with the L∞ norm. The Run Length Regularity Condition. Let S be a collection of linear combinations of CDFs such that 
+
+Z
+
+> At
+> t
+
+Y
+
+> j=1
+
+dH j (xj ) =
+
+> t
+
+Y
+
+> j=1
+
+∥Hj ∥∞O
+
+ 1
+
+t3+ ξ
+
+
+
+, t = 1 , 2, . . . , (18) where Hj ∈ S for j = 1 , 2, . . . , ∥ · ∥ ∞ is the L∞ norm, and ξ > 0 is a constant. 
+
+Lemma 6. Let F be a CDF. Assume that S contains an open neighborhood of F and the origin. Define the functional M (F ) = P∞ 
+
+> t=1
+
+t R
+
+> At
+
+Qtj=1 dF (xj ). Then the Gateaux differential of M (F ) is 
+
+Dg M (F ; G) = 
+
+> ∞
+
+X
+
+> t=1
+
+tη t(F ; G) = 
+
+> ∞
+
+X
+
+> t=1
+
+t
+
+" tX
+
+> k=1
+
+Z
+
+> At
+> k−1
+
+Y
+
+> j=1
+
+dF (xj )dG (xk )
+
+> t
+
+Y
+
+> j=k+1
+
+dF (xj )
+
+#
+
+,
+
+for any G ∈ S .
+
+Proof. Write 
+
+M (F + τ G ) = 
+
+> ∞
+
+X
+
+> t=1
+
+t
+
+Z
+
+> At
+> t
+
+Y
+
+> j=1
+
+[dF (xj ) + τ dG (xj )] =
+
+> ∞
+
+X
+
+> t=1
+
+t
+
+Z
+
+> At
+> t
+
+Y
+
+> j=1
+
+dF (xj ) + τ
+
+( ∞
+
+X
+
+> t=1
+
+t
+
+Z 
+
+> At
+
+dG (x1) · · · dF (xt) + · · · +
+
+Z
+
+> At
+
+dF (x1) · · · dG (xt)
+
+)
+
++ · · · ,
+
+where · · · denotes the remainder that involves τ 2. Continuing with the Gateaux differential calculation, we have lim  
+
+> τ→0+
+
+M (F + τ G ) − M (F )
+
+τ =
+
+> ∞
+
+X
+
+> t=1
+
+tη t(F ; G).
+
+To see that the summation in Dg M (F ; G) is finite, write 
+
+|ηt(F ; G)| ≤ t∥F ∥t−1 
+
+> ∞
+
+∥G∥∞
+
+Ct3+ ξ ≤ C∥G∥∞
+
+1
+
+t2+ ξ ,
+
+where C is a constant. Here we have used the fact that F is a CDF and thus ∥F ∥∞ = 1. It follows that 
+
+> ∞
+
+X
+
+> t=1
+
+t|ηt(F ; G)| ≤ C∥G∥∞∞
+
+X
+
+> t=1
+
+1
+
+t1+ ξ < ∞.
+
+It is easy to verify that ARL( ρ) = M (F0). Therefore, F0 ∈ S effectively ensures that the average run length is finite and the second moment of the run length also exists. We are now ready to prove Theorem 4. 
+
+Proof of Theorem 4 . The bootstrap algorithm amounts to sampling from the IC empirical distribution. Let FnIC denote the empirical version of F0. Then we have [ARL( ρ) = M (FnIC ). It follows from Lemma 6 that 
+
+[ARL( ρ) − ARL( ρ) = |M (FnIC ) − M (F0)|
+
+=
+
+Z 10
+
+Dg M (F0 + γ(FnIC − F0); FnIC − F0) dγ 
+
+≤
+
+> ∞
+
+X
+
+> t=1
+
+t
+
+Z 10
+
+ηt (F0 + γ(FnIC − F0); FnIC − F0) dγ Kang et al.: An Inception Framework for Image-Based SPC 
+
+8
+
+≤
+
+> ∞
+
+X
+
+> t=1
+
+t
+
+Z 10
+
+C · t ∥F0 + γ(FnIC − F0)∥t−1 
+
+> ∞
+
+∥FnIC − F0∥∞
+
+t3+ ξ dγ. 
+
+Since sup 0≤γ≤1 ∥(1 − γ)F0 + γF nIC ∥∞ ≤ 1, we have that 
+
+[ARL( ρ) − ARL( ρ) = O (∥FnIC − F0∥∞) .
+
+By the Dvoretzky-Kiefer-Wolfowitz Theorem, we have √nIC ∥FnIC − F0∥∞ = Op(1). This completes the proof. 
+
+References Cited in the Proofs 
+
+Anthony, M., P. L. Bartlett. 1999. Neural network learning: Theoretical foundations, vol. 9. Cambridge University Press , Cambridge. Bartlett, P. L., N. Harvey, C. Liaw, A. Mehrabian. 2019. Nearly-tight vc-dimension and pseudodimension bounds for piecewise linear neural networks. The Journal of Machine Learning Research 20(1) 2285–2301. Bartlett, P. L., S. Mendelson. 2002. Rademacher and gaussian complexities: Risk bounds and structural results. Journal of Machine Learning Research 3(Nov) 463–482. Belloni, A., V. Chernozhukov. 2011. L1-penalized quantile regression in high-dimensional sparse models. 
+
+The Annals of Statistics 39 82–130. Madrid Padilla, O. H., S. Chatterjee. 2022. Risk bounds for quantile trend filtering. Biometrika 109(3) 751–768. Shen, Z., H. Yang, S. Zhang. 2019. Deep network approximation characterized by number of neurons. arXiv preprint arXiv:1906.05497. Vershynin, R. 2018. High-dimensional probability: An introduction with applications in data science, vol. 47. Cambridge University Press , Cambridge. 
+
+Appendix B: Supplemental Details for the Numerical Studies 
+
+B.1. Details for Section 5.2 
+
+First, we show a sample of DAGM images for a better understanding of this benchmark dataset. Figure 8 shows the image sample. It can be seen from the figure that some surface defects are hard for human eyes to discern. Notably, all these background textures have certain random patterns involved (i.e., no gold standard), and some of them clearly do not meet the locality and stationarity assumptions of the Markov Field approach (e.g., class 4, 7 and 10). Second, to show more details about how we choose the stopping epoch for training MODERN-Net, we show the training progression for both networks F (·; V) and G (·; U) in Figure 9. For F (·; V), the progression stabilizes from epoch 120, and thus we choose epoch 150 to stop training; on the other hand, for G (·; U), the training progression stabilizes from epoch 250, and we stop at epoch 275. Kang et al.: An Inception Framework for Image-Based SPC 
+
+9
+
+Figure 8 Sample DAGM images: examples of IC and OC images. 
+
+Note: Four groups of IC/OC images from class 3, 4, 7 and 10 in DAGM are shown Left-to-right and top-to-bottom. 
+
+Figure 9 The training progression of F (·; V) (left) and G (·; U) (right) as the number of epochs increases. 
+
+B.2. Details for Section 5.3 
+
+First, we provide some examples of the images simulated by the AR model described in Section 5.3. Figure 10 shows an IC image along with two types of OC images to serve this purpose. It is clear that these images satisfy the Markov Field conditions required by the MF method. Then, we assess the extent to which our MODERN-Net F (·; bV) is applicable to the AR images. After simulating 500 IC images and the two types of OC images (500 each type), we apply the applicability test to the images and obtain t-test statstics of values 415 .13 and 464 .59 for type-1 and type-2 faults, respectively, both rendering p-values effectively 0. Note that, in addition to calculating the p-value, one can plot a histogram and observe whether F (·; bV) is able to separate the IC and OC images reasonably well. Such a visualization tool will greatly help with the Kang et al.: An Inception Framework for Image-Based SPC 
+
+10 
+
+Figure 10 Representative images in the AR simulated example. 
+
+(a) An IC image. (b) A type-1 OC image. (c) A type-2 OC image. assessment. Here, Figure 11 shows the histogram of the applicability test. It can be seen that the network is capable of distinguishing the IC and OC images quite well even though it has not been trained on any of these AR images. This is consistent with our p-value results. Lastly, Figure 12 shows the fault isolation 
+
+Figure 11 The histogram of the applicability test in which F (·; bV) is applied to 500 IC images and the two types of OC images (500 each type) generated by the AR model. 
+
+results corresponding to the case of median SDSC value in the repeated simulations. The MF approach did not detect any defective pixels in the case of type-1 fault, so its image is not shown in the figure. The true faulty area is marked by the solid blue ellipse. The MF approach detects faults in a pixel-by-pixel fashion; therefore, any pixels deemed abnormal are in black. It can be seen that our network G (·; bU) locates the faulty region accurately in both cases, whereas the MF approach can only detect type-2 fault (although also reasonably well). Kang et al.: An Inception Framework for Image-Based SPC 
+
+11 
+
+Figure 12 Fault isolation results give by MODERN-Diagnosis and the MF method in simulations. 
+
+(a) MODERN-Diagnosis result for type-1 fault. 
+
+(b) MODERN-Diagnosis result for type-2 fault. 
+
+(c) MF method result for type-2 fault. 
+
+Note: The fault isolation results are corresponding to the case of median SDSC value in their repeated simulations. 
+
+B.3. Details for Section 5.4 
+
+First, to provide some examples of the image from the electric commutator manufacturing setting, we use Figure 13 to show one of the IC images and the (only) OC image, respectively. Second, we conduct the 
+
+Figure 13 Representative images in the electric commutator manufacturing. 
+
+(a) One of the 14 IC images. (b) The (only) OC image. applicability test to ensure that the network trained on the benchmark dataset can be used in the considered manufacturing setting. Following Section 3.4, we obtain the test statistic value of 22 .67, and the resulting p-value is smaller than 10 −11 . Moreover, as a direct visualization, Figure 14 clearly shows that the trained network can separate the OC image from other images quite well. 
+
+B.4. Comparison with AlexNet 
+
+The specific “’Inception ResNet” architecture is highly regarded in the CNN literature and thus adopted by our MODERN framework. It is worth noting that other CNN architectures can be used in our framework Kang et al.: An Inception Framework for Image-Based SPC 
+
+12  
+
+> Figure 14 The histogram of the applicability test for the commutator images
+
+without much difficulty. In this section, we benchmark our MODERN-Net performance against the well-known “AlexNet” (Krizhevsky et al. 2012), the winner of the 2012 ImageNet competition. The architecture of “AlexNet” is detailed in Table 4. It can be seen that “AlexNet” consists of the same CNN building blocks: convolution layers, ReLU activations, and pooling operations. Although less deep, “AlexNet” has 10 million more parameters than our MODERN-Net (33.4 million vs. 23.4 million). We have modified the fully connected layers of the network so that it can work with 512 × 512 images and output IC-OC probabilities. With the same training and validation DAGM datasets, we evaluate the classification performance of the two networks on the testing set. Regarding the training of “AlexNet”, we employ the same stochastic gradient descent method with the triangular learning rate schedule as in Subsection 3.1 and augment the training set using the same image transformations T as in Subsection 5.2. The comparison results are summarized in Table 5. It can be seen that our MODERN-Net performed stably across the 10 image classes, whereas the performance of AlexNet varied substantially. In particular, AlexNet did not do well in classifying OC images. Kang et al.: An Inception Framework for Image-Based SPC 
+
+13  
+
+> Table 4 The architecture of AlexNet.
+
+Layer Size Kernel Size Stride Pad Input Image 512 × 512 × 3Convolution 1 128 × 128 × 96 11 × 11 × 3 4 2Batch Norm 1 128 × 128 × 96 Leaky ReLU 1 128 × 128 × 96 Max Pooling 1 63 × 63 × 96 3 × 3 2 0Convolution 2 63 × 63 × 256 5 × 5 × 96 1 2Batch Norm 2 63 × 63 × 256 Leaky ReLU 2 63 × 63 × 256 Max Pooling 2 31 × 31 × 256 3 × 3 2 0Convolution 3 31 × 31 × 384 3 × 3 × 256 1 1Batch Norm 3 31 × 31 × 384 Leaky ReLU 3 31 × 31 × 384 Convolution 4 31 × 31 × 384 3 × 3 × 384 1 1Batch Norm 4 31 × 31 × 384 Leaky ReLU 4 31 × 31 × 384 Convolution 5 31 × 31 × 256 3 × 3 × 384 1 1Batch Norm 5 31 × 31 × 256 Leaky ReLU 5 31 × 31 × 256 Max Pooling 5 15 × 15 × 256 3 × 3 2 0Dropout 6 65536 dropout rate = 0.5 Fully Connected 6 512 Leaky ReLU 6 512 Dropout 7 512 dropout rate = 0.5 Fully Connected 7 256 Leaky ReLU 7 256 Fully Connected 8 2 
+
+> Table 5 Performance comparison with AlexNet using DAGM.
+
+Specificity Sensitivity Class MODERN AlexNet MODERN AlexNet 1 100% 100% 100% 100% 2 100% 100% 100% 100% 3 100% 100% 100% 100% 4 100% 98.63% 100% 42.31% 5 100% 100% 100% 90.48% 6 100% 100% 100% 90.48% 7 100% 100% 100% 100% 8 100% 100% 97.06% 97.06% 9 100% 100% 100% 100% 10 100% 100% 100% 98.11%
