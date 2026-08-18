@@ -1,0 +1,944 @@
+Title: Data-driven modeling of hypersonic flows in chemical non-equilibrium with catalytic surfaces
+
+URL Source: https://arxiv.org/pdf/2608.14445v1
+
+Published Time: Mon, 17 Aug 2026 01:01:16 GMT
+
+Number of Pages: 33
+
+Markdown Content:
+# Data-driven modeling of hypersonic flows in chemical non-equilibrium with catalytic surfaces 
+
+## Konstantinos Sarras 1,2* , Louis Walpot 3, Thierry Magin 2,Peter J. Schmid 4, Taraneh Sayadi 1
+
+> 1
+
+Mathematical and Numerical Modelling, Conservatoire National Arts et M´ etiers (CNAM), Paris, 75003, France. 
+
+> 2
+
+Von Karman Institute for Fluid Dynamics (VKI), Waterloosesteenweg 72, Sint-Genesius-Rode, 1640, Belgium. 
+
+> 3
+
+European Space Agency (ESA), ESTEC, Noordwijk, 2200 AG, The Netherlands. 
+
+> 4
+
+Physical Science and Engineering Division, King Abdullah University of Science and Technology (KAUST), Thuwhal, 23955, Kingdom of Saudi Arabia. *Corresponding author(s). E-mail(s): konstantinos.sarras@lecnam.net; Contributing authors: louis.walpot@esa.int; thierry.magin@vki.ac.be; peter.schmid@kaust.edu.sa; taraneh.sayadi@cnam.fr; 
+
+Abstract 
+
+Hypersonic flows involve extreme thermochemical non-equilibrium, where strong energy dissipation leads to tightly coupled chemical reactions, radiation, and energy exchange. In this regime, surface chemistry, particularly catalytic wall reactions, can significantly affect boundary-layer composition and surface heat transfer. Accurate simulations of such flows may require repeated evaluations of detailed thermochemical libraries, which represent a major computational bottleneck in high-fidelity reactive-flow simulations. To mitigate this cost, we employ the data-driven reduced-order framework introduced by Scherding et al. (2023), which combines nonlinear dimensionality reduction, community clus-tering, and local surrogate models to efficiently approximate high-dimensional thermochemical mappings. In this work, this framework is extended for the first time to hypersonic reactive flows with localized catalytic surface discontinuities, introducing sharp variations in wall chemistry and heat transfer. To address the increased complexity of the thermochemical state space, the dimensionality 
+
+1arXiv:2608.14445v1 [physics.flu-dyn] 14 Aug 2026 reduction method is enhanced with a Sammon-type stress penalty that miti-gates topological folding of the latent manifold and improves the robustness of the clustering and surrogate stages. The resulting model accurately captures the effects of discontinuous catalytic properties, including sharp gradients in wall species mass fractions, diffusion fluxes, and surface heat transfer, while reducing the overall simulation cost by 50% without compromising accuracy.  
+
+> Keywords: Hypersonic flows, chemical non-equilibrium, catalysis, data-driven thermochemical models, reduced-order models
+
+# 1 Introduction 
+
+The design of thermal protection systems (TPS) for atmospheric re-entry vehicles requires accurate prediction of the severe aerothermal environment generated during hypersonic flight (Anderson (2019); Gnoffo (1999); Bertin (1994)). As a vehicle re-enters the atmosphere at speeds of several kilometers per second, a strong bow shock converts a large fraction of the freestream kinetic energy into thermal energy, raising post-shock temperatures to several thousands of Kelvin. At these conditions, molec-ular nitrogen and oxygen undergo dissociation and exchange reactions produce nitric oxide, driving the gas far from thermal and chemical equilibrium (Candler (2019); Park (1990); Vincenti and Kruger (1965)). When chemical reactions occur on time scales comparable to the characteristic flow time, chemical non-equilibrium persists through-out the shock layer and in the boundary layer developing along the vehicle surface. The associated aerodynamic heat transfer rates that reach tens of megawatts per square meter at the stagnation point (Fay and Riddell (1958); Lees (1956)) impose extreme thermal loads on the TPS and drive the need for reliable, high-fidelity simulation tools capable of capturing the coupled aerothermochemical phenomena at play. Apart from chemical reactions in the gas phase, the chemical reactivity of the vehi-cle’s surface is an equally important mechanism for TPS design. Within the boundary layer, partially dissociated atomic species (predominantly atomic oxygen) may undergo heterogeneous catalytic recombination at the wall, releasing chemical energy that can substantially increase the wall heat flux relative to a fully non-catalytic surface (Goulard (1958)). The magnitude of this catalytic contribution depends on the recom-bination probability of the TPS material and may vary by several orders of magnitude between candidate surface materials (Scott 1980; Nasuti et al. 1996). In practical re-entry configurations, neighboring tiles or shingles may exhibit significantly different catalytic properties, leading to abrupt spatial variations in surface species concentra-tions and wall heat flux across catalytic transitions (Baronets et al. 1991; Chaplygin 2023). To study the temperature variations induced by such catalytic discontinuities, ESA’s Intermediate eXperimental Vehicle (IXV) (Angelini and Denaro 2016) flew a windward thermal protection system that combined ceramic-matrix-composite tiles of different catalytic behavior, including a dedicated highly-catalytic patch designed to produce a measurable temperature jump at the material interface (Ceglia et al. 2016; 2Viladegut et al. 2017). The present study is directly motivated by the need to model such catalytic discontinuities. Numerical simulation has become an indispensable tool for the analysis and design of hypersonic flight systems. Early computational studies often relied on simplified gas models that neglected or strongly simplified thermochemical nonequilibrium effects (Malik 1989; Malik et al. 1990; Chang et al. 1997). As understanding of hypersonic flows advanced, it became increasingly evident that calorically perfect or chemical equilibrium assumptions are inadequate for many practical applications (Candler 2019; Josyula and Vedula 2015). Consequently, numerical models have progressively evolved to incorporate increasingly realistic descriptions of high-temperature gas physics, including finite-rate chemical kinetics, thermal nonequilibrium, multicomponent trans-port and gas-surface interaction (Mir´ o and Pinna 2017; Wartemann et al. 2018; Hudson et al. 1997; Johnson and Candler 2005; Chatzigeorgis et al. 2017). Today, state-of-the-art continuum simulations account for these effects by solving the compressible multi-species Navier-Stokes equations coupled with species conservation equations and finite-rate chemical source terms, while thermodynamic properties, transport coef-ficients, and chemical production rates are obtained from detailed thermochemical models (Wright et al. 1998; Josyula and Vedula 2015; Candler et al. 2015). These evaluations are typically delegated to specialised thermochemical libraries, of which Mutation++ (Scoggins et al. 2020), EGLIB (Ern and Giovangigli 2004), PEGASE (Bottin et al. 1999), and CHEMKIN (Kee et al. 2000) are representative exam-ples. Such libraries provide accurate descriptions of high-temperature gas mixtures by accounting for complex chemical kinetics, transport phenomena, and thermody-namic properties over a broad range of thermochemical states. Their modular design also enables straightforward integration into a variety of computational fluid dynamics solvers, making them standard tools for high-fidelity hypersonic simulations. The flexibility and physical fidelity of these libraries, however, come at a substan-tial computational cost. Since thermodynamic properties, transport coefficients, and reaction rates must be evaluated repeatedly at every grid point and every time step, thermochemical library calls often become the dominant computational bottleneck in large-scale reactive flow simulations. As demonstrated by Scherding et al. (2023) in the context of the Mutation++ library, finite-rate reactive simulations can require more than an order of magnitude greater computational effort than their calorically per-fect counterparts, with thermochemical evaluations accounting for the majority of the overall execution time. This rapidly increasing computational burden limits the appli-cability of high-fidelity simulations to large-scale, long-time, or parametric studies and motivates the development of efficient reduced-order strategies capable of accelerating thermochemical property evaluations without sacrificing predictive accuracy. To circumvent this bottleneck, most high-performance solvers resort to hard-coded chemistry implementations (Di Renzo et al. 2020), which sacrifice generality and require significant re-engineering whenever the gas model changes. On the other hand, several strategies have been proposed to accelerate thermochemical closure while retaining the generality of a library-based approach. Structured look-up table (LuT) methods, in which library output is pre-tabulated and retrieved by interpolation at 3run time, have been applied to spray combustion (Franzelli et al. 2013), real-gas tur-bomachinery flows (Pini et al. 2015) and hypersonic boundary layers under chemical equilibrium (Marxen et al. 2011); their memory and construction costs grow exponen-tially with the input dimension, however, precluding direct use for the six-dimensional input spaces typical of five-species air mixtures. Pope’s in situ adaptive tabulation (ISAT) (Pope 1997) addresses the storage problem by building the table adaptively during the simulation, but performs best when the accessed region of state space is compact and repeatedly revisited. More general surrogate modeling approaches including neural networks (Cybenko 1989), radial basis function (RBF) networks (Broomhead and Lowe 1988; Buhmann 2000) and kriging (Sacks et al. 1989; Kleijnen 2009) offer greater flexibility, but their direct application to high-dimensional thermo-chemical mappings is challenged by the curse of dimensionality and by the existence of sharp gradients and quasi-discontinuous transitions between thermochemical regimes, which degrade the accuracy of global surrogates (Bouhlel et al. 2016; Bettebghor et al. 2011). These limitations were addressed by Scherding et al. (2023, 2025) through the Reduced Order Nonlinear Approximation with Active Learning Procedure (RON-AALP), a data-driven framework that compresses the high-dimensional thermo-chemical input space onto a low-dimensional manifold via nonlinear dimensionality reduction, partitions the manifold into physically consistent communities and fits local surrogate models within each community. Applied to a Mach-10 adiabatic bound-ary layer and a shock-wave boundary-layer interaction, the framework achieved up to 70% CPU time savings with no perceptible loss of accuracy in closed-loop aposteriori assessments. More recently, RONAALP has also been employed to con-struct reduced thermochemical models for turbulent reactive jets through an a priori 
+
+flamelet-based formulation (Niemietz et al. 2026), further demonstrating the flexibility of the approach across different reacting-flow regimes. Nevertheless, the application of RONAALP has so far been restricted to chemically inert walls, leaving the impact of surface chemistry unexplored. An extension of this framework to catalytic wall configurations is the focus of the present work. In this paper, we specifically extend the RONAALP framework to hypersonic reactive flows over surfaces with heterogeneous catalytic effects. We consider a con-figuration featuring a localized catalytic patch, which introduces sharp discontinuities in surface properties. Including catalytic boundary conditions introduces additional thermochemical states associated with surface reaction balance, as well as implicitly coupling wall species concentrations to wall temperature. This significantly enlarges the thermochemical state space and increases the complexity of the surrogate modeling task. The remainder of this paper is organized as follows. Section 2 describes the flow configuration under study. Section 3 presents the governing equations, together with the thermochemical models used both in the gas-phase and on the wall. Section 4 details the numerical framework used to solve the governing equations, including the flow solver and the full- and reduced-order thermochemical closures. Section 5 presents the results, including the full-order catalytic and non-catalytic boundary-layer solu-tions, the construction of the corresponding reduced-order models, and an assessment 4Oblique shock ˜U∞
+
+βxc
+
+> 0
+
+xyxc
+
+> 1
+
+Me, ˜Ue, ˜pe, ˜Te
+
+˜p∞
+
+˜T∞
+
+M∞
+
+Freestream 
+
+x0 x1
+
+˜Tw
+
+θy1y1
+
+Catalytic patch Fig. 1 Configuration of the hypersonic boundary-layer flow considered in the present study. An oblique shock wave of angle β, generated by a wedge of angle θ, compresses a freestream flow charac-terized by ( M∞, ˜U∞, ˜p∞, ˜T∞). The computational domain, indicated by dashed lines and defined in the coordinate system ( x, y ) with x ∈ [x0, x 1] and y ∈ [0 , y 1], lies entirely downstream of the shock and therefore corresponds to a post-shock boundary layer with edge conditions ( Me, ˜Ue, ˜pe, ˜Te). The wall ( y = 0) has a temperature ˜Tw , maintained under radiative-equilibrium conditions. A localized fully catalytic patch is imposed over x ∈ [xc
+
+> 0
+
+, x c
+
+> 1
+
+], with the remaining wall being non-catalytic. 
+
+of their a priori and a posteriori performance. Finally, Section 6 summarizes the main findings and outlines future perspectives. 
+
+# 2 Flow configuration 
+
+M∞ ˜U∞(m /s) ˜p∞(Pa) ˜T∞(K) ˜ρ∞(kg /m3) Me ˜Ue(m /s) ˜pe(Pa) ˜Te(K) ˜ρe(kg /m3) θ(◦) β(◦)23.4 6863.1 3.4 214.39 5.52 ×10 −5 5.75 6750 1782 3106 1.72 ×10 −3 17 20.9 
+
+x0 x1 y1 xc 
+
+> 0
+
+xc 
+
+> 1
+
+Nx Ny ∆x ∆y1 η
+
+14 100 3.5 40 60 860 220 0.01 0.00125 0.15 
+
+Table 1 Freestream and post-shock boundary-layer edge conditions (top table), together with the geometric parameters and mesh resolution (bottom table) used for the hypersonic boundary-layer simulations. Freestream conditions correspond to flight data of the IXV mission (Viladegut et al. (2017)). 
+
+In this paper, we consider a hypersonic boundary-layer configuration representative of the flow over the windward surface of a re-entry vehicle downstream of a shock, with the gas in a dissociated state. Under the local approximation, the post-shock flow is idealized as a canonical two-dimensional boundary layer developing behind a planar oblique shock induced by a wedge geometry, as shown in Fig. 1. The problem is defined by the freestream conditions ( M∞, ˜p∞, ˜ρ∞, ˜T∞). Here, freestream conditions at M∞ = 23 .4 are taken from Viladegut et al. (2017), corresponding to the flight data of the ESA IXV mission at the third shingle of the vehicle’s windward surface, reached at an altitude of 73 .11 km. The wedge, with deflection angle θ, generates an oblique shock with shock angle β
+
+measured relative to the freestream direction. The computational domain lies entirely 5downstream of the shock and therefore consists of a post-shock boundary layer with edge conditions ( Me, ˜pe, ˜ρe, ˜Te) obtained from the standard oblique-shock relations, assuming the weak-shock solution branch. The wedge angle is treated as a design parameter and is set to θ = 17 ◦, yielding both hypersonic post-shock conditions ( Me =5.75) and sufficiently high edge temperatures ( ˜Te ≳ 3000 , K) to promote significant dissociation of molecular oxygen (Anderson (2019)). The resulting freestream and post-shock states are summarized in Table 1. The computational domain is defined in the wall-bounded coordinate system ( x, y )and extends, in non-dimensional coordinates, over x ∈ [x0, x 1] and y ∈ [0 , y 1]. The wall (y = 0) is maintained at a temperature ˜Tw determined from radiative equilibrium. A highly emissive material with emissivity coefficient ϵ = 0 .9 is considered, resulting in wall temperatures between 1200 and 1500 K, consistent with those encountered in thermal protection systems under hypersonic aerothermal loading (Panerai and Chazot (2012)). The baseline wall is assumed to be non-catalytic, while a fully catalytic patch is prescribed over the streamwise interval x ∈ [xc
+
+> 0
+
+, x c
+
+> 1
+
+]. The domain size is defined by the nondimensional parameters x0 = 14, x1 = 100, and y1 = 3 .5, while the catalytic patch is imposed between xc 
+
+> 0
+
+= 40 and xc 
+
+> 1
+
+= 60, with the non-dimensional coordinate x =˜x/ ˜Lref being related to a reference length of ˜Lref = 0 .0873 m. In terms of streamwise Reynolds number Re x = ˜ ρe ˜Ue ˜x/ ˜μe, the computational domain corresponds to the interval Re x ∈ [1 .4 × 10 5, 1 × 10 6], while the catalytic patch occupies the subinterval 
+
+Re x ∈ [4 ×10 5, 6×10 5]. Such Re x conditions fall within the range typically encountered in hypersonic boundary-layer studies of re-entry configurations (Fedorov (2011)). 
+
+# 3 Governing equations 
+
+In this study, hypersonic reactive flows are modeled using the compressible multi-species Navier-Stokes equations. Considering a mixture composed of S species, these equations, in non-dimensional form, read 
+
+∂ρ ∂t + ∇ · (ρu) = 0 , (1) 
+
+∂(ρu)
+
+∂t + ∇ · (ρu ⊗ u) = −∇ p + ∇ · τ , (2) 
+
+∂(ρE )
+
+∂t + ∇ · (( ρE + p)u) = ∇ · (τ · u) − ∇ · q, (3) 
+
+∂ρY s
+
+∂t + ∇ · (ρY su + Js) = ˙ ωs, ∀s ∈ S , (4) comprising of the classical compressible Navier-Stokes equations (1)-(3), augmented by a system of S mass conservation equations (4), one for each species s ∈ S . In the latter, 
+
+t denotes time, u = ( u, v )⊤ is the velocity vector, p the thermodynamic pressure, ρ the fluid’s density and E is the fluid’s total specific energy, defined as E = e+ 12 ∥u∥2, with e
+
+being the thermodynamic internal energy of the mixture. In the species equation, Ys =
+
+ρs/ρ denotes the species mass fractions satisfying P 
+
+> s∈S
+
+Ys = 1, with ρs corresponding to the partial density of species s, Js is the diffusion flux, accounting for the diffusion of 6species due to concentration gradients and ˙ ωs corresponds to the species net chemical mass production rates due to reactions. Details on the definition of Js and ˙ωs are given in Appendix A. In this context, the mixture’s density ρ, internal energy e, and enthalpy h follow from the species properties as 
+
+ρ = X
+
+> s∈S
+
+ρs, e = X
+
+> s∈S
+
+Yses, h = X
+
+> s∈S
+
+Yshs (5) while the viscous stress tensor τ and the heat flux vector q are given by 
+
+τ = μ
+
+
+
+∇u + ∇u⊤ − 23 (∇ · u)I
+
+
+
+, q = − κ
+
+Re ∞Pr ∞
+
+∇T + X
+
+> s∈S
+
+Jshs, (6) where μ is the dynamic viscosity, I is the identity tensor and κ the thermal conduc-tivity, with the heat flux accounting for both Fourier heat conduction and energy transport due to species diffusion. All aerodynamic and thermochemical quantities are non-dimensionalized using boundary-layer-edge reference quantities, denoted by the subscript ( ·)e, according to 
+
+x = ˜x
+
+˜Lref 
+
+, t = ˜t ˜ae
+
+˜Lref 
+
+, ρs = ˜ρs
+
+˜ρe
+
+, p = ˜p
+
+˜ρe˜a2
+
+> e
+
+, u = ˜u
+
+˜ae
+
+, κ = ˜κ
+
+˜κe
+
+, μ = ˜μ
+
+˜μe
+
+,T = ˜T
+
+(γe − 1) ˜Te
+
+, e = ˜e
+
+˜a2
+
+> e
+
+, h = ˜h
+
+˜a2
+
+> e
+
+, ˙ωs = ˜˙ωs
+
+˜ρe˜ae/ ˜Lref 
+
+, Js = ˜Js
+
+˜ρe˜ae
+
+,
+
+(7) where ˜(·) denotes dimensional quantities, ˜Lref is the dimensional reference length, γe
+
+is the isentropic exponent, ˜ ae =
+
+q
+
+γeRe ˜Te is the speed of sound at the boundary-layer edge and Re denotes the specific gas constant evaluated at the edge. The dimensionless Mach, Reynolds and Prandtl numbers that globally define the problem are defined as 
+
+Me = ˜Ue
+
+˜ae
+
+, Re e = ˜ρe˜ae ˜Lref 
+
+˜μe
+
+, P r e = ˜μe ˜cp,e 
+
+˜κe
+
+. (8) To enforce global mass conservation, the continuity equation (1) is solved together with the species conservation equations (4) for S − 1 species, with the density of the remaining species recovered from the closure relation ρ = P 
+
+> s∈S
+
+ρs. The omitted species is typically chosen as the most chemically inert constituent of the mixture. 
+
+## 3.1 Thermochemical model in the gas-phase and on the wall 
+
+Throughout this study, the flow is assumed to be chemically reactive, with reaction time scales comparable to those of the flow, i.e., in chemical nonequilibrium. A five-species atmospheric mixture, S = {N2, O2, N, O, NO }, is considered. In the gas phase, species undergo five reversible reactions following Park’s five-reaction mechanism for 7dissociated air (Park (1989)): R1 : N 2 + M ⇌ 2N + M ,
+
+R2 : O 2 + M ⇌ 2O + M ,
+
+R3 : NO + M ⇌ N + O + M ,
+
+R4 : N 2 + O ⇌ NO + N ,
+
+R5 : NO + O ⇌ N + O 2
+
+
+
+(9) where M denotes a third body, representing any of the five species. Gas-phase chem-istry is modeled using finite-rate kinetics based on the law of mass action. Species production and consumption rates are obtained from reaction stoichiometry together with the corresponding forward and backward reaction rates, thereby accounting for both dissociation–recombination and exchange processes under nonequilibrium condi-tions. Details on the chemical source terms, including the Arrhenius rate expressions, are provided in Appendix A. Here, solid walls are also assumed to be chemically reactive through catalytic surface reactions. One heterogeneous reaction is considered, corresponding to recom-bination of atomic oxygen into its diatomic form, or Rw : O + O + w → O2 + w, (10) where w denotes the wall acting as a catalyst. Catalytic wall boundary conditions are formulated by requiring conservation of species mass and total energy at the gas– surface interface (Chatzigeorgis et al. 2017; Ba¸ skaya et al. 2024). Under the assumption that surface chemistry reaches equilibrium on a time scale much shorter than that of the flow, the wall fluxes satisfy the following quasi-steady relations, 
+
+Js · ˆnw = ˙ ωw,s , ∀s ∈ S , (11) 
+
+
+
+− κw
+
+Re ∞P r ∞
+
+∇T + X
+
+> s∈S
+
+Jshs
+
+
+
+· ˆnw = σϵT 4
+
+> w
+
+. (12) The first expression, Eq. (11), states that the diffusive flux of each species at the surface is balanced by its net rate of production (or consumption) due to catalytic reactions. Eq. (12) enforces the thermal balance at the wall by accounting for the combined contributions of conductive heat transfer and enthalpy transport by species diffusion, balanced by radiative heat emission. In these equations, ˆnw denotes the outward unit normal vector, Tw the wall temperature, κw is the wall thermal conductivity, and ˙ ωw,s 
+
+the net surface reaction rate of species s. The parameters σ and ϵ correspond to the Stefan–Boltzmann constant and wall emissivity, respectively. The catalytic behavior of the wall is represented at the macroscopic scale as a stochastic surface process (Goulard 1958), characterized by a recombination 8probability (or catalytic efficiency) γO for the atomic oxygen species, defined as 
+
+γO = FO,reac 
+
+FO,imp 
+
+, (13) where, FO,reac denotes the flux of oxygen atoms that undergo recombination at the surface, while FO,imp is the incoming flux of particles striking the wall. The parameter satisfies 0 ≤ γO ≤ 1 and is prescribed in the model, with the limiting cases γO = 1 and 
+
+γO = 0 corresponding to a fully catalytic and a completely inert wall, respectively. Assuming that the gas adjacent to the wall follows a Maxwellian velocity distribution at the wall temperature, the impinging flux can be expressed as 
+
+FO,imp = nO
+
+r kB Tw
+
+2πm O
+
+, (14) where, kB is the Boltzmann constant, mO is the mass and nO = ρO/m O the number density of the oxygen species. Given a prescribed value of γO, the corresponding wall source terms for atomic and molecular oxygen are given by ˙ωw, O = −γOmOFO,imp , ˙ωw, O2 = γOmOFO,imp , (15) whereas wall source terms of all non-reacting species vanish, ˙ ωw,s = 0 , s ̸ = O , O2.
+
+# 4 Numerical framework 
+
+In this work, simulations are performed using the Multi-Species hyperSonic solver (MS 2), (Margaritis et al. 2025), built upon a high-fidelity compressible Navier–Stokes solver for non-reacting flows (Sayadi et al. 2013; Nagarajan et al. 2003). The govern-ing equations are spatially discretized using finite-difference schemes on a structured, staggered grid. A uniform mesh with Nx = 860 points is employed in the stream-wise direction, yielding a streamwise grid spacing ∆ x = ( x1 − x0)/(Nx − 1) = 0 .01, while Ny = 220 points are used in the wall-normal direction with grid clustering near the wall according to y(m) = y0 + ( y1 − y0) (1 − η)ζ3 + ηζ  , where m ∈ [1 , N y ], 
+
+ζ = ( m − 1) /(Ny − 1), and η is the stretching parameter. A value of η = 0 .15 yields a first-cell wall-normal spacing of ∆ y1 = 0 .00125. To ensure a smooth transition between non-catalytic and catalytic regions, the recombination coefficient γO is defined as a continuous function of x based on Gaussian-like exponential terms, 
+
+γO(x) = 
+
+
+
+0, x < x c 
+
+> 0
+
+or x > x c
+
+> 1
+
+,
+
+ΓO ·
+
+
+
+1 − e− (x−xc
+
+> 0)24δ2
+
+ 
+
+1 − e− (x−xc
+
+> 1)24δ2
+
+
+
+, xc 
+
+> 0
+
+≤ x ≤ xc
+
+> 1
+
+,
+
+(16) where 0 ≤ ΓO ≤ 1 is the maximum value attained by γO and δ controls the smoothness of the transition at the patch boundaries xc 
+
+> 0
+
+and xc
+
+> 1
+
+. The recombination coefficient 9therefore satisfies γO = 0 outside the catalytic patch and reaches γO = Γ O within the patch. For numerical stability, δ = 6∆ x is adopted throughout the present study. The complete set of configuration parameters and mesh resolutions is summarized in the bottom row of Table 1. Further details regarding the numerical flow solver, including the spatial discretization, time integration schemes and boundary condition implementation can be found in Margaritis et al. (2025). 
+
+## 4.1 Thermochemical closure – Mutation ++ 
+
+The governing equations (1)-(4) require closure relations to determine the thermo-chemical properties of the gas mixture, including species thermodynamic quantities, transport coefficients, and chemical source terms. In hypersonic flows, the high temperatures encountered across shock waves and within boundary layers promote dissociation, recombination, and other nonequilibrium phenomena, making these prop-erties strongly dependent on the local thermochemical state. Accurate evaluation of such quantities is therefore essential for reliable flow predictions. In this work, ther-mochemical effects are incorporated through coupling with Mutation++ (Scoggins et al. (2020)), an open-source library developed at the Von Karman Institute for Fluid Dynamics (VKI) which supplies consistent models for transport, thermodynamic, and chemical-kinetic properties of multicomponent reacting gas mixtures. The coupling is formulated as a pointwise input–output relation z = f (x), where f : RD 7 → RDz denotes the nonlinear mapping that collects all thermo-chemical evaluations provided by Mutation++, from the input space RD onto the output space RDz . The input vector consists of the multi-component flow state vec-tor x = ( ρ, ρ s, ρe )⊤, s ∈ S , while the output vector z = ( μ, κ, p, T, D s, h s, ˙ωs)⊤, s ∈ S 
+
+gathers all thermochemical quantities required for closure. These include transport properties ( μ, κ, D s), thermodynamic variables ( p, T, h s) and chemical source terms ( ˙ ωs) in the gas phase. As demonstrated by Scherding et al. (2023), Mutation++ introduces a substantial computational overhead in hypersonic reactive flow simulations, with this increased cost arising from the repeated evaluation of complex nonlinear thermochemical rela-tions at every computational point and iteration. Consequently, the cost of real-gas simulations is significantly larger than that of equivalent chemically inert computa-tions. To mitigate this, Scherding et al. (2023) proposed a reduced-order modeling framework. The main objective of the algorithm is to replace the expensive thermo-chemical evaluations performed by Mutation++ with an accurate surrogate model (referred to here as Mutation++ Light) constructed from a reduced set of represen-tative thermochemical states. In the present work, an updated and modified version of this reduced-order framework is used to accelerate the evaluation of the thermo-chemical closure, while maintaining the fidelity required for high-speed reacting flow simulations. The main components of the present algorithm are briefly summarized in the following subsections. 10 MS 2 Solver Mutation++ 
+
+f : RD → RDz
+
+x → z = f (x)
+
+xzMutation++ Light x ˆz
+
+Dimensionality reduction: 
+
+x ∈ RD 7 → y ∈ Rd, d < D 
+
+Clustering: Surrogate model: 
+
+y ∈ Ck , k = 1, ..., N c
+
+gck : Rd 7 → RDz
+
+y 7 → ˆz = gck (y)Offline Training Governing equations Discretization Boundary conditions Fig. 2 General schematic representation of the RONAALP algorithm. The original nonlinear ther-mochemical closure z = f (x) is replaced by the reduced-order surrogate model Mutation++ Light, which combines dimensionality reduction, clustering, and local surrogate approximations to infer thermochemical quantities ˆ z from the flow state vector x. The surrogate model is constructed dur-ing an offline training phase using data generated by the full Mutation++ library. Figure is adapted from Scherding et al. (2023). 
+
+## 4.2 Reduced thermochemical closure – Mutation ++ Light 
+
+The Reduced Order Nonlinear Approximation with Active Learning Procedure (RON-AALP) algorithm of Scherding et al. (2023, 2025) was specifically designed for accelerating simulations of hypersonic non-equilibrium flows. The original RONAALP algorithm consists of three consecutive stages, illustrated schematically in Fig. 2. First, the high-dimensional thermochemical input space is projected onto a reduced latent manifold using a nonlinear dimensionality reduction technique. The resulting latent representation is then partitioned into several physi-cally meaningful regions using a community detection algorithm. Finally, independent surrogate models are constructed within each region to locally approximate the non-linear thermochemical mapping. In the present work, the nonlinear dimensionality reduction method is extended to explicitly penalize topological folding of the latent manifold, as described in the next subsection. 
+
+4.2.1 Topology-preserving dimensionality reduction 
+
+Considering N realizations of the thermochemical closure function f , let the input matrix be X = (x1, . . . , xN )⊤, and the corresponding output matrix be Z =(z1, . . . , zN )⊤. The first step of the algorithm aims to compress the high-dimensional input state X ∈ RN ×D into a lower-dimensional latent representation Y ∈ RN ×d with 
+
+d < D while retaining the information relevant to the prediction of the thermochem-ical quantities. Dimensionality reduction here is based on an input/output encoder (IO-E). As opposed to a classical auto-encoder which learns a latent representation Y
+
+through an encoder–decoder architecture trained to minimize the input reconstruction error, the IO-E is trained directly on the thermochemical output Z ∈ RN ×Dz , with 11 the objective of approximating the nonlinear mapping Z = f (X). The main objective of the IO-E is therefore to minimize the following functional 
+
+Lrecon = 1
+
+NbDzNbX
+
+> i=1
+
+f (Xi) − ˆZi
+
+> 2
+
+, (17) where during training, the loss is evaluated over randomly sampled mini-batches of size Nb, yielding a stochastic estimate of the full-dataset objective. Here ˆZi denotes the network prediction of the target thermochemical quantities for the i-th sample in the current mini-batch. Similar to a conventional auto-encoder, the IO-E architecture contains an encoder ( RD → Rd) and a decoder ( Rd → RDz ). Nevertheless, only the encoder is retained in the final model to provide the reduced latent coordinates Y.Owing to the increased complexity of the present problem, which comprises mul-tiple physically distinct regions associated with different thermochemical states, the latent manifold is more susceptible to topological distortions during nonlinear dimen-sionality reduction. To prevent the nonlinear encoder from excessively distorting the neighborhood structure of the input space, in this paper a stress penalty inspired by the classical Sammon mapping (Sammon (1969)) is added to the standard reconstruc-tion loss. As a result, the final objective functional L to be minimized combines the output reconstruction error with a relative-distance-preservation term, 
+
+L = Lrecon + λstress 
+
+1
+
+N 2
+
+> bNb
+
+X
+
+> i=1
+> Nb
+
+X
+
+> j=1
+
+dYij 
+
+¯dY − dXij 
+
+¯dX
+
+!2
+
+| {z }
+
+> Lstress
+
+, (18) where dXij = ∥Xi − Xj ∥ and dYij = ∥Yi − Yj ∥ define the pairwise Euclidean distances in the input space and latent space respectively, both restricted to the current mini-batch, while ¯dX and ¯dY denote their respective means averaged over all ordered pairs within the mini-batch. Normalizing each distance by its batch-wise mean makes Lstress 
+
+scale-invariant, so it penalizes relative rather than absolute distortions of the pairwise-distance structure between the input and latent representations. The weight λstress ≥ 0 controls the trade-off between reconstruction accuracy and preservation of the input space’s structure in the latent embedding ( λstress = 0 recovers the unconstrained IO-E while for λstress >> 1 the mapping approaches a near-isometric embedding of the input space, analogous to a classical Sammon map-ping). In practice, λstress is selected empirically so as to remove visible topological folding of the latent manifold without measurably degrading reconstruction accuracy (see Appendix B). 
+
+4.2.2 Community clustering 
+
+Once the reduced latent manifold Y has been obtained, the data is partitioned into 
+
+Nc communities, Y ∈ Ck, k = 1 , . . . , N c, corresponding to regions that exhibit similar thermochemical behavior. Since the relationship between the flow variables and the thermochemical quantities is highly nonlinear and may vary significantly across the 12 state space, constructing a single global surrogate can lead to reduced accuracy. The identification of distinct communities allows the subsequent surrogate models to focus on a narrower range of physical conditions and therefore achieve improved predictive performance. The partitioning of the latent space is performed using Newman’s spectral com-munity detection algorithm (Newman (2006)). A graph representation of the latent manifold is first constructed by connecting neighboring samples based on their Euclidean distance. The corresponding distance matrix is binarized using a connec-tivity threshold ϵ, defined as a fraction of the mean Euclidean distance in the latent space, ϵ = cϵ ¯dY , where cϵ > 0 is a scaling parameter and ¯dY denotes the average pair-wise distance between latent samples. Newman’s algorithm is then applied to identify densely connected regions of the graph, yielding Nc communities without requiring the number of clusters to be specified a priori . This feature is particularly advanta-geous for complex thermochemical datasets, where the number of distinct regimes is generally unknown. The community detection is performed on a representative subsample, Ns, of the training data to reduce the computational cost associated with graph construction. Once the communities have been identified, a random forest classifier (Breiman (2001)) is trained using the latent coordinates as input and the assigned community labels as outputs, using the entropy criterion for node splitting. It is subsequently employed to propagate the community labels to the full training dataset and to classify new samples during the inference stage. 
+
+4.2.3 Local surrogate modeling 
+
+The final component of the RONAALP algorithm consists of constructing local sur-rogate models for each identified community Ck. As in Scherding et al. (2023), radial basis function (RBF) networks are employed here due to their favorable compromise between accuracy, computational efficiency, and straightforward training procedure. In addition, RBF networks support adaptive strategies such as sequential learning as well as growth of the network structure, making them suitable for reduced-order modeling applications. For each community Ck, an independent RBF network is trained to approximate the local nonlinear mapping between the latent coordinates Y and the thermochemical outputs Z, containing a hidden layer composed of NR radial basis functions charac-terized by centers yci ∈ Ck and corresponding weights ai. To guarantee a well-posed interpolation problem, the RBF sum is augmented with a low-order polynomial term, so that the resulting approximation reads 
+
+gck (y) = 
+
+> NR
+
+X
+
+> i=1
+
+ai ϕ (∥y − yci ∥) + 
+
+> Np
+
+X
+
+> j=1
+
+cj pj (y), (19) where ϕ denotes the selected radial basis kernel ( ϕ(r) = r2 log r in this work) and 
+
+{pj }Np 
+
+> j=1
+
+is a basis of polynomials up to a prescribed degree (here third degree), added to ensure conditional positive-definiteness of the interpolation system, with Np =13 20 in this study. The locations of the RBF centers yci are determined through k-means clustering of the latent coordinates in each community Ck whereas the optimal coefficients ai and cj are obtained by solving the corresponding linear system directly rather than relying on iterative optimization algorithms. To ensure continuity of the surrogate across community boundaries, the nearest centroids shared between adjacent communities are included in the training set. 
+
+# 5 Results 
+
+## 5.1 Catalytic and non-catalytic boundary layer solutions 
+
+All simulations are run until a time-independent, laminar state is reached. The effect of surface catalycity is investigated by comparing the two limiting cases of the catalytic model: a fully non-catalytic wall (Γ O = 0) and a wall with a fully catalytic patch (Γ O = 1). Figure 3 shows key characteristics of the steady-state boundary-layer flow, with and without catalytic wall effects. We first examine the species concentrations. Figures 3(a) and (c) show, respectively, the species mass fractions at the wall, Ys,w = ρs,w /ρ w,and the wall-normal profiles of species mass fractions Ys as a function of the nondi-mensional wall distance y, with the latter being extracted at the streamwise location corresponding to the midpoint of the catalytic patch ( x = 50). The most pronounced effect of the catalytic patch on species concentrations is the strong depletion of atomic oxygen O, accompanied by a substantial enrichment of molecular oxygen O 2, which follows directly from the imposed surface recombination reaction (Eq. (10)). A notice-able reduction in both atomic and molecular nitrogen, N and N 2, is also observed, followed by an increase of NO, despite the absence of direct nitrogen-wall reactions. This behavior arises indirectly through multicomponent diffusion and species coupling: the strong redistribution of oxygen species modifies the local mixture composition and, through the mass-fraction constraint P 
+
+> s
+
+Ys = 1, induces compensating varia-tions in the remaining species. Note that although catalytic reactions are restricted to x ∈ [40 , 60], their influence extends downstream of the patch, up to approximately 
+
+x ≈ 80; species concentrations recover only gradually toward the non-catalytic profiles, due to the convective-diffusive relaxation timescale of the boundary layer. The wall-normal profiles of Ys further reveal an important signature of catalytic activity; the formation of steep concentration gradients in the immediate vicinity of the wall. In particular, the reacting species exhibit non-zero wall-normal gradients, with ∂Y O/∂y |y=0 < 0 and ∂Y O2 /∂y |y=0 > 0, where the sign of each gradient follows directly from the corresponding value of the catalytic production term ˙ ωw,s through the surface mass balance (Eq. (11)), as the diffusive flux Js scales with species mass-fraction gradients (Eq. (A3)). The effects of catalysis on species are confined to the boundary layer ( y ≲ 0.5), while the free-stream composition remains unchanged. Species concentrations directly influence the thermodynamic state of the boundary layer. This effect is clearly illustrated in Fig. 3(b), reporting the dimensional wall temperature ˜Tw as a function of x. Catalysis leads to a significant increase in wall temperature, driven by the exothermic nature of the surface recombination reactions, as accounted for in the surface energy balance (Eq. (12)). Within the catalytic patch, 14 (a) (b) 30 40 50 60 70 80 
+
+x
+
+10 −5
+
+10 −4
+
+10 −3
+
+10 −2
+
+10 −1
+
+10 0
+
+> Ys,w
+
+30 40 50 60 70 80 
+
+x
+
+1100 1200 1300 1400 1500 
+
+> ˜Tw (K)
+
+(c) (d) 10 −4 10 −2 10 0
+
+Ys
+
+0.00.20.40.6
+
+> y
+
+2000 3000 4000 5000 
+
+˜T (K) 
+
+0.00.20.40.6
+
+> y
+
+Fig. 3 Steady-state solution of the Me = 5 .75 boundary-layer flow. (a) Species mass fractions at the wall Ys,w = ρs,w /ρ w (in logarithmic scale) and (b) dimensional wall temperature ˜Tw for the different species as functions of the nondimensional streamwise coordinate x. Profiles of (c) species mass fractions Ys (in logarithmic scale) and (d) dimensional temperature ˜T as function of the nondimensional distance to the wall y, extracted at x = 50. Colors in (a,c) correspond to N (black), O (red), NO (blue), N 2 (yellow) and O 2 (green). The grey shaded region on (a) and (b) indicates the extent of the catalytic patch. Solid lines denote results obtained with the fully-catalytic patch (Γ O = 1), whereas dashed lines correspond to the non-catalytic-wall case (Γ O = 0). 
+
+the wall temperature increases from approximately 1250 to 1350 K, corresponding to a rise of about 100 K. A prominent feature is the local temperature overshoot observed at the upstream transition point ( x = 40). This peak is physical, not a numerical artifact, and arises from the sudden exposure of excess atomic oxygen, convected from upstream non-catalytic conditions, to an active catalytic surface, causing a narrow heat-release overshoot before species adjustment to catalytic equilibrium (Chung et al. 1963; Ottens et al. 2005; Chaplygin 2023). No analogous peak occurs at x = 60, where the incoming flow is already oxygen-poor. The effect of catalysis on temperature is predominantly localized near the wall. As shown in Fig. 3(d), the wall-normal temperature profiles exhibit only minor differences between catalytic and non-catalytic cases away from the wall, indicating that, for the present configuration, catalysis does not significantly alter the overall thermal structure of the boundary layer. 15 The discussion above confirms that catalysis alters the thermochemical state through changes in species composition, surface heat release, and coupled transport processes, and that this occurs in a spatially localized manner, particularly in the near-wall regions and around the catalytic patch. This behavior motivates an examination of whether the data-driven reduction framework can adapt to these spatial variations and correctly identify the physically relevant regions of the flow. 
+
+5.1.1 Training data acquisition 
+
+The input X and output matrices Z used to train the reduced-order model are con-structed by pointwise sampling of the converged time-independent flow fields for both the catalytic and non-catalytic cases. Rather than using all grid points, a subset of loca-tions is selected through a non-uniform random sampling procedure with an increased density of samples in the vicinity of the wall. This strategy ensures that the reduced-order model accurately captures the sharp thermal and chemical gradients developing in the near-wall region, where the effects of catalytic surface reactions are most pro-nounced. This sampling procedure yields a total of N = 100000 training points per variable. Prior to training, input and output matrices are mapped to [0 , 1] N ×D and [0 , 1] N ×Dz using statistics fitted on the training set only, or 
+
+X = Xr − min( Xr)max( Xr) − min( Xr) , Z = Zr − min( Zr)max( Zr) − min( Zr) , (20) where Xr and Zr denote the raw, unscaled input and output data, respectively, and the min( ·) and max( ·) operators are applied component-wise over the training samples. The normalization is applied so that all features contribute on a comparable numerical scale during training, preventing variables with intrinsically larger magnitudes from dominating the optimization process and ensuring that the loss function assigns similar importance to all states. 
+
+## 5.2 Catalytic and non-catalytic reduced order models 
+
+5.2.1 Latent space manifolds 
+
+As a first step, a low-dimensional latent-space representation of the problem is con-structed using the nonlinear IO-E architecture, with the embedding constrained by the stress regularization term, as described in Sect. 4.2.1. To inform the choice of latent-space dimensionality d, the intrinsic dimensionality of the thermochemical data is first examined by performing principal component analysis (PCA) on the input space X. The optimal latent space dimension is determined using a criterion based on the cumulative variance V (n). Specifically, we select the smallest n such that 
+
+V (n) exceeds a 95% threshold, d = min n : V (n) ≥ 0.95, which by the Eckart–Young theorem is equivalent to bounding the relative linear reconstruction error of the input data by 1 − V (n) < 5%. As detailed in Appendix C, for the present data it is shown that the six-dimensional physical state is intrinsically well approximated by a three-dimensional linear subspace, motivating our choice of latent dimension d = 3 for 16 (a) (b) 0  
+
+> Y1
+> 10
+> Y2
+> 10
+> Y3
+> 10
+> Y1
+> 10
+> Y2
+> 10
+> Y3
+> 1
+> 1200 2400 3600 4800
+> ˜T (K)
+> Fig. 4 Three-dimensional manifolds in latent space ( Y1, Y 2, Y 3), obtained by performing dimension-ality reduction using the topology-preserving IO-E on the (a) non-catalytic and (b) fully catalytic solution datasets. The manifolds are coloured according to contours of the dimensional temperature field ˜T.
+
+the encoder. The implementation details of the input-output encoder, including the network architecture and training hyper-parameters, are summarized in Appendix D. Figure 4 shows the three-dimensional latent-space manifolds obtained for the (a) noncatalytic and (b) catalytic datasets, obtained for λstress = 1, which assigns equal importance to the output reconstruction error and the preservation of the latent-space topology (Appendix B). To provide a physical interpretation of the latent representa-tion, the manifolds are colored according to contours of the dimensional temperature field ˜T , corresponding to one of the output variables of the closure function. In both cases, the resulting manifolds exhibit a smooth and continuous structure, indicat-ing that the nonlinear dimensionality reduction successfully captures the underlying organization of the thermochemical state space. Regions characterized by different temperature levels, and therefore by distinct thermochemical conditions, are mapped onto well-defined regions of the latent space, while preserving the main physical gra-dients of the original high-dimensional space. However, the present manifolds display a distinct feature; specifically, two regions characterized by low-to-moderate temper-atures ( ˜T < 3600 K) are mapped onto separate areas of the latent space, with these regions being disconnected by an intermediate zone of high temperature ( ˜T ≳ 4800 K). This behavior differs from that observed by Scherding et al. (2023) for boundary layers over adiabatic (hot) walls, where states with similar temperature levels were consistently mapped to the same regions of the latent space. As will be shown in the following subsection, these two regions, despite exhibiting similar temperature lev-els, correspond to distinct thermochemical states and are associated with physically different locations within the boundary layer. 
+
+5.2.2 Community clusters 
+
+Following the construction of the low-dimensional manifold, the latent space is parti-tioned into clusters using the Newman community detection algorithm (Sect. 4.2.2). 17 (a) (b) 0
+
+Y1
+
+10
+
+Y2
+
+10
+
+Y3
+
+140 50 60 70 
+
+x 
+
+> 0.00.10.20.30.40.5
+> y
+> 2400 3600 3600 4800
+> 123
+
+k
+
+(c) (d) 0
+
+Y1
+
+10
+
+Y2
+
+10
+
+Y3
+
+140 50 60 70 
+
+x 
+
+> 0.00.10.20.30.40.5
+> y
+> 2400 3600 3600 4800
+> 1234
+
+k   
+
+> Fig. 5 Community clusters labeled by their index k, identified using the Newman algorithm for the non-catalytic (a,b) and fully catalytic (c,d) datasets, shown in the (a,c) latent space ( Y1, Y 2, Y 3) and the (b,d) physical space ( x, y ). The isolines in (b,d) represent contours of the dimensional temperature field ˜T. The grey shaded region in (d) indicates the extent of the catalytic patch.
+
+Figure 5 presents the communities identified by Newman’s algorithm for both the non-catalytic and catalytic datasets, obtained from a random subsample of Ns = 10000 points extracted from the respective training sets using a connectivity threshold fac-tor of cϵ = 0 .8. The resulting partition is shown in the low-dimensional latent space together with its projection onto the physical domain, allowing each community to be associated with a distinct thermochemical region of the boundary layer. For the non-catalytic configuration, the algorithm separates the manifold into three well-defined clusters. Cluster k = 1 encompasses the cold fluid ( ˜T ≲ 2400 K) adjacent to the wall (y ≲ 0.01), cluster k = 3 corresponds to the high-temperature portion of the boundary layer, with temperatures reaching ˜T ≳ 4800 K, while cluster k = 2 represents the outer freestream region ( y ≳ 0.25), characterized by temperatures close to the prescribed edge value, ˜T ≈ ˜Te = 3000 K. This result shows that the latent coordinates encode sufficient thermochemical information to identify physically distinct regimes, despite 18 (a) (b) 40 50 60 70 
+
+x    
+
+> 0.00.10.20.30.40.5
+> y
+> 2400 3600 3600 4800 40 50 60 70
+
+x        
+
+> 0.00.10.20.30.40.5
+> y
+> 2400 3600 3600 4800
+> −1.0
+> −0.50.51.0eT (%)
+> Fig. 6 Relative temperature error field eT= ( ˆT−T)/T (%) for the (a) non catalytic and (b) catalytic patch cases. Isolines represent contours of the dimensional temperature field ˜Twhile the gray shaded region in (b) indicates the extent of the catalytic patch.
+
+the absence of spatial information during clustering, with each cluster mapping onto a spatially coherent region of the boundary layer. In contrast, the catalytic configuration is partitioned into four communities. While clusters k = 3 and k = 2 remain associated with the high-temperature region and outer freestream, respectively, the near-wall region is divided into two distinct com-munities. Cluster k = 1 corresponds to the non-catalytic wall, whereas cluster k = 4 is confined to the catalytic patch (40 < x < 60) and persists slightly downstream of its trailing edge due to convective transport. The appearance of a fourth community demonstrates that the thermochemical modifications induced by surface recombina-tion are sufficiently pronounced to form a distinct region of the latent manifold, which the community detection algorithm identifies as an independent cluster. 
+
+5.2.3 Surrogate model accuracy 
+
+For this step, the local surrogate models described in Sect. 4.2.3 are constructed for each of the Nc communities identified, using NR = 500 RBF centers per community, augmented with a ghost layer of Ng = 1000 nearest neighboring points from each of the adjacent communities. Figure 6 shows the relative error fields, eT = ( ˆT − T )/T (%), between the reference temperature field T and the data-driven prediction ˆT , for the (a) non-catalytic and (b) catalytic-patch configurations. In both configurations, the predicted temperature field agrees closely with the reference solution, with relative errors remaining well below 1% throughout the domain. The catalytic-patch case exhibits slightly larger errors in the vicinity of the upstream patch boundary, where the abrupt onset of surface catalysis gives rise to the strongest thermochemical gradients. Nevertheless, the relative error remains small, demonstrating that the proposed data-driven model accurately captures both the smooth and sharply varying thermochemical states. Such error levels are sufficiently small for practical reduced-order modeling applications and confirm the robustness of the proposed framework in the presence of localized catalytic effects. 19 (a) (b) 30 40 50 60 70 80 
+
+x     
+
+> 10 −5
+> 10 −4
+> 10 −3
+> 10 −2
+> 10 −1
+> 10 0
+> Ys,w 30 40 50 60 70 80
+
+x
+
+> 1200 1300 1400 1500
+> ˜Tw (K)
+
+(c) (d) 10 −4 10 −2 10 0
+
+Ys   
+
+> 0.00.20.40.6
+> y2000 3000 4000 5000
+
+˜T (K)    
+
+> 0.00.20.40.6
+> y
+> Fig. 7 Closed-loop ( a posteriori ) validation of the reduced-order model for the fully-catalytic case (Γ O= 1), obtained by substituting Mutation++ Light for Mutation++ throughout the MS 2solver. Panels (a)-(d) and color coding are as in Fig. 3. Solid lines denote the reference full-order Mutation++ solution while open circles denote the corresponding Mutation++ Light closed-loop prediction.
+
+## 5.3 Model stability and performance 
+
+Having established the pointwise accuracy of the data-driven surrogate in an a priori 
+
+sense, we now assess its stability and performance when used to replace Mutation++ entirely within a running simulation, i.e., in an a posteriori , closed-loop setting. To this end, following Scherding et al. (2023), every call to Mutation++ within the flow solver is replaced by the corresponding Mutation++ Light evaluation, without modifying the governing equations or the numerical solution procedure. The closed-loop simulation is initialized from the converged, steady-state solution obtained with the full-order model and is then advanced using Mutation++ Light exclusively, for one flow-through time of the computational domain. We restrict this assessment to the fully catalytic case (Γ O = 1), as it constitutes the most demanding test of the reduced-order framework, combining the largest number of thermochemical communities and sharp wall-normal and streamwise gradients. Figure 7 compares the resulting closed-loop solution against the reference Muta-tion++ solution of Fig. 3, in terms of the wall species mass fractions and wall 20 temperature, as well as profiles of species mass fractions and temperature extracted at x = 50. The data-driven simulation remains numerically stable throughout the simulation, with no evidence of drift, oscillation, or blow-up, despite the sharp discon-tinuities in surface properties imposed at the patch boundaries. The predicted fields overlay the reference solution closely across the entire domain, including in the near-wall region and at the upstream and downstream edges of the catalytic patch, where the thermochemical gradients are steepest. This agreement confirms that the commu-nity structure identified offline and the corresponding local surrogates remain valid once the model is driven by its own predictions rather than by the fixed, pre-sampled inputs used during a priori testing, a substantially more stringent test of robustness, since prediction errors are free to propagate and compound through the time-marching solution. In terms of performance, replacing Mutation++ with Mutation++ Light reduces the overall computational cost of the simulation by 50%. This gain is consistent with the 50% CPU-time reduction reported by Scherding et al. (2023) for their Mach-10 adiabatic boundary layer, and with the equivalent factor-of-two speed-up they obtained for their shock-wave/boundary-layer-interaction case, both obtained (as in the present work) using Ramshaw’s self-consistent effective binary diffusion model for the gas-phase transport closure. As reported by Scherding et al. (2023), even larger computational savings (up to 70%) can be achieved when Mutation++ Light is compared with the Stefan-Maxwell diffusion model, for which transport evaluations account for a substantially greater fraction of the overall computational cost. Taken together, these results demonstrate that the data-driven surrogate is accu-rate in an offline, pointwise sense, but also stable and computationally advantageous once embedded within the full nonlinear feedback loop of the CFD solver. 
+
+# 6 Conclusions 
+
+In this paper, the RONAALP data-driven reduced-order framework has been extended to hypersonic reactive boundary-layer flows over surfaces exhibiting heterogeneous catalysis, a configuration not previously addressed within this modeling paradigm. The configuration under study consists of the post-shock boundary layer generated by a M∞ = 23 .4 hypersonic freestream flow over a 17 ◦ wedge, yielding a boundary-layer edge Mach number of Me = 5 .75 and post-shock edge temperatures in excess of 3000 K, sufficient to drive significant dissociation of molecular oxygen. The wall, main-tained in radiative equilibrium at an emissivity of 0.9, is prescribed as non-catalytic everywhere except over a localized streamwise interval, where a fully catalytic patch is imposed, with a smooth Gaussian-type transition in recombination coefficient at the patch boundaries to ensure numerical stability. This configuration, representative of the catalytic discontinuities encountered at material transitions in real thermal pro-tection systems, was solved at its steady, laminar state using the full compressible multi-species Navier–Stokes equations coupled to Mutation++ for thermochemical closure. The full-order simulations reveal the characteristic physical signature of localized surface catalysis. Within the catalytic patch, the imposed recombination reaction 21 strongly depletes atomic oxygen at the wall while enriching molecular oxygen, and, through multicomponent diffusion and the mass-fraction constraint, indirectly redis-tributes atomic and molecular nitrogen and nitric oxide. Due to the exothermic nature of catalytic reactions, these compositional changes are accompanied by a rise in wall temperature of approximately 100 K across the patch, with a pronounced overshoot in wall temperature occurring at the upstream patch boundary, as excess atomic oxygen convected from upstream non-catalytic conditions is suddenly exposed to an active catalytic surface. Those effects remain confined to the near-wall region of the bound-ary layer and persist downstream of the patch over a convective-diffusive relaxation length, leaving the outer boundary layer and freestream composition largely unaf-fected. These findings confirm that catalytic discontinuities generate sharp, spatially localized gradients in diffusion fluxes and surface heat transfer, motivating the inves-tigation of whether the data-driven reduction framework can adapt to such variations and accurately identify the physically relevant flow regions. To capture this behavior within the reduced-order model, the RONAALP frame-work required one methodological extension. The nonlinear dimensionality reduction step was augmented with a Sammon-type stress penalty that explicitly preserves the pairwise-distance structure of the input space in the latent embedding. This addition proved essential, since the enlarged thermochemical state space induced by catalytic wall reactions was shown to promote severe topological folding of the latent man-ifold when left unregularized, degrading the physical consistency of the subsequent clustering and surrogate stages. The full RONAALP pipeline, i.e. dimensionality reduction, community clustering, and local surrogate modeling, was applied to both the non-catalytic and catalytic-patch datasets. Notably, the community-detection stage identified an additional thermochemical regime induced by the catalytic reactions: while the non-catalytic wall yields three clusters associated with the near-wall, high-temperature, and freestream regions, the catalytic patch gives rise to a fourth, distinct community, despite compa-rable temperature levels to the surrounding non-catalytic wall. This result confirms that the latent representation already encodes the distinct thermochemical regime induced by surface recombination rather than temperature alone. The resulting reduced-order model reproduces the reference Mutation++ solution with high fidelity in an a priori , pointwise sense, with relative errors in the predicted temperature and species fields remaining below 1% across the domain, including in the vicinity of the catalytic patch boundaries where thermochemical gradients are most severe. Beyond this pointwise accuracy, substituting the trained surrogate for Muta-tion++ throughout a full closed-loop simulation was shown to remain numerically stable, with no evidence of drift or blow-up, while reducing the overall simulation cost by 50% relative to the full thermochemical library. Together, these a priori and a pos-teriori results confirm that a data-driven surrogate trained on Mutation++ data can accurately and robustly capture the sharp gradients in wall species mass fractions, diffusion fluxes, and surface heat transfer characteristic of localized catalytic effects, at half the computational cost of the full library. These findings extend the applicability of the RONAALP framework from the chemically inert, adiabatic-wall configurations previously considered to flows over 22 catalytic walls, featuring localized catalytic discontinuities representative of realistic thermal protection system designs. Future work will focus on extending this frame-work to unsteady simulations, where instabilities and transition mechanisms may compete with localized catalytic effects and drive the flow through thermochemical states unseen during training. The active learning procedure already embedded within RONAALP, which adapts the surrogate on-the-fly, is naturally suited to this setting, and will be exploited to enrich the local surrogates as such new states are encountered during unsteady simulations. 
+
+Funding. This work is part of the PostGenAI@Paris project and was supported by the French government through the Agence Nationale de la Recherche (ANR) under the France 2030 program (reference: ANR-23-IACL-0007), as well as by the European Space Agency (ESA) through the Open Space Innovation Platform (OSIP). 
+
+Author contributions. K.S.: conceptualization, methodology, simulations, anal-ysis, data curation, visualization, validation, writing of original draft and editing L.W.: supervision, validation, review. T.M.: supervision, conceptualization, methodol-ogy, validation, review. P.S.: supervision, conceptualization, methodology, validation, review. T.S.: supervision, conceptualization, methodology, validation, review and editing. 
+
+Data availability. The data used to trained the reduced-order model are available upon request. 
+
+Acknowledgements. The authors would like to thank Dr. Michele Capriati (VKI) for fruitful discussions, valuable assistance, and for providing relevant materials that contributed to this work. 
+
+# Declarations 
+
+Competing interests. The authors declare no competing interests. 
+
+# Appendix A Thermochemical and kinetic models 
+
+The following section details the thermochemical kinetics model used to compute the gas-phase chemical source terms. The formulation is based on reversible finite-rate reactions and Arrhenius-type reaction rates. Each reaction r is in the gas-phase is written as X
+
+> s∈S
+
+ν′
+
+> r,s
+
+s kf,r 
+
+⇌
+
+> kb,r
+
+X
+
+> s∈S
+
+ν′′ 
+
+> r,s
+
+s, ∀r ∈ R , (A1) where ν′ 
+
+> r,s
+
+and ν′′  
+
+> r,s
+
+are the stoichiometric coefficients for reactants and products in reaction r for species s and is characterized by the forward rate kf,r and the backward rate kb,r . These, in turn, are obtained according to experimentally or theoretically calibrated Arrhenius formulas (Scoggins et al. 2020). The net mass production rates 23 ˙ωs are governed by the law of mass action ˙ωs = Ms
+
+X
+
+> r∈R
+
+ ν′′  
+
+> r,s
+
+− ν′
+
+> r,s
+
+kf,r 
+
+Y
+
+> j∈S
+
+ ρj
+
+Mj
+
+ν′
+
+> r,j
+
+− kb,r 
+
+Y
+
+> j∈S
+
+ ρj
+
+Mj
+
+ν′′ 
+
+> r,j
+
+ [M] r (A2) where [M] r = P 
+
+> j∈S
+
+Zr,j ρj 
+
+> Mj
+
+represents the effective third-body concentration, with 
+
+Zr,j being the third-body efficiency of species j in reaction r. Note that for the elementary reactions that do not involve a third body, [M] r = 1 by definition. Local species concentration gradients drive diffusion, represented in the govern-ing species Eq. (4) by the diffusive flux Js. Multicomponent diffusion is modeled in this paper using the the Self-Consistent Effective Binary Diffusion model (Ramshaw (1990)), a formulation based on Fick’s law, corrected so as to enforce overall mass conservation of the diffusive fluxes by solving the following coupled system of equations 
+
+Js = −cM sDs∇Ys + cY s
+
+X
+
+> k∈S
+
+MkDk∇Yk (A3) where c = P 
+
+> s∈S
+
+ρs/M s denotes the total molar concentration and 
+
+Ds =
+
+P  
+
+> r̸=s
+
+(Yr/M r)
+
+P  
+
+> r̸=s
+
+(Yr /(Mr Ds,r )) (A4) is the effective diffusion coefficient, with Ds,r denoting the binary diffusion coefficients obtained using Wilke’s mixing rule. At all times, the following constraints are satisfied for the kinetic and diffusive terms in the gas phase X
+
+> s∈S
+
+˙ωs = 0 , X
+
+> s∈S
+
+Js = 0 . (A5) 
+
+# Appendix B Effect of the stress penalty on manifold topology 
+
+In this section, we examine how the inclusion of the Sammon-type stress penalty defined in Eq. (18) influences the topological structure of the resulting latent repre-sentation. Focusing only on the catalytic dataset, Fig. B1 illustrates the effect of the stress weight λstress on the topology of the latent embedding, comparing three values, namely λstress = 0, λstress = 1 and λstress = 100, spanning the unregularized case to a strongly regularized one. For each value, panels (a,c,e) show the resulting manifold in ( Y1, Y 2, Y 3) while panels (b,d,f) show the corresponding Shepard diagram of nor-malized pairwise distances, dXij / ¯dX versus dYij / ¯dY , with the red dashed line marking perfect distance preservation. For λstress = 0 (Fig. B1(a,b)), the encoder is trained with no distance-preservation penalty and is free to arrange Y solely to minimize Lrecon . The resulting manifold exhibits strong folding, with self-intersections and disconnected regions of the input 24 (a) (b) 0
+
+Y1
+
+10
+
+Y2
+
+10
+
+Y3
+
+10.0 0.5 1.0 1.5 2.0 2.5
+
+dXij / ¯dX
+
+0.00.51.01.52.02.5
+
+> dYij / ¯dY
+
+(c) (d) 0
+
+Y1
+
+10
+
+Y2
+
+10
+
+Y3
+
+10.0 0.5 1.0 1.5 2.0
+
+dXij / ¯dX
+
+0.00.51.01.52.0
+
+> dYij / ¯dY
+
+(e) (f) 0
+
+Y1
+
+10
+
+Y2
+
+10
+
+Y3
+
+10.0 0.5 1.0 1.5 2.0
+
+dXij / ¯dX
+
+0.00.51.01.52.0
+
+> dYij / ¯dY
+
+Fig. B1 Effect on λstress on the manifold topology. (a,c,e) Manifolds in latent space ( Y1, Y 2, Y 3)and (b,d,f) Shepard diagrams of normalized pairwise distances in the input space ( dXij / ¯dX ) versus the latent space ( dYij / ¯dY ), obtained for (a,b) λstress = 0, (c,d) λstress = 1 and (e,f) λstress = 10 3.The red dashed line on figures (b,d,f) marks perfect distance preservation. Present results correspond to the catalytic dataset. 
+
+25 (a) (b) 1 2 3 4 5 6
+
+n     
+
+> 0.00.20.40.6
+> r(n)123456
+
+n        
+
+> 0.40.60.81.0
+> V (n)
+> Fig. C2 (a) Explained variance ratio r(n) and (b) cumulative explained variance V(n) as a function of the number of retained principal components nfor the catalytic (solid) and noncatalytic (dashed) datasets. The horizontal dotted line on (b) indicates the τ= 0 .95 variance threshold.
+
+space overlapping on the same regions of the latent space. This is consistent with the corresponding Shepard diagram, in which a substantial fraction of points lie well away from the diagonal, a characteristic signature of topological folding. For λstress = 1 (Fig. B1(c,d)), corresponding to equal weighting of reconstruction accuracy and topology preservation, the manifold unfolds into a single, smooth, self-consistent sheet. The corresponding Shepard diagram tightens considerably around the diagonal, indicating that the pairwise-distance structure of the input space is now largely preserved in the latent embedding. Increasing the weight to large values, such as λstress = 10 3 (Fig. B1(e,f)), drives the embedding toward a near-isometric copy of the input space, as evidenced by the Shepard diagram approaching a complete collapse onto the diagonal. However, this comes at the cost of restricting the encoder’s freedom to nonlinearly reorganize the latent coordinates for reconstruction accuracy. This motivates the empirical choice of λstress = 1 used throughout the remainder of this work, which suppresses the folding observed in the unconstrained optimization ( λstress = 0) without degrading reconstruction accuracy. 
+
+# Appendix C Principal component analysis of input data 
+
+To assess the intrinsic dimensionality of the thermochemical state space prior to man-ifold learning, we perform a principal component analysis (PCA) on the input vectors of both the catalytic and noncatalytic min-max scaled datasets X ∈ [0 , 1] N ×D.PCA seeks an orthogonal linear transformation that maximizes the variance cap-tured by successive projections, obtained from the eigendecomposition of the empirical 26 covariance matrix, 
+
+Σ = 1
+
+N − 1
+
+ X − ¯X⊤ X − ¯X = WΛW ⊤, (C6) where ¯X denotes the column-wise sample mean of X, Λ = diag( λ1, . . . , λ D), with 
+
+λ1 ≥ λ2 ≥ · · · ≥ λD ≥ 0, are the eigenvalues of Σ and W = [ w1, . . . , wD] the corresponding orthonormal eigenvectors (or principal components). Each eigenvalue 
+
+λk quantifies the variance of the data along its associated principal direction wk. The cumulative explained variance retained by the first n components is defined as 
+
+V (n) = 
+
+> n
+
+X
+
+> k=1
+
+rk, n = 1 , . . . , D, (C7) where rk = λk/(PDi=1 λi) denotes the fraction of the total variance explained by the 
+
+k-th principal component. By construction V (D) = 1. We define the minimal number of components n∗ required to represent the dataset within a prescribed fidelity as 
+
+n∗ = min {n ∈ { 1, . . . , D } : V (n) ≥ τ } , (C8) where τ = 0 .95 is the retained-variance threshold adopted in this paper. Figure C2 shows (a) the scree plot, representing the variance ratio of each principal component r(n) and (b) the cumulative explained variance V (n) as a function of the number of principal components n for the catalytic (solid line) and noncatalytic (dashed line) datasets. Looking at the cumulative, in both cases V (n) rises sharply for the first few components and saturates to unity, indicating that the input space, despite being nominally d-dimensional, exhibits strong linear redundancy: a small number of principal directions is sufficient to capture nearly all of the variance in the data. This motivates the use of a low-dimensional latent representation. The non catalytic dataset reaches the prescribed variance threshold with two principal components, whereas the catalytic dataset requires three, yielding a cumulative 99 .6% at n∗ = 3. This indicates that the catalytic data exhibit a higher intrinsic dimensionality than the non catalytic ones. To facilitate a consistent comparison between the two cases, a latent dimension of d = 3 for the encoder architecture is adopted throughout this work for both cases. 
+
+# Appendix D Input–Output encoder architecture and training parameters 
+
+The implementation details of the input-output encoder used for the manifold learning analysis are summarized in Table D1. Specifically, the encoder architecture consists of two fully connected hidden layers of 64 and 32 neurons with hyperbolic-tangent (tanh) activation functions, followed by a linear bottleneck layer of width d. The decoder has the mirrored architecture (32, then 64 neurons, tanh activations, linear output layer). The cost functional in Eq. (18) is evaluated using mini-batches of size 
+
+Nb = 256, avoiding the prohibitive computational cost associated with the O(N 2)27 Table D1 Architecture and training hyper-parameters of the input–output encoder (IO-E). Parameter Value Encoder architecture Fully connected: 64 → 32 → d                    
+
+> Decoder architecture Fully connected: d→32 →64 →Dz
+> Hidden-layer activation tanh Latent activation Linear Output activation Linear Latent dimension d= 3 Mini-batch size Nb= 256 Optimizer Adam (default hyper-parameters) Training epochs 2000 Stress weight λstress = 1 Loss function Eq. (18)
+
+pairwise-distance calculations required by the loss function when applied to the full dataset. The network is trained for 2000 epochs with the Adam optimizer, with its default hyper-parameters (learning rate η = 10 −3, exponential decay rates β1 = 0 .9and β2 = 0 .999, and numerical stabilization parameter ϵ = 10 −7). The aforementioned set of parameters is adopted for both the catalytic and noncatalytic datasets. 
+
+# References 
+
+Angelini, R., Denaro, A.: Ixv re-entry demonstrator: Mission overview, system chal-lenges and flight reward. Acta Astronautica 124 , 18–30 (2016) https://doi.org/10. 1016/j.actaastro.2016.02.015 . Intermediate Experimental Vehicle (IXV) – Special Publications from the 6th EUCASS Anderson, J.D.: Hypersonic and High-Temperature Gas Dynamics, 3rd edn. American Institute of Aeronautics and Astronautics, Reston, VA (2019) Bottin, B., Abeele, D.V., Carbonaro, M., Degrez, G., Sarma, G.S.: Thermodynamic and transport properties for inductive plasma modeling. Journal of Thermophysics and Heat Transfer 13 , 343–350 (1999) Bettebghor, D., Bartoli, N., Grihon, S., Morlier, J., Samuelides, M.: Surrogate mod-eling approximation using a mixture of experts based on EM joint estimation. Structural and Multidisciplinary Optimization 43 , 243–259 (2011) Bouhlel, M.A., Bartoli, N., Otsmane, A., Morlier, J.: Improving kriging surrogates of high-dimensional design models by partial least squares dimension reduction. Structural and Multidisciplinary Optimization 53 , 935–952 (2016) Ba¸ skaya, A.O., Capriati, M., Turchi, A., Magin, T., Hickel, S.: Assessment of immersed boundary methods for hypersonic flows with gas–surface interactions. Computers & Fluids 270 , 106134 (2024) https://doi.org/10.1016/j.compfluid.2023.106134 28 Bertin, J.J.: Hypersonic Aerothermodynamics. AIAA Education Series. AIAA, Wash-ington, DC (1994) Baronets, P.N., Kolesnikov, A.F., Kubarev, S.N., Pershin, I.S., Trukhanov, A.S., Yakushin, M.I.: Overequilibrium heating of the surface of a heat-shield tile in a subsonic jet of dissociated air. Fluid Dynamics 26 (3), 437–442 (1991) https: //doi.org/10.1007/BF01059017 Broomhead, D.S., Lowe, D.: Radial basis functions, multi-variable functional inter-polation and adaptive networks. Technical report, Royal Signals and Radar Establishment Malvern (United Kingdom) (1988) Breiman, L.: Random forests. Machine Learning 45 (1), 5–32 (2001) https://doi.org/ 10.1023/A:1010933404324 Buhmann, M.D.: Radial basis functions. Acta Numerica 9, 1–38 (2000) Candler, G.V.: Rate effects in hypersonic flows. Annual Review of Fluid Mechanics 
+
+51 , 379–402 (2019) Chaplygin, A.: Experimental study of the overequilibrium surface heating effect in a subsonic dissociated air jet. Fluid Dynamics 58 , 712–722 (2023) https://doi.org/10. 1134/S0015462823601006 Candler, G.V., Johnson, H.B., Nompelis, I., Subbareddy, P.K., Drayna, T.W., Gidzak, V., Barnhardt, M.D.: Development of the us3d code for advanced compressible and reacting flow simulations. In: 53rd AIAA Aerospace Sciences Meeting. American Institute of Aeronautics and Astronautics, Reston, VA (2015). https://doi.org/10. 2514/6.2015-1893 Chung, P.M., Liu, S.W., Mirels, H.: Effect of discontinuity of surface catalycity on boundary layer flow of dissociated gas. International Journal of Heat and Mass Transfer 6(3), 193–210 (1963) https://doi.org/10.1016/0017-9310(63)90106-6 Ceglia, G., Trifoni, E., Gouriet, J.-B., Chazot, O., Mareschi, V., Rufolo, G., Tumino, G.: Experimental investigation on IXV TPS interface effects in Plasmatron. CEAS Space Journal 8(2), 65–75 (2016) https://doi.org/10.1007/s12567-015-0108-y Chatzigeorgis, G.B., Turchi, A., Viladegut, A., Chazot, O., Barbante, P.F., Magin, T.: Development of catalytic and ablative gas-surface interaction models for the simulation of reacting gas mixtures. In: AIAA Paper 2017-4499 (2017). https://doi. org/10.2514/6.2017-4499 Chang, C.-L., Vinh, H., Malik, M.R.: Hypersonic boundary-layer stability with chem-ical reactions using pse. In: 28th AIAA Fluid Dynamics Conference, pp. 1–23. American Institute of Aeronautics and Astronautics (AIAA), Reston, VA (1997) 29 Cybenko, G.: Approximation by superpositions of a sigmoidal function. Mathematics of Control, Signals and Systems 2, 303–314 (1989) Di Renzo, M., Fu, L., Urzay, J.: HTR solver: An open-source exascale-oriented task-based multi-GPU high-order code for hypersonic aerothermodynamics. Computer Physics Communications 255 , 107262 (2020) Ern, A., Giovangigli, V.: EGLIB: A General-Purpose Fortran Library for Multicom-ponent Transport Property Evaluation, Manual of EGlib Version 3. (2004) Fedorov, A.: Transition and stability of high-speed boundary layers. Annual Review of Fluid Mechanics 43 , 485–512 (2011) https://doi.org/10.1146/ annurev-fluid-122109-160718 Franzelli, B., Fiorina, B., Darabiha, N.: A tabulated chemistry method for spray combustion. Proceedings of the Combustion Institute 34 , 1659–1666 (2013) Fay, J.A., Riddell, F.R.: Theory of stagnation point heat transfer in dissociated air. Journal of the Aeronautical Sciences 25 (2), 73–85 (1958) Gnoffo, P.A.: Planetary-entry gas dynamics. Annual Review of Fluid Mechanics 31 ,459–494 (1999) Goulard, R.: On catalytic recombination rates in hypersonic stagnation heat transfer. Jet Propulsion 28 (11), 737–745 (1958) Hudson, M.L., Chokani, N., Candler, G.V.: Linear stability of hypersonic flow in ther-mochemical nonequilibrium. AIAA Journal 35 (6), 958–964 (1997) https://doi.org/ 10.2514/2.204 Johnson, H.B., Candler, G.V.: Hypersonic boundary layer stability analysis using pse-chem. In: 38th AIAA Thermophysics Conference. American Institute of Aeronautics and Astronautics, Reston, VA (2005). https://doi.org/10.2514/6.2005-5023 Josyula, E., Vedula, P.: Fundamental fluid transport equations for hypersonic nonequi-librium flows. In: Josyula, E. (ed.) Hypersonic Nonequilibrium Flows: Fundamentals and Recent Advances, pp. 1–43. American Institute of Aeronautics and Astronautics (AIAA), Reston, VA (2015). https://doi.org/10.2514/5.9781624103292.0001.0044 Kleijnen, J.P.: Kriging metamodeling in simulation: A review. European Journal of Operational Research 192 , 707–716 (2009) Kee, R., Rupley, F., Miller, J., Coltrin, M., Grcar, J., Meeks, E., Moffat, H., Lutz, A., Dixon-Lewis, G., Smooke, M., et al.: CHEMKIN collection, release 3.6. Technical report, Reaction Design, Inc., San Diego, CA (2000) Lees, L.: Laminar heat transfer over blunt-nosed bodies at hypersonic flight speeds. Journal of Jet Propulsion 26 , 259–269 (1956) 30 Malik, M.R.: Prediction and control of transition in supersonic and hypersonic bound-ary layers. AIAA Journal 27 (11), 1487–1493 (1989) https://doi.org/10.2514/3. 10292 Marxen, O., Magin, T.E., Iaccarino, G., Shaqfeh, E.S.G.: A high-order numerical method to study hypersonic boundary-layer instability including high-temperature gas effects. Physics of Fluids 23 , 084108 (2011) Mir´ o, F.M., Pinna, F.: Linear stability analysis of a hypersonic boundary layer in equilibrium and non-equilibrium. In: 47th AIAA Fluid Dynamics Conference. American Institute of Aeronautics and Astronautics, Reston, VA (2017). https: //doi.org/10.2514/6.2017-4518 Margaritis, A.T., Scherding, C., Marxen, O., Schmid, P.J., Sayadi, T.: Chemical-nonequilibrium effects in a range of hypersonic applications. European Journal of Mechanics - B/Fluids 114 , 204273 (2025) https://doi.org/10.1016/j.euromechflu. 2025.204273 Malik, M.R., Zang, T.A., Bushnell, D.M.: Boundary layer transition in hypersonic flows. In: AIAA 2nd International Aerospace Planes Conference, pp. 1–21. American Institute of Aeronautics and Astronautics, Reston, VA (1990). https://doi.org/10. 2514/6.1990-5232 Nasuti, F., Barbato, M., Bruno, C.: Material-dependent catalytic recombination mod-eling for hypersonic flows. Journal of Thermophysics and Heat Transfer 10 (1), 131–136 (1996) https://doi.org/10.2514/3.763 Newman, M.E.J.: Modularity and community structure in networks. Proceedings of the National Academy of Sciences of the United States of America 103 (23), 8577– 8582 (2006) https://doi.org/10.1073/pnas.0601602103 Nagarajan, S., Lele, S.K., Ferziger, J.H.: A robust high-order compact method for large eddy simulation. Journal of Computational Physics 191 (2), 392–419 (2003) https://doi.org/10.1016/S0021-9991(03)00322-X Niemietz, K., Scherding, C., Gemassmer, W., Sayadi, T., Pitsch, H.: An adaptive-learning framework for chemistry tabulation in turbulent reacting flows. Computers & Fluids 314 , 107099 (2026) Ottens, H., Walpot, L., Muylaert, J.-M.: Expert: Assessment of the catalytic gas-surface interaction 563 , 145 (2005) Park, C.: A review of reaction rates in high temperature air. In: 24th Thermophysics Conference, p. 1740. American Institute of Aeronautics and Astronautics (AIAA), Buffalo, NY (1989). https://doi.org/10.2514/6.1989-1740 Park, C.: Nonequilibrium Hypersonic Aerothermodynamics. John Wiley & Sons, New 31 York (1990) Panerai, F., Chazot, O.: Characterization of gas/surface interactions for ceramic matrix composites in high enthalpy, low pressure air flow. Materials Chemistry and Physics 134 (2–3), 597–607 (2012) https://doi.org/10.1016/j.matchemphys.2012.03. 036 Pope, S.B.: Computationally efficient implementation of combustion chemistry using in situ adaptive tabulation. Combustion Theory and Modelling 1, 41–63 (1997) Pini, M., Spinelli, A., Persico, G., Rebay, S.: Consistent look-up table interpolation method for real-gas flow simulations. Computers & Fluids 107 , 178–188 (2015) Ramshaw, J.D.: Self-consistent effective binary diffusion in multicomponent gas mixtures. Journal of Non-Equilibrium Thermodynamics 15 (1), 295–300 (1990) Sammon, J.W.: A nonlinear mapping for data structure analysis. IEEE Transactions on Computers C-18 (5), 401–409 (1969) https://doi.org/10.1109/T-C.1969.222678 Scott, C.D.: Catalytic recombination of nitrogen and oxygen on high-temperature reusable surface insulation. In: AIAA 15th Thermophysics Conference (1980). https: //doi.org/10.2514/6.1980-1477 . AIAA Paper 80-1477 Sayadi, T., Hamman, C.W., Moin, P.: Direct numerical simulation of complete h-type and k-type transitions with implications for the dynamics of turbulent boundary layers. Journal of Fluid Mechanics 724 , 480–509 (2013) https://doi.org/10.1017/ jfm.2013.142 Scoggins, J.B., Leroy, V., Bellas-Chatzigeorgis, G., Dias, B., Magin, T.E.: Muta-tion++: Multicomponent thermodynamic and transport properties for ionized gases in c++. SoftwareX 12 , 100575 (2020) https://doi.org/10.1016/j.softx.2020.100575 Scherding, C., Rigas, G., Sipp, D., Schmid, P.J., Sayadi, T.: Data-driven framework for input/output lookup tables reduction: Application to hypersonic flows in chemical nonequilibrium. Physical Review Fluids 8, 023201 (2023) Scherding, C., Rigas, G., Sipp, D., Schmid, P.J., Sayadi, T.: An adaptive learning strat-egy for surrogate modeling of high-dimensional functions - application to unsteady hypersonic flows in chemical nonequilibrium. Computer Physics Communications 
+
+307 , 109404 (2025) https://doi.org/10.1016/j.cpc.2024.109404 Sacks, J., Welch, W.J., Mitchell, T.J., Wynn, H.P.: Design and analysis of computer experiments. Statistical Science 4, 409–435 (1989) Vincenti, W.G., Kruger, C.H.: Introduction to Physical Gas Dynamics. John Wiley & Sons, New York (1965) Viladegut, A., Panerai, F., Chazot, O., Pichon, T., Bertrand, P., Verdy, C., Coddet, C.: 32 Design, integration and preliminary results of the ixv catalysis experiment. CEAS Space Journal 9(2), 141–151 (2017) https://doi.org/10.1007/s12567-016-0136-2 Wright, M.J., Candler, G.V., Bose, D.: Data-parallel line relaxation method for the navier–stokes equations. AIAA Journal 36 (9), 1603–1609 (1998) https://doi.org/ 10.2514/2.586 Wartemann, V., Wagner, A., Wagnild, R., Pinna, F., Mir´ o, F.M., Tanno, H.: Code to code comparison on hypersonic high enthalpy transitional boundary lay-ers. In: AIAA SciTech Forum, pp. 1–14. American Institute of Aeronautics and Astronautics, Reston, VA (2018). https://doi.org/10.2514/6.2018-0351 33
