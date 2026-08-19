@@ -6,71 +6,50 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-18
-- 运行时间：2026-08-18 19:44:11 UTC
+- 最新运行日期：2026-08-19
+- 运行时间：2026-08-19 20:22:52 UTC
 - 运行状态：成功
-- 本次总论文数：17
-- 精读区：6
-- 速读区：11
+- 本次总论文数：10
+- 精读区：4
+- 速读区：6
 
 ### 今日简报（AI）
-今日17篇论文聚焦AI与科学发现，精读6篇，速读11篇。最值得关注：用机器学习-符号回归解析MOF的CO2吸附表达式，以及知识图谱+LLM辅助复杂系统诊断。建议普通读者优先追踪AI在化学合成优化与结构解析中的落地案例。
-- 详情：[/202608/18/README](/202608/18/README)
+今日聚焦10篇AI论文，精读2篇、速读3篇，核心覆盖分子生成与智能机制探索。最值得关注：面向按需库的高效分子语言模型（9.0分），以及将AI视为科学仪器的智能机制发现框架（8.0分）。建议普通读者优先了解AI在分子设计和科学发现中的应用潜力。
+- 详情：[/202608/19/README](/202608/19/README)
 
 ### 精读区论文标签
-1. [Discovering Physically Interpretable Mathematical Expression for Predicting CO2 Adsorption in Metal-Organic Frameworks via Machine Learning-Symbolic Regression](/202608/18/2608.14990v1-discovering-physically-interpretable-mathematical-expression-for-predicting-co2-adsorption-in-metal-organic-frameworks-via-machine-learning-symbolic-regression)  
+1. [Domain-Adapted Molecular Language Models for Efficient Search of Make-on-Demand Libraries](/202608/19/2608.17567v1-domain-adapted-molecular-language-models-for-efficient-search-of-make-on-demand-libraries)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：利用机器学习-符号回归获得可物理解释的MOF二氧化碳吸附预测公式
-2. [Constructing Dynamic Master Logic Models as Knowledge Graphs for Complex System Diagnostics Using Retrieval-Augmented Large Language Models](/202608/18/2608.12304v1-constructing-dynamic-master-logic-models-as-knowledge-graphs-for-complex-system-diagnostics-using-retrieval-augmented-large-language-models)  
+   evidence：对分子语言模型进行基准测试和领域自适应，直接展示了LLM在化学工程中的应用。
+2. [Mechanist: AI as a Scientific Instrument for Discovering the Mechanisms of Intelligence](/202608/19/2608.12036v1-mechanist-ai-as-a-scientific-instrument-for-discovering-the-mechanisms-of-intelligence)  
    标签：评分：8.0/10、query:llm-dm
-   evidence：利用检索增强大语言模型从系统文档自动构建知识图谱用于诊断
-3. [Crystal-structure design by agentic AI in a language of motifs](/202608/18/2608.15900v1-crystal-structure-design-by-agentic-ai-in-a-language-of-motifs)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：基于智能体AI的晶体结构设计框架，使用可解释的基序语言
-4. [Synthesizing like a chemist: an iterative, feedback-driven loop for materials discovery](/202608/18/2608.15928v1-synthesizing-like-a-chemist-an-iterative-feedback-driven-loop-for-materials-discovery)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：利用大语言模型提炼合成知识，闭环优化材料发现
-5. [CAPO: Constraint-Aware Prompt Optimization for LLM Agents](/202608/18/2608.16068v1-capo-constraint-aware-prompt-optimization-for-llm-agents)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：大语言模型智能体提示词优化
-6. [MUSE: An Interactive Meta-Agent for Understanding and Steering LLM-powered Data Science Systems](/202608/18/2608.16181v1-muse-an-interactive-meta-agent-for-understanding-and-steering-llm-powered-data-science-systems)  
+   evidence：智能体系统自动挖掘约13000篇论文及4300万文献数据库来发现机制，是LLM辅助文献数据挖掘的典型。
+3. [Polaris: Learning to Generate Table Descriptions from Retrieval Feedback](/202608/19/2608.17171v1-polaris-learning-to-generate-table-descriptions-from-retrieval-feedback)  
    标签：评分：8.0/10、query:llm-dm
-   evidence：用于理解与引导LLM驱动的数据科学工作流的交互式元代理
+   evidence：用检索反馈训练LLM生成表格描述，是LLM助力数据检索/挖掘的典型方法
+4. [DEPT: Document Embedding Preservation Tuning for Unified Query Expansion and Retrieval](/202608/19/2608.17632v1-dept-document-embedding-preservation-tuning-for-unified-query-expansion-and-retrieval)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：端到端利用LLM进行查询扩展与文档检索
 
 ### 速读区论文标签
-1. [Towards Automated Domain Model Extraction from Source Code using Heuristics and Open-Source LLMs](/202608/18/2608.12228v1-towards-automated-domain-model-extraction-from-source-code-using-heuristics-and-open-source-llms)  
+1. [Constructing Dynamic Master Logic Models as Knowledge Graphs for Complex System Diagnostics Using Retrieval-Augmented Large Language Models](/202608/19/2608.12304v1-constructing-dynamic-master-logic-models-as-knowledge-graphs-for-complex-system-diagnostics-using-retrieval-augmented-large-language-models)  
    标签：评分：7.0/10、query:llm-dm
-   evidence：利用LLM从源代码提取领域模型，属于数据挖掘任务
-2. [SynAct: A Reasoning-Acting Large Language Model Agent for Adaptive Synthesis Optimization](/202608/18/2608.12751v2-synact-a-reasoning-acting-large-language-model-agent-for-adaptive-synthesis-optimization)  
+   evidence：用检索增强LLM从系统描述自动构建知识图谱进行诊断，是LLM助力文本挖掘与知识抽取的实例
+2. [Designing AI Pipelines for Decision-Ready ITSM Intelligence](/202608/19/2608.12670v1-designing-ai-pipelines-for-decision-ready-itsm-intelligence)  
+   标签：评分：7.0/10、query:llm-dm
+   evidence：用LLM做模式规范化并聚类ITSM工单数据，是LLM助力文本数据挖掘的典型设计
+3. [Synthesizing Feature Extractors: An Agentic Approach for Algorithm Selection](/202608/19/2608.17170v1-synthesizing-feature-extractors-an-agentic-approach-for-algorithm-selection)  
+   标签：评分：7.0/10、query:llm-dm
+   evidence：使用LLM智能体自动合成特征提取器，服务于数据挖掘中的特征工程与算法选择。
+4. [A geometric reformulation of the bilevel parameter optimization problem to a single level non-linear programming problem with applications to phase equilibria](/202608/19/2608.17806v1-a-geometric-reformulation-of-the-bilevel-parameter-optimization-problem-to-a-single-level-non-linear-programming-problem-with-applications-to-phase-equilibria)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：基于大语言模型的自适应优化智能体，用于高维综合优化
-3. [Multi-Agent Closed-Loop Reasoning for Organic Structure Elucidation from Multimodal Spectra](/202608/18/2608.14720v1-multi-agent-closed-loop-reasoning-for-organic-structure-elucidation-from-multimodal-spectra)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：多智能体大模型推理用于化学结构解析，与化学工程中的人工智能应用相关
-4. [SAPE: Sandwich Adapters for Parameter Efficiency in Large Language Model Fine-Tuning](/202608/18/2608.15360v1-sape-sandwich-adapters-for-parameter-efficiency-in-large-language-model-fine-tuning)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：大语言模型参数高效微调方法，三明治式权重共享
-5. [RLCascadeRouter: Quality-Estimator-Free Cascade Routing via Reinforcement Learning](/202608/18/2608.15817v1-rlcascaderouter-quality-estimator-free-cascade-routing-via-reinforcement-learning)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：基于强化学习的LLM级联路由
-6. [ChemReporter: A Framework for Curating and Exporting Large-Scale Chemical Datasets for MLIP Training](/202608/18/2608.16418v1-chemreporter-a-framework-for-curating-and-exporting-large-scale-chemical-datasets-for-mlip-training)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：为MLIP训练策展化学数据集的框架，化学工程中的AI
-7. [Data-driven modeling of hypersonic flows in chemical non-equilibrium with catalytic surfaces](/202608/18/2608.14445v1-data-driven-modeling-of-hypersonic-flows-in-chemical-non-equilibrium-with-catalytic-surfaces)  
+   evidence：化工相平衡参数估计的双层优化重构为单层问题
+5. [ALKEMIE Agent: an autonomous platform for computational materials design](/202608/19/2608.15776v1-alkemie-agent-an-autonomous-platform-for-computational-materials-design)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：化学非平衡高超声速流动的数据驱动建模
-8. [RecipeNet: A Hierarchical Transformer for Recipe Data](/202608/18/2608.14505v1-recipenet-a-hierarchical-transformer-for-recipe-data)  
+   evidence：结合检索增强生成的LLM智能体平台，用于自主计算材料设计
+6. [Deploying Frontier Agentic Technology in MOOSEnger, a Multiphysics-Capable AI Assistant](/202608/19/2608.15881v1-deploying-frontier-agentic-technology-in-moosenger-a-multiphysics-capable-ai-assistant)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：面向制造配方数据的层级Transformer
-9. [ACTS-SQL: Agentic and Critic-Oriented Tree-Structured SQL Correctness with Large Language Models](/202608/18/2608.15145v1-acts-sql-agentic-and-critic-oriented-tree-structured-sql-correctness-with-large-language-models)  
-   标签：评分：6.0/10、query:llm-dm
-   evidence：利用大语言模型修正SQL，与LLM辅助数据挖掘相关
-10. [ATLAS: Scaffold-Free Algorithm Synthesis by LLMs via Embedding-Guided Quality-Diversity Search](/202608/18/2608.15546v1-atlas-scaffold-free-algorithm-synthesis-by-llms-via-embedding-guided-quality-diversity-search)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：大语言模型驱动的组合优化算法自动合成
-11. [SchurQuant: Groupwise Discrete Optimization for Layer-Wise LLM Quantization](/202608/18/2608.15567v1-schurquant-groupwise-discrete-optimization-for-layer-wise-llm-quantization)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：面向大语言模型的分层训练后量化分组离散优化
+   evidence：基于LLM的AI助手，为多物理场仿真提供本地模型harness
 
 
 <div class="dpr-home-promo-card">
