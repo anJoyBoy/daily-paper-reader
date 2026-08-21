@@ -6,50 +6,71 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-19
-- 运行时间：2026-08-19 20:22:52 UTC
+- 最新运行日期：2026-08-21
+- 运行时间：2026-08-21 20:52:13 UTC
 - 运行状态：成功
-- 本次总论文数：10
-- 精读区：4
-- 速读区：6
+- 本次总论文数：17
+- 精读区：6
+- 速读区：11
 
 ### 今日简报（AI）
-今日聚焦10篇AI论文，精读2篇、速读3篇，核心覆盖分子生成与智能机制探索。最值得关注：面向按需库的高效分子语言模型（9.0分），以及将AI视为科学仪器的智能机制发现框架（8.0分）。建议普通读者优先了解AI在分子设计和科学发现中的应用潜力。
-- 详情：[/202608/19/README](/202608/19/README)
+今日共梳理17篇论文，精读6篇，其中2篇获9.0高分，整体聚焦AI数据科学自动化。最值得关注方向：LLM元智能体交互式调控数据科学系统（MUSE），以及用语言模型进化可执行AutoML流水线，均达9.0分。建议普通读者优先追踪Agent/LM驱动数据科学论文，并留意8.0分的高维超图学习（TAHB）与约束感知表格生成等互补工作。
+- 详情：[/202608/21/README](/202608/21/README)
 
 ### 精读区论文标签
-1. [Domain-Adapted Molecular Language Models for Efficient Search of Make-on-Demand Libraries](/202608/19/2608.17567v1-domain-adapted-molecular-language-models-for-efficient-search-of-make-on-demand-libraries)  
+1. [MUSE: An Interactive Meta-Agent for Understanding and Steering LLM-powered Data Science Systems](/202608/21/2608.16181v1-muse-an-interactive-meta-agent-for-understanding-and-steering-llm-powered-data-science-systems)  
+   标签：评分：9.0/10、query:llm-dm
+   evidence：面向LLM驱动的数据科学系统的交互式元代理，支持理解与引导数据分析工作流
+2. [Evolving Executable Pipeline Programs for AutoML with Language Models](/202608/21/2608.16416v1-evolving-executable-pipeline-programs-for-automl-with-language-models)  
+   标签：评分：9.0/10、query:llm-dm
+   evidence：利用语言模型在可执行流水线程序上进化搜索，自动化机器学习流水线构建，是数据挖掘的核心技术
+3. [Towards Rapid Prototyping of Spray Injectors: A Regime-Agnostic Neural Operator Surrogate for Gas-Liquid Interface Evolution](/202608/21/2608.17825v1-towards-rapid-prototyping-of-spray-injectors-a-regime-agnostic-neural-operator-surrogate-for-gas-liquid-interface-evolution)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：对分子语言模型进行基准测试和领域自适应，直接展示了LLM在化学工程中的应用。
-2. [Mechanist: AI as a Scientific Instrument for Discovering the Mechanisms of Intelligence](/202608/19/2608.12036v1-mechanist-ai-as-a-scientific-instrument-for-discovering-the-mechanisms-of-intelligence)  
+   evidence：神经算子代理模型用于喷雾器气液界面演化，属于人工智能在化工中的应用
+4. [SheetCompass: Hierarchical Relation Graphs for Agentic Spreadsheet Reasoning](/202608/21/2608.14452v1-sheetcompass-hierarchical-relation-graphs-for-agentic-spreadsheet-reasoning)  
    标签：评分：8.0/10、query:llm-dm
-   evidence：智能体系统自动挖掘约13000篇论文及4300万文献数据库来发现机制，是LLM辅助文献数据挖掘的典型。
-3. [Polaris: Learning to Generate Table Descriptions from Retrieval Feedback](/202608/19/2608.17171v1-polaris-learning-to-generate-table-descriptions-from-retrieval-feedback)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：用检索反馈训练LLM生成表格描述，是LLM助力数据检索/挖掘的典型方法
-4. [DEPT: Document Embedding Preservation Tuning for Unified Query Expansion and Retrieval](/202608/19/2608.17632v1-dept-document-embedding-preservation-tuning-for-unified-query-expansion-and-retrieval)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：端到端利用LLM进行查询扩展与文档检索
+   evidence：面向表格推理的图引导LLM智能体，适用于表格数据挖掘
+5. [Unraveling the Size Determination Mechanism of Nanocrystal Synthesis via Interpretable Neural Networks](/202608/21/2608.14734v1-unraveling-the-size-determination-mechanism-of-nanocrystal-synthesis-via-interpretable-neural-networks)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：用神经网络开展纳米晶合成建模的人工智能应用
+6. [LLM-Based Hierarchical Coordinated Control with Continuation-Aware Policy Learning](/202608/21/2608.15041v1-llm-based-hierarchical-coordinated-control-with-continuation-aware-policy-learning)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：基于LLM的分层协调控制用于复杂工程系统，与LLM辅助化工过程模型优化与控制高度契合
 
 ### 速读区论文标签
-1. [Constructing Dynamic Master Logic Models as Knowledge Graphs for Complex System Diagnostics Using Retrieval-Augmented Large Language Models](/202608/19/2608.12304v1-constructing-dynamic-master-logic-models-as-knowledge-graphs-for-complex-system-diagnostics-using-retrieval-augmented-large-language-models)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：用检索增强LLM从系统描述自动构建知识图谱进行诊断，是LLM助力文本挖掘与知识抽取的实例
-2. [Designing AI Pipelines for Decision-Ready ITSM Intelligence](/202608/19/2608.12670v1-designing-ai-pipelines-for-decision-ready-itsm-intelligence)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：用LLM做模式规范化并聚类ITSM工单数据，是LLM助力文本数据挖掘的典型设计
-3. [Synthesizing Feature Extractors: An Agentic Approach for Algorithm Selection](/202608/19/2608.17170v1-synthesizing-feature-extractors-an-agentic-approach-for-algorithm-selection)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：使用LLM智能体自动合成特征提取器，服务于数据挖掘中的特征工程与算法选择。
-4. [A geometric reformulation of the bilevel parameter optimization problem to a single level non-linear programming problem with applications to phase equilibria](/202608/19/2608.17806v1-a-geometric-reformulation-of-the-bilevel-parameter-optimization-problem-to-a-single-level-non-linear-programming-problem-with-applications-to-phase-equilibria)  
+1. [TAHB: A Comprehensive Benchmark for Text-Attributed Hypergraph Learning](/202608/21/2608.15055v1-tahb-a-comprehensive-benchmark-for-text-attributed-hypergraph-learning)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：整合大语言模型与结构化数据的文本属性超图基准，用于文本感知的表示学习
+2. [Constraint-Aware Synthetic Tabular Data Generation via Inter-Column Constraint Discovery with LLM Agents](/202608/21/2608.15109v1-constraint-aware-synthetic-tabular-data-generation-via-inter-column-constraint-discovery-with-llm-agents)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：LLM智能体发现并执行列间约束以生成合成表格数据，属于LLM辅助数据挖掘与数据质量技术
+3. [J-Miner: Recovering Executable Decision Knowledge from Language-Model Classifiers](/202608/21/2608.17063v1-j-miner-recovering-executable-decision-knowledge-from-language-model-classifiers)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：从LLM分类器中挖掘可执行决策规则，与LLM辅助数据挖掘高度契合
+4. [SIGMA: SHAP-Guided Implicit-Trajectory Generation for Metadata-Free LLM-Based AutoFE](/202608/21/2608.17948v1-sigma-shap-guided-implicit-trajectory-generation-for-metadata-free-llm-based-autofe)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：基于LLM的自动特征工程直接支撑数据挖掘中的特征处理
+5. [Physics-informed neural network for inverse modeling of granular flows](/202608/21/2608.18641v1-physics-informed-neural-network-for-inverse-modeling-of-granular-flows)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：面向工业颗粒流系统的物理信息神经网络逆建模
+6. [LLM-Guided Graph Generation for Structure-Based Local Improvement Methods](/202608/21/2608.13333v3-llm-guided-graph-generation-for-structure-based-local-improvement-methods)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：化工相平衡参数估计的双层优化重构为单层问题
-5. [ALKEMIE Agent: an autonomous platform for computational materials design](/202608/19/2608.15776v1-alkemie-agent-an-autonomous-platform-for-computational-materials-design)  
+   evidence：LLM引导的图生成与结构化局部改进为LLM辅助过程模型优化提供可迁移方法
+7. [Variational Outlier-Robust Gaussian Process Regression with Generative Modeling](/202608/21/2608.16606v1-variational-outlier-robust-gaussian-process-regression-with-generative-modeling)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：变分离群鲁棒高斯过程回归是可迁移到过程系统工程建模的通用模型构建方法
+8. [Synthesizing Feature Extractors: An Agentic Approach for Algorithm Selection](/202608/21/2608.17170v1-synthesizing-feature-extractors-an-agentic-approach-for-algorithm-selection)  
+   标签：评分：7.0/10、query:llm-dm
+   evidence：LLM智能体自动合成特征提取器，可服务于数据挖掘特征工程
+9. [Structure-preserving uncertainty quantification for GENERIC dynamics](/202608/21/2608.12624v1-structure-preserving-uncertainty-quantification-for-generic-dynamics)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：结合检索增强生成的LLM智能体平台，用于自主计算材料设计
-6. [Deploying Frontier Agentic Technology in MOOSEnger, a Multiphysics-Capable AI Assistant](/202608/19/2608.15881v1-deploying-frontier-agentic-technology-in-moosenger-a-multiphysics-capable-ai-assistant)  
+   evidence：保结构机器学习将物理约束硬编码到模型中并量化不确定性，展示了领域知识嵌入热力学系统ML建模的方式
+10. [Physics-Informed and Hybrid Machine Learning in Additive Manufacturing: Application to Fused Filament Fabrication](/202608/21/2608.17246v1-physics-informed-and-hybrid-machine-learning-in-additive-manufacturing-application-to-fused-filament-fabrication)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：基于LLM的AI助手，为多物理场仿真提供本地模型harness
+   evidence：物理信息混合机器学习将领域知识与数据驱动过程建模结合，可迁移至分离过程建模
+11. [Structure-Internalized Rule Language Model for Faithful Knowledge Graph Reasoning](/202608/21/2608.17443v1-structure-internalized-rule-language-model-for-faithful-knowledge-graph-reasoning)  
+   标签：评分：6.0/10、query:llm-dm
+   evidence：基于LLM的知识图谱推理以发现潜在事实，与LLM助力数据挖掘相关
 
 
 <div class="dpr-home-promo-card">
