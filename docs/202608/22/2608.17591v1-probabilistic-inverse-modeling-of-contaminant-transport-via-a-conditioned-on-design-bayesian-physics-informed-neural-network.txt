@@ -1,0 +1,1651 @@
+Submitted to manuscript No.
+(will be inserted by the editor)
+Probabilistic Inverse Modeling of Contaminant Transport via a
+Conditioned-on-Design Bayesian Physics Informed Neural Network
+Milad Panahi · Giovanni Michele Porta * · Monica
+Riva · Alberto Guadagnini
+Received: date / Accepted: date
+Abstract We address the inverse problem of reactive transport in heterogeneous porous media, where un-
+known model parameters must be inferred from sparse experimental observations. The problem is complicated
+by strong nonlinearities, spatial heterogeneity, and limited data availability. We propose a Conditioned-on-
+Design Bayesian Physics-Informed Neural Network (CoDe-BPINN), which combines a domain-decomposed
+PINN solver with a Bayesian inference network that learns the conditional distribution of model parameters
+given experimental design variables. The framework is trained by maximizing a physics-informed Evidence
+Lower Bound (ELBO), enabling simultaneous reconstruction of spatiotemporal concentration fields, proba-
+bilistic parameter estimation, and uncertainty quantification. We demonstrate the approach using laboratory
+experiments on contaminant transport through a multilayer porous column with an iodinated contrast medium.
+The model accurately reproduces breakthrough dynamics while revealing systematic parameter dependence
+on flow conditions. In particular, it identifies a nonlinear decrease in effective sorption capacity with increasing
+flow rate and porosity, consistent with kinetic limitations and reduced adsorbent mass. The Bayesian formula-
+tion also uncovers a strong negative correlation between sorption affinity and sorption capacity, quantifying the
+intrinsic non-identifiability of the inverse problem. CoDe-BPINN provides a robust framework for parameter
+inference and uncertainty quantification in data-scarce reactive transport problems.
+Article Highlights
+✦CoDe-BPINN unifies Bayesian PINNs with conditional multivariate parameter inference.
+✦Bayesian inference quantifies parameter non-identifiability through posterior correlations.
+✦The model learns design-dependent parameter relationships from sparse noisy observations.
+Keywords Scientific Machine Learning · Reactive transport · Physics-Informed Neural Networks ·
+Differentiable Physics · Inverse Modeling · Uncertainty Quantification
+1 Introduction
+Management of water resources is increasingly challenged by proliferation of contaminants of emerging concern
+(CECs) in the global water cycle. Consequently, development of advanced remediation technologies, such
+as adsorption onto engineered porous media (e.g., organo-clays), is becoming a priority in environmental
+engineering scenarios [Patel, 2022]. Modeling bottlenecks resulting in a broadly documented inability to provide
+accurate and unambiguous quantification of reactive transport dynamics under transient flow conditions still
+undermines effective transition from material synthesis to process-scale implementation. Some of the key
+challenges in this context are related to our non-exhaustive knowledge of the porous media across which
+they take place and the non-linear and scale-dependent nature of physicochemical parameters governing their
+evolution therein.
+A common approach to describe the fate of contaminants in porous media relies on the Advection-
+Dispersion-Reaction (ADR) partial differential equations (PDEs) [Rubin, 2003]. While the mathematical struc-
+ture of these conservation laws is well-known, the constitutive parameters embedded therein (most notably the
+M. Panahi (0000-0002-8776-5297) · G. M. Porta* (0000-0002-0636-373X) · A. Guadagnini (0000-0003-3959-9690) · M. Riva
+(0000-0002-7304-4114)
+Dipartimento di Ingegneria Civile e Ambientale, Politecnico di Milano, Piazza L. da Vinci 32, 20133 Milano, Italy
+* To whom correspondence should be addressed: E-mail: giovanni.porta@polimi.it
+arXiv:2608.17591v1  [physics.comp-ph]  18 Aug 2026
+
+
+2
+Milad Panahi et al.
+dispersion tensor and reaction equilibr kinetic coefficients) are often unknown, spatially heterogeneous, and
+scale-dependent [Bear, 1988]. Traditional workflows for model parameter estimation typically rely on batch
+equilibrium experiments to determine sorption isotherms (e.g., Langmuir or Freundlich) [Foo and Hameed,
+2010]. However, it is well-documented that parameters derived from static batch tests are often not represen-
+tative of dynamic behaviors observed in laboratory column experiments, mainly due to hydrodynamic effects
+inherent to flow systems [Limousin et al., 2007, Worch, 2008]. Hence, model calibration is more appropriately
+grounded on data such as, e.g., dynamic breakthrough curves (BTCs) obtained from column experiments.
+This inverse problem, namely the inference of spatially distributed or state-dependent parameters from
+sparse (and noisy) observations of system states across the domain and/or at its boundaries, is notoriously ill-
+posed [Tarantola, 2005]. Classical gradient-based approaches, such as the Levenberg-Marquardt algorithm or
+adjoint-based methods, are deterministic optimization techniques designed to efficiently minimize a prescribed
+objective function. While computationally effective, they do not resolve the intrinsic ill-posedness of the inverse
+problem and often converge to a single (possibly local) solution among many plausible alternatives. As a
+result, they frequently suffer from non-uniqueness (equifinality), whereby multiple parameter sets produce
+indistinguishable model responses [Beven and Freer, 2001, Carrera et al., 2005]. Furthermore, while these
+methods can provide approximate parameter confidence intervals through local linearization (e.g., via error
+covariance matrices), they often fail to fully characterize their full (posterior) probability distribution or to
+capture structural (epistemic) uncertainty in strongly non-linear systems. These elements are notably relevant
+in the context of flow and contaminant transport, as the quantification of uncertainty is as critical as predictive
+capability itself in defining the reliability of modeling approaches [Gupta et al., 2006, Dell’Oca et al., 2019,
+Tartakovsky, 2013, Scheidt et al., 2018]. More specifically, experimental observations or reactive transport
+processes typically embed information at selected space-time locations (e.g., through breakthrough curves),
+which restricts the information available for parameter estimation Taylor et al. [2026], Ceriotti et al. [2019].
+In recent years, Scientific Machine Learning (SciML) has emerged as a transformative paradigm to bridge
+the gap between observational data and formulation of physical laws [Lavin et al., 2022]. Physics-Informed
+Neural Networks (PINNs) constitute a technique of emerging interest [Raissi et al., 2019, 2024, Luo et al.,
+2025], which allows embedding the residuals of the PDE governing the system dynamics directly into the
+neural network loss function. PINNs serve as universal function approximators [Lagaris et al., 1998] that are
+constrained by given mathematical formulations of physical laws and are designed to to learn solutions (i.e.,
+system state variables of interest) from sparse data. PINNs provide a novel approach to numerical approxi-
+mation that allows circumventing some limitations of classical methods such as, e.g., mesh-dependency. While
+standard PINNs have demonstrated remarkable success in solving inverse problems for parameter identification
+[Kovachki et al., 2021, Lu et al., 2021, Li et al., 2021, Chen et al., 2020], they typically provide deterministic
+point values valid only for a specific training scenario [Raissi, 2023]. Hence, they do not naturally provide
+confidence intervals for the estimated parameters, nor quantify predictive uncertainty associated with the re-
+constructed solution. To address these elements, Bayesian Physics-Informed Neural Networks (BPINNs) have
+been proposed [Yang et al., 2021, Meng et al., 2021, Sun and Wang, 2020]. By placing probability distri-
+butions over network weights and treating physical model parameters as random variables, BPINNs enable
+one to distinguish between uncertainty in the neural approximation (approximation uncertainty) and in the
+identification of model parameters (parameter uncertainty) [Psaros et al., 2023, Lee and Chen, 2008, Maina
+and Guadagnini, 2018].
+Despite these advancements, significant challenges still remain to the application of BPINNs to multi-
+physics problems in heterogeneous media. Standard global neural networks often suffer from spectral bias
+[Rahaman et al., 2019, Wang et al., 2022] and optimization pathologies [Fletcher, 2000] when the solution
+contains sharp gradients, such as those found at material interfaces in multi-layered adsorption columns [Wang
+et al., 2021]. Domain decomposition methods, such as the Conservative PINN (CPINN) [Jagtap et al., 2020a],
+have then been proposed to mitigate this limitation by employing separate sub-networks for diverse physical
+subdomains. Yet, their integration into a fully Bayesian inverse modeling framework remains underexplored.
+This study constitutes an additional step of a comprehensive research framework designed to address para-
+metric uncertainty in flow and reactive transport modeling in porous media leveraging a PINN framework. In a
+first study [Panahi et al., 2025], we developed PINNs specifically tailored to Uncertainty Quantification (here-
+after termed PINN-UU) to address forward propagation of parametric uncertainty. Consistent with broader
+developments in the field [e.g., Flores et al., 2025, Sun et al., 2020, Zhu et al., 2019, Chen et al., 2021, Asher
+et al., 2015] we demonstrated that neural networks can serve as efficient surrogates for mapping stochastic
+inputs to system. In a subsequent phase, we tackled the challenge of spatial heterogeneity upon developing
+differentiable solvers [Panahi et al., 2026] that rely on automatic differentiation techniques [Thuerey et al.,
+2025, de Avila Belbute-Peres et al., 2018, Innes et al., 2019] to learn continuous solution manifolds in complex,
+heterogeneous hydraulic conductivity fields without the need for retraining. While these works established the
+foundation for parameterized forward modeling, they rest on the assumption that the underlying physical laws
+and parameters are deterministically known or statistically characterized.
+
+
+A Conditioned-on-Design Bayesian Physics Informed Neural Network (CoDe-BPINN)
+3
+Here, we address both forward and inverse modeling in a probabilistic setting. We consider transport
+of iodinated contrast media (ICM), such as, e.g., iohexol and iopamidol. ICMs constitute a distinct class
+of persistent micropollutants whose chemical stability and recalcitrance raise significant environmental and
+toxicological concerns. These compounds are widely used in medical imaging and are characterized by high
+polarity, hydrophilicity, and remarkable chemical stability, rendering them recalcitrant to conventional bio-
+logical wastewater treatment processes [Khan et al., 2024, Sengar and Vijayanandan, 2023]. Their ubiquitous
+presence in surface water, groundwater, and even drinking water sources poses potential risks, particularly
+regarding potential formation of toxic iodinated disinfection byproducts [Kormos et al., 2011, Duirk et al.,
+2011]. We apply this framework to the transport of the ICM Iohexol in a stratified sand-clay (laboratory-
+scale) column, as described in Khan et al. [2026]. The experimental setup is designed to remove Iohexol via
+sorption to an engineered clay material. The effective interface properties are thus critical to characterize the
+performance of the system. Here, the effective sorption properties are hypothesized to be a dynamic function
+of the experimental design rather than a static constant. Framing the analysis according to the perspective of
+Dell’Oca [2023], we explicitly distinguish between operational variables (i.e., controllable operational design
+parameters such as fluid flow rate and inlet concentration) and stochastic model parameters (i.e., uncertain
+quantities such as sorption affinity and capacity).
+Our main objective is to enable the model to autonomously discover state-dependent functional relation-
+ships, specifically characterizing the decline of the effective sorption capacity of the porous medium under
+diverse flow regimes while rigorously quantifying parametric uncertainty. To achieve this, we propose a prob-
+abilistic model, formulated as a Conditioned-on-Design Bayesian Physics Informed Neural Network (CoDe-
+BPINN). This architecture integrates a domain-decomposed Bayesian solver (based on the CPINN philosophy)
+with a Multivariate Parameter Inference Network, in a conditioning HyperNetwork style [Ha et al., 2016, Chen
+et al., 2022, Nichol et al., 2018]. By assuming physical parameters as random variables conditioned to opera-
+tional variables we transform the inverse problem into a conditional density estimation task. This formulation
+allows us to disentangle the variability arising from operational choices from the lack of knowledge regarding
+physical properties of the system, offering a robust basis for process monitoring and experimental design.
+Unlike standard Bayesian inversion, which typically infers a posterior distribution of otherwise unknown
+model parameters for a single dataset, our framework learns the conditional probability distribution of model
+parameters as a function of the operational design space, conditioned on the sparse observational data. By
+minimizing a physics-informed Evidence Lower Bound (ELBO), the model aims at achieving the following:
+i. Simultaneous Reconstruction and Inference: the model yields a reconstruction of the full spatiotem-
+poral concentration field while simultaneously inferring the governing physical parameters, thus effectively
+solving the coupled forward-inverse problem in a single differentiable loop.
+ii. Understanding Learned Relationships between Physical Parameters: rather than optimizing
+static scalar values, the model learns a continuous mapping from operational variables (e.g., flow rate, inlet
+solute concentration, or porosity of the domain) to physical coefficients. This allows for the autonomous
+discovery of non-linear relationships and the influence of experimental design on estimated properties.
+iii. Quantification of Structural Identifiability: by utilizing a multivariate formulation, the framework
+explicitly captures the correlation structure between coupled parameters (e.g., the trade-off between affinity
+and capacity). This identifies regimes of practical non-identifiability (i.e., equifinality) that deterministic
+methods fail to detect.
+The remainder of the paper is organized as follows. Section 2 provides a summary of the experimental
+setting and dataset that we consider in our study. Section 3 details the mathematical formulation of the
+parameterized Advection-Dispersion-Reaction system and our proposed differentiable Bayesian framework.
+Section 4 illustrates and discusses the ensuing numerical results, including validation against high-fidelity
+solvers and the analysis of the discovered functional relationships between model parameters. Finally, Section 5
+provides key conclusions and outlines future research directions.
+2 Experimental Setup and Data Acquisition
+Data employed in this study are derived from a comprehensive experimental campaign detailed in Khan et al.
+[2026] which is aimed at investigating removal of Iodinated Contrast Media (ICM) agents using engineered
+clay adsorbents. We focus on transport of Iohexol through a fixed-bed (laboratory-scale) column packed with
+a composite of quartz sand and modified montmorillonite organo-clay (Mt-II), as described in the following.
+
+
+4
+Milad Panahi et al.
+Table 1: Summary of the main characteristics of the 9 experimental configurations considered in the study.
+Here, q denotes Darcy flux [mL/min]; C0 is Inlet Concentration; and εΩ2 is porosity of the reactive middle
+layer of the column (Fig. 1).
+Exp ID
+Darcy Flux q
+Inlet Concentration C0
+Porosity εΩ2
+Variable Tested
+[mL/min]
+[mg/L]
+[-]
+1
+1.99
+100
+0.371
+Baseline
+2
+4.97
+100
+0.371
+Flow Rate
+3
+12.43
+100
+0.371
+Flow Rate
+4
+1.99
+150
+0.371
+Concentration
+5
+1.99
+200
+0.371
+Concentration
+6
+1.99
+250
+0.371
+Concentration
+7
+1.99
+300
+0.371
+Concentration
+8
+1.99
+100
+0.424
+Porosity (Low Clay)
+9
+1.99
+100
+0.399
+Porosity (Med Clay)
+2.1 Materials and Column Configuration
+The adsorbent medium consists of a dually-modified montmorillonite (Mt-II), synthesized via sequential in-
+tercalation of cationic (CTPC) and anionic (SDS) surfactants to enhance affinity for polar organic micropol-
+lutants.
+As illustrated in Figure 1, the fixed-bed column domain Ω= [0, L] (with total length of L = 92 mm, an
+internal diameter of d = 16 mm, and a cross-sectional area A ≈201.06 mm2) is stratified into the following
+three zones to ensure hydraulic stability and prevent washout of fine clay particles:
+i. Inlet Zone (Ω1): A 21 mm layer of pure, washed quartz sand (50-70 mesh) acting as a flow distributor.
+ii. Reactive Zone (Ω2): A 50 mm central layer comprising the Mt-II organo-clay dispersed within the sand
+matrix. This is the sole domain where reactive transport (sorption) occurs. The porosity of this layer, εΩ2
+varies depending on the clay packing density.
+iii. Outlet Zone (Ω3): A 21 mm layer of pure quartz sand preventing adsorbent migration and stabilizing
+the outflow.
+2.2 Batch vs. Column Dynamics
+Prior to column studies, batch equilibrium experiments were performed to characterize the intrinsic sorption
+properties of the Mt-II clay. The ensuing equilibrium data could be interpreted through the Langmuir isotherm
+formulation:
+qe =
+βαCeq
+1 + αCeq
+(1)
+where qe [mg/g] and Ceq [mg/L] denote the surface- and liquid-phase concentrations of Iohexols, respectively;
+β [mg/g] is the maximum adsorption capacity of the engineered porous medium, and α [L/mg] is the Langmuir
+affinity constant.
+Parameters associated with batch experiments (i.e., β and α) represent thermodynamic equilibrium con-
+ditions (i.e., for time t →∞). In dynamic column systems, hydrodynamic dispersion and kinetic limitations
+(non-equilibrium transport) often result in effective parameters that differ from their batch-grounded coun-
+terparts. We treat the batch-derived values (βbatch ≈60 mg/g, αbatch ≈0.03 L/mg) as upper bound priors for
+our inverse modeling framework, allowing the CoDe-BPINN to discover the effective model parameters θcol
+that are consistent with the hydrodynamic constraints emerging during the experiments.
+2.3 Experimental Design and Observational Data
+To evaluate transport of Iohexol under a broad range of conditions, a suite of 9 column experiments was
+performed (see Table 1). These experiments were designed to assess the response of the system to three key
+operational variables:
+i. Inlet Concentration (C0), enabling one to investigate the saturation of the adsorbent media (Experi-
+ments 1, 4, 5, 6, and 7);
+
+
+A Conditioned-on-Design Bayesian Physics Informed Neural Network (CoDe-BPINN)
+5
+Fig. 1: Schematic of the three-layer fixed-bed column experiment. A solution containing the ICM Iohexol is
+injected in the column. Iohexol concentration data are collected at discrete observation times from the effluent
+at the column outlet.
+ii. Darcy Flux (q), to probe hydrodynamic residence time and dispersive effects (Experiments 1, 2, and 3);
+iii. Middle Layer Porosity (εΩ2), which serves as a proxy for the clay volume fraction (adsorbent mass)
+within the reactive zone (Experiments 1, 8, and 9).
+The specific combinations for these 9 experiments are detailed in Table 1. The resulting dataset (hereafter
+denoted as Dobs) is composed by the temporal history of concentration recorded at the outlet (also defined as
+breakthrough curves) for each case.
+3 Methodology: A Differentiable Physics-Informed Learning Framework
+We propose a unified computational framework for solving a coupled forward-inverse problem under parametric
+uncertainty. The architecture integrates a domain-decomposed Bayesian Neural Network (BNN) solver, de-
+noted as S, with a multivariate parameter inference network, Ninv, into a single differentiable computational
+graph. This enables simultaneous adherence to sparse observational data and physics-constrained optimization
+via gradient-based methods.
+3.1 General Framework for Mixed-Deterministic Parameterized PDEs
+Let the spatial domain be an open set Ω⊂Rd. We assume that the system of interest can be modelled via
+a PDE that is characterized by a vector of operational parameters λ ∈Λ ⊂Rdλ and a vector of unknown
+physical parameters θ ∈Θ ⊂Rdθ. The relationship between parameters and the solution field C(x, λ, θ)
+is implicitly defined by a differential operator. We approximate the unknown C(x, λ, θ) using a domain-
+decomposed Bayesian neural network (the solver S), parameterized by weights ψ. At the same time, we
+approximate the inverse parameter map using a multivariate network Ninv characterized by internal parameters
+ϕ. We define a PDE residual operator F and a boundary residual operator B. The parameterized PDE problem
+is to find a surrogate solution ˆC for each instance λ ∈Λ such that:
+F[x, λ, θ; ˆC] = 0,
+∀x ∈Ω
+(2)
+B[x, λ, θ; ˆC] = 0,
+∀x ∈∂Ω
+(3)
+Within the taxonomy of Scientific Machine Learning, this represents a Mixed Deterministic PDE Problem
+[Zhang et al., 2019]. While the operator F is deterministic, but the full solution field is unknown, only
+
+
+6
+Milad Panahi et al.
+sparse measurements (Dobs) are available at the domain outlet. Furthermore, the physical parameters θ are
+unknown and must be inferred. While intrinsic material properties are in principle independent of experimental
+design, we adopt a standard conceptual picture according to which the corresponding effective values of these
+parameters might exhibit dependencies on the operational design parameters (i.e., θ ≈g(λ)). In our test case,
+this might be due to unresolved non-equilibrium dynamics or scaling effects leading to dependencies between
+surface reaction and transport in certain experimental regimes. Our primary goal is to simultaneously learn the
+forward solution map G : (x, λ) 7→C and the inverse map, which infers the parameter distribution consistent
+with the observations, i.e., Ginv : (λ, Dobs) 7→qϕ(θ|λ), where qϕ(θ|λ) represents the posterior distribution of
+the physical parameters conditional to operational parameters.
+Neural Network Solver. we introduce a dual-network architecture that approximates the unknown solution
+map and the inverse parameter map through parameterized neural networks, as depicted in Figure 2. A primary
+BPINN (S), designed analogously to a CPINN [Jagtap et al., 2020b] and composed of three sub-domain solvers
+{N Ω1, N Ω2, andN Ω3}, acts as an approximator of the unknown solution C. This network is coupled with a
+secondary network devoted to inverse modeling (Ninv), which learns a probabilistic mapping from operational
+parameters to the latent physical parameters. In this context,
+– The Forward Solution C(x, λ) is approximated by a domain-decomposed Bayesian Neural Network (the
+Solver S) with variational weights ψ = {ψ1, ψ2, ψ3} and yields a predictive distribution P( ˆC|x, λ; ψ) as
+output.
+– The Inverse Map for θ is approximated by a multivariate Parameter Network (Ninv) with weights ϕ; as
+output, it yields the conditional statistics of the physical parameters, namely the mean vector µln θ(λ; ϕ)
+and the Cholesky factor of the corresponding covariance matrix Lln θ(λ; ϕ).
+The parameters of all networks Φ = {ψ, ϕ} are optimized simultaneously by minimizing a composite
+physics-informed loss function that enforces the operators F and B on the network outputs and minimizes
+discrepancies with the sparse observational data Dobs.
+Coupled Training vs. Decoupled Inference. While the solver S and the Parameter Inference Network Ninv
+are jointly trained to ensure physical consistency, they operate as independent modules during inference.
+Once training is complete, information about physical parameters estimates θ is implicitly encoded within
+the solver weights ψ across the operational design space λ. Consequently, S serves as a standalone forward
+surrogate, enabling evaluation of the output variable without further queries to the inference network. At the
+same time, the trained Ninv can be independently queried to explicitly characterize the relationship between
+operational and physical parameters and, for instance, parameterize alternative numerical solvers, such as the
+Finite Difference Method (FDM) reference scheme employed in this study.
+3.2 Problem definition: The Parameterized Advection-Dispersion-Reaction System
+We consider a physical system encompassing transient one-dimensional transport of the Iodinated Contrast
+Media (ICM) agent Iohexol across the saturated, stratified fixed-bed porous medium column described in
+Section 2.
+The system is characterized by the three operational design parameters introduced in Section 2.3. These
+are here used to characterize the system under diverse conditions and are grouped into the operational design
+vector λ = [εΩ2, q, C0]⊤. Unknown effective physical properties of the porous system are encapsulated in the
+stochastic parameter vector θ = [aLs, aLc, α, β]⊤. These are defined as:
+– aLs, aLc: Longitudinal dispersivities for sand and clay layers [mm], respectively.
+– α: Langmuir sorption affinity constant [L/mg].
+– β: Maximum sorption capacity [mg/g].
+These parameters are piecewise constant in space, i.e. they are assumed constant within each layer, and
+are inferred by the network using available measurements Dobs, collected for various combinations of the
+operational design parameters λ.
+The spatiotemporal evolution of solute concentrations system is described by the one-dimensional Advection-
+Dispersion-Reaction (ADR) equation. We formulate the problem in terms of a dimensionless concentration,
+ˆC(x, λ) = C(x, t)/C0, where x = (x, t). The PDE operator, F, is defined as:
+F[ ˆC] := ∂ˆC
+∂t RL(x, ˆC; λ, θ) −∂
+∂x
+
+DL(x; λ, θ)∂ˆC
+∂x
+
++ vx(x; λ)∂ˆC
+∂x = 0
+(4)
+
+
+A Conditioned-on-Design Bayesian Physics Informed Neural Network (CoDe-BPINN)
+7
+The pore water velocity is vx(x; λ) = q/ε(x), where ε(x) is the local porosity. The dispersion coefficient is
+modeled as DL = aL(x)|vx| + D∗[mm2/min], where aL(x) takes the value aLc in Ω2 and aLs elsewhere. The
+effective diffusion coefficient is defined as D∗= 1.0 × 10−6 · (ε(x)4/3) [mm2/min].
+The non-linear Langmuir Retardation Factor, RL, is active only in the reactive layer (Ω2) and is defined
+as:
+RL(x, ˆC; λ, θ) = 1 + IΩ2(x) ρb
+ε(x)
+
+αβ
+(1 + αC0 ˆC)2
+
+(5)
+where IΩ2 is the indicator function restricting sorption to the clay layer Ω2, and ρb is the bulk density
+[mg/mm3]. Note that the formulation explicitly retains the inlet concentration C0 [mg/L] in the denominator,
+capturing the concentration-dependent non-linearity of the Langmuir equilibrium adsorption model [Fetter
+et al., 1999].
+The system is subject to the boundary operator B, with the following boundary and initial conditions:
+
+
+
+
+
+
+
+ˆC(x, t = 0) = 0,
+∀x ∈Ω
+(Initial Condition)
+(6a)
+ˆC(x = 0, t) = 1,
+∀t > 0
+(Inlet Dirichlet BC)
+(6b)
+∂ˆC
+∂x (x = L, t) = 0
+∀t > 0
+(Outlet Neumann BC)
+(6c)
+3.3 Bayesian Physics Informed Neural Network (BPINN) Formulation
+As stated in Section 3, we adopt here a Bayesian approach. In contrast to deterministic PINNs, where the
+network weights are fixed after training and represent single (point) estimates, we instead model both the solver
+weights ψ and the physical parameters θ as random variables, thereby explicitly accounting for uncertainty
+in their values.
+Our goal is to compute the joint posterior distribution of these quantities, conditioned on the observational
+data Dobs and the governing physical laws, for a given set of operational design parameters λ. The physical
+constraints are defined by the operators F[ ˆC; λ, θ] = 0 and B[ ˆC; λ, θ] = 0. Using Bayes’ theorem, the full
+(joint) posterior is:
+p(ψ, θ|Dobs, λ) ∝p(Dobs|ψ, θ, λ)p(ψ, θ|λ)
+(7)
+where p(Dobs|ψ, θ, λ) is the data likelihood. The prior, p(ψ, θ|λ), can be factored by assuming the solver
+weights ψ are independent of the operational design space λ, yielding p(ψ, θ|λ) = p(ψ)p(θ|λ). Here, p(ψ) is
+the prior distribution of the network weights, and p(θ|λ) is the informative prior that reflects our assumptions
+of the way physical parameters depend on the operational design parameters. Following standard BPINN
+methodology, we incorporate the physical constraints as a ”physics likelihood” term, p(F, B|ψ, θ, λ). While
+the form of this distribution is a mere modeling choice, we assume here for simplicity and tractability that the
+PDE residuals are distributed according to a zero-mean Gaussian, i.e., p(F|·) ∝exp(−||F||2):
+p(ψ, θ|Dobs, F, B, λ) ∝p(Dobs|ψ, θ, λ)p(F, B|ψ, θ, λ)p(ψ)p(θ|λ)
+(8)
+The exact computation of this posterior requires evaluating the model evidence, or marginal likelihood,
+p(Dobs, F, B|λ), which involves an intractable high-dimensional integral over ψ and θ. Hence, we employ Vari-
+ational Inference (VI) to approximate the true posterior. We introduce a parameterized family of variational
+distributions, i.e. qψ(ψ) for the solver weights and qϕ(θ|λ) for the physical parameters. The training objective
+is then to minimize the Kullback-Leibler divergence (DKL) between this approximation and the true posterior,
+which is equivalent to maximizing the Evidence Lower Bound (ELBO):
+LELBO = Eqψqϕ [ln p(Dobs|ψ, θ, λ) + ln p(F, B|ψ, θ, λ)] −DKL[qψ(ψ)||p(ψ)] −DKL[qϕ(θ|λ)||p(θ)]
+(9)
+The terms formulated as expectation quantify the quality of the reconstruction by capturing agreement with
+observed data as well as consistency with the governing physics, while the KL divergence terms act as regulariz-
+ers. In practice, this objective is implemented as the composite trainable loss function detailed in Section 3.5.4,
+where expectations are approximated via Monte Carlo sampling. To enable gradient-based optimization, we
+adopt the reparameterization scheme proposed in[Kingma and Welling, 2022], where stochastic variables are
+expressed as w = µ + σ ⊙ϵ with ϵ ∼N(0, I), thereby allowing backpropagation through the Bayesian network
+solver.
+
+
+8
+Milad Panahi et al.
+3.4 From Likelihood-based formulations to a Trainable Loss Function
+The ELBO in Eq. 9 involves evaluating the log-likelihood of the physical constraints, ln p(F, B|ψ, θ, λ). A key
+step in BPINNs is therefore to recast these constraints, originally expressed as deterministic equalities (e.g.,
+F[ ˆC; λ, θ] = 0), into a probabilistic framework. Following standard approaches [Yang et al., 2021], we treat
+the PDE residuals as noisy observations with zero mean and an associated precision (i.e., inverse variance).
+Specifically, we assume the likelihood of the PDE residuals to be described through a Gaussian distribution:
+p(F|ψ, θ, λ) ∝exp
+ 
+−1
+2σ2
+F
+Nf
+X
+j=1
+||F[ ˆC; xj, λ, θ]||2
+!
+(10)
+Here, σ2
+F represents the variance associated with the residuals associated with the differential operator, thereby
+controlling the tolerance allowed for deviations from the governing equation. Maximizing the corresponding
+log-likelihood is equivalent to minimizing the Mean Squared Error (MSE) of the PDE residuals. Analogous
+likelihood terms are defined for the boundary (B) and initial (I) conditions, as well as, within our domain-
+decomposed architecture, for interface continuity constraints, which are formally defined in the following in
+Section 3.5.4.
+The training objective involves evaluating the expected log-likelihood terms appearing in the ELBO (Eq. 9),
+where expectation is taken with respect to the joint variational posterior of the latent variables. Under the
+assumption that the solver weights and physical parameters are independent within the variational approxi-
+mation, this joint density factorizes as qψ(ψ)·qϕ(θ|λ). Since an analytical evaluation of this high-dimensional
+expectation is unfeasible due to the non-linear structure of the neural networks, we approximate it via Monte
+Carlo sampling at each training iteration. Specifically, at each training iteration we sample the solver weights
+ψ from their variational posterior qψ(ψ) and the physical parameters θ from the Parameter Inference
+Network (Ninv). The latter represents the variational distribution qϕ(θ|λ) by outputting the mean µln θ and
+the Cholesky factor Lln θ of the log-parameter covariance matrix, as introduced in Section 3.1. This sampling
+procedure converts the ELBO from a theoretical formulation into a tractable stochastic objective. In this
+setting, the expected log-likelihood terms naturally correspond to the MSE loss terms typical of deterministic
+PINNs, scaled (i.e., weighted) by their corresponding inverse variances. This directly leads to the compos-
+ite loss function described in Section 3.5.4, yielding a computationally tractable framework for training the
+CoDe-BPINN.
+3.5 Physics Informed Neural Solver and Network Architecture
+The proposed framework consists of two coupled components: the Forward Phase Solver S and the Inverse
+Phase Parameter Network Ninv, as illustrated in Figure 2.
+3.5.1 Forward Phase: The Solver (S)
+To capture the sharp gradients at the interfaces between the layers associated with the diverse porous materials
+forming the column, we employ an Conservative PINN (CPINN) architecture. The solver S is decomposed
+into the three independent sub-networks, {N Ωi(·; ψi)}3
+i=1, each corresponding to a given layer, {Ωi}3
+i=1, in
+the system. The main features of each of these sub-networks include the following:
+– Architecture: Each sub-network N Ωi is a Bayesian Neural Network. The variational weights/biases ψi
+are modeled as independent Gaussian random variables N(µw, σ2
+w) (N(·, ·) denoting Gaussian).
+– Conditioning: The sub-networks are conditioned via direct input concatenation. For a given point x in
+the domain and operational design vector λ, the input is k = [γ(x), λ], where γ(·) is a Fourier feature
+embedding that is employed to mitigate spectral bias [Tancik et al., 2020, Anagnostopoulos et al., 2026].
+– Output: As outputs, each sub-network yields the parameters (mean and variance) of a normal distri-
+bution representing the model predictive uncertainty for the dimensionless concentration ˆC within its
+corresponding subdomain Ωi:
+P( ˆC|x, λ; ψi) = N  µ ˆ
+C(x, λ; ψi), σ2
+ˆ
+C(x, λ; ψi)
+(11)
+3.5.2 Inverse Phase: The Parameter Inference Network (Ninv)
+As stated in our Bayesian formulation (Section 3.3), our goal is to approximate the posterior distribution of
+the physical parameters θ with a variational distribution, qϕ(θ|λ). This task is carried out by the Parameter
+Inference Network, Ninv. The latter is a deterministic neural network, parameterized by weights ϕ, that
+
+
+A Conditioned-on-Design Bayesian Physics Informed Neural Network (CoDe-BPINN)
+9
+Fig. 2: Schematic of the coupled CoDe-BPINN framework. Inverse Phase: The Parameter Network Ninv
+maps the operational design parameters λ onto the estimated statistics (µln θ, Lln θ) of the physical parameters,
+qϕ(θ|λ). Forward Phase: The Solver S, composed of three Bayesian sub-networks (N Ωi), takes concatenated
+inputs (x, λ) and provides as outputs the concentration field, P( ˆC|x, λ; ψ). To form the composite loss, samples
+from both the solver and parameter network are fed into the PDE (F) and Boundary (B) operators to evaluate
+the physics-based residuals (fx,λ, bx,λ). At the same time, the solver’s outputs at the outlet section of the
+system are compared against the sparse observational data (Dobs) to compute a likelihood loss (Jdata). All
+components forming the loss are then aggregated into the final composite loss, J (detailed in Section 3.5.4),
+which is minimized during training.
+maps the operational design parameters λ to the mean and covariance matrix of a multivariate Log-Normal
+distribution for θ. Relying on a Log-Normal distribution ensures that the inferred physical parameters remain
+strictly positive. The network outputs are:
+[µln θ(λ; ϕ), Lln θ(λ; ϕ)] = Ninv(λ; ϕ)
+(12)
+where µln θ ∈Rdθ is the vector whose entries are the means of the log-transformed parameters, and Lln θ ∈
+Rdθ×dθ is the lower-triangular Cholesky factor of the corresponding covariance matrix. This formulation en-
+ables the model to learn the correlation structure between parameters, which is critical to quantify practical
+non-identifiability. During training, samples of the physical parameter are generated using a reparameteri-
+zation scheme, expressed as ln θ = µln θ + Lln θz where z ∼N(0, I). This formulation enables end-to-end
+differentiability of the framework while allowing quantification of the parametric uncertainty in the inverse
+solution.
+3.5.3 Parameterization and Prior Beliefs
+To regularize the inverse problem, we introduce an informative hyperprior, p(θ), which enters the KL divergence
+term of the ELBO (Eq. 9). This prior encodes our domain knowledge and constrains the (admissible) search
+space of the physical parameter vector θ, as defined in Section 3.2. We model p(θ) as a multivariate Log-
+Normal distribution, which is tantamount to assigning independent Gaussian priors to each log-parameter
+component j = 1, . . . , dθ: ln θj ∼N(µp,j, σ2
+p,j). Based on physical considerations and preliminary numerical
+simulations, these priors are defined as follows::
+– Longitudinal Dispersivities (aLs, aLc): Guided by the classically observed scaling that dispersivity
+is on the order of one-tenth of the characteristic travel length, priors for log-dispersivity are centered at
+µp,1 = ln(2.0) and µp,2 = ln(5.0) for the sand layers and for the more heterogeneous clay layer, respectively.
+The corresponding scales (standard deviations) are set to σp,j = 0.5 for j = 1, 2.
+– Sorption Capacity (β): Preliminary batch (equilibrium) experiments suggest an adsorption capacity
+of β ≈60 mg/g. Otherwise, effective capacity observed under dynamic column conditions is typically
+lower. This is mainly due to effects associated with, e.g., pore-scale flow heterogeneities (reflected through
+
+
+10
+Milad Panahi et al.
+channeling) and kinetic limitations (associated with finite mass-transfer rates) that prevent the system from
+reaching equilibrium within the residence time of the flowing fluid. To account for these effects and provide
+sufficient flexibility in the inference process, we center the prior for ln β at a reduced value of µp,4 = ln(40)
+(where β is expressed in mg/g). A relatively large standard deviation of σp,4 = 1.0 is prescribed, enabling
+the Parameter Inference Network (Ninv) to capture potential dependencies on operational conditions, such
+as flow rate, directly from the data.
+– Sorption Affinity (α): Preliminary batch equilibrium tests suggest an affinity coefficient α ≈0.03
+L/mg. However, breakthrough curves obtained under dynamic column conditions are observed to exhibit
+significant spreading, indicative of a lower effective affinity. These discrepancies might arise from transport-
+related effects such as, e.g., dispersion, flow heterogeneity, and rate-limited sorption. To reflect these effects
+and maintain flexibility in the inference, we prescribe a weak prior for ln α upon centering the latter at
+a substantially lower value of µp,3 = ln(3 × 10−3) L/mg, with a comparatively large standard deviation
+of σp,3 = 1.0. This broad prior enables the coupled framework to infer the appropriate balance between
+dispersive spreading and nonlinear adsorption (self-sharpening) effects that best explains the observed
+data.
+3.5.4 Physics-Informed Composite Loss
+Optimization of the parameters of all networks, Φ = {ψ, ϕ}, is performed through minimization of a composite
+loss function J . The latter provides a tractable implementation of the negative ELBO derived in Section 3.3.
+The negative log-likelihood contributions associated with the physical constraints are expressed as weighted
+Mean Squared Error (MSE) terms (as established in Section 3.4). This leads to the following scalar objective
+function:
+J = wdataJdata + wpdeJpde + wbcJbc + wicJic + wintJint + wklJkl
+(13)
+Here, the boundary-related contribution from the theoretical formulation (B) is decomposed into distinct terms
+corresponding to boundary (Jbc), initial (Jic), and interface (Jint) conditions. This decomposition allows for
+finer control of the optimization process through the weighting coefficients w(·). The contributions appearing
+in Eq. (13) are defined in the following.
+Residual Components.
+– Data Likelihood (Jdata): This term represents the negative log-likelihood of the observational data,
+−ln p(Dobs|ψ, θ). It is evaluated as the Negative Log-Likelihood (NLL) of the sparse breakthrough mea-
+surements at the column outlet, computed using the predictive distribution provided by the outlet sub-
+network N Ω3.
+– PDE Residuals (Jpde): This term corresponds to the negative log-likelihood associated with the PDE
+residuals, −ln p(F|·), as defined in Eq. 10. The expectation under the variational posterior is approximated
+via Monte Carlo sampling. At each training step, we draw samples of physical parameter values θ ∼qϕ(θ|λ)
+and network weights ψ ∼qψ(ψ), evaluate the residual F[ ˆC], and minimize its magnitude. This contribution
+is computed independently across each of the subdomains of the column.
+– Boundary/Initial Conditions (Jbc, Jic): These terms represent the MSE counterparts of the log-
+likelihoods associated with the boundary and initial conditions, enforcing the constraints specified in Eq. 6
+on the corresponding sub-networks.
+– Interface Continuity (Jint): Within the domain-decomposed CPINN solver, continuity conditions are
+enforced at the material interfaces between adjacent layers. Notably, both the state ( ˆC) and the total
+flux (denoted here as Jflux) required to satisfy continuity across the material interfaces, to enforce mass
+conservation across internal boundaries. Considering vector xint = [21, 71] mm to denote location of the
+interfaces along the column, the corresponding continuity constraint reads as:
+Jint =
+2
+X
+k=1
+ || ˆCk(xint,k) −ˆCk+1(xint,k)||2 + ||Jflux,k(xint,k) −Jflux,k+1(xint,k)||2
+(14)
+where the total flux is given by Jflux = vx ˆC −DL∂x ˆC.
+– Regularization (Jkl): The regularization term, scaled by an annealing weigthing coefficient wkl, consists
+of two distinct KL divergence contributions that penalize deviations of the learned variational distributions
+from the prior specifications introduced in Section 3.5.3.
+Jkl = Jkl,S + Jkl,Ninv =
+3
+X
+i=1
+DKL[qψi(ψi)||p(ψi)] + DKL[qϕ(θ|λ)||p(θ)]
+(15)
+
+
+A Conditioned-on-Design Bayesian Physics Informed Neural Network (CoDe-BPINN)
+11
+– Solver Weight Regularization: For the BNN solver, we adopt a standard Gaussian prior over the
+weights, p(ψ) = N(0, I). The corresponding regularization term is given by the sum of the analytical
+KL divergences between the variational posterior qψi(ψi) of each of the three sub-networks and its
+prior:
+Jkl,S =
+3
+X
+i=1
+DKL[qψi(ψi)||p(ψi)]
+(16)
+– Physical Parameter Regularization: we impose an informative prior, p(θ), modeled as a multi-
+variate Log-Normal distribution as detailed in Section 3.5.3. The Parameter Inference Network (Ninv)
+yields the key statistics of the variational distribution qϕ(ln θ|λ), which is also modeled as a multi-
+variate Gaussian. The corresponding KL divergence between the variational posterior and the prior is
+evaluated in closed form as:
+Jkl,Ninv = DKL[qϕ||p] = 1
+2
+
+tr(Σ−1
+p Σq)
+|
+{z
+}
+Trace Term
++ (µp −µq)⊤Σ−1
+p (µp −µq)
+|
+{z
+}
+Mahalanobis Distance
+−dθ +
+ln |Σp|
+|Σq|
+| {z }
+Log-Determinant Term
+
+(17)
+where Σq = Lln θL⊤
+ln θ, and dθ = 4 denotes the dimensionality of the physical parameter vector. This
+term is key in regularizing the inverse problem. The Trace Term penalizes overly large posterior vari-
+ances; the Mahalanobis Distance anchors the mean estimate toward the prior (scaled by uncertainty);
+and the Log-Determinant Term prevents the distribution from collapsing to a point estimate (corre-
+sponding to a degenerate solution).
+Probabilistic Interpretation of Loss Weights. We recall that in the probabilistic framework we consider, while
+observational data are naturally associated with measurement noise, the residuals of the governing equations
+(e.g., PDE, boundary, and initial conditions) are modeled as zero-mean Gaussian random variables (i.e.,
+p(F) ∝exp(−
+1
+2σ2
+F ||F||2)) with constant variance. In this context, the associated variances do not represent
+measurement uncertainty. They are rather interpreted as tolerance parameters that control the extent at which
+each physical constraint is enforced. Under this assumption, maximizing the corresponding log-likelihoods is
+equivalent to minimizing weighted mean squared error (MSE) terms, where the corresponding weights are
+inversely proportional to the variance (or tolerance) σ2 of each physical constraint, up to a constant factor:
+wi =
+1
+2σ2
+i
+=⇒
+σi =
+1
+√2wi
+(18)
+Since all state variables are normalized to the interval [0, 1], the parameters σi can be interpreted as relative
+tolerance levels for each constraint, expressed with respect to the characteristic scale of the (normalized)
+solution (i.e., relative to the inlet concentration C0). Within this probabilistic framework, the corresponding
+weights therefore control the strength with which each contribution is enforced. In this study, we adopt a
+hierarchical weighting strategy to stabilize the inverse problem. Boundary, initial, and interface conditions are
+assigned the largest weights (wbc, wic, wint = 8×104) corresponding to a stringent tolerance (σ ≈0.25% of the
+unit interval), thereby ensuring strong enforcement of these constraints. The data is weighted as wdata ≈200,
+reflecting a measurement uncertainty of ≈5%. Conversely, the PDE residual is assigned a moderately lower
+weight (wpde = 5 × 103), corresponding to a tolerance of ≈1%, which allows for controlled flexibility in
+satisfying the governing equations. Weighting of the KL regularization term, wkl, is determined as described
+in SI Section 2. This soft-constrained formulation avoids an excessively stiff optimization landscape, thereby
+enabling the Parameter Inference Network to effectively explore the parameter space and identify dependencies
+that best reconcile physical consistency with observational data.
+3.6 Training via a Multi-Stage Curriculum
+Directly optimizing the coupled forward-inverse problem is significantly challenging, primarily due to the
+cold start issue. At this stage, the sub-networks composing S are not yet consistent across interfaces, and
+the Parameter Inference Network (Ninv) produces essentially uninformative physical parameter estimates.
+Enforcing the full set of PDE constraints from the outset can therefore lead to optimization pathologies, such
+as the emergence of unphysical high-frequency artifacts that locally satisfy the differential operator while
+violating global boundary and data constraints.
+
+
+12
+Milad Panahi et al.
+To mitigate these issues, we employ a multi-stage curriculum learning strategy, extending the sequential
+training protocols introduced in our previous work on parameterized solvers [Panahi et al., 2026] to the present
+coupled inverse setting. Consistent with broader observations on PINN optimization challenges [Krishnapriyan
+et al., 2021, Penwarden et al., 2023], this approach stabilizes training by progressively increasing the complexity
+of the objective. In particular, it ensures that the network first learns to satisfy boundary and initial conditions
+before enforcing the full set of physics-based constraints. The procedure is formalized in Algorithm 1.
+Algorithm 1: Three-Stage Curriculum Training for CoDe-BPINN
+Input: Operational design parameters λ, Collocation points x, Observational Data Dobs
+Result: Optimized Solver weights ψ∗, Parameter Inference Network weights ϕ∗
+1 Initialize Solver weights ψ and Parameter Inference Network weights ϕ
+2 Freeze ϕ (Ninv) and fix physical parameters θ to prior means
+// Stage 1: Boundary and Interface Initialization
+3 for epoch ←1 to E1 do
+4
+Compute Boundary Jbc and Initial Jic
+5
+Update ψ to minimize JStage1 = wbcJbc + wicJic
+// Stage 2: Data Anchoring
+6 for epoch ←1 to E2 do
+7
+Compute Data Likelihood Jdata (NLL) at outlet
+8
+Update ψ to minimize JStage2 = JStage1 + wdataJdata
+// Stage 3: Forward-Inverse Coupling
+9 Unfreeze ϕ (Ninv)
+10 for epoch ←1 to E3 do
+11
+Update KL weight wkl via annealing schedule
+12
+Sample physical parameters: θ ∼qϕ(θ|λ)
+13
+Compute PDE Residuals Jpde and Interface loss Jint using sampled θ
+14
+Compute Regularization Jkl for both ψ and ϕ
+15
+Update [ψ, ϕ] to minimize Jtotal = JStage2 + wpdeJpde + wintJint + wklJkl
+16 return ψ, ϕ
+Stage 1: Boundary and Initial initialization. Training commences upon optimizing the solver S solely on
+boundary (Jbc) and initial (Jic) conditions. The PDE residuals and interface continuity terms are deacti-
+vated during this phase. This enables the sub-networks to learn valid representations of the spatiotemporal
+boundaries for each subdomain.
+Stage 2: Data Anchoring. Once the boundary representations are stable, we introduce the data likelihood term
+(Jdata). At this stage, the solver updates its posterior to fit the sparse observational data (i.e., concentration
+tempral history at the column outlet) while the PDE residual remains inactive. The model therefore operates
+as a probabilistic regressor, learning a solution manifold that is consistent with both boundary conditions and
+available observations. This stage effectively anchors the solution in data-informed regions, reducing risks of
+convergence to unphysical local minima when the physics-based constraints are subsequently enforced.
+Stage 3: Forward-Inverse Coupling. In the final phase, the PDE residual (Jpde) and interface continuity (Jint)
+loss terms are activated, and the Parameter Inference Network (Ninv) is incorporated into the training process,
+thereby closing the inverse loop. At this stage, the optimization must reconcile the data-anchored solution
+with the governing ADR equation. Since the solver already provides a good quality fit to the observations,
+minimizing the PDE residual primarily drives updates in the Parameter Inference Network, thus guiding
+the inference of the physical coefficients θ required for physical consistency. Concurrently, the interface loss
+enforces continuity between sub-networks, ensuring global consistency of both the state (i.e., concentration)
+and the flux across the domain.
+3.7 Validation of Uncertainty Estimates
+To assess model performance, we employ a comparative Monte Carlo analysis using both the trained CoDe-
+BPINN and a reference FDM solver (see Supplementary Information, Section 1). The total predictive uncer-
+
+
+A Conditioned-on-Design Bayesian Physics Informed Neural Network (CoDe-BPINN)
+13
+tainty of the CoDe-BPINN is estimated by generating an ensemble of T stochastic forward evaluations. For
+each realization t, we sample both the network weights ψt ∼qψ(ψ) and the physical parameters θt ∼qϕ(θ|λ).
+The resulting ensemble of results, { ˆC(x; ψt, θt)}T
+t=1, captures the total predictive uncertainty, encompassing
+variability due to both parameter inference and the neural surrogate approximation. To establish a reference
+ground truth for the parametric contribution, we rely on the trained Parameter Inference Network (Ninv) to
+generate input samples for the FDM simulator. We draw realizations of physical parameters θt ∼qϕ(θ|λ)
+and evaluate the FDM solver for each sample. The variance of the ensuing (FDM-based) ensemble provides
+an estimate of the uncertainty propagated solely from the inferred physical parameters (hereafter denoted as
+σ2
+θ).
+Comparing these two ensembles provides a basis for validation of the CoDe-BPINN results. In principle,
+the total (predictive) uncertainty of the CoDe-BPINN should encompass the parametric uncertainty obtained
+from the FDM-based ensemble, as it additionally accounts for the approximation error of the neural surro-
+gate. In regions with limited observational data, uncertainty is expected to be dominated by the parametric
+component, reflecting the inherent non-uniqueness of the inverse problem. Conversely, near the data-rich out-
+let, the parametric uncertainty should reduce significantly, leaving only the residual measurement noise and
+surrogate-related uncertainty. This comparison offers a robust assessment of the reliability of the proposed
+modeling framework.
+4 Results and Discussion
+In this section, we evaluate the performance of the proposed CoDe-BPINN framework. The analysis is struc-
+tured to assess two distinct capabilities: (1) the accuracy of the Forward Surrogate (the solver S) in
+reproducing the spatiotemporal concentration field compared to a high-fidelity numerical reference, and (2)
+the ability of the Inverse Parameter Network (Ninv) to estimate the unknown physical parameters and
+their dependencies on the operational design parameters.
+4.1 Experimental Dataset and Operational design Space
+The CoDe-BPINN framework was trained on the dataset Dobs comprising 9 experimental breakthrough curves
+(BTCs) obtained from the experimental setup described in Section 2.
+Data Preprocessing and Normalization. As illustrated in the network architecture (Fig. 2), all network inputs
+are normalized to ensure numerical stability during training. Spatial coordinates x are scaled by the column
+length (L = 92 mm), time t is normalized by the maximum experimental duration (Tmax), and the opera-
+tional design parameter vector λ = [εΩ2, q, C0]⊤is mapped to the support [0, 1] via min-max normalization.
+Importantly, while the networks operate in this normalized space, the physics-informed loss terms (i.e., the
+PDE and Interface Continuity residuals) are evaluated in the actual physical domain. To ensure consistency,
+network outputs are transformed back to physical units during training, and the gradients obtained through
+automated differentiation are appropriately rescaled (e.g.,
+1
+L
+∂
+∂xnorm ) so that the governing equations (Eq. 4)
+are enforced in their correct physical form.
+Fixed System Parameters. While the operational design vector λ defines the diverse experimental conditions,
+the geometric configuration (Section 2.1) and material properties of the non-reactive components are kept
+constant across all experiments. The inert sand layers (Ω1 and Ω3) are characterized by a fixed porosity of
+εΩ1 = εΩ3 = 0.43, bulk density of the porous medium being set to ρb = 1.5 × 10−3 g/mm3). These quantities
+are treated as known constants and are embedded directly within the PDE residual operator during training.
+4.2 Surrogate Modeling Performance
+The primary objective of the Forward Phase is to learn a continuous, parameterized solution manifold ˆC(x, λ)
+that accurately reproduces the observed transport dynamics. Figure 3 depicts a comprehensive comparison
+of the CoDe-BPINN results against the experimental data across the three axes of variation, illustrating the
+ability of the model to capture the observed breakthrough behavior.
+These results demonstrate that the solver S has successfully learned to characterize the complex, non-linear
+dependencies governing the system. As shown in Fig. 3a, the model accurately captures the concentration-
+dependent behavior, including the characteristic self-sharpening of the breakthrough front and the earlier
+breakthrough times observed at higher inlet concentrations (C0). As C0 increases from 100 to 300 mg/L,
+
+
+14
+Milad Panahi et al.
+Fig. 3: Comparison of CoDe-BPINN surrogate results (solid curves) with available experimental observations
+(dots) at the column outlet (x = L). Concentrations are expressed in dimensionless form as ˆC = C/C0.
+Shaded regions denote the total predictive uncertainty (corresponding to 95% CI) estimated via Monte Carlo
+sampling. The model accurately captures the non-linear variations in breakthrough time and breakthrough
+curve shape associated with changes in the operational variables, i.e., (a) inlet concentration C0, (b) Darcy
+flux q, and (c) porosity εΩ2.
+adsorption sites saturate more rapidly, leading to a leftward shift of the breakthrough curve. The CoDe-
+BPINN reproduces these sharp fronts without introducing spurious oscillations, highlighting the effectiveness
+of the Fourier embedding in representing high-frequency features. In Fig. 3b, variations in Darcy flux (q) induce
+substantial changes in residence time. The model successfully captures the transition from advection-dominated
+transport (steep breakthrough curve at q = 12.43 [mm/min]) to dispersion-dominated regimes (broader curves
+at q = 1.99 [mm/min]). Dynamics resulting from our modeling framework remain consistent with experimental
+observations across timescales spanning approximately one order of magnitude. Similarly, Fig. 3c illustrates
+the impact of the porosity of the middle layer, εΩ2, which serves as a proxy for the adsorbent mass fraction.
+The model correctly learns that lower porosity (corresponding to higher clay content, εΩ2 = 0.371) leads
+to significantly increased retardation capacity compared to a sand-dominated matrix (εΩ2 = 0.424), shifting
+breakthrough time from ≈30 minutes to ≈440 minutes.
+Furthermore, the uncertainty bands (shaded regions) tightly envelop experimental observations, indicating
+that the Bayesian solver captures the underlying structure.
+4.3 Surrogate Accuracy and Uncertainty Calibration
+A primary objective of our framework is to develop a CoDe-BPINN that enables unknown parameter inference
+while at the same time serving as an accurate and reliable forward surrogate. To assess this capability, we com-
+pare the predictive distribution obtained through CoDe-BPINN against a high-fidelity Monte Carlo ensemble
+generated through a Finite Difference Method (FDM) solver (as detailed in SI, Section 1). The FDM simu-
+lations are driven by realizations of the physical parameters sampled from the posterior distribution learned
+by the Parameter Network (Ninv), thus enabling a consistent evaluation of both the predictive mean and the
+propagated uncertainty.
+Figure 4 illustrates this comparison for the baseline experiment test case (λ = [εΩ2 = 0.371, q = 1.99 mm/min, C0 =
+100 mg/L]).
+Accuracy of Mean Predictions. The spatiotemporal mean field inferred by our CoDe-BPINN (Fig. 4a) exhibits
+excellent visual and quantitative agreement with the corresponding FDM ensemble mean (Fig. 4b). Both
+approaches accurately reproduce the key physical mechanisms, including rapid advective transport in the inert
+sand layers (Ω1, Ω3) and significant retardation within the reactive clay layer (Ω2). The point-wise difference
+map (Fig. 4c) reveals that the largest discrepancies are localized along the sharp concentration front, where
+steep gradients pose challenges for neural approximators. Nevertheless, the overall relative Rel.L2
+ˆ
+C(x) between
+the two mean fields is only 4.3%, confirming that the CoDe-BPINN has recovered a physically consistent
+solution manifold. This agreement is further supported at the outlet (Fig. 4d), where the CoDe-BPINN mean
+breakthrough curve (magenta) closely matches its FDM-based reference counterpart (black dashed), with
+Rel.L2
+ˆ
+C(x = L, t) = 1.9%. The same panel also illustrates the total predictive uncertainty of the solver S
+(95% CI, σS
+total, shown in shaded cyan) alongside the reference parametric uncertainty propagated through
+the FDM solver (95% CI, σθ; shown in shaded grey). As detailed in the uncertainty quantification procedure
+(Section 3.7), σθ is obtained upon evaluating the deterministic FDM solver over realizations of θ sampled from
+the learned variational distribution qϕ(θ|λ).
+
+
+A Conditioned-on-Design Bayesian Physics Informed Neural Network (CoDe-BPINN)
+15
+Fig. 4: Ensemble-based validation of the CoDe-BPINN surrogate. Comparison between CoDe-
+BPINN results against an FDM-based Monte Carlo ensemble (N = 1000) for the baseline setting λ =
+[0.371, 1.99, 100]. (a) Mean CoDe-BPINN field E[ ˆCS(x, t)]. (b) Reference mean field from the FDM-based
+ensemble E[ ˆCF DM(x, t)]. (c) Point-wise difference between the two mean fields. (d) Comparison of the outlet
+breakthrough curves and related uncertainty. (e) Spatiotemporal distribution of the CoDe-BPINN epistemic
+uncertainty (σS). (f) Spatiotemporal distribution of the parameter-induced uncertainty obtained from the
+FDM ensemble (σθ).
+Fig. 5: Ensemble-based validation for an intermediate clay content of the adsorbent layer
+(εΩ2 = 0.399). Comparison between CoDe-BPINN results and an FDM ensemble (N = 1000) for the ex-
+periment ID 9 (see Table 1), corresponding to a medium clay content configuration (λ = [0.399, 1.99, 100]. (a)
+Mean CoDe-BPINN field E[ ˆCS(x, t)]. (b) Reference mean field from the FDM ensemble E[ ˆCF DM(x, t)]. (c)
+Point-wise difference between the mean fields. (d) Comparison of the outlet breakthrough curves and related
+uncertainty. (e) Spatiotemporal distribution of the CoDe-BPINN estimated uncertainty (σS). (f) Spatiotem-
+poral distribution of the parameter-induced uncertainty from the FDM ensemble (σθ).
+Assessment and Decomposition of Predictive Uncertainty
+Our Bayesian framework allows quantifying and
+decompose predictive uncertainty. Figure 4e depicts predictive uncertainty stemming from the CoDe-BPINN
+(denoted as σS in the figure), which reflects the combined effect of two sources, respectively corresponding
+to (i) surrogate uncertainty (arising from variability in the solver weights) and (ii) parametric uncertainty
+(associated with the inferred physical parameters). In contrast, Figure 4f depicts the parametric uncer-
+tainty σθ obtained upon propagating the same parameter distribution through the reference FDM solver.
+
+
+16
+Milad Panahi et al.
+For consistency, the FDM ensemble is driven by samples drawn from the posterior qϕ(θ|λ) inferred by the
+Parameter Inference Network (Ninv).
+A key observation is the strong structural agreement between these two uncertainty fields. Both exhibit
+localized amplification along the reactive front within the clay layer (Ω2), where the solution is most sensitive
+to the (uncertain) sorption parameters (α, β). At the system outlet (Fig. 4d), the total uncertainty estimated
+by the CoDe-BPINN (magenta band) consistently envelops the reference parametric uncertainty obtained
+from the FDM ensemble (grey band). The slightly broader spread of the CoDe-BPINN reflects the additional
+contribution of surrogate approximation uncertainty . The close correspondence between these uncertainty
+estimates in the data-constrained (boundary) region provides strong evidence that the inferred parameter
+distribution accurately captures the variability required to reproduce the observed system behavior, thereby
+yielding a strong validation basis for the overall probabilistic inversion framework.
+Generalization Across the Operational Design Space of Porosity. To further assess the generalization capability
+of the framework, we perform the same analysis for a scenario corresponding to an intermediate clay fraction
+(εΩ2 = 0.399). This latter scenario lies between previously observed configurations in the porosity dimension
+of the operational design space. The ensuing results are depicted in Figure 5.
+Our CoDe-BPINN is seen to exhibit strong agreement with the reference solution also in this case, with a
+relative L2 error of 2.8% between its inferred mean field and the FDM ensemble mean. This accuracy is further
+confirmed at the outlet (Fig. 5d), where the CoDe-BPINN mean breakthrough curve closely matches its FDM
+counterpart (yielding Rel.L2
+ˆ
+C(x = 1, t) = 0.8%). The model correctly captures the shift in transport dynamics
+associated with this reduced clay content. The ensuing reduced sorption capacity leads to earlier breakthrough,
+this behavior being consistently reflected in both the spatiotemporal concentration fields and the breakthrough
+curve at the outlet. The corresponding uncertainty fields (comparing CoDe-BPINN predictive uncertainty, σS,
+and the parameter-driven uncertainty, σθ obtained from the FDM ensemble) again display strong agreement,
+with uncertainty localized along the reactive front. This consistent performance across different regions of the
+operational design space demonstrates both the robustness of the learned surrogate and the reliability of the
+inferred parameter distributions.
+4.4 Analysis of Learned Parameter Dependencies
+Beyond accurate state estimation, a key objective of this work is to uncover the underlying physical depen-
+dencies governing the reactive transport process. This is achieved by analyzing the outputs of the Multivariate
+Parameter Network (Ninv), which provides a structured mapping between the physical parameters (θ) and
+the operating conditions (λ). Through this analysis, it is possible to disentangle the coupled dependencies
+between transport and sorption properties and the experimental controls. Figure 6 provides a detailed charac-
+terization of the learned parameter manifold for the baseline experimental condition (High Clay, εΩ2 = 0.371;
+Low Concentration, C0 = 100 mg/L).
+Fig. 6: Multivariate analysis of the inferred physical parameters. (Left) The learned correlation matrix Rln θ
+reveals a largely decoupled structure between dispersive (aLs, aLc) and sorption (α[L/mg], β[mg/g]) param-
+eters, together with a pronounced negative correlation (ρ = −0.54) between sorption affinity α and capacity
+β. (Middle) Evolution of the joint distribution in the ln α-ln β plane as Darcy flux q increases from 1.99 to
+12.43 mm/min. Dashed ellipses denote the corresponding 95% confidence regions, illustrating the geometry
+of the inferred parameter uncertainty. (Right) Learned functional relationship, β(q), showing a monotonic
+reduction of effective sorption capacity with increasing flow rate, together with uncertainty bounds.
+
+
+A Conditioned-on-Design Bayesian Physics Informed Neural Network (CoDe-BPINN)
+17
+Fig. 7: Extrapolation to an Unseen Operating Scenario. Multivariate analysis for a configuration characterized
+by minimum clay content (εΩ2 = 0.424) and maximum inlet concentration (C0 = 300 mg/L). The model
+yields physically consistent trends, indicating a marked reduction in the overall effective sorption strength
+(αβ) driven by a decrease in both affinity and capacity. The progressive widening of the uncertainty bands at
+higher flow rates reflects increased uncertainty, consistent with extrapolation beyond the training domain.
+Table 2: Inferred effective parameters for the nine experimental cases. Values are reported as mean ± standard
+deviation of the posterior distribution predicted by the Parameter Inference Network. The operational variables
+are Darcy flux (q), inlet concentration (C0), and middle-layer porosity (εΩ2). The inferred parameters are sand
+and clay dispersivities (aLs and aLc), sorption affinity (α), and sorption capacity (β).
+Operational Parameters
+Inferred Physical Parameters (Mean ± Std. Dev.)
+Exp.
+q
+C0
+εΩ2
+aLs
+aLc
+α
+β
+ID
+[mm/min]
+[mg/L]
+[-]
+[mm]
+[mm]
+[L/mg]
+[mg/g]
+1
+1.989
+100
+0.371
+1.710 ± 0.180
+3.488 ± 0.525
+(2.380 ± 0.585) × 10−4
+19.833 ± 4.529
+2
+4.974
+100
+0.371
+2.847 ± 0.253
+4.762 ± 0.629
+(2.550 ± 0.636) × 10−4
+15.311 ± 3.519
+3
+12.434
+100
+0.371
+10.362 ± 0.599
+12.752 ± 1.150
+(1.830 ± 0.491) × 10−4
+9.230 ± 2.105
+4
+1.989
+150
+0.371
+1.725 ± 0.193
+3.764 ± 0.605
+(1.790 ± 0.456) × 10−4
+18.035 ± 3.986
+5
+1.989
+200
+0.371
+1.705 ± 0.209
+4.024 ± 0.708
+(1.440 ± 0.373) × 10−4
+16.879 ± 3.746
+6
+1.989
+250
+0.371
+1.671 ± 0.225
+4.275 ± 0.808
+(1.200 ± 0.327) × 10−4
+16.040 ± 3.682
+7
+1.989
+300
+0.371
+1.627 ± 0.240
+4.535 ± 0.943
+(1.020 ± 0.295) × 10−4
+15.533 ± 3.658
+8
+1.989
+100
+0.424
+0.997 ± 0.267
+5.516 ± 1.451
+(0.430 ± 0.132) × 10−4
+12.346 ± 2.932
+9
+1.989
+100
+0.399
+1.302 ± 0.225
+4.351 ± 0.868
+(0.980 ± 0.271) × 10−4
+15.448 ± 3.464
+Structure of Learned Parameter Correlations. The learned correlation matrix (Fig. 6, Left) provides quanti-
+tative evidence that the CoDe-BPINN has effectively partitioned the governing physics. The matrix exhibits a
+distinct block-diagonal structure, indicating that the model has identified two weakly coupled groups of param-
+eters, i.e., dispersive (aLs, aLc) and reactive (α, β) parameters, each governing distinct aspects of the transport
+dynamics. Within the sorption subspace, a pronounced negative correlation (ραβ = −0.86) emerges between
+the Langmuir affinity α and capacity β. This result reflects the observation that for a given breakthrough
+behavior, an increase in affinity must be offset by a decrease in capacity, and vice versa. The CoDe-BPINN
+captures this trade-off through a negative off-diagonal structure in the learned Cholesky factor Lln θ. Con-
+versely, the dispersive parameters exhibit only a weak positive correlation (ρaLsaLc = 0.24) between the sand
+and clay dispersivities. This suggests that the data constrain the dispersivity in each layer separately, with
+only weak interaction between them. The corresponding inferred mean values of the physical parameters (µθ)
+across the nine experimental configurations are listed in Table 2.
+Analysis of the Inferred Parameter Manifold. The joint evolution of the inferred mean parameters (Fig. 6,
+Middle) reveals a non-trivial dynamic response to variations in hydrodynamic conditions. As Darcy flux q
+increases (progressing from the blue to the green ellipse in Figure 6), the system transitions from a regime
+characterized by higher sorption capacity (ln β ≈3.0) to one with reduced capacity (ln β ≈2.2). The behavior
+of sorption affinity, α, is notably non-monotonic. At low to intermediate flow rates, α increases slightly,
+suggesting enhanced mass transfer to the adsorbent surface, whereas reduced residence time becomes dominant
+at higher flow rates, leading to a marked decrease in both effective affinity (α) and capacity (β). This resulting
+hook-shaped trajectory indicates that the framework captures a non-linear trade-off between transport and
+sorption processes, rather than a simple monotonic relationship. The orientation of the uncertainty ellipses
+(that are aligned along the negative diagonal), reflects the strong anti-correlation between α and β. This
+
+
+18
+Milad Panahi et al.
+pattern indicates that the model explores a direction of parameter equifinality, adjusting the balance between
+affinity and capacity to preserve consistency with the observed transport dynamics as flow conditions vary.
+Learned Functional Dependence Between Flow Rate and Sorption Capacity To isolate the relationship be-
+tween flow conditions and sorption capacity, we examine the marginal distribution obtained considering the
+results obtained in plane q - β (Fig. 6, Right), from which a functional dependence β(q) can be inferred.
+The model identifies a clear monotonic decrease in effective sorption capacity with increasing Darcy flux, the
+effective median value of β decreasing from ≈20 mg/g to ≈9 mg/g. This trend is consistent with a concep-
+tual picture according to which reduced residence times at higher flow velocities tend to limit intra-particle
+diffusion, thereby restricting access to adsorption sites within microporous structures and effectively lowering
+the observable capacity. The associated uncertainty (red dotted curve in Figure 6) remains consistently low
+and stable across the entire range of flow rates, suggesting that this relationship is robustly supported by the
+data. It is also important to note that this behavior may partially reflect limitations of the adopted equilib-
+rium sorption model, which does not explicitly account for kinetic or mass transfer effects. Incorporating such
+processes could provide a more accurate representation of the system, particularly at higher flow rates.
+Extrapolation to Untrained Regimes. To assess generalization limits of the inferred model, we consider a
+scenario outside the training domani within the operational design space and corresponding to minimum clay
+content in the intermediate layer (i.e., maximum porosity, εΩ2 = 0.424) and maximum inlet concentration
+(C0 = 300 mg/L). This configuration represents a joint extrapolation in the operational design space, as the
+model was not trained on data combining these conditions. The ensuing results are depicted in Figure 7.
+Relative to the baseline case, the model projects a significant reduction in overall sorption strength, driven
+by decreases in both effective affinity (α) and capacity (β). For instance, at a low flow rate (q ≈2 mm/min),
+the inferred effective sorption coefficient (αβ) decreases from ≈0.0067 in the high-clay baseline configuration
+to ≈0.00016 in the low-clay scenario, corresponding to a reduction exceeding 95%. While experimental data
+are not available for direct validation in this specific regime, this trend is consistent from a physical standpoint,
+as reduced adsorbent mass (associated with higher porosity) naturally lowers the total sorption capacity (β),
+while altered flow conditions likely reduce contact efficiency, leading to a reduced effective affinity (α).
+Furthermore, the model retains the monotonic decay of β with increasing flow rate. Importantly, the total
+predictive uncertainty (as reflected through the 95% CI) expands noticeably at higher flow rates relative to the
+training regime. This suggests that the CoDe-BPINN appropriately identifies this region as weakly constrained
+by information. This behavior, which combines physically consistent extrapolations with increased uncertainty,
+suggests that the framework remains robust and avoids overconfident predictions in unobserved regions of the
+operational design spaces.
+4.5 Learned Parameter Manifolds in the Operational Design Space
+We recall that the primary objective of the inverse framework is to learn continuous functional mappings
+between the operational design variables λ and the underlying physical parameters θ. To analyze these rela-
+tionships, we evaluate the trained Parameter Network (Ninv) over a two-dimensional slice of the operational
+design space defined by the middle layer porosity (εΩ2) and Darcy flux (q). This enables us to visualize the
+inferred dependencies as continuous parameter manifolds. Figure 8 depicts these manifolds for the two key
+physical quantities, i.e., the maximum sorption capacity (β) and the clay layer dispersivity (aLc), while holding
+the inlet concentration fixed at a baseline value C0 = 100 mg/L.
+The inferred manifold for sorption capacity, β(εΩ2, q) (Figure 8a), reveals two distinct and physically
+consistent trends. Along the vertical axis (corresponding to porosity), β decreases as εΩ2 increases, reflecting
+the reduction in clay content and, consequently, the decrease in available sorption sites. The value of β is
+then seen to decrease as Darcy flux increases, indicating that shorter residence times at higher velocities limit
+access to intra-particle pore space and reduce the effective sorption capacity.
+The manifold for clay dispersivity, aLc(εΩ2, q) (Figure 8b), reveals a systematic increase with Darcy flux,
+indicating that the inferred dispersivity behaves as an effective, flow-dependent parameter rather than a purely
+geometric constant. While classical formulations assume a linear relationship between dispersion and velocity,
+the observed trend suggests a nonlinear dependence, potentially reflecting unresolved transport mechanisms.
+In particular, rate-limited mass transfer processes (such as, e.g., intra-particle diffusion or non-equilibrium
+sorption) become more pronounced at higher flow rates and can markedly contribute to additional front
+spreading. In the absence of explicit kinetic terms in the governing ADR model, these effects are implicitly
+embedded into the inferred dispersivity values. Overall, these results suggest that the CoDe-BPINN framework
+identifies physically meaningful effective parameterizations that reconcile the adopted governing equations with
+the complex transport behavior observed in the experimental system.
+
+
+A Conditioned-on-Design Bayesian Physics Informed Neural Network (CoDe-BPINN)
+19
+Fig. 8: Learned relationships between physical parameters. The 2D heatmaps visualize the mean of
+the estimated physical parameters as a continuous function of the operational design space (εΩ2, q) at a fixed
+C0 = 100 mg/L. a) The manifold for maximum sorption capacity, β(εΩ2, q). b) The manifold for clay layer
+dispersivity, aLc(εΩ2, q).
+4.6 Local Sensitivity Analysis via Automatic Differentiation
+A distinct advantage of the CoDe-BPINN framework over conventional numerical solvers is its end-to-end
+differentiability. In traditional settings, Global or Local Sensitivity Analyses (GSA/LSA) typically require
+multiple forward simulations, leading to significant computational cost . In contrast, our trained surrogate
+model can be treated as a differentiable operator, enabling direct evaluation of local sensitivity indices, Sλ =
+∂ˆC/∂λ, through a single backward pass using Automatic Differentiation (AD). The ensuing sensitivity fields
+(see Figure 9) provide detailed insight into the spatiotemporal regions where the system response is most
+sensitive to variations in physical and operational parameters.
+Fig. 9: Spatiotemporal Local Sensitivity Fields. The maps illustrate the gradient of the mean predicted
+concentration, E[ ˆC(x; λ)], with respect to each of the normalized operational parameters λ = [εΩ2, q, C0]. The
+analysis is performed at the baseline condition (εΩ2 = 0.371, q = 1.99 mm/min, C0 = 100 mg/L). A positive
+sensitivity means that increasing the parameter increases concentration at that point, zero sensitivity indicates
+regions where the parameter has no influence.
+Considering the impact of operational parameters on the concentration field, the sensitivity analysis reveals
+distinct and physically consistent patterns across the domain. We note that sensitivity tends to increase within
+the column length dimension, reflecting the accumulated influence of parameters across the transport path.
+Sensitivity with respect to Porosity (as expressed through ∂ˆC/∂εΩ2) is negligible within the inlet sand
+layer (Ω1), while becoming pronounced as the solute enters the reactive clay layer (Ω2). It further intensifies
+downstream in the outlet sand layer (Ω3). The predominantly positive gradient indicates that increasing
+porosity leads to earlier breakthrough. This behavior is physically consistent, as higher porosity corresponds
+to a reduced clay fraction and thus a lower density of sorption sites, diminishing the overall retardation
+capacity.
+Sensitivity with respect to Darcy Flux (as expressed through ∂ˆC/∂q)) exhibits the largest magnitude
+among the considered parameters and closely follows the propagation of the concentration front. A strong
+
+
+20
+Milad Panahi et al.
+positive signal ahead of the front indicates that increasing the flow rate accelerates solute transport, leading
+to earlier arrival times.
+Finally, although the magnitude of sensitivity with respect to Inlet Concentration (∂ˆC/∂C0)) is slightly
+lower than that associated with porosity, it is seen to form a localized plume concentrated within the mass
+transfer zone of the reactive layer. This pattern reflects the role of inlet concentration in modulating sorp-
+tion. In this context, higher values of C0 accelerate saturation of available sorption sites and lead to earlier
+breakthrough.
+This capability to evaluate sensitivity fields on demand across the entire design space is a key advantage of
+the proposed framework. It enables rapid assessment of the way variations in operational parameters propagate
+through the system in space and time, thus providing actionable insights into system behavior. Such analyses
+would be computationally prohibitive using traditional ensemble-based approaches, which require repeated
+forward simulations.
+5 Conclusions
+This study introduced a comprehensive Bayesian computational framework (termed CoDe-BPINN) that re-
+casts the inverse problem of reactive transport as a coupled, end-to-end differentiable learning task. By in-
+tegrating a domain-decomposed PINN solver with a multivariate parameter inference network, the proposed
+approach enables the reconstruction of contaminant transport dynamics in heterogeneous porous media from
+sparse boundary observations. The framework provides a robust methodology for jointly learning an accurate
+forward surrogate model and inferring the underlying constitutive relationships, even in data-limited settings.
+Our work leads to the following major conclusions.
+(i) The proposed solver architecture, trained with a curriculum-based and physics-informed loss weighting,
+yields accurate reconstruction of the solution manifold across diverse experimental conditions. It captures
+sharp gradients at material interfaces and reproduces key features of the observed experimental break-
+through curves.
+(ii) The framework identifies multi-dimensional dependencies between the governing physical parameters and
+operational conditions. Notably, it reveals that the effective sorption capacity (β) decreases with increasing
+flow rate and porosity, reflecting the combined influence of kinetic limitations and reduced adsorbent mass.
+(iii) The multivariate parameter network captures the intrinsic structure of parameter interactions, including a
+strong negative correlation between sorption affinity (α) and capacity (β), thereby providing a coeherent
+quantification of parameter uncertainty across the multidimensional design space.
+(iv) The framework yields predictive uncertainty in line with the uncertainty of the observations. Through
+Monte Carlo analysis and comparison with a reference FDM solver, it is shown that uncertainty remains
+low in data-constrained regions while being appropriately propagated into unobserved spatiotemporal
+domains, supporting the reliability of the model for predictive applications.
+Future developments may extend this methodology to higher-dimensional parameter spaces and enable
+real-time data assimilation for adaptive process monitoring and control.
+Declarations
+Funding. The authors acknowledge financial support from the European Union’s Horizon 2020 research and
+innovation programme under the Marie Sk lodowska-Curie grant agreement No 956384
+Code availability. Codes used in this paper will be available in the following github repository https://
+github.com/MiladPnh/Modulated-BPINNs.git
+Author Contributions. All authors came up with the research idea, M.P. and G.P designed the computation
+experiments, and M.P. implemented the code. G.P., A.G, and M.R. supervised the project. M.P. wrote the
+first draft, all participated in reviewing the manuscript. Competing Interests. The authors have no competing
+interests to declare that are relevant to the content of this article.
+
+
+A Conditioned-on-Design Bayesian Physics Informed Neural Network (CoDe-BPINN)
+21
+References
+H. Patel. Comparison of batch and fixed bed column adsorption: a critical review. International Journal of
+Environmental Science and Technology, 19(10):10409–10426, 2022. doi: 10.1007/s13762-021-03492-y. URL
+https://doi.org/10.1007/s13762-021-03492-y.
+Y. Rubin.
+Applied Stochastic Hydrogeology.
+OUP E-Books. Oxford University Press, 2003.
+ISBN
+9780195138047. URL https://books.google.it/books?id=CqLmCwAAQBAJ.
+J. Bear. Dynamics of Fluids in Porous Media. Dover Civil and Mechanical Engineering Series. Dover, 1988.
+ISBN 9780486656755. URL https://books.google.it/books?id=lurrmlFGhTEC.
+K. Y. Foo and B. H. Hameed. Insights into the modeling of adsorption isotherm systems. Chemical engineering
+journal, 156(1):2–10, 2010. doi: 10.1016/j.cej.2009.09.013. URL https://doi.org/10.1016/j.cej.2009.
+09.013.
+G. Limousin, J. Gaudet, L. Charlet, S. Szenknect, V. Barth`es, and M. Krimissa. Sorption isotherms: A review
+on physical bases, modeling and measurement. Applied Geochemistry, 22(2):249–275, 2007. ISSN 0883-2927.
+doi: https://doi.org/10.1016/j.apgeochem.2006.09.010. URL https://www.sciencedirect.com/science/
+article/pii/S0883292706002629.
+E. Worch.
+Fixed-bed adsorption in drinking water treatment: a critical review on models and parameter
+estimation. Journal of Water Supply: Research and Technology-Aqua, 57(3):171–183, 05 2008. ISSN 0003-
+7214. doi: 10.2166/aqua.2008.100. URL https://doi.org/10.2166/aqua.2008.100.
+A. Tarantola. Inverse Problem Theory and Methods for Model Parameter Estimation. Society for Industrial
+and Applied Mathematics, 2005. doi: 10.1137/1.9780898717921. URL https://epubs.siam.org/doi/abs/
+10.1137/1.9780898717921.
+K. Beven and J. Freer. Equifinality, data assimilation, and uncertainty estimation in mechanistic modelling of
+complex environmental systems using the glue methodology. Journal of Hydrology, 249(1):11–29, 2001. ISSN
+0022-1694. doi: https://doi.org/10.1016/S0022-1694(01)00421-8. URL https://www.sciencedirect.com/
+science/article/pii/S0022169401004218.
+J. Carrera, A. Alcolea, A. Medina, J. Hidalgo, and L. J. Slooten. Inverse problem in hydrogeology. Hydro-
+geology journal, 13(1):206–222, 2005. doi: 10.1007/s10040-004-0404-7. URL https://doi.org/10.1007/
+s10040-004-0404-7.
+H. V. Gupta, K. J. Beven, and T. Wagener. Model Calibration and Uncertainty Estimation, chapter 131. John
+Wiley & Sons, Ltd, 2006. ISBN 9780470848944. doi: https://doi.org/10.1002/0470848944.hsa138. URL
+https://onlinelibrary.wiley.com/doi/abs/10.1002/0470848944.hsa138.
+A. Dell’Oca, M. Riva, P. Ackerer, and A. Guadagnini. Solute transport in random composite media with
+uncertain dispersivities. Advances in Water Resources, 128:48–58, June 2019. ISSN 0309-1708. doi: 10.
+1016/j.advwatres.2019.04.005. URL http://dx.doi.org/10.1016/j.advwatres.2019.04.005.
+D. M. Tartakovsky. Assessment and management of risk in subsurface hydrology: A review and perspective.
+Advances in Water Resources, 51:247–260, January 2013. ISSN 0309-1708. doi: 10.1016/j.advwatres.2012.
+04.007. URL http://dx.doi.org/10.1016/j.advwatres.2012.04.007.
+C. Scheidt, L. Li, and J. Caers. Front Matter. American Geophysical Union (AGU), 2018. ISBN 9781119325888.
+doi: https://doi.org/10.1002/9781119325888.fmatter. URL https://agupubs.onlinelibrary.wiley.com/
+doi/abs/10.1002/9781119325888.fmatter.
+W. Taylor, J. Herman, and V. Morales. Global sensitivity of laboratory-scale groundwater reactive transport
+simulations for sorption and degradation: Breakthrough dynamics across p´eclet–damk¨ohler regimes. Journal
+of Contaminant Hydrology, page 105043, 2026.
+G. Ceriotti, A. Russian, D. Bolster, and G. Porta. A double-continuum transport model for segregated porous
+media: Derivation and sensitivity analysis-driven calibration. Advances in Water Resources, 128:206–217,
+2019.
+A. Lavin, D. Krakauer, H. Zenil, J. Gottschlich, T. Mattson, J. Brehmer, A. Anandkumar, S. Choudry,
+K. Rocki, A. G. Baydin, C. Prunkl, B. Paige, O. Isayev, E. Peterson, P. L. McMahon, J. Macke, K. Cranmer,
+J. Zhang, H. Wainwright, A. Hanuka, M. Veloso, S. Assefa, S. Zheng, and A. Pfeffer. Simulation intelligence:
+Towards a new generation of scientific methods, 2022. URL https://arxiv.org/abs/2112.03235.
+M. Raissi, P. Perdikaris, and G. Karniadakis. Physics-informed neural networks: A deep learning framework
+for solving forward and inverse problems involving nonlinear partial differential equations.
+Journal of
+Computational Physics, 378:686–707, February 2019. ISSN 0021-9991. doi: 10.1016/j.jcp.2018.10.045. URL
+http://dx.doi.org/10.1016/j.jcp.2018.10.045.
+M. Raissi, P. Perdikaris, N. Ahmadi, and G. E. Karniadakis. Physics-informed neural networks and extensions,
+2024. URL https://arxiv.org/abs/2408.16806.
+K. Luo, J. Zhao, Y. Wang, J. Li, J. Wen, J. Liang, H. Soekmadji, and S. Liao.
+Physics-informed neu-
+ral networks for pde problems: a comprehensive review. Artificial Intelligence Review, 58(10):1–43, 2025.
+doi: https://doi.org/10.1007/s10462-025-11322-7. URL https://link.springer.com/article/10.1007/
+s10462-025-11322-7#citeas.
+
+
+22
+Milad Panahi et al.
+I. Lagaris, A. Likas, and D. Fotiadis. Artificial neural networks for solving ordinary and partial differential
+equations. IEEE Transactions on Neural Networks, 9(5):987–1000, 1998. ISSN 1045-9227. doi: 10.1109/72.
+712178. URL http://dx.doi.org/10.1109/72.712178.
+N. B. Kovachki, Z. Li, B. Liu, K. Azizzadenesheli, K. Bhattacharya, A. M. Stuart, and A. Anandkumar.
+Neural operator: Learning maps between function spaces.
+CoRR, abs/2108.08481, 2021.
+URL https:
+//arxiv.org/abs/2108.08481.
+L. Lu, P. Jin, G. Pang, Z. Zhang, and G. E. Karniadakis.
+Learning nonlinear operators via deeponet
+based on the universal approximation theorem of operators. Nature Machine Intelligence, 3(3):218–229,
+March 2021.
+ISSN 2522-5839.
+doi: 10.1038/s42256-021-00302-5.
+URL http://dx.doi.org/10.1038/
+s42256-021-00302-5.
+Z. Li, N. Kovachki, K. Azizzadenesheli, B. Liu, K. Bhattacharya, A. Stuart, and A. Anandkumar. Fourier neural
+operator for parametric partial differential equations, 2021. URL https://arxiv.org/abs/2010.08895.
+Y. Chen, L. Lu, G. E. Karniadakis, and L. Dal Negro. Physics-informed neural networks for inverse problems
+in nano-optics and metamaterials. Optics express, 28(8):11618–11633, 2020.
+M. Raissi. Open problems in applied deep learning, 2023. URL https://arxiv.org/abs/2301.11316.
+L. Yang, X. Meng, and G. E. Karniadakis. B-pinns: Bayesian physics-informed neural networks for forward
+and inverse pde problems with noisy data. Journal of Computational Physics, 425:109913, 2021. ISSN 0021-
+9991. doi: https://doi.org/10.1016/j.jcp.2020.109913. URL https://www.sciencedirect.com/science/
+article/pii/S0021999120306872.
+X. Meng, H. Babaee, and G. E. Karniadakis. Multi-fidelity bayesian neural networks: Algorithms and applica-
+tions. Journal of Computational Physics, 438:110361, 2021. ISSN 0021-9991. doi: https://doi.org/10.1016/
+j.jcp.2021.110361. URL https://www.sciencedirect.com/science/article/pii/S0021999121002564.
+L. Sun and J. Wang. Physics-constrained bayesian neural network for fluid flow reconstruction with sparse
+and noisy data. Theoretical and Applied Mechanics Letters, 10(3):161–169, 2020. ISSN 2095-0349. doi:
+https://doi.org/10.1016/j.taml.2020.01.031.
+URL https://www.sciencedirect.com/science/article/
+pii/S2095034920300295.
+A. F. Psaros, X. Meng, Z. Zou, L. Guo, and G. E. Karniadakis.
+Uncertainty quantification in scientific
+machine learning: Methods, metrics, and comparisons. Journal of Computational Physics, 477:111902, 2023.
+ISSN 0021-9991. doi: https://doi.org/10.1016/j.jcp.2022.111902. URL https://www.sciencedirect.com/
+science/article/pii/S0021999122009652.
+S. H. Lee and W. Chen. A comparative study of uncertainty propagation methods for black-box-type problems.
+Structural and Multidisciplinary Optimization, 37(3):239–253, May 2008. ISSN 1615-1488. doi: 10.1007/
+s00158-008-0234-7. URL http://dx.doi.org/10.1007/s00158-008-0234-7.
+F. Z. Maina and A. Guadagnini.
+Uncertainty quantification and global sensitivity analysis of subsurface
+flow parameters to gravimetric variations during pumping tests in unconfined aquifers. Water Resources
+Research, 54(1):501–518, January 2018. ISSN 1944-7973. doi: 10.1002/2017wr021655. URL http://dx.
+doi.org/10.1002/2017wr021655.
+N. Rahaman, A. Baratin, D. Arpit, F. Draxler, M. Lin, F. Hamprecht, Y. Bengio, and A. Courville. On the
+spectral bias of neural networks. In Kamalika Chaudhuri and Ruslan Salakhutdinov, editors, Proceedings
+of the 36th International Conference on Machine Learning, volume 97 of Proceedings of Machine Learn-
+ing Research, pages 5301–5310. PMLR, 09–15 Jun 2019.
+URL https://proceedings.mlr.press/v97/
+rahaman19a.html.
+S. Wang, X. Yu, and P. Perdikaris. When and why pinns fail to train: A neural tangent kernel perspective.
+Journal of Computational Physics, 449:110768, January 2022. ISSN 0021-9991. doi: 10.1016/j.jcp.2021.
+110768. URL http://dx.doi.org/10.1016/j.jcp.2021.110768.
+R. Fletcher. The Theory of Constrained Optimization, chapter 9, pages 195–228. John Wiley & Sons, Ltd, 2000.
+ISBN 9781118723203. doi: https://doi.org/10.1002/9781118723203.ch9. URL https://onlinelibrary.
+wiley.com/doi/abs/10.1002/9781118723203.ch9.
+S. Wang, Y. Teng, and P. Perdikaris. Understanding and mitigating gradient flow pathologies in physics-
+informed neural networks.
+SIAM Journal on Scientific Computing, 43(5):A3055–A3081, January 2021.
+ISSN 1095-7197. doi: 10.1137/20m1318043. URL http://dx.doi.org/10.1137/20m1318043.
+A. D. Jagtap, E. Kharazmi, and G. E. Karniadakis. Conservative physics-informed neural networks on discrete
+domains for conservation laws: Applications to forward and inverse problems. Computer Methods in Applied
+Mechanics and Engineering, 365:113028, 2020a. ISSN 0045-7825. doi: https://doi.org/10.1016/j.cma.2020.
+113028. URL https://www.sciencedirect.com/science/article/pii/S0045782520302127.
+M. Panahi, G. M. Porta, M. Riva, and A. Guadagnini. Modeling parametric uncertainty in pdes models via
+physics-informed neural networks. Advances in Water Resources, 195:104870, 2025. ISSN 0309-1708. doi:
+10.1016/j.advwatres.2024.104870. URL http://dx.doi.org/10.1016/j.advwatres.2024.104870.
+P. Flores, O. Graf, P. Protopapas, and K. Pichara. Improved uncertainty quantification in physics-informed
+neural networks using error bounds and solution bundles, 2025. URL https://arxiv.org/abs/2505.06459.
+
+
+A Conditioned-on-Design Bayesian Physics Informed Neural Network (CoDe-BPINN)
+23
+L. Sun, H. Gao, S. Pan, and J. Wang. Surrogate modeling for fluid flows based on physics-constrained deep
+learning without simulation data. Computer Methods in Applied Mechanics and Engineering, 361:112732,
+April 2020. ISSN 0045-7825. doi: 10.1016/j.cma.2019.112732. URL http://dx.doi.org/10.1016/j.cma.
+2019.112732.
+Y. Zhu, N. Zabaras, P. Koutsourelakis, and P. Perdikaris.
+Physics-constrained deep learning for high-
+dimensional surrogate modeling and uncertainty quantification without labeled data.
+Journal of Com-
+putational Physics, 394:56–81, October 2019.
+ISSN 0021-9991.
+doi: 10.1016/j.jcp.2019.05.024.
+URL
+http://dx.doi.org/10.1016/j.jcp.2019.05.024.
+W. Chen, Q. Wang, J. S. Hesthaven, and C. Zhang. Physics-informed machine learning for reduced-order
+modeling of nonlinear problems. Journal of Computational Physics, 446:110666, December 2021. ISSN
+0021-9991. doi: 10.1016/j.jcp.2021.110666. URL http://dx.doi.org/10.1016/j.jcp.2021.110666.
+M. J. Asher, B. F. W. Croke, A. J. Jakeman, and L. J. M. Peeters. A review of surrogate models and their
+application to groundwater modeling.
+Water Resources Research, 51(8):5957–5973, August 2015.
+ISSN
+1944-7973. doi: 10.1002/2015wr016967. URL http://dx.doi.org/10.1002/2015wr016967.
+M. Panahi, G. M. Porta, M. Riva, and A. Guadagnini. Physics informed differentiable solvers for learning
+parametric solution manifolds in heterogeneous physical systems. PNAS Nexus, page pgag195, 06 2026.
+ISSN 2752-6542. doi: 10.1093/pnasnexus/pgag195. URL https://doi.org/10.1093/pnasnexus/pgag195.
+N. Thuerey, B. Holzschuh, P. Holl, G. Kohl, M. Lino, Q. Liu, P. Schnell, and F. Trost. Physics-based deep
+learning, 2025. URL https://arxiv.org/abs/2109.05237.
+F. de Avila Belbute-Peres, K. Smith, K. Allen, J. Tenenbaum, and J. Z. Kolter.
+End-to-end differen-
+tiable physics for learning and control. In S. Bengio, H. Wallach, H. Larochelle, K. Grauman, N. Cesa-
+Bianchi, and R. Garnett, editors, Advances in Neural Information Processing Systems, volume 31. Cur-
+ran Associates, Inc., 2018.
+URL https://proceedings.neurips.cc/paper_files/paper/2018/file/
+842424a1d0595b76ec4fa03c46e8d755-Paper.pdf.
+M. Innes, A. Edelman, K. Fischer, C. Rackauckas, E. Saba, V. B. Shah, and W. Tebbutt. A differentiable
+programming system to bridge machine learning and scientific computing, 2019. URL https://arxiv.org/
+abs/1907.07587.
+A. U. Khan, G. M. Porta, M. Riva, and A. Guadagnini. In-silico mechanistic analysis of adsorption of iodinated
+contrast media agents on graphene surface.
+Ecotoxicology and Environmental Safety, 280:116506, 2024.
+ISSN 0147-6513. doi: https://doi.org/10.1016/j.ecoenv.2024.116506. URL https://www.sciencedirect.
+com/science/article/pii/S0147651324005827.
+A. Sengar and A. Vijayanandan. Fate and removal of iodinated x-ray contrast media in membrane bioreactor:
+Microbial dynamics and effects of different operational parameters. Science of The Total Environment,
+869:161827, 2023.
+ISSN 0048-9697.
+doi: https://doi.org/10.1016/j.scitotenv.2023.161827.
+URL https:
+//www.sciencedirect.com/science/article/pii/S0048969723004424.
+J. L. Kormos, M. Schulz, and T. A. Ternes. Occurrence of iodinated x-ray contrast media and their biotrans-
+formation products in the urban water cycle. Environmental Science & Technology, 45(20):8723–8732, 2011.
+doi: 10.1021/es2018187. URL https://doi.org/10.1021/es2018187. PMID: 21877755.
+S. E. Duirk, C. Lindell, C. C. Cornelison, J. Kormos, T. A. Ternes, M. Attene-Ramos, J. Osiol, E. D. Wagner,
+M. J. Plewa, and S. D. Richardson. Formation of toxic iodinated disinfection by-products from compounds
+used in medical imaging.
+Environmental Science & Technology, 45(16):6845–6854, 2011.
+doi: 10.1021/
+es200983f. URL https://doi.org/10.1021/es200983f. PMID: 21761849.
+A. U. Khan, M. Riva, G. Porta, E. Mauri, D. Moscatelli, and A. Guadagnini. Experimental and modeling
+investigations for high-efficiency removal of polar iodinated contrast media from water through engineered
+clays. Chemical Engineering Journal Advances, page 101351, 2026. doi: 10.1016/j.ceja.2026.101351.
+A. Dell’Oca. Sensitivity analysis: An operational picture. Water Resources Research, 59(6):e2022WR033780,
+2023. doi: https://doi.org/10.1029/2022WR033780. URL https://agupubs.onlinelibrary.wiley.com/
+doi/abs/10.1029/2022WR033780. e2022WR033780 2022WR033780.
+D. Ha, A. Dai, and Q. V. Le. Hypernetworks, 2016. URL https://arxiv.org/abs/1609.09106.
+Y. Chen, B. Dong, and J. Xu.
+Meta-mgnet: Meta multigrid networks for solving parameterized par-
+tial differential equations.
+Journal of Computational Physics, 455:110996, 2022.
+ISSN 0021-9991.
+doi:
+https://doi.org/10.1016/j.jcp.2022.110996.
+URL https://www.sciencedirect.com/science/article/
+pii/S0021999122000584.
+A. Nichol, J. Achiam, and J. Schulman. On first-order meta-learning algorithms, 2018. URL https://arxiv.
+org/abs/1803.02999.
+D. Zhang, L. Lu, L. Guo, and G. E. Karniadakis. Quantifying total uncertainty in physics-informed neural
+networks for solving forward and inverse stochastic problems. Journal of Computational Physics, 397:108850,
+November 2019. ISSN 0021-9991. doi: 10.1016/j.jcp.2019.07.048. URL http://dx.doi.org/10.1016/j.
+jcp.2019.07.048.
+A. D. Jagtap, E. Kharazmi, and G. E. Karniadakis. Conservative physics-informed neural networks on discrete
+domains for conservation laws: Applications to forward and inverse problems. Computer Methods in Applied
+
+
+24
+Milad Panahi et al.
+Mechanics and Engineering, 365:113028, 2020b. ISSN 0045-7825. doi: https://doi.org/10.1016/j.cma.2020.
+113028. URL https://www.sciencedirect.com/science/article/pii/S0045782520302127.
+C. W. Fetter, T. B. Boving, and D. K. Kreamer. Contaminant hydrogeology, volume 1138. Prentice hall Upper
+Saddle River, NJ, 1999.
+D. P. Kingma and M. Welling. Auto-encoding variational bayes, 2022. URL https://arxiv.org/abs/1312.
+6114.
+M. Tancik, P. Srinivasan, B. Mildenhall, S. Fridovich-Keil, N. Raghavan, U. Singhal, R. Ramamoorthi, J. Bar-
+ron, and R. Ng. Fourier features let networks learn high frequency functions in low dimensional domains.
+Advances in neural information processing systems, 33:7537–7547, 2020. URL https://papers.neurips.
+cc/paper_files/paper/2020/file/55053683268957697aa39fba6f231c68-Paper.pdf.
+S. J. Anagnostopoulos, J. D. Toscano, N. Stergiopulos, and G. E. Karniadakis.
+Learning in pinns:
+Phase transition, diffusion equilibrium, and generalization.
+Neural Networks, 193:107983, 2026.
+ISSN
+0893-6080. doi: https://doi.org/10.1016/j.neunet.2025.107983. URL https://www.sciencedirect.com/
+science/article/pii/S0893608025008640.
+A.
+Krishnapriyan,
+A.
+Gholami,
+S.
+Zhe,
+R.
+Kirby,
+and
+M.
+W.
+Mahoney.
+Characterizing
+pos-
+sible failure modes in physics-informed neural networks.
+Advances in neural information pro-
+cessing systems, 34:26548–26560, 2021.
+URL https://proceedings.neurips.cc/paper/2021/file/
+df438e5206f31600e6ae4af72f2725f1-Paper.pdf.
+M. Penwarden, S. Zhe, A. Narayan, and R. M. Kirby. A metalearning approach for physics-informed neural
+networks (pinns): Application to parameterized pdes. Journal of Computational Physics, 477:111912, March
+2023. ISSN 0021-9991. doi: 10.1016/j.jcp.2023.111912. URL http://dx.doi.org/10.1016/j.jcp.2023.
+111912.
+W. E. Schiesser. The numerical method of lines: integration of partial differential equations. Elsevier, 2012.
+E. Hairer and G. Wanner. Solving Ordinary Differential Equations II: Stiff and Differential-Algebraic Problems,
+volume 14 of Springer Series in Computational Mathematics.
+Springer, 2 edition, 1996.
+doi: 10.1007/
+978-3-642-05221-7.
+A. G. Baydin, B. A. Pearlmutter, A. A. Radul, and J. M. Siskind. Automatic differentiation in machine
+learning: a survey. Journal of machine learning research, 18(153):1–43, 2018. URL http://jmlr.org/
+papers/v18/17-468.html.
+
+
+A Conditioned-on-Design Bayesian Physics Informed Neural Network (CoDe-BPINN)
+25
+Supporting information
+Abstract This supplementary information file is divided into two sections:
+1. Description of the reference numerical solver, employed to verify our CoDe-BPINN results.
+2. Discussion of hyperparameters and training strategy technical details.
+A Reference Numerical Framework: Method-of-Lines Finite Difference Solver
+To rigorously validate the results (S) stemming from our approach, we rely on a high-fidelity reference solver based on the
+Method of Lines (MOL) [Schiesser, 2012]. This approach discretizes the governing equation (Equation 4) in space while
+retaining the continuous time dynamics, thereby transforming the problem into a system of coupled Ordinary Differential
+Equations (ODEs).
+Spatial Discretization. The spatial domain Ω= [0, L] is discretized using a uniform grid of Nx nodes with spacing
+∆x = L/(Nx −1). The state vector C(t) ∈RNx represents the concentration at each grid point. To account for the
+advection-dominated transport regime, the advective flux is approximated through a first-order upwind scheme, which
+ensures numerical stability (monotonicity), albeit at the expense of introducing a mild numerical diffusion. The dispersive
+flux is discretized through a second-order central difference scheme. Heterogeneous material properties (namely porosity εi,
+dispersivity aL,i, and retardation factor Ri) are assigned on node-wise basis according to the column stratification, sharp
+discontinuities being explicitly preserved at layer interfaces (x = 21 mm and x = 71 mm).
+Boundary Conditions. The Dirichlet inlet condition is imposed directly as a state constraint, i.e., C0(t) = 1. For the
+Neumann outlet condition (∂C/∂x|x=L = 0), we employ a ghost node formulation to retain second-order accuracy. A
+fictitious node CN+1 is introduced outside the domain and defined such that CN+1 = CN−1. This leads to the following
+approximation for the second derivative associated with the dispersive term at the outlet node N:
+∂2C
+∂x2
+
+N
+≈2CN−1 −2CN
+∆x2
+(S1)
+This formulation enforces zero dispersive flux at the boundary while allowing advective outflow.
+Non-Linear Reaction and Time Integration. The non-linear Langmuir sorption introduces a concentration-dependent
+Retardation Factor RL(C). To address the ensuing stiffness of the system while preserving mass conservation, we employ an
+implicit time integration scheme. The system of ODEs, dC
+dt = F(t, C), is integrated using the Radau IIA method [Hairer and
+Wanner, 1996] (an implicit Runge-Kutta scheme of order 5), which is well suited to capturing the sharp transients associated
+with the propagation front. The Jacobian of the system is approximated via finite differences to facilitate Newton-Raphson
+convergence at each time step.
+Uncertainty Propagation. In contrast to the Solver S within our CoDe-BPINN framework, which provides probabilistic
+results, the FDM solver operates on fixed parameter realizations and does not intrinsically quantify uncertainty. To obtain
+reference uncertainty estimates for comparison, we perform a Monte Carlo ensemble analysis. We draw NMC samples of
+the physical parameter vector θ from the posterior distribution learned by the Parameter Network, q(θ|λ), and execute the
+FDM solver for each of these realizations. The resulting ensemble statistics (namely, mean and standard deviation) serve
+as reference quantities (i.e., ground truth) to assess epistemic uncertainty estimates captured by the CoDe-BPINN.
+A.1 Numerical Verification of the Reference Solver
+To ensure reliability of the reference solution used for validation, the Method-of-Lines FDM solver was subject to a grid
+convergence analysis. The spatial domain was discretized using Nx = 200 nodes (corresponding to a spatial resolution
+∆x = 0.46 mm), and time integration was performed using an adaptive Runge-Kutta method (Radau IIA) with absolute
+and relative tolerances of 10−6. Refining the spatial discretization to Nx = 500 resulted in a relative change in the
+breakthrough curve below 0.1%, suggesting that the numerical solution is effectively mesh-independent and sufficiently
+accurate to be employed as benchmark for validation of the CoDe-BPINN results.
+A.2 Computational Efficiency and Inference cost
+A primary motivation for developing the CoDe-BPINN digital twin is to replace computationally expensive iterative solvers
+with near-instantaneous neural inference. The training phase, entailing joint optimization of the solver S and Parameter
+Inference Network Ninv over 150,000 epochs, required approximately 2 hours on a single NVIDIA RTX4090 GPU. While
+this upfront cost exceeds that of a single forward simulation using a Finite Difference Method (FDM) solver (≈5 seconds),
+the advantage becomes evident at inference. Once trained, the CoDe-BPINN acts as a fully parameterized surrogate model.
+It can generate a complete spatiotemporal solution field for a new set of operational design parameters in O(10−3) seconds,
+corresponding to a speed-up of approximately three orders of magnitude relative to the numerical solver. Furthermore,
+the CoDe-BPINN provides access to the full Jacobian of the solution with respect to input parameters via Automatic
+Differentiation (AD) [Baydin et al., 2018]. This enables real-time sensitivity analysis and uncertainty propagation, a task
+that would otherwise require large ensembles of Monte Carlo simulations in a conventional FDM framework.
+
+
+26
+Milad Panahi et al.
+Table S1: Hyperparameter configuration for CoDe-BPINN.
+Parameter
+Value
+Architecture (Solver S)
+Number of sub-networks
+3 (N Ω1, N Ω2, N Ω3)
+Input dimension
+dλ + d = 3 + 2
+Number of Bayesian Dense Layers
+2
+Neurons per hidden layer
+100
+Activation function
+SiLU (hidden), Sigmoid (output)
+Architecture (Parameter Network Ninv)
+Input dimension
+dλ = 3
+Hidden dimension
+6
+Output dimension
+14 (dθ = 4 Means + 10 Cholesky elements)
+Activation function
+Tanh (hidden), Linear (output)
+Input Embedding
+Input embedding type
+Random Fourier Features
+Fourier feature scale
+1.0
+Embedding dimension
+16
+Optimizer
+Optimizer type
+AdamW
+Weight decay
+10−4
+Initial learning rate
+10−3
+Learning Rate Schedule
+Warmup steps
+1,000
+Decay schedule
+Cosine annealing schedule
+Total Epochs
+150,000
+Curriculum & Loss Weighting
+Stage 1 (Geometric Init)
+2,000 epochs
+Stage 2 (Data Anchoring)
+6,000 epochs
+Stage 3 (Physics Discovery)
+142,000 epochs
+KL Annealing Start
+Epoch 15,000
+KL Weight Range
+[10−5, 10−2]
+Loss Weights (wdata, wpde)
+(200.0, 5 × 103)
+Loss Weights (wbc, wic, wint)
+(8 × 104, 8 × 104, 8 × 104)
+Collocation Sampling
+Batch size (PDE)
+214
+Batch size (Data)
+211
+Batch size (BCs/IC)
+214
+Interface Points (Nint)
+29
+Sampling Method
+Sobol Sequences (Scrambled)
+B Hyperparameter Configurations
+Table S1 lists the key elements of the network architecture, optimizer settings, and training hyperparameters used in this
+study.
+Priors and Initialization. For the solver weights ψ, we employ a standard isotropic Gaussian prior N(0, 1), which
+regularizes the magnitude of the weights and promotes smooth solutions. The informative priors assigned to the physical
+parameters θ (including first two moments associated with the Log-Normal distributions governing dispersivity, affinity,
+and capacity) are defined in detail in Section 3.5.3 and are implemented accordingly.
+Training strategy. To enhance training stability and address stiffness of the loss landscape, we employ two complementary
+annealing scheduling strategies. The learning rate of the AdamW optimizer is managed by a cosine annealing schedule with
+an initial linear warmup phase. The learning rate increases from zero to a maximum of 10−3 over the first 1,000 epochs,
+facilitating robust exploration and mitigating poor initial convergence, and then smoothly decays towards a minimum
+value of 10−5 over the remainder of training to promote fine-tuning. Concurrently, the weight of the KL divergence term
+in Equation 13, wkl, is progressively increased during training. It is initially set to a small value (10−5) for the first 15,000
+epochs, allowing the solver to flexibly fit observational data and boundary conditions. It is then linearly increased to a
+final value of 10−2, gradually strengthening the influence of the prior. This scheduling strategy promotes a transition
+from data-driven fitting to regularized inference, reducing epistemic uncertainty in the Bayesian solver S and forcing the
+
+
+A Conditioned-on-Design Bayesian Physics Informed Neural Network (CoDe-BPINN)
+27
+Parameter Inference Network to account for the governing physical residuals, thereby preventing the solver from learning
+unphysical solution behavior.
