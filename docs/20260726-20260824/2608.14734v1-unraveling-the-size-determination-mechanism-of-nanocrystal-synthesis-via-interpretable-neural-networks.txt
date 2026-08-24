@@ -1,0 +1,263 @@
+Title: 2608.14734v1.pdf
+
+URL Source: https://arxiv.org/pdf/2608.14734v1
+
+Published Time: Tue, 18 Aug 2026 00:06:28 GMT
+
+Number of Pages: 21
+
+Markdown Content:
+Unraveling the Size Determination Mechanism of Nanocrystal Synthesis via Interpretable Neural Networks 
+
+> Kai Gu 1, * , Haizheng Zhong 1, *
+> 1MIIT Key Laboratory for Low-Dimensional Quantum Structure and Devices, School of Materials Sciences & Engineering, Beijing Institute of Technology, Beijing 100081, China
+> e-mail: kaigu@bit.edu.cn; hzzhong@bit.edu.cn
+
+Abstract 
+
+Deep learning models of nanocrystal synthesis enable the prediction of size and shape by encoding precursors and reaction conditions. However, their black-box nature hinders gaining deep insights into the underlying synthetic mechanisms. Here, we develop the Nanocrystal Equation Learner (NanoEQL), a fully white-box neural network to unravel the size determination mechanisms of nanocrystal synthesis. Building on the EQL architecture, eight operators are introduced to replace standard activation functions to fit the mathematical equations in nanocrystal synthesis. Among these operators, three smoothed operators address the gradient explosion of singular operators at zero. To evaluate the weights of different precursors, we develop a temperature-gated attention pooling strategy that encodes concentration-driven and reactivity-driven chemical synthesis mechanisms into the temperature gate. The NanoEQL model illustrates that the final nanocrystal size can be described by a linear equation composed of three scalars representing nanocrystallization capability (-Zp), growth capability (Zrea), and external input potential (-Zops). These interpretable scalars not only advance the rational design of nanocrystal synthesis but also establish a generalizable paradigm for deciphering chemical reaction mechanisms through white-box machine learning. 
+
+Keywords: Nanocrystal Synthesis, Size Determination, Mechanism, Interpretable Learning, Equation Learner Introduction 
+
+Colloidal nanocrystals are essential nanomaterials synthesized via solution-phase methods, with widespread applications in fields such as optoelectronic devices 1-3 ,catalysis 4 and bioimaging 5. Nanocrystal synthesis involves complex chemical reactions and crystallization processes 6, 7 , including the prenucleation 8-10 , nucleation 11 , growth 12 ,and postgrowth stages 13 . Synthesis parameters exert profound influences across these stages. For example, the precursor reactivity influences not only prenucleation kinetics but also subsequent nanocrystal growth 14-17 . Deep learning models, with their powerful fitting capabilities, have already established relationships between synthesis parameters and product performance in the synthesis of organic compounds 18 , metal-organic frameworks 19 , and carbon dots 20, 21 . Similarly, deep learning models have achieved great success in predicting the size and optical spectra of nanocrystals 22-25 . However, due to the black-box nature of deep learning, the underlying prediction process cannot be elucidated, offering limited insight into nanocrystal synthesis mechanisms. 
+
+Genetic programming-based algorithms are the most popular white-box architectures that explore mathematical expressions from a given dataset 26 , and have demonstrated potential in exploring descriptors for material stability 27 and catalytic activity 28 . For high-dimensional input features, the neural network-based equation learner (EQL) has emerged as a promising white-box architecture 29, 30 . By employing symbolic operations as activation functions, EQL has been validated on simple physical systems and polynomial fitting tasks 31 , but has not yet been verified in chemical reaction systems. 
+
+In this work, we develop the Nanocrystal Equation Learner (NanoEQL), a fully white-box neural network designed to unravel the size determination mechanisms of nanocrystal synthesis. Building upon the EQL framework, eight operators are introduced to fit the mathematical equations in nanocrystal synthesis, such as identity mapping, squaring, and reciprocals. Inspired by the Michaelis-Menten equation 32 , three smoothed operators are designed to address the gradient explosion of singular operators at zero. To compute the weights of different precursors, we develop a temperature-gated attention pooling strategy that encodes concentration-driven and reactivity-driven chemical synthesis mechanisms into the temperature gate. This pooling strategy simulates the chemical reaction process and eliminates the sequence dependency of the precursors. The NanoEQL model achieves a mean absolute percentage error (MAPE) of 0.35 and an R 2 of 0.65, significantly outperforming other white-box models and matching the performance of black-box tree-based models. The model demonstrates that nanocrystal size is described by a linear equation composed of three scalars representing nanocrystallization capability (-Zp), growth capability (Zrea), and external input potential (-Zops). All of these scalars can be expressed as equations derived from input features to demonstrate interpretability. 
+
+Results and Discussion 
+
+EQL Architecture Based on Gated Attention 
+
+Figure 1a illustrates the architecture of the NanoEQL model. The dataset comprises synthesis recipes for colloidal nanocrystals, containing the chemical formulas of the nanocrystal products and precursors, as well as the reaction conditions (injection temperature, Tinj; reaction temperature, Trea; and reaction time, t). To ensure feature interpretability, the physicochemical features of the nanocrystal products and inorganic precursors were generated using matminer 33 , while the features for the organic precursors were generated via RDKit. As shown in Figure S1, variance inflation factor analysis was employed to select features with weak collinearity, retaining 25% (72 dimensions) of inorganic features and 43% (43 dimensions) of organic features. Each feature set is fed into an independent EQL network (denoted as g). Subsequently, reaction condition features and nanocrystal features directly yield the scalars Zops and Zp. Precursor features are first dimensionally reduced by EQL networks, yielding 4-dimensional latent representations Zinorg and Zorg for inorganic and organic precursors, respectively. 
+
+A temperature-gated attention mechanism is employed to compute the weight, wj, of each precursor within a given recipe: 
+
+𝑤𝑤𝑗𝑗 = 𝛼𝛼 ⋅ 𝑚𝑚 �𝑗𝑗 + 𝛽𝛽 ⋅ 𝑎𝑎 �𝑗𝑗  (1) where 𝑚𝑚 �𝑗𝑗 and 𝑎𝑎 �𝑗𝑗 represent the concentration fraction and the reactivity factor of the 
+
+j-th reactant, respectively. The reactivity factor 𝑎𝑎 �𝑗𝑗 is derived by mapping precursor and reaction condition features through a multilayer perceptron (MLP), given by 𝑎𝑎 �𝑗𝑗 =
+
+𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆 𝑚𝑚𝑎𝑎 𝑆𝑆 �𝑀𝑀𝑀𝑀𝑀𝑀��𝑍𝑍𝑖𝑖𝑖𝑖𝑜𝑜𝑜𝑜𝑜𝑜 ,𝑗𝑗 ∥ 𝑆𝑆 𝑜𝑜𝑜𝑜𝑜𝑜 ��� . The gating coefficients 𝛼𝛼 and 𝛽𝛽 dynamically adjust whether the weights are dominated by concentration or by reactivity, defined as 
+
+[𝛼𝛼 , 𝛽𝛽 ]𝑇𝑇 = 𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆 𝑚𝑚𝑎𝑎 𝑆𝑆 �𝑊𝑊 𝑜𝑜 𝑔𝑔𝑔𝑔𝑔𝑔 �𝑇𝑇𝑖𝑖𝑖𝑖 𝑗𝑗 , 𝑇𝑇 𝑜𝑜𝑔𝑔𝑔𝑔 , 𝑆𝑆 �𝑇𝑇 + 𝑏𝑏 𝑜𝑜 𝑔𝑔𝑔𝑔𝑔𝑔 �.
+
+Multi-channel weighted pooling is utilized to simulate the chemical reactions among the reactants. For example, average pooling is computed 𝐹𝐹 𝑚𝑚 𝑔𝑔𝑔𝑔𝑖𝑖  = ∑ 𝑤𝑤𝑗𝑗 𝑁𝑁 𝑗𝑗=1 ⋅𝑍𝑍𝑖𝑖𝑖𝑖𝑜𝑜𝑜𝑜𝑜𝑜 ,𝑗𝑗 . The resulting pooled features from inorganic and organic channels are then concatenated and fed into the grea network to derive the scalar Zrea. Finally, the three scalars are combined through a linear top-level predictor to calculate the nanocrystal size. 
+
+All independent EQL networks share an identical architecture. Figure 1b 
+
+illustrates the schematic of the product EQL network (gp). Each input feature dimension is mapped through eight operators, including identity, squaring, and reciprocal functions, which suffice to describe fundamental chemical reaction formulae. After passing through three hidden layers, the network outputs the scalar Zp. Because the standard reciprocal, square root and cube root operators exhibit excessively fast gradient updates near zero, the model tends to overuse them, thereby deviating from physical laws. To address this issue, we drew inspiration from the Michaelis-Menten equation (which describes the reaction rate between an enzyme and its substrate) and introduced three smoothed operators. Figure 1c shows the equations for these smoothed operators. The reciprocal operator is replaced by 𝑥𝑥 𝑥𝑥 2+𝑐𝑐 . When  𝑆𝑆  → 0, 𝑦𝑦 ≈ 𝑥𝑥 𝑐𝑐 ,and when |𝑆𝑆 | ≫ 𝑐𝑐 , 𝑦𝑦 ≈ 1𝑥𝑥 . The gradient at  𝑆𝑆  = 0 is 1𝑐𝑐 . The design and gradient calculations for all operators are summarized in Table S1 .Figure 1. Model architecture and operator design of NanoEQL. (a) The overall architecture of NanoEQL, where the features of the reaction conditions and the nanocrystal products directly output scalars Zops and Zp via independent EQL networks. Precursor features are first dimensionally reduced, then combined via a gated attention pooling mechanism, concatenated, and processed by the grea network to yield scalar Zrea. Finally, the three scalars are fed into a linear top-level predictor to output the nanocrystal size. (b) Schematic illustration of the product EQL network (gp). Here, id denotes identity mapping, ( ·)2 denotes the square operator, ( ·)-1 denotes the reciprocal operator, and e (·) represents the exponential operator. (c) Smoothed modifications for the reciprocal, square root, and cube root operators. 
+
+Performance of NanoEQL 
+
+Figure 2a shows a performance comparison between NanoEQL and various white-box and black-box models. For nanocrystal size prediction, NanoEQL achieves an R 2 of 0.65 and a MAPE of 0.35 on the test set, outperforming other genetic programming-based white-box models such as PySR 34 (R 2=0.27). Among black-box models, tree-based models exhibit strong performance. For instance, random forest achieves an R 2 of 0.64 and a MAPE of 0.32, a performance level nearly comparable to that of NanoEQL. Figure 2b and 2c show parity plots for size predictions from NanoEQL and random forest, respectively. Both models yield highly accurate predictions below 25 nm. Larger prediction deviations are observed for larger sizes, which can be attributed to the inherent measurement uncertainty associated with larger nanocrystals. 
+
+The choice of the top-level predictor in NanoEQL impacts the overall model performance. Table S2 compares the predictive performance when employing linear, MLP, quadratic, and EQL as the top-level predictor. The linear predictor yields the best results, whereas the more complex MLP and EQL architectures perform the worst (R 2=0.6). This indicates that the features are effectively decoupled at the bottom layers of the network, eliminating the need for a complex top-layer structure. Moreover, a simple top-level linear network facilitates more efficient backpropagation and weight updates in the lower layers. In addition, we apply a tenfold higher learning rate to the gating parameters to ensure their activation ( Figure S2 ). 
+
+Zero-valued features are prevalent in the dataset, which cause abnormally large gradients for the original reciprocal operator near zero. Even with the addition of clamping and shifting strategies (e.g., 1𝑥𝑥+0 .1), the operator outputs a constant term when the feature value is zero, rendering the reciprocal operator ineffective. As shown in 
+
+Figure 2d and Table S3 , the introduction of the smoothed reciprocal operator successfully prevents the model from abusing this function and improves the predictive performance (R 2 increases from 0.54 to 0.65). 
+
+The NanoEQL architecture is also applicable to organic chemical reactions. As shown in Figure 2e , NanoEQL exhibits competitive performance on the Buchwald-Hartwig cross-coupling reaction dataset 35 . For yield prediction, it achieves an R 2 of 0.93 and a mean absolute error (MAE) of 4.89%, exceeding random forest and XGBoost and approaching the performance of LightGBM (R 2=0.94 in Table S4 ). Figure 2. Performance of NanoEQL. (a) Performance comparison between NanoEQL and other white-box and black-box models for size prediction; Parity plots of the size predictions on the independent test set for (b) NanoEQL and (c) the random forest model; (d) Usage counts of the reciprocal operator under different pruning ratios; 
+
+(e) Performance comparison of NanoEQL with random forest and XGBoost in predicting the yield of organic reactions. 
+
+Interpretability of NanoEQL 
+
+NanoEQL reveals that nanocrystal size follows a simple linear relationship with the three scalars Zp, Zops, and Zrea, as given in Equation (2). The relative magnitudes of the coefficients indicate that reaction features are more important than product features, which in turn outweigh reaction condition features.         
+
+> 𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆 = 5.344 ⋅ 𝑍𝑍 𝑜𝑜𝑔𝑔𝑔𝑔 + 2.245 ⋅ �−𝑍𝑍𝑜𝑜𝑜𝑜𝑜𝑜� + 2.53 ⋅ �−𝑍𝑍 𝑜𝑜 �+ 14.97
+
+(2) 
+
+Owing to the regularization effect, NanoEQL exhibits excellent sparsity ( Figure S3 ), allowing each scalar to be represented by an equation composed of the original input features. Figure 3 shows the computational graph of the pruned network for each scalar, where neuron colors represent different operators. At a pruning ratio of 60%, the model performance on both training and test sets reaches a plateau ( Figure S4a and 4b ). However, the complexity of the equations increases exponentially as the pruning ratio decreases. For instance, at a pruning ratio of 1%, the complexity of the Zrea equation reaches 10 5 (Figure S4c ). 
+
+As shown in Figure 3a , when the pruning ratio of gp is 99.5%, Zp can be represented by the following system of equations (3):                                      
+
+> ⎩⎪⎪⎪⎨⎪⎪⎪⎧𝑍𝑍 𝑜𝑜 = 0.1058 ⋅𝑦𝑦3 𝑦𝑦3 2+ 0.1
+> 𝑦𝑦3 =−0.0613 ⋅ 𝑦𝑦2 ,12+ 0.0741 ⋅𝑦𝑦2 ,2𝑦𝑦2 ,22+ 0.1 −0.0695 ⋅𝑦𝑦2 ,3𝑦𝑦2 ,32+ 0.1
+> 𝑦𝑦2 ,1= 0.0392 ⋅𝑆𝑆 1 −0.0522 ⋅(𝑆𝑆 𝑥𝑥2 −1)
+> 𝑦𝑦2 ,2= 0.0418 ⋅𝑆𝑆 3
+> 𝑆𝑆 32+ 0.1 + 0.0414 ⋅(𝑆𝑆 𝑥𝑥4 −1)
+> 𝑦𝑦2 ,3= 0.04 ⋅𝑆𝑆 1 −0.0389 ⋅𝑆𝑆 52
+
+(3) 
+
+where x1 denotes the feature mean NfValence, defined as the composition-weighted mean value of the number of f-orbital valence electrons computed across the constituent elements, and x2 denotes maximum m_p, defined as the maximum value among the constituent elements of the p-type effective mass computed across the constituent elements. Descriptions of the remaining features are summarized in Table S5 . The gp network focuses primarily on the positions of the constituent elements in the periodic table. For example, x1 serves to identify the presence of rare-earth elements, while x2 identifies the presence of heavy-hole elements such as O, F, and N. Figure 3b shows the computational graph of gops at a pruning ratio of 99.2%. Because there are only three input features, the regularization effect becomes active at the second hidden layer (Figure S3a ). 
+
+Figure 3c shows the computational graphs of the pruned ginorg, gorg, and grea networks. In contrast to the product network, the inorganic precursor network focuses on intrinsic physicochemical properties, such as thermal conductivity, electronegativity, d-orbital electron concentration, and shear modulus. The organic precursor network emphasizes surface electron distribution and polarizability. Figure 3. Computational graphs of the pruned EQL networks, where neuron colors represent different operators. (a) Computational graph of the gp network at a pruning ratio of 99.5%; (b) Computational graph of the gops network at a pruning ratio of 99.2%; (c) Computational graphs of the ginorg, gorg, and grea networks, with pruning ratios of 99.3%, 99.6%, and 99.6%, respectively. Zinorg.1 represents the first dimension in the four-dimensional inorganic precursor features. 
+
+Physical Significance of the Three Scalars and Synthesis Mechanisms 
+
+Based on the NanoEQL architecture, Zp reflects the intrinsic properties of the product nanocrystals. According to Equation (2), we define -Zp as the nanocrystallization capability, where a smaller value indicates a higher propensity for nanocrystallization. Luminescent quantum dots represent an important class of nanocrystal materials. We screened 6,800 direct-bandgap semiconductors (0.5~3 eV) and computed their -Zp values to evaluate their nanocrystallization potential. Figure 4a shows the ranking of -Zp for these materials. InSnCl3, MoTe2, InP, MgIn2O4, and ZnSe exhibit low -Zp values of -3.97, -3.94, -2.79, -2.71, and -2.66, respectively. Among these, MoTe2, InP, and ZnSe have all been reported as nanocrystals, with the latter two being commercially promising quantum dots for display 36, 37 . MnH4(OF2)2, Cs2NaVSe4, K3 NaFeO4, and Cs3MnBr5 show large -Zp values of 4.27, 3.99, 3.41, and 3.11, respectively, indicating their low potential for nanocrystallization. Given that metal nanocrystals represent another highly active research field, we also calculated the -Zp values for 34,000 metallic materials ( Figure S5 ). Figure 4b illustrates the potential energy surface distribution of -Zops. Higher reaction temperatures and longer reaction times lead to larger nanocrystals, while the injection temperature also slightly affects the potential surface distribution ( Figure S6 ). 
+
+In nanocrystal synthesis, precursor concentration is closely related to the number of nuclei and their subsequent growth, while precursor reactivity governs the reaction rate 14 . Reaction conditions, such as temperature, exert a broader influence. We extracted the temperature-gated parameters from the model to elucidate the underlying synthesis mechanisms. Figure 4c shows the distribution of the reactivity coefficients ( β) for both inorganic and organic precursors. The reactivity coefficients are initialized to 0.28 before training. For inorganic precursors, the average reactivity coefficient is 0.18 after training, indicating that their reactions are predominantly concentration-driven. They exhibit reactivity-driven behavior only at high temperatures (>300 ℃) ( Figure 4d ). For organic precursors, the mean reactivity coefficient is 0.33, indicating a higher dependence on reactivity compared to inorganic precursors. Concentration-driven behavior is observed only at very short reaction times ( Figure 4e ). We further compared the temperature-dependent reactivity variations of common ligands and solvents. Oleylamine exhibits substantial changes in reactivity ( Figure 4f ). In contrast, oleic acid demonstrates high reactivity exclusively at high temperatures, trioctylphosphine shows high reactivity during prolonged reactions, and the solvent octadecene shows minor reactivity changes ( Figure S7 ). Figure 4. Mechanistic interpretation based on the temperature gate. (a) Ranking of -Zp for 6,800 screened direct-bandgap semiconductors; (b) Evolution of -Zops with reaction temperature and reaction time; (c) Distribution of the reactivity coefficients; Evolution of the reactivity coefficients for (d) inorganic and (e) organic precursors as a function of reaction temperature and time; (f) Evolution of oleylamine reactivity with respect to reaction temperature and time. 
+
+We reduced the concatenated 56-dimensional pooled precursor features to two dimensions to map the chemical reaction space. Taking the synthesis of PbSe nanocrystals as a case study, Figure 5a shows the chemical reaction space and the Zrea distribution for 180,000 samples. Samples with high Zrea values are distributed on the left side of the reaction space, whereas those with low Zrea values are clustered on the right. According to Equation (2), Zrea is proportional to nanocrystal size. Therefore, Zrea represents the growth capability of the nanocrystals. We independently varied Trea, t, the Pb precursor content, and the Se precursor content, generating four trajectories within the chemical reaction space (indicated by green dashed boxes). Magnified views of trajectories 1 and 2 are shown in Figure 5b and 5c , demonstrating that increases in Trea and t have a minimal effect on Zrea. Trajectories 3 and 4 span nearly half of the reaction space ( Figure 5d and 5e ). As the Pb content increases, Zrea increases, resulting in a larger nanocrystal size. Conversely, an increase in the Se content leads to a decrease in Zrea, which reduces the nanocrystal size. To verify this finding, a series of PbSe nanocrystals was synthesized using different Se contents, while all other reaction conditions were kept constant. Figures 5f to 5i show their transmission electron microscopy (TEM) images. The average size of the resulting PbSe nanocrystals is 9.5 nm when the Pb:Se ratio is 1:0.25, while it is 6.1 nm when the Pb:Se ratio is 1:4. 
+
+Figure 5. Chemical reaction space for PbSe nanocrystals. (a) Chemical reaction space and Zrea distribution of 180,000 PbSe nanocrystal samples. The numbered green dashed boxes (in ascending order) represent trajectories generated by independently varying Trea, t, Pb content, and Se content, respectively. Magnified views of the trajectories corresponding to changes in (b) Trea, (c) t, (d) Pb content, and (e) Se content. TEM images of PbSe nanocrystals with Pb:Se ratios of (f) 1:0.25, (g) 1:0.5, (h) 1:1, and 
+
+(i) 1:4. 
+
+Conclusions 
+
+In summary, we develop the Nanocrystal Equation Learner (NanoEQL), a fully white-box neural network designed to unravel the size determination mechanisms of nanocrystals. In the network design, we design three smoothed operators to address the gradient explosion of singular operators at zero. The smoothed operators not only ensure physical interpretability but also improve predictive accuracy by preventing the network from exploiting pathological gradients. To facilitate a deep understanding of nanocrystal synthesis mechanisms, we propose a temperature-gated attention pooling mechanism. This approach encodes concentration-driven and reactivity-driven synthesis mechanisms into the temperature gate to evaluate the weights of various precursors. The pooling operation simulates the chemical reaction process while eliminating the sequence dependency of the precursors. The predictive performance of NanoEQL significantly outperforms that of other white-box models and matches that of black-box tree-based models, achieving a mean absolute percentage error (MAPE) of 0.35 and an R 2 of 0.65. Beyond nanocrystal synthesis, the NanoEQL architecture also demonstrates strong predictive power in organic reaction systems, achieving an R 2of 0.93 on the Buchwald-Hartwig reaction dataset for yield prediction, which highlights the generality of the proposed framework. 
+
+We focus on interpreting the trained model to elucidate nanocrystal synthesis mechanisms. The results demonstrate that the nanocrystal size can be described by a simple linear equation composed of three scalars: -Zp, Zrea, and -Zops. These scalars hold significant physical meaning, representing the nanocrystallization capability, the growth capability, and the external input potential, respectively. Crucially, they can be expressed through a system of equations derived from the original input features. Because -Zp is independent of the reactants and reaction conditions, it can evaluate the nanocrystallization capability of a given material. We have demonstrated its practical utility through examples screening potential quantum dots and metal nanocrystals. Finally, an analysis of the temperature gating parameters reveals that the average reactivity coefficients for inorganic and organic precursors are 0.18 and 0.33, respectively. This indicates that the reactions of inorganic precursors are predominantly concentration-driven, whereas the reactions of organic precursors exhibit a higher dependence on reactivity. 
+
+Methods 
+
+Dataset and Feature Construction. 
+
+The nanocrystal synthesis dataset was obtained from our previous work 25 ,comprising solution-phase synthesis recipes together with the size and shape of the resulting products. The Buchwald-Hartwig reaction dataset was taken from the literature 35 . The target columns for the two datasets are size and yield, respectively. Data without valid descriptors was removed. 15% of the data was reserved as the test set using stratified sampling based on the target column. Chemical formulas and three-dimensional structures of the product nanocrystals and inorganic precursors were featurized using matminer 33 . Organic precursors were featurized using RDKit. All descriptors were screened using the Variance Inflation Factor (VIF), retaining only those with VIF<10. The shape of the nanocrystals was mapped to three-dimensional features (circularity, aspect ratio, vertices) and concatenated with the product features. 
+
+Model Architecture and Training 
+
+The model input comprises three categories of features: (i) product-level features; (ii) inorganic and organic descriptors of the precursors together with their molar amounts; and (iii) three reaction operation descriptors, namely the injection temperature (Tinj), reaction temperature (Trea), and reaction time (t). For organic reactions, this framework still applies, except that the reaction operation descriptors are replaced by reaction temperature, reaction time, whether the reaction takes place in an inert atmosphere, and whether it is a closed system. At the operator level, each EQL layer invokes a predefined function library to expand the input features. The library includes identity mapping, squaring, smoothed square root, smoothed cube root, smoothed reciprocal, exponential, natural logarithm, and common logarithm. The transformed features are subsequently recombined through linear operations. 
+
+For organic and inorganic precursor features, we adopted a design paradigm of dimensional reduction followed by pooling. Independent early EQL sub-networks first compress the high-dimensional features into low-dimensional embedding vectors. These embeddings are then aggregated by a multi-channel pooling module equipped with an attention mechanism. For each precursor group, the pooling module combines the descriptor embeddings with the process descriptors to estimate reactivity-based importance weights through a small attention scorer. Simultaneously, the molar amounts of the precursors are normalized to form mass-based weights. A temperature-dependent gating layer, driven by the injection temperature, reaction temperature, and reaction time, generates two coefficients via a softmax function to balance the mass and reactivity contributions. Based on these hybrid weights, the model computes 7 pooling statistics for both the inorganic and organic precursor sets, including weighted sum, weighted mean, range, weighted standard deviation, square root of the weighted sum of squares, maximum, and minimum. The inorganic and organic pooling statistics are concatenated and fed into an EQL network to generate the variable Zrea. The final prediction is obtained by concatenating the outputs from all active branches and passing them through the top-level predictor. 
+
+The optimization objective combines a Smooth L1 regression loss with an L1 penalty applied exclusively to the weights and biases of the EQL layers: 
+
+𝑀𝑀𝑆𝑆 𝐿𝐿𝐿𝐿 = 𝑆𝑆 𝑚𝑚 𝑆𝑆𝑆𝑆𝑆𝑆ℎ 𝑀𝑀 1(𝑦𝑦 �, 𝑦𝑦 ) + 𝜆𝜆𝐿𝐿1 ��𝜃𝜃𝐸𝐸𝐸𝐸 𝐿𝐿 �1 (4) 
+
+This design encourages sparsity in the symbolic layers while preventing the attention scorer from collapsing under direct regularization. Parameters are optimized using AdamW. The gating coefficients α and β are initialized to approximately 0.72 and 0.28, respectively, biasing the model toward concentration-driven precursor weighting at the outset of training. To prevent the gate from remaining dormant, the attention-gate parameters are grouped separately and assigned a higher learning-rate multiplier relative to the remaining network parameters. This multiplier is treated as ahyperparameter and optimized via Optuna, allowing the mass-reactivity balance to adapt more rapidly. A cosine-annealing warm-restart scheduler is applied during training, and gradient norms are clipped at each iteration to stabilize optimization. 
+
+Hyperparameter selection is performed using the Optuna framework. Each Optuna trial is evaluated by five-fold cross-validation on the training set. After the hyperparameters are determined, the final training epoch is selected via out-of-fold validation, choosing the epoch with the lowest average mean squared error across the five folds ( Figure S8 ). With the training epoch and hyperparameters fixed, the model is evaluated on the independent test set. The test set is never accessed during hyperparameter tuning or epoch selection. All experiments were conducted on a server equipped with an NVIDIA RTX 4090 GPU. 
+
+Screening of Materials for -Zp Calculation 
+
+Semiconductor materials were retrieved from the Materials Project 38 and screened according to the following criteria: (i) exclusion of actinide elements; (ii) bandgap between 0.3 and 3 eV; (iii) direct bandgap; (iv) nonmetallic; (v) fewer than four constituent elements; (vi) fewer than 50 sites in the unit cell; and (vii) energy above the convex hull less than 0.05 eV atom -1 . This screening yielded 6,800 semiconductor materials. Metallic materials were screened using criteria (i), (v), (vi), and (vii), resulting in 34,000 metallic materials. 
+
+Construction of the PbSe Nanocrystal Reaction Space 
+
+The reaction recipes for PbSe nanocrystals were uniformly generated by establishing boundaries for each independent input variable. Tinj was set strictly equal to Trea, with a range of 140 to 300 ℃, and t ranged from 1 to 120 min. The molar amounts of PbO and Se ranged from 1 to 10 mmol; the molar amounts of oleylamine, oleic acid, and trioctylphosphine ranged from 4 to 40 mmol; and the molar amount of 1-octadecene ranged from 4 to 100 mmol. The 56-dimensional reaction space was reduced to two dimensions using the UMAP algorithm. The 56-dimensional feature vector is formed by concatenating the seven pooling statistics computed over the 4-dimensional inorganic-precursor embeddings (Zinorg) with the seven pooling statistics computed over the 4-dimensional organic-precursor embeddings (Zorg). 
+
+Synthesis and Characterization of PbSe Nanocrystals 
+
+The hot-injection synthesis method and chemical reagents are detailed in the reference 39 .Lead oxide, octadecene, oleylamine, and oleic acid were fixed at 5 mmol, 46.9 mmol, 5 mmol, and 22.2 mmol, respectively, while the amount of selenium powder varied from 1.25 mmol to 20 mmol (the molar ratio of tri-n-octylphosphine to selenium powder was maintained at 1.21 throughout). The reaction temperature and reaction time were set at 160 ℃ and 10 min, respectively. All nanocrystals were not subjected to any size selection prior to TEM characterization. TEM observations were performed using a FEI Tools F200S (FEI Co., USA) field-emission transmission electron microscope operated at 200 kV and 120 kV, respectively. The average size of nanocrystals was obtained by undifferentiated counting of hundreds of particles. 
+
+Data availability 
+
+All data are provided in the main text or Supporting Information. The dataset and training code for NanoEQL are available at https://github.com/ime1452/Nanocrystal-Equation-Learner. 
+
+Supporting Information 
+
+Additional figures and tables that provide detailed insights into various aspects of the study, including comparison of formulas and gradients for the eight operators (Table S1); Comparison of different top-level predictors (Table S2); comparison of different reciprocal operators (Table S3); performance comparison of different models in the yield prediction task (Table S4); feature explanations (Table S5); a schematic diagram of feature engineering for the dataset (Figure S1); curve of the gate factor varying with training epochs (Figure S2); weight distributions in the hidden layers of the gp and gops networks (Figure S3); evolution of network's performance on the training and test sets and its equation complexity under different pruning ratios (Figure S4); -Zp sorting of 34,000 metal materials and some typical examples (Figure S5); potential energy surface distributions for -Zops (Figure S6); evolution of the reactivity of oleic acid, trioctylphosphine, and octadecene with reaction temperature and reaction time (Figure S7); determine the training epoch based on the lowest average MSE obtained through 5-fold cross-validation (Figure S8). 
+
+References    
+
+> (1) Jang, E.; Jang, H. Review: Quantum Dot Light-Emitting Diodes. Chem. Rev. 2023 ,123 ,4663-4692.
+
+(2) Kim, J.; Roh, J.; Park, M.; Lee, C. Recent Advances and Challenges of Colloidal Quantum Dot Light-Emitting Diodes for Display Applications. Adv. Mater. 2024 , 36 , 2212220. 
+
+(3) Jing, Y.; Yao, M.; Yang, M.; Li, M.; Ding, H.; Yang, G.; Zhang, R.; Han, D.; Liu, H.; Zhong, H. Photolithographic fabrication of high-resolution Micro-QLEDs towards color-conversion microdisplay. Light Sci. Appl. 2025 , 14 , 370. 
+
+(4) Wang, T.; Hu, J.; Ouyang, R.; Wang, Y.; Huang, Y.; Hu, S.; Li, W.-X. Nature of metal-support interaction for metal catalysts on oxide supports. Science 2024 , 386 , 915-920. 
+
+(5) Yang, Z.; Chen, C.; He, Y.; Xie, L.; Chen, Q.; Yang, H. Advances in Nanocrystal Scintillators for X-Ray Imaging and Biomedical Applications. CCS Chem. 2025 , 7, 3553-3568. 
+
+(6) Kovalenko, M. V.; Manna, L.; Cabot, A.; Hens, Z.; Talapin, D. V.; Kagan, C. R.; Klimov, V. I.; Rogach, A. L.; Reiss, P.; Milliron, D. J.; Guyot-Sionnnest, P.; Konstantatos, G.; Parak, W. J.; Hyeon, T.; Korgel, B. A.; Murray, C. B.; Heiss, W. Prospects of Nanoscience with Nanocrystals. 
+
+ACS Nano 2015 , 9, 1012-1057. 
+
+(7) Liu, L.; Long, Z.; Shi, K.; Zhong, H. A General Crystallization Picture of Quantum Dots: The Underlying Physical Chemistry. CCS Chem. 2025 , 7, 926-949. 
+
+(8) Li, Y.; Rowell, N.; Luan, C.; Zhang, M.; Chen, X.; Yu, K. A Two-Pathway Model for the Evolution of Colloidal Compound Semiconductor Quantum Dots and Magic-Size Clusters. Adv. Mater. 2022 , 34 , 2107940. 
+
+(9) Feng, W.; Yu, K.; Li, Y.; Sapelkin, A.; Zhu, X.; Chen, X. Similar Prenucleation Clusters in Hot-Injection and Heating-Up Approaches to CdS Colloidal Semiconductor Quantum Dots. J. Phys. Chem. Lett. 2026 , 17 , 5346-5354. 
+
+(10) Shen, Q.; Yu, K.; Liu, Y.; Chen, Z.; Sapelkin, A.; Luan, C.; Chen, X. Nucleation and Growth of ZnSe Quantum Dots from Prenucleation Clusters in Dispersion at Room Temperature. Adv. Funct. Mater. 2025 , 35 , 2504115. 
+
+(11) Lin, S.; Yan, C.; Zhu, J.; Lu, Y.; Peng, X. Nucleation and Growth of Monodisperse CdTe and CdTe/ZnSe Core/shell Nanocrystals: Roles of Cationic Precursors, Ligands, and Solvents. 
+
+J. Am. Chem. Soc. 2025 , 147 , 12962-12972. 
+
+(12) Whitehead, C. B.; Özkar, S.; Finke, R. G. LaMer’s 1950 Model for Particle Formation of Instantaneous Nucleation and Diffusion-Controlled Growth: A Historical Look at the Model’s Origins, Assumptions, Equations, and Underlying Sulfur Sol Formation Kinetics Data. Chem. Mater. 2019 , 31 , 7116-7132. 
+
+(13) You, H.; Fang, J. Particle-mediated nucleation and growth of solution-synthesized metal nanocrystals: A new story beyond the LaMer curve. Nano Today 2016 , 11 , 145-167. 
+
+(14) Long, Z.; Liu, M.; Wu, X.-g.; Gu, K.; Yang, G.; Chen, Z.; Liu, Y.; Liu, R.; Zhong, H. A reactivity-controlled epitaxial growth strategy for synthesizing large nanocrystals. Nat. Synth. 
+
+2023 , 2, 296-304. 
+
+(15) Xie, R.; Rutherford, M.; Peng, X. Formation of High-Quality I −III −VI Semiconductor Nanocrystals by Tuning Relative Reactivity of Cationic Precursors. J. Am. Chem. Soc. 2009 ,
+
+131 , 5691-5697. 
+
+(16) Chen, Z.; Zaza, L.; Loiudice, A.; Buonsanti, R. A Molecular Chemistry Model Links Precursor Chemistry to the Energetic Landscape of Shape-Controlled Colloidal Nanocrystals. 
+
+J. Am. Chem. Soc. 2026 , 148 , 24008-24015. 
+
+(17) Mauritz, V.; Ruhland, N.; Englhard, J.; Steiger, F.; Pérez-Ojeda, M. E.; Bachmann, J.; Crisp, R. W. Decomposition Pathways of Thioureas in Oleylamine Control Reactive Sulfur Species in SrS Nanocrystal Synthesis. Chem. Mater. 2026 , 38 , 2680-2689. 
+
+(18) Ismail, I.; Landrum, G. A.; Riniker, S. Yield Smarter, Not Harder: Good Practices for Machine Learning of Reaction Outcomes. J. Am. Chem. Soc. 2026 , 148 , 31593-31603. 
+
+(19) Kang, Y.; Lee, W.; Bae, T.; Han, S.; Jang, H.; Kim, J. Harnessing Large Language Models to Collect and Analyze Metal–Organic Framework Property Data Set. J. Am. Chem. Soc. 2025 ,
+
+147 , 3943-3958. 
+
+(20) Hong, Q.; Wang, X.-Y.; Gao, Y.-T.; Lv, J.; Chen, B.-B.; Li, D.-W.; Qian, R.-C. Customized Carbon Dots with Predictable Optical Properties Synthesized at Room Temperature Guided by Machine Learning. Chem. Mater. 2022 , 34 , 998-1009. 
+
+(21) Han, Y.; Tang, B.; Wang, L.; Bao, H.; Lu, Y.; Guan, C.; Zhang, L.; Le, M.; Liu, Z.; Wu, M. Machine-Learning-Driven Synthesis of Carbon Dots with Enhanced Quantum Yields. ACS Nano 2020 , 14 , 14761-14768. 
+
+(22) Baum, F. b.; Pretto, T.; Köche, A.; Santos, M. J. L. Machine Learning Tools to Predict Hot Injection Syntheses Outcomes for II–VI and IV–VI Quantum Dots. J. Phys. Chem. C 2020 , 124 ,24298-24305. 
+
+(23) Nguyen, H. A.; Dou, F. Y.; Park, N.; Wu, S.; Sarsito, H.; Diakubama, B.; Larson, H.; Nishiwaki, E.; Homer, M.; Cash, M.; Cossairt, B. M. Predicting Indium Phosphide Quantum Dot Properties from Synthetic Procedures Using Machine Learning. Chem. Mater. 2022 , 34 ,6296-6311. 
+
+(24) Wu, Y.; Wang, C.-F.; Ju, M.-G.; Jia, Q.; Zhou, Q.; Lu, S.; Gao, X.; Zhang, Y.; Wang, J. Universal machine learning aided synthesis approach of two-dimensional perovskites in a typical laboratory. Nat. Commun. 2024 , 15 , 138. 
+
+(25) Gu, K.; Liang, Y.; Su, J.; Sun, P.; Peng, J.; Miao, N.; Sun, Z.; Fu, Y.; Zhong, H.; Zhang, J. Deep Learning Models for Colloidal Nanocrystal Synthesis. ACS Nano 2025 , 19 , 39025-39034. 
+
+(26) Wang, G.; Wang, E.; Li, Z.; Zhou, J.; Sun, Z. Exploring the mathematic equations behind the materials science data using interpretable symbolic regression. Interdiscip. Mater. 2024 , 3,637-657. 
+
+(27) Guo, Z.; Hu, S.; Han, Z.-K.; Ouyang, R. Improving Symbolic Regression for Predicting Materials Properties with Iterative Variable Selection. J. Chem. Theory Comput. 2022 , 18 ,4945-4951. 
+
+(28) Wang, E.; Wang, G.; Zhou, J.; Sun, Z. MBenes-supported single-atom catalysts for oxygen reduction and oxygen evolution reactions by first-principles study and machine learning. Natl. Sci. Open. 2024 , 3, 20230043. 
+
+(29) Martius, G.; Lampert, C. H. Extrapolation and learning equations. arXiv 2016 .
+
+(30) Dong, J.; Zhong, J. Recent Advances in Symbolic Regression. ACM Comput. Surv. 2025 ,
+
+57 , 290. 
+
+(31) Dong, J.; Zhong, J.; Liu, W. L.; Zhang, J. Evolving Equation Learner for Symbolic Regression. IEEE Transactions on Evolutionary Computation 2025 , 29 , 1745-1759. 
+
+(32) Johnson, K. A.; Goody, R. S. The Original Michaelis Constant: Translation of the 1913 Michaelis–Menten Paper. Biochemistry 2011 , 50 , 8264-8269. 
+
+(33) Ward, L.; Dunn, A.; Faghaninia, A.; Zimmermann, N. E. R.; Bajaj, S.; Wang, Q.; Montoya, J.; Chen, J.; Bystrom, K.; Dylla, M.; Chard, K.; Asta, M.; Persson, K. A.; Snyder, G. J.; Foster, I.; Jain, A. Matminer: An open source toolkit for materials data mining. Comput. Mater. Sci. 
+
+2018 , 152 , 60-69. (34) Cranmer, M. Interpretable Machine Learning for Science with PySR and SymbolicRegression.jl. arXiv 2023 .
+
+(35) Ahneman, D. T.; Estrada, J. G.; Lin, S.; Dreher, S. D.; Doyle, A. G. Predicting reaction performance in C–N cross-coupling using machine learning. Science 2018 , 360 , 186-190. 
+
+(36) Wu, Q.; Cao, F.; Yu, W.; Wang, S.; Hou, W.; Lu, Z.; Cao, W.; Zhang, J.; Zhang, X.; Yang, Y.; Jia, G.; Zhang, J.; Yang, X. Homogeneous ZnSeTeS quantum dots for efficient and stable pure-blue LEDs. Nature 2025 , 639 , 633-638. 
+
+(37) Zhang, H.; Ma, X.; Lin, Q.; Zeng, Z.; Wang, H.; Li, L. S.; Shen, H.; Jia, Y.; Du, Z. High-Brightness Blue InP Quantum Dot-Based Electroluminescent Devices: The Role of Shell Thickness. J. Phys. Chem. Lett. 2020 , 11 , 960-967. 
+
+(38) Horton, M. K.; Huck, P.; Yang, R. X.; Munro, J. M.; Dwaraknath, S.; Ganose, A. M.; Kingsbury, R. S.; Wen, M.; Shen, J. X.; Mathis, T. S.; Kaplan, A. D.; Berket, K.; Riebesell, J.; George, J.; Rosen, A. S.; Spotte-Smith, E. W. C.; McDermott, M. J.; Cohen, O. A.; Dunn, A.; Kuner, M. C.; et al. Accelerated data-driven materials science with the Materials Project. Nat. Mater. 2025 , 24 , 1522-1532. 
+
+(39) Gu, K.; Wu, H.; Su, J.; Sun, P.; Tan, P.-H.; Zhong, H. Size Dependent Specific Heat Capacity of PbSe Nanocrystals. Nano Letters 2024 , 24 , 4038-4043. 
+
+Acknowledgements 
+
+This work is granted by the National Natural Science Foundation of China (Nos. 52525309, and U23A20683) and the Beijing Municipal Science & Technology Commission, Administrative Commission of Zhongguancun Science under Park No. Z231100006023018. 
+
+Author information 
+
+Authors and Affiliations 
+
+MIIT Key Laboratory for Low-Dimensional Quantum Structure and Devices, School of Materials Sciences & Engineering, Beijing Institute of Technology, Beijing 100081, China 
+
+Kai Gu, Haizheng Zhong 
+
+Contributions 
+
+K. G., and H. Z. conceived the project. K. G. synthesized and characterized the nanocrystals. K. G. performed the model training and evaluation. K. G. and H. Z. analyzed the models and wrote the manuscript. Corresponding authors 
+
+Correspondence to Kai Gu or Haizheng Zhong 
+
+Notes 
+
+The authors declare no competing interests. 
+
+Table of Contents
