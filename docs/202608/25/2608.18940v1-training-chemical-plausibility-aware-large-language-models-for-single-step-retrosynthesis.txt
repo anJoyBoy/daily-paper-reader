@@ -1,0 +1,508 @@
+Title: Training Chemical Plausibility-Aware Large Language Models for Single-Step Retrosynthesis
+
+URL Source: https://arxiv.org/pdf/2608.18940v1
+
+Published Time: Thu, 20 Aug 2026 00:55:53 GMT
+
+Number of Pages: 21
+
+Markdown Content:
+# Training Chemical Plausibility-Aware Large Language Models for Single-Step Retrosynthesis 
+
+Bogdan Zagribelnyy 1, Ivan Ilin 1, Nikita Bondarev 1, Maksim Kuznetsov 2,Mathieu Reymond 2 Vladimir Aladinskiy 1, Alex Aliper 1, Alex Zhavoronkov 1,2,3 
+
+> 1
+
+Insilico Medicine AI Limited, Abu Dhabi, UAE, 
+
+> 2
+
+Insilico Medicine Canada Inc., Montreal, Quebec, Canada, 
+
+> 3
+
+Insilico Medicine Hong Kong Ltd., Hong Kong SAR, China 
+
+Correspondence: bogdan@insilicomedicine.com 
+
+Abstract 
+
+Single-step retrosynthesis is a central com-ponent of computer-aided synthesis planning, yet its intrinsically one-to-many nature is poorly captured by single-answer evaluation and benchmarking protocols. To address this, we introduce Top-K prompting as a robust training and inference paradigm to better cap-ture diverse, plausible reaction predictions. We compile CREED-CCV-2+USPTO-XL, an ultra-large-scale dataset of ∼45.6 million ver-ified reactions to train the C3LM (Chem-istry Constraint-Consistent Language Model). By integrating fine-tuning with ChemCensor-based and novelty-oriented rewards, our model achieves state-of-the-art performance on the OOD URSA-expert-2026 benchmark. Fur-ther analysis of reaction uniqueness shows that LLMs and conventional models explore complementary reaction spaces, motivating ensemble-based retrosynthesis systems. Over-all, our results establish Top-K, plausibility-aware training as a practical new direction for robust future LLM-based synthesis planning. 
+
+1 Introduction 
+
+Contemporary small-molecule drug discovery re-quires careful consideration of whether newly de-signed compounds are synthetically accessible (Gao and Coley, 2020). In real-world medicinal chemistry, the best way to model synthetic acces-sibility is typically found through synthesis plan-ning (Zagribelnyy et al., 2026a), with retrosynthetic analysis being the central approach (Vléduts, 1963; Corey, 1967). Computer-aided synthesis planning (CASP) seeks to automate this task by identifying plausible synthetic routes from a target molecule (TM) back to commercially or readily available building blocks (Tu et al., 2025). Although end-to-end multistep retrosynthesis models are beginning to appear (Shee et al., 2025), many CASP systems still formulate synthesis planning as the problem to be resolved by two connected algorithms: ( i) a Av. PT Max CC Av. PT Top-3 CC Av. PT Top-5 CC Av. PT Top-10 CC Av. PT Max CC Av. PT Top-3 CC Av. PT Top-5 CC Av. PT Top-10 CC    
+
+> 25% 50% 75% 100%
+> URSA-expert-2026 USPTO-50K-test-mini
+> C3LM-LFM2-RFT-CC-NR GPT 5.5 Kimi K2.5 MHNreact
+
+Figure 1: Comparison of representative top-performing models from each model tier, normalized by metric-specific frontier scores. 
+
+single-step retrosynthesis (SSRS) model, propos-ing possible reactions and precursors, and ( ii ) a multistep retrosynthesis (MSRS) search engine, where these individual reactions are orchestrated into complete synthetic routes (Segler and Waller, 2017; Segler et al., 2018). In the past decade, many SSRS models (such as LocalRetro (Chen and Jung, 2021), MHNreact (Seidl et al., 2022) and RetroKNN (Xie et al., 2023)) have become conven-tional tools that can be easily integrated into CASP systems (Maziarz et al., 2025). At the same time, the rise of Large Language Models (LLMs) (Wolf et al., 2020; Brown et al., 2020) and their broad applications to chemistry (Boiko et al., 2023) in general and synthesis planning in particular (Bran et al., 2026) cannot be ignored. A benchmark be-tween LLMs as SSRS models and conventional tools has been recently performed (Zagribelnyy 1arXiv:2608.18940v1 [cs.LG] 19 Aug 2026 et al., 2026b) using the novel URSA framework, which utilizes the ChemCensor metric as the proxy of chemical plausibility, as opposed to the Top-K accuracy metric. This study revealed LLMs as promising SSRS models, but inferior to the best conventional solutions. In our study, we trained an LLM that is ca-pable of outperforming the best conventional models in the SSRS task on the challenging URSA-expert-2026 benchmark. The novel ver-sion of C3LM (Chemistry Constraint– Consistent 
+
+Language Model) was trained on a newly in-troduced ultra-large (∼45.6M) CREED-CCV-2+USPTO-XL set of reactions and then fine-tuned using fast ChemCensor-based and novelty-oriented rewards to boost chemical plausibility and diversity of the model’s outcomes. We deliberately optimize C3LM using ChemCensor-based filtering and rewards. Al-though this creates partial circularity with evaluation on ChemCensor metrics, the goal is to develop the most practically useful model for end users by directly improving the plausibility and precedent support of generated reactions. The key contributions of our work are as follows: 1. We propose Top-K mode for LLM training and prompting as a best practice for increasing the diversity of generated reactions. 2. We construct CREED-CCV-2+USPTO-XL, a dataset of ∼ 45 .6M verified reactions derived from expert-coded templates. 3. We train a new version of C3LM on the novel dataset, improving performance over conven-tional SSRS models and other LLMs. 4. We perform an in-depth comparison of LLMs and conventional tools from the perspective of reaction uniqueness and identify the current frontiers of the SSRS task. 
+
+2 Approach 
+
+2.1 Prompting modes 
+
+To evaluate the capability of Large Language Mod-els (LLMs) in exploring the multi-path nature of single-step retrosynthesis, we formalize the task under two distinct prompting paradigms: Top-1 Prompting Mode and Top-K Prompting Mode. Both modes use a core set of 15 diverse natural language templates adapted from MolInstructions, which wrap the target product’s SMILES string. In the Top-1 Prompting Mode, the model is evaluated under a standard zero-shot configura-tion. Given a target product SMILES embedded within one of the 15 baseline templates, the LLM is instructed to generate a single, most plausible set of reactants. In one experiment, the model is prompted 15 times by selecting the random tem-plate, and all answers are collected, producing 15 reactant sets per target molecule. This mode serves as our baseline. It was used in the previous research of SSRS task on LLMs (Zagribelnyy et al., 2026b). The Top-K Prompting Mode is devoted to sim-ulate behaviour of the conventional SSRS models and capture the inherent one-to-many complexity of retrosynthesis — where a single target molecule can often be potentially synthesized via multiple independent disconnections. To apply this mode, we modify the prompts provided in (Zagribelnyy et al., 2026b) and append the explicit suffix instruc-tion, "Give me 15 different answers", to each of the 15 baseline templates from Top-1 Prompting Mode. In one experiment, the LLM is prompted with 3 random templates for each target molecule and up to 15 reactant sets are collected for each template. The predicted outputs are then scored independently and the final metrics are averaged between 3 calculated reaction sets. 
+
+2.2 Training sets USPTO is decontaminated USPTO-full (Lowe, 2017), consisting of unique ∼897K products and 
+
+∼951K reactions. 
+
+CREED-CCV is generated using a virtual syn-thesis engine and ChemCensor (v.0.5.2) as a chemi-cal plausibility verification framework and consists of unique ∼699K products and ∼6.4M reactions (Zagribelnyy et al., 2026b). 
+
+CREED-CCV-2 is collected from two sources: (1) compounds from ChEMBL (v34) (Zdrazil et al., 2024) subjected to the Virtual Synthesis Engine (VSE) to enumerate reactions, (2) reactions from CREED-CCV (see Figure 2). Both sets of reactions are then merged, deduplicated and scored in Chem-Censor (v.1.1.1). Finally, CREED-CCV-2 consists of unique ∼2.9M products and ∼36M reactions. 
+
+USPTO-XL is generated using unique products from USPTO and the VSE to enumerate reactants in order to address the main limitation of USPTO, that it mainly contains 1 reaction per product. The generated reactants are then verified by ChemCen-sor (v.1.1.1). The final USPTO-XL set contains unique ∼859K products and ∼10.6M reactions. 2CREED-CCV-2 +USPTO-XL  
+
+> ~3K bidirectional expert-coded templates
+> Exhaustive retro-enumeration USPTO products
+> Decontamination
+> Merging
+> Deduplication
+> ~45.6M reactions
+> Retro-reactions
+> VSE
+> Virtual Synthesis Engine
+> Reaction processing
+> ChemCensor v1.1.1
+> verification
+> CREED-CCV ChEMBL
+> ~6.4 M reactions
+
+Figure 2: Data-generation pipeline for the CREED-CCV-2+USPTO-XL training set. 
+
+3 Experiments 
+
+3.1 Baselines 
+
+We benchmark a list of proprietary and open-weight foundation general-purpose (GP) LLMs, as well as conventional SSRS models (Appendix C). 
+
+3.2 C3LM Supervised Fine-Tuning Training setups: We perform supervised fine-tuning (SFT) of the C3LM model under three data configurations. Specifically, we train on either ( i)CREED-CCV+USPTO, where USPTO was up-sampled to match the size of CREED-CCV, or (ii ) CREED-CCV-2+USPTO-XL that consists of 3,680,906 unique products and 45,649,785 unique reactions, which are derived from CREED-CCV-2 and USPTO-XL via merging and deduplication (Figure 2). Both models are trained in Top-K mode. The latter C3LM is also asked in its answers to sort the generated reactions according to their predicted plausibility in terms of the ChemCensor score. We initialize C3LMs with LFM2 2.6B 
+
+checkpoint (Amini et al., 2025) and train with basic reasoning for 50,000 steps: C3LM-LFM2-CREED-CCV+USPTO 
+
+on CREED-CCV+USPTO and 
+
+C3LM-LFM2-CREED-CCV-2+USPTO-XL trained on CREED-CCV-2+USPTO-XL, respectively. The details of the training procedure and training data preprocessing can be found in Appendix D. 
+
+3.3 C3LM Reinforcement Learning Fine-Tuning 
+
+We perform online Reinforce-ment Learning Fine-Tuning of the 
+
+C3LM-LFM2-CREED-CCV-2+USPTO-XL using single-reward Group Relative Policy Optimization (GRPO) (Shao et al., 2024). RFT uses the same CREED training split as SFT with a GRPO group size of 8, sampling temperature of 1, and KL-regularization weight of 0.1. The GRPO reward function is defined as a weighted sum combination of 6 different reward components. Firstly, 3 components are used for syntax purposes, i.e., thinking format validity, generation of valid SMILES strings, and generation of exactly k
+
+answers. Next, to avoid duplicates, 1 component encourages the generation of unique solutions. Finally, the main components aim to generate chemically plausible and novel reactants. For plausibility, we maximize the ChemCensor score of each generated reactant. For novelty, we encourage the generation of reactants outside of the exhaustive lists of reactants of CREED-CCV-2+USPTO-XL that also exhibit a positive ChemCensor score. Details about training and each of the reward components are available in Appendix E. The inventory of both SFT and RFT C3LM models can be found in Appendix A. 
+
+3.4 Evaluation protocol 
+
+We perform a benchmark of all models from Sec. 3.1 and C3LMs on the recently proposed URSA-expert-2026 and USPTO-50K-test-mini sets (Zagri-belnyy et al., 2026b) using ChemCensor (v.1.1.1). In case of LLMs, for each product, we generate ei-ther ( i) 15 independent responses using 15 prompts (Top-1 prompting mode) or ( ii ) 3 independent re-sponses from each model using 1 random Top-15 prompt (1 random prompt to get 15 reactions, i.e. Top-K prompting mode, K=15). Then we av-erage CC-aggregated metrics Av. PT-Max CC 
+
+and Av. PT-Top-K reported in (Zagribelnyy et al., 30.0 0.2 0.4 0.6 0.8 1.0 1.2                   
+
+> Av.PT-Top-10 CC
+> GPT 5.2 GPT 5.1 DeepSeek 3.2 Sonnet 4.6 Qwen 3.5 GPT 5.4 GLM-5 Sonnet 4.5 Kimi K2.5 Grok-4.3 Grok-4.1 Opus 4.5 Opus 4.6 Opus 4.8 Opus 4.7 GPT 5.5 Gemini 3.1 Pro 1.08 +0.80
+> 1.05 +0.73
+> 0.95 +0.62
+> 0.85 +0.51
+> 0.67 +0.41
+> 0.62 +0.41
+> 0.86 +0.39
+> 0.66 +0.38
+> 0.69 +0.36
+> 0.57 +0.29
+> 0.42 +0.27
+> 0.29 +0.27
+> 0.64 +0.26
+> 0.34 +0.12
+> 0.13 +0.08
+> 0.11 +0.00
+> 0.12 0.02
+> Top-1 task Top-K task
+
+Figure 3: Top-1 → Top-K transition on URSA-expert-2026 (Av. PT-Top-10 CC). Hollow = Top-1 task, filled = Top-K task; line length is the gain ∆ = Top-K − Top-1 (right column, sorted). 
+
+2026b) by 3. In case of conventional SSRS mod-els, 15 reactions are generated per product using the models installed via Syntheseus (Maziarz et al., 2025). Then the reactions are evaluated using CC-aggregated metrics. The benchmark was carried out using two databases of synthetic precedents: major ( i) public USPTO-full and supplemental ( ii )combined USPTO-full with commercial Pistachio set (NextMove Software) (see Appendix I). To study different frontiers of reactions’ plausi-bility and diversity, all answers from all respective models are collected together with CC-based sort-ing applied to the obtained list of reactions for each TM. After that, the best 15 reactant sets are retained and CC-metrics are calculated as usual. 
+
+4 Results 
+
+Top-K vs Top-1 prompting: Benchmarking foun-dation models reveals broad differentiation be-tween the LLMs in how they are influenced by the prompting framework. Overall results for Top-
+
+K mode are presented in Table 1, for Top-1 in Table 4 of Appendix G respectively. Across the CC-aggregated metrics, Av. PT-Top-10 metric is the most sensitive to the diversity of generated reac-tions, thus the transition from Top-1 to the Top-K
+
+mode should be the most descriptive in the case of this metric. As we can see in Figure 3, the vast majority of models benefit significantly from this transition. Moreover, the models’ rankings change: Grok-4.1 produces the most plausible and diverse reactions in Top-1 mode, while Gemini 3.1 Pro’s performance improves dramatically in Top-15 mode, making it the best LLM baseline. Only GPT 5.2 performs worse in the Top-K mode ac-cording to Av. PT-Top-10 values, while for other CC-based metrics, GPT 5.1 and Claude Sonnet 4.6 also show inferior performance in the Top-K mode (see Table 3 and Table 4). Finally, the substan-tial improvements in metrics due to the change in prompting mode force us to establish the best prac-tice for LLM benchmarking in the SSRS task: use the Top-K mode instead of the Top-1 mode. 
+
+Top-K mode for the C3LM training: Consid-ering the Top-K mode is beneficial not only for LLMs’ inference, but also for model training, we have trained a C3LM-LFM2-CREED-CCV+USPTO in the Top-K mode and compared it to the model trained on the same dataset but in the Top-1 mode. We can see (Table 1) that all CC-based metrics are boosted due to the training mode transition to the Top-K mode, and the most substantial improve-ment (> 2.5 fold) is observed for Av. PT-Top-10 
+
+metric, pointing to the increased diversity of the generated reactions. Specifically, the matched Top-1 → Top-K transition improves Max/@3/@5/@10 by +0 .30 / + 0 .62 / + 0 .70 / + 0 .60 , respectively. As a result of this comparison, the new C3LMs are trained in the Top-K mode. This stage allowed the new SFT C3LM to reach the performance level of top-tier proprietary GP LLMs: Gemini 3.1 Pro and GPT 5.5. 
+
+Scaling training set and RFT: The next signifi-cant improvement in C3LMs training is achieved when the training set size increased by > 6 times, when transited from CREED-CCV+USPTO to CREED-CCV-2+USPTO-XL. This dataset tran-sition further improves Max/@3/@5/@10 by 
+
++0 .12 / + 0 .13 / + 0 .17 / + 0 .29 , respectively. The resulting C3LM-LFM2-CREED-CCV-2+USPTO-XL is then fine-tuned in RL mode using the ChemCensor (CC) and Novelty (NR) rewards. The use of the CC-reward allows to beat conventional SSRS mod-els on the OOD URSA-expert-2026 benchmark according to Av. PT-Top-K CC metrics, while 4Model URSA-expert-2026 USPTO-50K-test-mini Max Av. PT-Top-K CC Max Av. PT-Top-K CC @3 @5 @10 @3 @5 @10 
+
+Proprietary Foundation Models 
+
+Grok-4.1 1.86 1.56 1.31 0.86 3.99 2.61 2.02 1.24 Grok-4.3 1.74 1.41 1.13 0.66 3.99 2.58 1.95 1.15 Gemini 3.1 Pro 1.91 1.69 1.46 1.08 4.32 2.92 2.34 1.59 GPT 5.4 1.19 0.78 0.55 0.29 2.34 1.43 1.02 0.55 GPT 5.5 1.94 1.68 1.46 1.05 4.50 3.07 2.45 1.63 Claude Opus 4.7 1.91 1.65 1.39 0.95 4.35 2.96 2.31 1.45 Claude Opus 4.8 1.89 1.62 1.34 0.85 4.35 2.95 2.30 1.44 
+
+Open-weight Foundation Models 
+
+Qwen 3.5 1.61 1.32 1.07 0.64 3.44 2.39 1.84 1.09 Kimi K2.5 1.68 1.38 1.13 0.69 3.65 2.43 1.86 1.10 GLM-5 1.22 0.97 0.75 0.42 2.16 1.39 1.03 0.58 
+
+Conventional SSRS Models 
+
+LocalRetro 2.11 1.85 1.59 1.22 4.84 3.31 2.67 1.81 GLN 1.96 1.72 1.49 1.03 4.80 3.18 2.52 1.58 MHNreact 2.05 1.84 1.62 1.28 4.86 3.30 2.68 1.90 RetroKNN 2.10 1.84 1.60 1.22 4.85 3.33 2.68 1.82 R-SMILES 2.08 1.83 1.56 1.11 4.85 3.36 2.67 1.75 
+
+C3LM , Supervised Fine-Tuning, Top-1 Mode 
+
+C3LM-LFM2-CREED-CCV+USPTO * 1.62 1.06 0.72 0.38 4.12 2.10 1.36 0.70 
+
+C3LM , Supervised and Reinforcement Learning Fine-Tuning, Top-K Mode 
+
+C3LM-LFM2-CREED-CCV+USPTO 1.92 1.68 1.42 0.98 4.16 2.74 2.17 1.42 C3LM-LFM2-CREED-CCV-2+USPTO-XL 2.04 1.81 1.59 1.27 4.16 2.88 2.37 1.70 C3LM-LFM2-RFT-CC 2.08 1.88 1.65 1.29 4.16 2.92 2.41 1.73 C3LM-LFM2-RFT-CC-NR 2.16 1.94 1.73 1.37 4.28 3.01 2.51 1.85 
+
+Chemical Plausibility and Diversity Frontier of Generated Reactions 
+
+All GP LLMs (17) together 2.19 2.07 1.93 1.65 4.85 3.98 3.53 2.87 All conventional SSRS models (8) together 2.18 1.99 1.78 1.45 4.90 3.58 3.00 2.26 All C3LMs (5) together 2.23 2.04 1.88 1.57 4.74 3.31 2.78 2.14 All benchmarked models (30) together 2.25 2.15 2.04 1.81 4.91 4.12 3.69 3.04     
+
+> Table 1: Plausibility-based evaluation in the single-step retrosynthesis Top-Kmode. Max : per-target maximum ChemCensor score averaged over TMs. Av. PT-Top-K CC : per-TM average ChemCensor score over top-K unique predictions; ChemCensor v1.1.1, USPTO-full as the source of synthetic precedents. See the full table in Appendix F. Results for recently released models are available at https://dddbench.insilico.com/ .
+
+adding the NR results in the RFT-model domi-nance across all CC metrics on this benchmark set. CC-RFT adds +0 .04 / + 0 .07 / + 0 .06 / + 0 .02 to Max/@3/@5/@10, while the novelty reward con-tributes a further +0 .08 / + 0 .06 / + 0 .08 / + 0 .08 ,respectively. From the perspective of the repre-sentative sample from the conventional USPTO-50K-test benchmark (USPTO-50K-test-mini), the 
+
+Av. PT-Top-10 metric is the least vulnerable to data leakage, since the vast majority (481/497) of product molecules from the USPTO-50K-test-mini have no more than 3 reactions in the public USPTO-full (see Appendix K). In these conditions, the second-best result of C3LM-LFM2-RFT-CC-NR on 50 5 10 15 Average reactions per molecule C3LM-3 C3LM-5 C3LM-2 Gemini 3.1 Pro GPT 5.5 Grok-4.1 Opus 4.7 Opus 4.8 Qwen 3.5 Grok-4.3 Kimi K2.5 GLM-5 GPT 5.4   
+
+> +0.4 +0.3 -3.9 -2.7 -3.0 -4.8 -4.3 -5.2 -6.7 -6.5 -6.5 -7.8 -9.4
+> Unique reactions by LLM only Intersection Unique reactions by MHNreact only
+
+Figure 4: Intersection between the reactions pre-dicted for the URSA-expert-2026 benchmark set by each LLM and those predicted by MHNreact. Val-ues on the right ( ∆) show the average per-target difference between the number of reactions unique to the LLM and those unique to MHNreact; pos-itive values indicate more LLM-unique reactions. 
+
+C3LM-2 : C3LM-LFM2-CREED-CCV+USPTO ; C3LM-3: C3LM-LFM2-CREED-CCV-2+USPTO-XL ; C3LM-5 :
+
+C3LM-LFM2-RFT-CC-NR . See all results in Figure 5. 
+
+the USPTO-50K-test-mini benchmark ( Av. PT-Top-10 ) is the additional sign of the models’ capa-bilities to generate genuinely chemically plausible reactions rather than to memorize right answers. Oppositely, the Av. PT-Max CC values close to 5
+
+(i.e., exact match to the synthetic precedent) by the conventional SSRS models reveal potential leakage of USPTO-50K-based benchmarks to these models and this particular metric on USPTO-50K-test-mini benchmark should be cautiously considered. 
+
+Frontier of plausibility and diversity : While 
+
+C3LM-LFM2-RFT-CC-NR achieves results on the challenging benchmark, the real frontier of chemi-cal plausibility and diversity of generated reactions remains unknown due to the one-to-many nature of the ChemCensor-based benchmarks. Understand-ing the frontier values would be helpful for the next iterations of the research to navigate the efforts. Collecting the best answers across GP LLMs re-veals that they together produce more plausible and diverse outcomes than the conventional SSRS mod-els, while the best individual GP models (Gemini 3.1 Pro and GPT 5.5) are still far from the best con-ventional models (LocalRetro and MHNreact). The collected and sorted answers from all C3LMs also allow for higher values of CC-aggregated metrics than for conventional models, while all GP LLMs together are slightly superior to all C3LMs together. The ultimate detectable frontier values of the CC-aggregated metrics that can be identified so far have been calculated from the reactions generated by all 30 benchmarked models (see Table 1). These val-ues show that there is still room for improvement in models, especially with respect to metrics that are sensitive to both reactions’ diversity and plau-sibility (+0.44 for Av. PT-Top-10 and +0.31 for 
+
+Av. PT-Top-5 ). Finally, the % of frontier values of the CC-based metrics achieved by a model can be considered as an additional metric to visualize the performance of the model (see Figure 1). 
+
+The analysis of reactions : Looking at the values of CC-aggregated metrics from the Table 1, the genuine chemical contributions in terms of proposing unique plausible reactions might remain unclear. In order to reveal the capabilities of LLMs to provide unique reactions at the top of the performance by SSRS models, we compare reac-tions generated by the MHNreact model, which is the most capable of generating diverse outputs (best Av. PT-Top-10 values across conventional models), to the reactions generated by the LLMs on the URSA-expert-2026 benchmark. The full results of models’ comparison from the reactions’ uniqueness perspective for URSA-expert-2026 are available in Appendix H, while key highlights can be observed in Figure 4. MHNreact dominates across the vast majority of LLMs to give plausible reactions (ChemCensor Score > 0) that have not been generated by them. Only models that produce more unique reactions than MHNreact are C3LM-LFM2-CREED-CCV-2+USPTO-XL (+0.4 reactions on average) and C3LM-LFM2-RFT-CC-NR 
+
+(+0.3 reactions on average). The examples of reactions generated by 
+
+C3LM-LFM2-CREED-CCV-2+USPTO-XL and MH-Nreact for one of the target molecules from the benchmark set can be found in Figure 6 of Appendix H. At the same time, we can see that every LLM can predict some plausible reactions that have not been proposed by MHNreact, and the proportion of such reactions, as well as the propor-tion of intersecting reactions, generally increases 6with newer versions of GP LLMs. These findings highlight that the chemical spaces of plausible reactions generated by the best conventional SSRS model and LLMs are quite different, and this can motivate researchers to improve both LLMs and conventional models and/or to use the ensemble of models (conventional model and LLM) to cover a broader chemical space of generated reactions. 
+
+5 Ethical considerations 
+
+The development and deployment of computer-aided synthesis planning (CASP) tools carry sig-nificant dual-use potential, as technologies capable of automating the design of synthetic routes for complex small molecules could, in principle, be repurposed to facilitate the synthesis of hazardous compounds. Our research exemplifies the usage of the CREED dataset and the ChemCensor scoring in the pursuit of improving the objective evaluation of chemical plausibility and synthetic feasibility for drug discovery. While our work improves the relia-bility and interpretability of CASP tools and their more robust benchmarking methodology, we rec-ognize that the ability to accurately plan synthetic routes must be coupled with responsible steward-ship. To mitigate potential risks, we have focused our benchmarking efforts on the legitimate goal of automating synthesis planning for medicinal chemistry, specifically utilizing novel molecular structures that do not overlap with known haz-ardous compound databases. Furthermore, the ChemCensor framework is built upon established open-scientific data from patent literature and does not inherently possess or provide instructions for the synthesis of toxic or regulated substances. We emphasize that all applications of LLM-based ret-rosynthesis should be conducted within established institutional biosafety frameworks and comply with relevant international and local regulations govern-ing chemical research. We advocate for the ongo-ing development of safety-aligned AI systems that incorporate robust safeguards to prevent the gener-ation of unauthorized synthetic pathways, ensuring that the advancement of AI in drug discovery re-mains focused on beneficial scientific and clinical outcomes. 
+
+6 Limitations 
+
+Despite the performance gains achieved by our Top-K, plausibility-aware training paradigm, this study is subject to several limitations that warrant future investigation. As already mentioned in sec-tion 1, we acknowledge a degree of alignment be-tween our optimization criteria and our evaluation metrics. Nevertheless, we contend that this "circu-larity" is a functional design choice: our primary aim is to maximize the model’s utility for practi-tioners. While the ChemCensor serves as an effi-cient proxy for chemical plausibility, it still does not fully account for practical laboratory organic synthesis parameters, such as reaction conditions, solvents, and purification methods. The reference datasets of synthetic precedents used for ChemCen-sor scoring in the frame of this study are limited to patent-derived reaction spaces. Chemical diversity is assessed solely through exact SMILES string matching, which lacks a chemically grounded com-parison of the predicted transformations, such as reaction class or mechanistic type. Finally, we un-derstand that the generation of our training dataset relies on a template-based engine, which might be biased toward particular chemical patterns and may lack some omitted and "novel-chemistry" transfor-mations. 
+
+7 Code and Benchmark Availability 
+
+The ChemCensor source code is publicly available at https://github.com/insilicomedicine/ ChemCensor .Updated benchmarking results, including evalu-ations of recently released models, are available at 
+
+https://dddbench.insilico.com/ .7References 
+
+Alexander Amini, Anna Banaszak, Harold Benoit, Arthur Böök, Tarek Dakhran, Song Duong, Al-fred Eng, Fernando Fernandes, Marc Härkönen, Anne Harrington, Ramin Hasani, Saniya Karwa, Yuri Khrustalev, Maxime Labonne, Mathias Lech-ner, Valentine Lechner, Simon Lee, Zetian Li, Noel Loo, and 14 others. 2025. Lfm2 technical report. 
+
+Preprint , arXiv:2511.23404. Anthropic. 2025a. System card: Claude opus 4.5. Anthropic. 2025b. System card: Claude sonnet 4.5. Anthropic. 2026a. System card: Claude opus 4.6. Anthropic. 2026b. System card: Claude opus 4.7. Anthropic. 2026c. System card: Claude opus 4.8. Anthropic. 2026d. System card: Claude sonnet 4.6. Daniil A Boiko, Robert MacKnight, Ben Kline, and Gabe Gomes. 2023. Autonomous chemical research with large language models. Nature , 624(7992):570– 578. Andres M Bran, Théo A Neukomm, Daniel Armstrong, Zlatko Jonˇ cev, and Philippe Schwaller. 2026. Chemi-cal reasoning in LLMs unlocks strategy-aware syn-thesis planning and reaction mechanism elucidation. 
+
+Matter , 0(102812):102812. Tom Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared D Kaplan, Prafulla Dhariwal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, Sandhini Agarwal, Ariel Herbert-Voss, Gretchen Krueger, Tom Henighan, Rewon Child, Aditya Ramesh, Daniel Ziegler, Jeffrey Wu, Clemens Winter, and 12 others. 2020. Language models are few-shot learners. In Advances in Neural Information Processing Systems , volume 33, pages 1877–1901. Curran Associates, Inc. Shuan Chen and Yousung Jung. 2021. Deep retrosyn-thetic reaction prediction using local reactivity and global attention. JACS Au , 1(10):1612–1620. E. J. Corey. 1967. General methods for the construction of complex molecules. Pure and Applied Chemistry ,14(1):19–38. Hanjun Dai, Chengtao Li, Connor Coley, Bo Dai, and Le Song. 2019. Retrosynthesis prediction with con-ditional graph logic network. In Advances in Neural Information Processing Systems , volume 32. Curran Associates, Inc. Inc. Daylight Chemical Information Systems. 2007. SMARTS — a language for describing molecular patterns. DeepSeek-AI. 2025. Deepseek-v3.2: Pushing the frontier of open large language models. Preprint ,arXiv:2512.02556. Jörg Degen, Christof Wegscheid-Gerlach, Andrea Za-liani, and Matthias Rarey. 2008. On the art of compil-ing and using ’drug-like’ chemical fragment spaces. 
+
+ChemMedChem , 3(10):1503–1507. Wenhao Gao and Connor W. Coley. 2020. The synthe-sizability of molecules proposed by generative mod-els. Journal of Chemical Information and Modeling ,60(12):5714–5723. Gemini-Team. 2026. Gemini 3.1 pro. GLM-5-Team. 2026. Glm-5: from vibe coding to agen-tic engineering. Preprint , arXiv:2602.15763. Ross Irwin, Spyridon Dimitriadis, Jiazhen He, and Esben Jannik Bjerrum. 2022. Chemformer: apre-trained transformer for computational chem-istry. Machine Learning: Science and Technology ,3(1):015022. Kimi-Team. 2026. Kimi k2.5: Visual agentic intelli-gence. Preprint , arXiv:2602.02276. Micha Livne, Zulfat Miftahutdinov, Elena Tutubalina, Maksim Kuznetsov, Daniil Polykovskiy, Annika Brundyn, Aastha Jhunjhunwala, Anthony Costa, Alex Aliper, Alán Aspuru-Guzik, and Alex Zha-voronkov. 2024. nach0: multimodal natural and chemical languages foundation model. Chem. Sci. ,15:8380–8389. Daniel Lowe. 2017. Chemical reactions from US patents (1976-Sep2016). Krzysztof Maziarz, Austin Tripp, Guoqing Liu, Megan Stanley, Shufang Xie, Piotr Gai´ nski, Philipp Seidl, and Marwin H. S. Segler. 2025. Re-evaluating ret-rosynthesis algorithms with syntheseus. Faraday Discuss. , 256:568–586. NextMove Software. Pistachio. https://www. nextmovesoftware.com/pistachio.html . Com-mercial reaction database. OpenAI. 2025a. Gpt-5.1 instant and gpt-5.1 thinking system card addendum. OpenAI. 2025b. Update to gpt-5 system card: Gpt-5.2. OpenAI. 2026a. Introducing gpt-5.4. OpenAI. 2026b. Introducing gpt-5.5. Qizhi Pei, Wei Zhang, Jinhua Zhu, Kehan Wu, Kaiyuan Gao, Lijun Wu, Yingce Xia, and Rui Yan. 2023. BioT5: Enriching cross-modal integration in biol-ogy with chemical knowledge and natural language associations. In Proceedings of the 2023 Conference on Empirical Methods in Natural Language Process-ing , pages 1102–1123, Singapore. Association for Computational Linguistics. Qwen-Team. 2026. Model card: Qwen3.5. 
+
+8Mikołaj Sacha, Mikołaj Bła˙ z, Piotr Byrski, Paweł D ˛ abrowski-Tuma´ nski, Mikołaj Chromi´ nski, Rafał Loska, Paweł Włodarczyk-Pruszy´ nski, and Stanisław Jastrz˛ ebski. 2021. Molecule edit graph attention net-work: Modeling chemical reactions as sequences of graph edits. Journal of Chemical Information and Modeling , 61(7):3273–3284. PMID: 34251814. Marwin H S Segler, Mike Preuss, and Mark P Waller. 2018. Planning chemical syntheses with deep neural networks and symbolic AI. Nature , 555(7698):604– 610. Marwin H. S. Segler and Mark P. Waller. 2017. Neural-symbolic machine learning for retrosynthesis and reaction prediction. Chemistry – A European Journal ,23(25):5966–5971. Philipp Seidl, Philipp Renz, Natalia Dyubankova, Paulo Neves, Jonas Verhoeven, Jörg K Wegner, Marwin Segler, Sepp Hochreiter, and Günter Klambauer. 2022. Improving few- and zero-shot reaction tem-plate prediction using modern hopfield networks. J. Chem. Inf. Model. , 62(9):2111–2120. Zhihong Shao, Peiyi Wang, Qihao Zhu, Runxin Xu, Junxiao Song, Xiao Bi, Haowei Zhang, Mingchuan Zhang, Y. K. Li, Y. Wu, and Daya Guo. 2024. Deepseekmath: Pushing the limits of mathemati-cal reasoning in open language models. Preprint ,arXiv:2402.03300. Yu Shee, Anton Morgunov, Haote Li, and Victor S. Batista. 2025. Directmultistep: Direct route genera-tion for multistep retrosynthesis. Journal of Chemi-cal Information and Modeling , 65(8):3903–3914. Zhengkai Tu, Sourabh J. Choure, Mun Hong Fong, Ji-hye Roh, Itai Levin, Kevin Yu, Joonyoung F. Joung, Nathan Morgan, Shih-Cheng Li, Xiaoqi Sun, Huiqian Lin, Mark Murnin, Jordan P. Liles, Thomas J. Stru-ble, Michael E. Fortunato, Mengjie Liu, William H. Green, Klavs F. Jensen, and Connor W. Coley. 2025. Askcos: an open source software suite for synthesis planning. Preprint , arXiv:2501.01835. G.É. Vléduts. 1963. Concerning one system of classi-fication and codification of organic reactions. Infor-mation Storage and Retrieval , 1(2):117–146. David Weininger. 1988. SMILES, a chemical language and information system. 1. introduction to methodol-ogy and encoding rules. Journal of Chemical Infor-mation and Computer Sciences , 28(1):31–36. Thomas Wolf, Lysandre Debut, Victor Sanh, Julien Chaumond, Clement Delangue, Anthony Moi, Pier-ric Cistac, Tim Rault, Remi Louf, Morgan Funtowicz, Joe Davison, Sam Shleifer, Patrick von Platen, Clara Ma, Yacine Jernite, Julien Plu, Canwen Xu, Teven Le Scao, Sylvain Gugger, and 3 others. 2020. Trans-formers: State-of-the-art natural language processing. In Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing: System Demonstrations , pages 38–45, Online. Association for Computational Linguistics. xAI. 2025. Grok 4.1 model card. xAI. 2026. Grok 4.3. xAI API Documentation. Shufang Xie, Rui Yan, Junliang Guo, Yingce Xia, Lijun Wu, and Tao Qin. 2023. Retrosynthesis prediction with local template retrieval. Preprint ,arXiv:2306.04123. Bogdan Zagribelnyy, Sergei Fedorchenko, Nikita Bon-darev, Ivan Ilin, Yan Ivanenkov, and Aleksandrs Za-voronkovs. 2026a. Advanced retrosynthesis-related synthetic accessibility modeling. U.S. Patent Appli-cation Publication No. US 2026/0100252 A1. Appl. No. 19/353,038; filed 2025-10-08; priority 2024-10-09. Bogdan Zagribelnyy, Ivan Ilin, Maksim Kuznetsov, Nikita Bondarev, Roman Schutski, Thomas Mac-Dougall, Rim Shayakhmetov, Zulfat Miftakhutdinov, Mikolaj Mizera, Vladimir Aladinskiy, Alex Aliper, and Alex Zhavoronkov. 2026b. When single answer is not enough: Rethinking single-step retrosynthe-sis benchmarks for LLMs. In Proceedings of the 43rd International Conference on Machine Learning ,volume 306 of Proceedings of Machine Learning Re-search , Seoul, South Korea. PMLR. Copy available here: https://arxiv.org/abs/2602.03554 .Barbara Zdrazil, Eloy Felix, Fiona Hunter, Emma J Manners, James Blackshaw, Sybilla Corbett, Mar-leen de Veij, Harris Ioannidis, David Mendez Lopez, Juan F Mosquera, Maria Paula Magarinos, Nico-las Bosc, Ricardo Arcila, Tevfik Kizilören, Anna Gaulton, A Patrícia Bento, Melissa F Adasme, Pe-ter Monecke, Gregory A Landrum, and Andrew R Leach. 2024. The chembl database in 2023: a drug discovery platform spanning multiple bioactivity data types and time periods. Nucleic Acids Research ,52(D1):D1180–D1192. Weihe Zhong, Ziduo Yang, and Calvin Yu-Chian Chen. 2023. Retrosynthesis prediction using an end-to-end graph generative architecture for molecular graph editing. Nat. Commun. , 14(1):3009. Zipeng Zhong, Jie Song, Zunlei Feng, Tiantao Liu, Lingxiang Jia, Shaolun Yao, Min Wu, Tingjun Hou, and Mingli Song. 2022. Root-aligned SMILES: a tight representation for chemical reaction prediction. 
+
+Chem. Sci. , 13(31):9023–9034. 
+
+9A C3LM Family Inventory 
+
+Model Name Short Name Training Data Reward 
+
+C3LM , Supervised Fine-Tuning, Top-1 task 
+
+C3LM-LFM2-CREED-CCV+USPTO * C3LM-1 TD-1 –
+
+C3LM , Supervised Fine-Tuning, Top-K task 
+
+C3LM-LFM2-CREED-CCV+USPTO C3LM-2 TD-1 –C3LM-LFM2-CREED-CCV-2+USPTO-XL C3LM-3 TD-2 –
+
+C3LM , Reinforcement Learning Fine-Tuning, Top-K task 
+
+C3LM-LFM2-RFT-CC C3LM-4 TD-2 ChemCensor C3LM-LFM2-RFT-CC-NR C3LM-5 TD-2 ChemCensor, Novelty      
+
+> Table 2: C3LM family inventory. TD-1 = CREED-CCV + USPTO; TD-2 = CREED-CCV-2 + USPTO-XL. ∗Trained in prior work (Zagribelnyy et al., 2026b); its predictions are re-scored under ChemCensor (v1.1.1) for comparison, without retraining.
+
+B Glossary 
+
+ChemCensor ChemCensor Score (CC Score) is a quantitative metric evaluating the chemical plausibility of a reaction and/or a retrosynthetic route by measuring the proportion of steps that pass plausibility validation, weighted by their confidence levels. 
+
+CREED CREED (Comprehensive Reactant Exhaustive Enumeration Dataset) is a large-scale, quality-controlled dataset of ∼22.7M unique reactions over 1,493,715 unique products introduced in (Zagri-belnyy et al., 2026b), generated by a virtual synthesis engine from ∼3K expert-coded bidirectional reaction templates and designed to expose multiple plausible single-step disconnections per product rather than a single ground truth; its ChemCensor-verified subset, retaining only candidates with CC Score > 0, is denoted CREED-CCV. 
+
+C3LM C3LM (Chemistry Constraint-Consistent Language Model) is the family of language models introduced in (Zagribelnyy et al., 2026b), fine-tuned on CREED and its variants from the LFM2 2.6B base checkpoint via supervised and reinforcement fine-tuning, and optimized to generate chemically plausible single-step retrosynthetic disconnections. 
+
+URSA-expert-2026 URSA-expert-2026 is an expert-annotated dataset introduced in (Zagribelnyy et al., 2026b), an out-of-distribution benchmark of 100 novel, machine-generated target molecules whose synthetic accessibility was confirmed by expert chemists, constructed to be disjoint from publicly available reaction datasets so as to evaluate SSRS generalization free from training-set memorization or data leakage. 
+
+USPTO-50K-test-mini USPTO-50K-test-mini is a cost-efficient 10% random subset (497 targets) of the curated USPTO-50K-test introduced in (Zagribelnyy et al., 2026b), recommended as the default USPTO-derived in-distribution benchmark for LLM-based SSRS evaluation under API-cost or wall-clock constraints. 
+
+Target molecule The target molecule is the desired chemical compound that represents the ultimate goal of synthesis planning. It is the molecule for which the system generates or evaluates synthetic routes, and it serves as the starting point for retrosynthetic disconnection, working backward from the target to identify precursor molecules. 10 Reactants Reactants are the chemical compounds that undergo transformation during a chemical reaction and whose atoms are directly incorporated into the product structure. Technically, reactants are distinguished from reagents by the presence of atom mapping – atoms in reactants have corresponding mapped atoms in the product(s). 
+
+Reagents Reagents are chemical compounds that participate in a chemical reaction but whose atoms are not directly incorporated into the product structure. Reagents typically facilitate or enable the transformation (e.g., catalysts, bases, acids, solvents with reactive roles) with no or only minor atom contribution to the final product. For benchmarking, it is reasonable to extend the reacting species with reagents, since they may influence the correctness of atom–atom mapping and thereby the reaction-center extraction process. 
+
+Starting materials Starting materials are the initial chemical compounds from which a synthetic route begins. They are molecules that exist at the terminal nodes (leaves) of a retrosynthetic tree and are not produced by any reaction step within the route. Starting materials serve as the input chemicals for the synthesis and are expected to be commercially available or otherwise accessible within the reported synthetic methods. 
+
+Building blocks Building blocks (CABBs) are commercially available chemical compounds that can be found in vendor datasets and purchased from them. 
+
+Single-step retrosynthesis model An SSRS model predicts one or several retrosynthetic disconnections by mapping a target product molecule to a set of precursor reactants corresponding to a single reaction step. The model does not perform recursive planning or multi-step route construction, focusing instead on identifying chemically plausible reactants. 
+
+Multi-step retrosynthesis model An MSRS model is a system that applies retrosynthetic transformations (typically recursively) to decompose a target molecule into commercially available or otherwise accessible starting materials through a sequence of reaction steps. 
+
+Reaction center (RC) An RC is the set of atoms (dynamic atoms) in one or more reactant molecules and the product molecule that undergoes change during a chemical transformation, including atoms/bonds that are formed, broken, created, destroyed, or whose connectivity, bond order, formal charge, or hybridization state differs between reactants and products. 
+
+Chemical plausibility Chemical plausibility reflects alignment of a reaction with core principles of organic synthesis (e.g., chemoselectivity, regioselectivity, stereoselectivity). Operationally, it can be reduced to chemoinformatic concepts such as reaction centers, functional groups, their occurrence, and compatibility rules, potentially augmented with conditions (solvents, temperature, catalysts, auxiliary reagents). In this system, plausibility is assessed by comparing the reaction center and functional-group context against a reference dataset of verified transformations. If the extracted reaction center is absent from the reference library, the reaction is considered implausible; similarly, functional groups never observed for that reaction center negate plausibility. When both reaction-center and functional-group context are supported by precedents, the reaction is considered chemically plausible. 
+
+Level of confidence The nominal degree of chemical plausibility is estimated via discrete levels of confidence (LC), depending on which reaction-center representation is matched among verified transformations. Higher LC indicates that a more specific (larger-context) reaction-center definition is supported, correlating with higher nominal plausibility and representativeness in terms of synthetic precedents. The LC value is used as the reaction score in ChemCensor. 
+
+Functional groups (FGs) FGs are structural motifs that determine chemical reactivity and properties. In the present system, functional groups are represented as SMARTS patterns (Daylight Chemi-cal Information Systems, 2007) that can be matched to molecular structures via substructure search. 11 Functional-group context annotated for each reaction center helps determine which patterns are tolerable for a transformation, supporting chemical plausibility. 
+
+Functional group (FG) signature An FG signature is the ensemble of FGs present in reactant/product molecules that are not affected by the transformation. For a given reaction center, the signature is constructed by aggregating synthetic precedents from the reference dataset. 
+
+Reference dataset A reference dataset is a collection of verified reaction transformations extracted from sources including patents (e.g., USPTO), articles, preprints, and ELNs. It may include metadata such as conditions and yield. In this system, the reference dataset is used to validate analyzed reactions via reaction-center matching and functional-group signature comparison. 
+
+Synthetic precedent A synthetic precedent is an elementary synthetic fact of a successful chemical reaction recorded in a reference dataset. 
+
+C Baselines 
+
+Proprietary Foundation Models: Grok 4.1 (xAI, 2025) and 4.3 (xAI, 2026); Gemini 3.1 Pro (Gemini-Team, 2026); GPT 5.1 (OpenAI, 2025a); 5.2 (OpenAI, 2025b), 5.4 (OpenAI, 2026a) and 5.5 (OpenAI, 2026b); Claude Sonnet 4.5 (Anthropic, 2025b) and 4.6 (Anthropic, 2026d); Claude Opus 4.5 (Anthropic, 2025a), 4.6 (Anthropic, 2026a), 4.7 (Anthropic, 2026b) and 4.8 (Anthropic, 2026c). 
+
+Open-weight Foundation Models: DeepSeek-V3.2 (DeepSeek-AI, 2025); Qwen3.5-397B-A17B (formally Qwen3.5) (Qwen-Team, 2026), Kimi K2.5 (Kimi-Team, 2026) and GLM-5 (GLM-5-Team, 2026). 
+
+Conventional SSRS models: LocalRetro (Chen and Jung, 2021), R-SMILES (Zhong et al., 2022), MEGAN (Sacha et al., 2021), Chemformer (Irwin et al., 2022), Graph2Edits (Zhong et al., 2023), GLN (Dai et al., 2019), MHNreact (Seidl et al., 2022) and RetroKNN (Xie et al., 2023). 
+
+D C3LM Supervised Fine-Tuning Details 
+
+Training procedure: On each training step, we utilize a total 524 , 288 tokens context windows across all GPUs and pack multiple training sequences into each GPU available context window. 
+
+Training Data Preprocessing: Similarly to other chemical language models (Livne et al., 2024; Pei et al., 2023), we extend the base vocabulary with SMILES format (Weininger, 1988) specific tokens; this is aimed at isolating chemical tokens from natural-language tokens and providing a consistent representation of SMILES entities. During the training, we tokenize SMILES into specialized tokens always in model outputs, and with 0.5 probability for user input; we adopt this strategy to align LFM2 base checkpoint chemical knowledge and new tokens. To improve chemical generalization, we augment SMILES entities during training by applying non-canonical random traversal. 
+
+Reasoning: We use the same basic reasoning scheme as (Zagribelnyy et al., 2026b): each chain-of-thought example is prepended with a deterministic block listing the canonical SMILES of the input entities and their BRICS fragments (Degen et al., 2008). 
+
+E C3LM Reinforcement Learning Fine-Tuning Details 
+
+Training procedure: Online Reinforcement Learning Fine-Tuning (RFT) of the C3LM (CREED-CCV-2+USPTO-XL) model is performed using single-reward Group Relative Policy Optimization (GRPO) (Shao et al., 2024). RFT uses the same CREED training split as SFT, with sampling temperature of 1
+
+and KL-regularization weight of 0.1. The policy is trained over 1000 training steps, with a learning rate of 10 −6, a GRPO group size of 8, and 64 groups per step. The GRPO reward function is defined as a weighted sum combination of multiple reward components. The components and their weights are as follows: 
+
+Thinking format (weight 0.1) verifies if the generated completion is correctly formatted, by returning 
+
+1 for keeping the thinking in thinking tags, and −1 otherwise. 
+
+Molecular syntax (weight 0.5) verifies if the answer is a valid SMILES string. 12 ChemCensor score (weight 1.0) verifies, for a generated reaction, the chemical plausibility from ChemCensor. The plausibility is rescaled from (0 , 5) to (0 , 1) . A reward of −1 is assigned when the generated reactant SMILES is invalid. 
+
+Top-K uniqueness (weight 0.2) computes the proportion of uniquely generated solutions, by comparing the canonical version of the generated SMILES string of each solution. The range of this reward function is thus (1 /k, 1) .
+
+Top-K matching (weight 0.1) verifies if the number of generated answers matches k, the number of requests answers. 
+
+Novelty score (weight 1.0) provides a binary score for each generated reactant. This score is 1 if the generated reactant does not exist in the exhaustive list of CREED and if its ChemCensor score is positive, which corresponds to the lowest degree of confidence for chemical plausibility. In doing so, we encourage the policy to generate plausible reactants outside of the training data. The individual scores’ average is used as novelty reward. 13 F Full Plausibility-Based Top-K Evaluation 
+
+Model URSA-expert-2026 USPTO-50K-test-mini Max Av. PT-Top-K CC Max Av. PT-Top-K CC @3 @5 @10 @3 @5 @10 
+
+Proprietary Foundation Models 
+
+Grok-4.1 1.86 1.56 1.31 0.86 3.99 2.61 2.02 1.24 Grok-4.3 1.74 1.41 1.13 0.66 3.99 2.58 1.95 1.15 Gemini 3.1 Pro 1.91 1.69 1.46 1.08 4.32 2.92 2.34 1.59 GPT 5.1 0.59 0.32 0.21 0.11 1.22 0.65 0.43 0.22 GPT 5.2 0.43 0.28 0.20 0.12 1.48 0.88 0.62 0.34 GPT 5.4 1.19 0.78 0.55 0.29 2.34 1.43 1.02 0.55 GPT 5.5 1.94 1.68 1.46 1.05 4.50 3.07 2.45 1.63 Claude Sonnet 4.5 1.56 1.27 0.98 0.57 3.16 2.02 1.51 0.87 Claude Sonnet 4.6 1.03 0.79 0.60 0.34 2.93 1.83 1.35 0.76 Claude Opus 4.5 1.68 1.31 1.03 0.62 3.30 2.17 1.64 0.97 Claude Opus 4.6 1.68 1.36 1.10 0.67 3.77 2.51 1.92 1.15 Claude Opus 4.7 1.91 1.65 1.39 0.95 4.35 2.96 2.31 1.45 Claude Opus 4.8 1.89 1.62 1.34 0.85 4.35 2.95 2.30 1.44 
+
+Open-weight Foundation Models 
+
+DeepSeek 3.2 0.50 0.34 0.24 0.13 0.95 0.56 0.38 0.21 Qwen 3.5 1.61 1.32 1.07 0.64 3.44 2.39 1.84 1.09 Kimi K2.5 1.68 1.38 1.13 0.69 3.65 2.43 1.86 1.10 GLM-5 1.22 0.97 0.75 0.42 2.16 1.39 1.03 0.58 
+
+Conventional SSRS Models 
+
+LocalRetro 2.11 1.85 1.59 1.22 4.84 3.31 2.67 1.81 GLN 1.96 1.72 1.49 1.03 4.80 3.18 2.52 1.58 MEGAN 2.01 1.70 1.42 0.92 4.78 3.15 2.45 1.54 Chemformer 1.77 1.03 0.68 0.35 4.67 1.69 1.02 0.51 Graph2Edits 2.08 1.78 1.48 1.01 4.79 3.00 2.28 1.39 MHNreact 2.05 1.84 1.62 1.28 4.86 3.30 2.68 1.90 RetroKNN 2.10 1.84 1.60 1.22 4.85 3.33 2.68 1.82 R-SMILES 2.08 1.83 1.56 1.11 4.85 3.36 2.67 1.75 
+
+C3LM , Supervised Fine-Tuning, Top-1 Mode 
+
+C3LM-LFM2-CREED-CCV+USPTO * 1.62 1.06 0.72 0.38 4.12 2.10 1.36 0.70 
+
+C3LM , Supervised and Reinforcement Learning Fine-Tuning, Top-K Mode 
+
+C3LM-LFM2-CREED-CCV+USPTO 1.92 1.68 1.42 0.98 4.16 2.74 2.17 1.42 C3LM-LFM2-CREED-CCV-2+USPTO-XL 2.04 1.81 1.59 1.27 4.16 2.88 2.37 1.70 C3LM-LFM2-RFT-CC 2.08 1.88 1.65 1.29 4.16 2.92 2.41 1.73 C3LM-LFM2-RFT-CC-NR 2.16 1.94 1.73 1.37 4.28 3.01 2.51 1.85 
+
+Chemical Plausibility and Diversity Frontier of Generated Reactions 
+
+All GP LLMs (17) together 2.19 2.07 1.93 1.65 4.85 3.98 3.53 2.87 All conventional SSRS models (8) together 2.18 1.99 1.78 1.45 4.90 3.58 3.00 2.26 All C3LMs (5) together 2.23 2.04 1.88 1.57 4.74 3.31 2.78 2.14 All benchmarked models (30) together 2.25 2.15 2.04 1.81 4.91 4.12 3.69 3.04    
+
+> Table 3: Full plausibility-based evaluation in the single-step retrosynthesis Top-Kmode. Max : per-target maximum ChemCensor score averaged over TMs. Av. PT-Top-K CC : per-TM average ChemCensor score over top-K unique predictions; ChemCensor v1.1.1., USPTO-full as the source of synthetic precedents.
+
+14 G Plausibility-Based Top-1 (Single-Answer) Results 
+
+The Top-1 (single-answer) predictions evaluated in Table 4 are taken from the original benchmark (Zagri-belnyy et al., 2026b); we do not regenerate them and only re-score them under ChemCensor v1.1.1, the version used throughout this paper, so that they are directly comparable with our Top-K results. 
+
+Model URSA-expert-2026 USPTO-50K-test-mini Max Av. PT-Top-K CC Max Av. PT-Top-K CC @3 @5 @10 @3 @5 @10 
+
+Proprietary Foundation Models 
+
+Grok-4.1 1.73 1.28 0.92 0.47 4.01 2.29 1.53 0.79 Grok-4.3 1.47 0.86 0.56 0.28 3.06 1.34 0.83 0.41 Gemini 3.1 Pro 1.63 0.92 0.57 0.28 4.00 1.70 1.03 0.51 GPT 5.1 0.73 0.34 0.21 0.11 1.37 0.63 0.38 0.19 GPT 5.2 0.86 0.45 0.28 0.14 2.02 0.95 0.58 0.29 GPT 5.4 0.11 0.05 0.03 0.02 2.12 0.97 0.60 0.30 GPT 5.5 1.52 0.96 0.63 0.32 3.90 1.89 1.18 0.59 Claude Sonnet 4.5 1.44 0.86 0.56 0.28 3.34 1.67 1.05 0.52 Claude Sonnet 4.6 1.26 0.71 0.44 0.22 3.32 1.64 1.01 0.51 Claude Opus 4.5 1.31 0.68 0.42 0.21 3.33 1.54 0.94 0.47 Claude Opus 4.6 1.36 0.84 0.53 0.26 3.63 1.81 1.12 0.56 Claude Opus 4.7 1.67 1.04 0.66 0.33 3.72 1.79 1.12 0.56 Claude Opus 4.8 1.66 1.06 0.67 0.34 3.64 1.69 1.04 0.52 
+
+Open-weight Foundation Models 
+
+DeepSeek 3.2 0.39 0.16 0.09 0.05 1.14 0.44 0.26 0.13 Qwen 3.5 1.54 1.04 0.73 0.38 3.69 2.02 1.32 0.67 Kimi K2.5 1.47 0.98 0.64 0.33 3.73 1.85 1.16 0.58 GLM-5 1.03 0.49 0.29 0.15 3.67 1.92 1.23 0.62 LFM2 2.6B 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00    
+
+> Table 4: Plausibility-based evaluation in the single-step retrosynthesis Top-1mode. Max : per-target maximum ChemCensor score averaged over TMs. Av. PT-Top-K CC : per-TM average ChemCensor score over top-K unique predictions; ChemCensor v1.1.1.
+
+15 H Reaction Intersection with the Conventional Model MHNreact 
+
+To assess whether the models generate plausible reactions beyond those found by a strong conventional method, we compare the set of reactions predicted by each model against those predicted by MHNreact, the strongest conventional SSRS baseline in our evaluation. Table 5 reports, for every model, the average per-target number of reactions in the intersection with MHNreact, those unique to the model, and those unique to MHNreact, together with the difference ∆ between the number of reactions unique to the model and those unique to MHNreact. 
+
+Model Intersection Unique for Model Unique for MHNreact ∆
+
+C3LM-LFM2-CREED-CCV-2+USPTO-XL 5.0 6.8 6.4 +0.4 C3LM-LFM2-RFT-CC-NR 5.0 6.7 6.4 +0.3 C3LM-LFM2-RFT-CC 4.8 6.0 6.6 -0.6 C3LM-LFM2-CREED-CCV+USPTO 3.6 4.0 7.9 -3.9 Gemini 3.1 Pro 5.2 3.5 6.2 -2.7 GPT 5.5 5.2 3.2 6.2 -3.0 Grok-4.1 3.9 2.7 7.5 -4.8 Claude Opus 4.7 4.5 2.6 6.9 -4.3 Claude Opus 4.8 4.0 2.2 7.4 -5.2 Qwen 3.5 2.7 2.0 8.7 -6.7 Claude Opus 4.6 3.0 1.9 8.5 -6.6 Grok-4.3 3.1 1.9 8.4 -6.5 Kimi K2.5 3.1 1.9 8.4 -6.5 Claude Sonnet 4.5 2.3 1.9 9.1 -7.2 Claude Opus 4.5 2.7 1.8 8.7 -6.9 GLM-5 2.3 1.4 9.2 -7.8 C3LM-LFM2-CREED-CCV+USPTO* 1.4 1.3 10.0 -8.7 GPT 5.4 1.0 1.1 10.5 -9.4 Claude Sonnet 4.6 1.6 0.8 9.8 -9.0 GPT 5.2 0.3 0.6 11.1 -10.5 GPT 5.1 0.3 0.5 11.1 -10.6 DeepSeek 3.2 0.4 0.4 10.9 -10.5   
+
+> Table 5: Intersection of predicted reactions for URSA-expert-2026 benchmark set with the reference conventional model MHNreact. ∆is the per-target difference between the number of reactions unique to the model and those unique to MHNreact.
+
+Figure 5 visualizes this partition across all models. Most models, including all foundation LLMs, produce fewer unique reactions than MHNreact ( ∆ < 0); only the strongest C3LM variants — 
+
+C3LM-LFM2-CREED-CCV-2+USPTO-XL and C3LM-LFM2-RFT-CC-NR — generate more unique plausible reactions than MHNreact ( ∆ > 0), indicating that they extend the plausible reaction space beyond this conventional baseline. Finally, Figure 6 gives a representative example for a single target (X404-1768-5005), contrasting the reactants predicted only by C3LM-LFM2-CREED-CCV-2+USPTO-XL , only by MHNreact, and by both models. 16 0 5 10 15 
+
+Average reactions per molecule 
+
+C3LM-3 C3LM-5 C3LM-4 C3LM-2 Gemini 3.1 Pro GPT 5.5 Grok-4.1 Opus 4.7 Opus 4.8 Qwen 3.5 Grok-4.3 Kimi K2.5 Opus 4.6 Sonnet 4.5 Opus 4.5 GLM-5 C3LM-1 GPT 5.4 Sonnet 4.6 GPT 5.2 GPT 5.1 DeepSeek 3.2 
+
+> +0.4 +0.3 -0.6 -3.9 -2.7 -3.0 -4.8 -4.3 -5.2 -6.7 -6.5 -6.5 -6.6 -7.2 -6.9 -7.8 -8.7 -9.4 -9.0 -10.5 -10.6 -10.5
+
+Unique reactions by LLM only Intersection Unique reactions by MHNreact only Figure 5: Intersection of reactions predicted by LLMs and the conventional SSRS model MHNreact. Values on the right show the difference between the number of reactions unique to the model and those unique to MHNreact (model 
+
+− MHNreact). C3LM-1 : C3LM-LFM2-CREED-CCV+USPTO *; C3LM-2 : C3LM-LFM2-CREED-CCV+USPTO ; C3LM-3 :
+
+C3LM-LFM2-CREED-CCV-2+USPTO-XL ; C3LM-4 : C3LM-LFM2-RFT-CC ; C3LM-5 : C3LM-LFM2-RFT-CC-NR .
+
+17 NHN NOHNOSN
+
+NN NONSOHN
+
+HNOSNONNON
+
+NO ON NONSOHN
+
+HNOSNONNOON
+
+NON NONSOHN
+
+Br NS HNOHO OH BONNNH
+
+INS HNOHO OH BONNNH
+
+Br ONNNHBHO OH NS HNO
+
+IONNNHBHO OH NS HNO
+
+INS HNOO OBONNNH
+
+HNOOCl N NNSNH2 
+
+HNOS NOFN NNH2 
+
+HNOOBr N NNSNH2 
+
+NHH2N ONNSN OH O
+
+INSOHNONH NNH
+
+SNBr ONNNHONH2 
+
+NSOHNCl ONNNH
+
+Reactants predicted by C3LM-LFM2-CREED-CCV-2+USPTO-XL Reactants predicted by both models: C3LM-LFM2-CREED-CCV-2+USPTO-XL and MHNreact Reactants predicted by MHNreact 
+
+NHN NOHNOSN
+
+Target Molecule Figure 6: Intersection of reactions predicted for X404-1768-5005 by C3LM-LFM2-CREED-CCV-2+USPTO-XL and MHNreact. 
+
+18 I ChemCensor Metrics Calculated with USPTO ∪ Pistachio Reference dataset 
+
+The plausibility scores in the main results (Table 1) are computed by ChemCensor (v1.1.1) against its default reference database (USPTO-full, as reported in (Zagribelnyy et al., 2026b)). To verify that our conclusions do not depend on this choice, we re-score the same model predictions with ChemCensor v1.1.1 using the ChemCensor-U2P2 reference database (USPTO-full ∪ Pistachio Q3 2023) instead. As shown in Table 6, the absolute scores change, but the relative ordering of models is largely preserved, confirming that the comparison is robust to the choice of reference database. 
+
+Model URSA-expert-2026 USPTO-50K-test-mini Max Av. PT-Top-K CC Max Av. PT-Top-K CC @3 @5 @10 @3 @5 @10 
+
+Proprietary Foundation Models 
+
+Grok-4.1 2.17 1.81 1.54 1.06 4.13 2.84 2.27 1.46 Grok-4.3 2.02 1.62 1.32 0.82 4.14 2.81 2.19 1.35 Gemini 3.1 Pro 2.20 1.93 1.68 1.29 4.42 3.12 2.56 1.83 GPT 5.1 0.69 0.40 0.27 0.14 1.41 0.79 0.54 0.28 GPT 5.2 0.51 0.33 0.24 0.15 1.61 0.99 0.71 0.40 GPT 5.4 1.37 0.97 0.71 0.39 2.50 1.62 1.19 0.66 GPT 5.5 2.28 1.94 1.68 1.27 4.60 3.26 2.68 1.86 Claude Sonnet 4.5 1.86 1.51 1.21 0.75 3.36 2.31 1.80 1.11 Claude Sonnet 4.6 1.17 0.90 0.70 0.42 3.13 2.07 1.57 0.92 Claude Opus 4.5 1.92 1.55 1.24 0.79 3.54 2.46 1.94 1.22 Claude Opus 4.6 1.95 1.59 1.29 0.83 3.96 2.77 2.19 1.37 Claude Opus 4.7 2.24 1.89 1.61 1.16 4.44 3.16 2.55 1.68 Claude Opus 4.8 2.17 1.85 1.54 1.02 4.45 3.17 2.55 1.68 
+
+Open-weight Foundation Models 
+
+DeepSeek 3.2 0.55 0.40 0.29 0.17 1.18 0.73 0.52 0.30 Qwen 3.5 1.91 1.54 1.26 0.81 3.61 2.61 2.07 1.29 Kimi K2.5 1.98 1.61 1.35 0.88 3.84 2.67 2.11 1.33 GLM-5 1.76 1.40 1.11 0.66 3.12 2.11 1.61 0.96 
+
+Conventional SSRS Models 
+
+LocalRetro 2.38 2.11 1.84 1.41 4.88 3.49 2.87 2.02 GLN 2.26 1.94 1.68 1.21 4.86 3.35 2.71 1.76 MEGAN 2.34 1.95 1.61 1.09 4.85 3.34 2.67 1.72 Chemformer 2.01 1.16 0.78 0.40 4.73 1.73 1.05 0.52 Graph2Edits 2.38 2.05 1.73 1.22 4.86 3.18 2.46 1.55 MHNreact 2.33 2.08 1.82 1.44 4.90 3.48 2.89 2.12 RetroKNN 2.35 2.11 1.82 1.41 4.90 3.53 2.91 2.04 R-SMILES 2.35 2.09 1.79 1.30 4.90 3.54 2.89 1.95 
+
+C3LM , Supervised Fine-Tuning, Top-1 Mode 
+
+C3LM-LFM2-CREED-CCV+USPTO * 1.88 1.24 0.86 0.45 4.23 2.23 1.46 0.76 
+
+C3LM , Supervised and Reinforcement Learning Fine-Tuning, Top-K Mode 
+
+C3LM-LFM2-CREED-CCV+USPTO 2.18 1.89 1.62 1.13 4.27 2.94 2.37 1.60 C3LM-LFM2-CREED-CCV-2+USPTO-XL 2.32 2.05 1.80 1.43 4.29 3.08 2.58 1.91 C3LM-LFM2-RFT-CC 2.42 2.14 1.89 1.48 4.30 3.12 2.62 1.93 C3LM-LFM2-RFT-CC-NR 2.42 2.21 1.95 1.56 4.40 3.21 2.71 2.06       
+
+> Table 6: Plausibility-based evaluation in the single-step retrosynthesis Top-Kmode. Max : per-target maximum ChemCensor score averaged over TMs. Av. PT-Top-K CC : per-TM average ChemCensor score over top-K unique predictions; ChemCensor v1.1.1, ChemCensor-U2P2 reference database (USPTO-full ∪Pistachio Q3 2023) .
+
+19 J Results under ChemCensor v0.5.2 
+
+The main results (Table 1) are computed with ChemCensor v1.1.1. To verify that our conclusions do not depend on the specific version of the plausibility metric, we re-score the same model predictions with ChemCensor v0.5.2, the version used in the original benchmark (Zagribelnyy et al., 2026b). The evaluation setup is otherwise identical to Table 1; only the scoring function differs. As shown in Table 7, the absolute values shift slightly, but the relative ordering of models is largely preserved, indicating that the comparison is robust to the choice of ChemCensor version. 
+
+Model URSA-expert-2026 USPTO-50K-test-mini Max Av. PT-Top-K CC Max Av. PT-Top-K CC @3 @5 @10 @3 @5 @10 
+
+Proprietary Foundation Models 
+
+Grok-4.1 1.90 1.59 1.33 0.88 4.04 2.71 2.13 1.33 Grok-4.3 1.80 1.45 1.16 0.69 4.02 2.65 2.03 1.22 Gemini 3.1 Pro 1.96 1.72 1.49 1.11 4.35 2.97 2.42 1.66 GPT 5.1 0.61 0.35 0.23 0.12 1.31 0.72 0.48 0.25 GPT 5.2 0.43 0.28 0.20 0.12 1.53 0.92 0.65 0.36 GPT 5.4 1.23 0.81 0.57 0.30 2.40 1.50 1.08 0.59 GPT 5.5 1.98 1.71 1.48 1.08 4.51 3.15 2.55 1.72 Claude Sonnet 4.5 1.59 1.29 1.02 0.60 3.21 2.10 1.58 0.93 Claude Sonnet 4.6 1.04 0.79 0.61 0.35 2.98 1.92 1.42 0.81 Claude Opus 4.5 1.70 1.34 1.07 0.65 3.37 2.28 1.75 1.06 Claude Opus 4.6 1.73 1.39 1.13 0.70 3.82 2.61 2.02 1.23 Claude Opus 4.7 1.95 1.68 1.42 0.97 4.37 3.04 2.40 1.53 Claude Opus 4.8 1.93 1.66 1.38 0.88 4.37 3.03 2.40 1.51 
+
+Open-weight Foundation Models 
+
+DeepSeek 3.2 0.51 0.35 0.24 0.13 0.99 0.60 0.42 0.23 Qwen 3.5 1.63 1.33 1.07 0.64 3.49 2.46 1.92 1.16 Kimi K2.5 1.73 1.42 1.16 0.71 3.72 2.51 1.94 1.17 GLM-5 1.50 1.20 0.93 0.52 2.93 1.92 1.44 0.83 
+
+Conventional SSRS Models 
+
+LocalRetro 2.14 1.87 1.61 1.23 4.82 3.35 2.73 1.88 GLN 1.97 1.73 1.50 1.04 4.81 3.23 2.58 1.66 MEGAN 2.03 1.76 1.50 1.01 4.82 3.26 2.59 1.67 Chemformer 1.77 1.02 0.68 0.35 4.70 1.73 1.05 0.53 Graph2Edits 2.11 1.81 1.54 1.09 4.80 3.12 2.40 1.51 MHNreact 2.08 1.86 1.63 1.28 4.84 3.34 2.75 1.98 RetroKNN 2.13 1.86 1.62 1.23 4.84 3.37 2.75 1.90 R-SMILES 2.10 1.87 1.64 1.24 4.87 3.51 2.86 1.95 
+
+C3LM , Supervised Fine-Tuning, Top-1 Mode 
+
+C3LM-LFM2-CREED-CCV+USPTO * 1.63 1.08 0.74 0.39 4.15 2.17 1.42 0.74 
+
+C3LM , Supervised Fine-Tuning, Top-K Mode 
+
+C3LM-LFM2-CREED-CCV+USPTO 2.01 1.72 1.45 1.00 4.23 2.84 2.28 1.51 C3LM-LFM2-CREED-CCV-2+USPTO-XL 2.07 1.82 1.60 1.27 4.17 2.92 2.43 1.78 
+
+C3LM , Reinforcement Learning Fine-Tuning, Top-K Mode 
+
+C3LM-LFM2-RFT-CC 2.08 1.86 1.65 1.29 4.16 2.96 2.47 1.79 C3LM-LFM2-RFT-CC-NR 2.18 1.95 1.74 1.38 4.29 3.05 2.56 1.92     
+
+> Table 7: Plausibility-based evaluation in the single-step retrosynthesis Top-Kmode. Max : per-target maximum ChemCensor score averaged over TMs. Av. PT-Top-K CC : per-TM average ChemCensor score over top-K unique predictions; ChemCensor v0.5.2.
+
+20 K Distribution of Reactant Sets per Product in USPTO-50K-test-mini 
+
+Figure 7 shows the distribution of the number of distinct reactant sets (reference reactions) per product across the USPTO-50K-test-mini set. For each product, we collected all reference reactant sets by matching the product against the entire USPTO-full corpus (Lowe, 2017), rather than relying only on the single reaction provided in the test split. Even so, the large majority of products (420 of 497) are associated with a single reference reaction, and only a small tail has two or more. This sparsity of reference routes is the main limitation of exact-match, single-reference evaluation, and it motivates both our plausibility-based Top-K evaluation and the USPTO-XL augmentation, which enriches products with additional verified reactant sets. 1 2 3 4 5 6 7 8 9 10+        
+
+> Count of reactions per product SMILES
+> 050 100 150 200 250 300 350 400
+> Number of products
+> 420 49 12 6232111
+> Figure 7: Distribution of the number of reactant sets for products from USPTO-50K-test-mini. For each product, all reference reactant sets were retrieved by matching it against USPTO-full.
+
+L CREED-CCV-2+USPTO-XL Details 
+
+In this work, we introduce the CREED-CCV-2+USPTO-XL training dataset. Relative to the original CREED-CCV (Zagribelnyy et al., 2026b), it is substantially larger and denser: 3,680 ,906 unique products and 45 ,649 ,785 reaction candidates (vs. 698 ,765 and 6,368 ,986 ), i.e. roughly 5.3× more products and 
+
+7.2× more reactions, with ∼12 .4 candidates per product on average (vs. ∼9.11 ). Partitions follow the same 0.8/0.1/0.1 product-disjoint split. The per-product candidate count is concentrated in the 11 –50 
+
+bin ( 2,099 ,509 products), with the remainder in the 6–10 (785 ,011 ), 2–5 (579 ,555 ), 1 (216 ,754 ), and 50+ 
+
+(77 ) bins. 21

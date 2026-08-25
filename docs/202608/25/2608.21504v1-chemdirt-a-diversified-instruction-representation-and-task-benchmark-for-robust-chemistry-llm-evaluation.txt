@@ -1,0 +1,558 @@
+Title: ChemDIRT: A Diversified Instruction, Representation, and Task Benchmark for Robust Chemistry-LLM Evaluation
+
+URL Source: https://arxiv.org/pdf/2608.21504v1
+
+Published Time: Tue, 25 Aug 2026 00:05:20 GMT
+
+Number of Pages: 10
+
+Markdown Content:
+# ChemDIRT: A Diversified Instruction, Representation, and Task Benchmark for Robust Chemistry-LLM Evaluation 
+
+Eric Inae, Tim Gunn, Chris Bond, and Meng Jiang 
+
+University of Notre Dame Notre Dame, Indiana, USA 
+
+{einae, tgunn2, cbond, mjiang2 }@nd.edu 
+
+Abstract —The rapid advancement of large language models (LLMs) has led to increasing interest in their application to scientific domains such as chemistry. However, existing chemistry benchmarks often provide only a narrow view of model capabil-ity, focusing on limited task sets while overlooking robustness to variations in problem formulation and chemical representation. As a result, reported performance may overestimate a model’s true ability to reason consistently across realistic settings. To address this challenge, we introduce ChemDIRT (Diversified Instruction, Representation, and Task Benchmark), a compre-hensive evaluation framework designed to assess the robust-ness of chemical reasoning in LLMs. ChemDIRT systematically measures model performance across variations in instructions and molecular representations while spanning eight categories of chemistry tasks. By evaluating both accuracy and consistency under these controlled perturbations, ChemDIRT provides amore reliable assessment of model reasoning capabilities than conventional single-format benchmarks. We benchmark a diverse set of open- and closed-source LLMs, revealing substantial prompt sensitivity, representation dependence, and uneven per-formance across task families. 
+
+Index Terms —chemistry benchmarks, large language models, chemical reasoning, prompt robustness, molecular representa-tions 
+
+I. I NTRODUCTION 
+
+The rapid adoption of large language models (LLMs) as agents for general reasoning and question-answering has in-creasingly led to their application in specialized scientific domains [1], [2]. For chemistry, LLMs have been leveraged for tasks such as molecular design and discovery [3], [4], quantitative analysis [5], and predictive chemistry [6], [7]. As these models become integrated into scientific workflows, rig-orous evaluation becomes increasingly important. In particular, reliable deployment requires not only strong performance on benchmark tasks, but also robustness to variations in task for-mulation, linguistic expression, and molecular representation. An evaluation framework that fails to account for these factors risks providing an incomplete or misleading assessment of a model’s underlying chemical reasoning capabilities. Existing chemistry benchmarks typically focus on a narrow range of reasoning tasks. In this work, we create a taxon-omy that organizes these tasks by their primary reasoning requirements: description, classification, design, analytical, regression, computation, mechanistic, and relational. For ex-ample, design tasks generate molecular structures, regression 
+
+Fig. 1. ClinTox classification accuracy across four semantically equivalent prompt variants. Despite asking the same question, changes in phrasing produce substantial performance shifts across all three models. 
+
+tasks predict real-valued properties, and computation tasks require symbolic or numerical reasoning. Existing benchmarks such as ChemLLMBench [8], ChemBench4K [7], and Mol-Instructions [9] cover only subsets of these categories. Strong performance on any one benchmark may therefore not reflect robust reasoning across the range of tasks in chemistry. Beyond task coverage, current chemistry benchmarks rarely evaluate robustness to instruction variation. Previous works have found that LLMs are highly sensitive to choice of wording and syntactic ordering, despite the semantic con-tent being equivalent [10]–[13]. Nevertheless, many chemistry benchmarks employ a single fixed template for each task, implicitly conflating task performance with prompt-specific behavior. Figure 1 illustrates this phenomenon for ClinTox classification, where semantically equivalent prompts yield substantially different accuracies. Consequently, benchmark results may reflect sensitivity to prompt formulation rather than genuine differences in chemical reasoning ability. Sev-eral studies call for multi-prompt evaluation to address this sensitivity [12], [13]. However, this practice remains largely absent from chemistry-specific benchmarks. A related but often overlooked source of evaluation insta-arXiv:2608.21504v1 [cs.LG] 21 Aug 2026 bility arises from molecular representation. While SMILES strings are the default choice for representing molecules, recent works have shown that alternative notations, including SELF-IES, InChI, and IUPAC, can elicit different behavior from LLMs. Although a model should draw the same conclusion from the SMILES and IUPAC forms of a molecule, models exhibit low consistency across representations in practice [14]. Furthermore, alternative representations such as InChI and IU-PAC have been reported to outperform SMILES on certain pre-diction tasks due to differences in tokenization characteristics and representation prevalence within pretraining corpora [15]. Because most existing benchmarks evaluate models using only a single representation format, they are unable to determine whether observed performance reflects robust chemical under-standing or dependence on a particular encoding. Evaluating representational consistency is therefore essential for obtaining a reliable assessment of model capability. To address these limitations, we introduce ChemDIRT (Diversified Instruction, Representation, and Task), a robustness-oriented benchmark containing 33 task– representation settings and 4,484 released examples across eight reasoning categories, evaluated with 23 open- and closed-source models. ChemDIRT treats instruction and representation diversity as a benchmark design requirement, as seemingly superficial choices can materially change measured performance. Our contributions are fourfold: (1) a taxonomy spanning eight categories of chemical reasoning, (2) a benchmark that jointly varies tasks, instructions, molecular representa-tions, and input modalities (text and images), (3) a broad evaluation showing substantial task- and prompt-dependent inconsistency, and (4) a public dataset and evaluation code-base supporting reproducible scientific-model comparison. Code and data are available on GitHub (https://github.com/ einae-nd/ChemDIRT) and Hugging Face (https://huggingface. co/datasets/Einae/ChemDIRT). II. R ELATED WORK 
+
+The rapid development of chemistry-focused language mod-els has motivated the creation of benchmarks that evaluate chemical understanding beyond general linguistic competence. Existing evaluations aim to probe how well models capture chemistry-specific knowledge grounded in molecular struc-ture, symbolic representations, and experimental observations, rather than surface-level text correlations. Prior work spans a broad range of problem settings, including molecular recog-nition, qualitative inference, numerical prediction, algorithmic calculation, and reasoning about chemical reactions and pro-cesses [16]–[21]. Together, these benchmarks reflect a shared goal of assessing whether models can meaningfully reason about chemical entities and transformations. A large body of work focuses on recognizing molecular features and making qualitative inferences from structured representations such as SMILES strings, molecular graphs, or textual descriptions. Common evaluations include identifying atoms, functional groups, rings, and structural motifs, as well as predicting categorical properties such as toxicity, bioactiv-ity, or permeability [8], [22]–[26]. Datasets from MoleculeNet, including HIV, BBBP, and Tox21, have served as foundational benchmarks for predictive chemistry and have been adapted for instruction-following and LLM-based settings [8], [23]– [26]. Closely related are molecular generation and translation tasks, where models produce molecular structures, descrip-tions, or alternative representations under specified constraints, as explored in ChemLLMBench, Mol-Instructions, MolQA, and related works [8], [9], [27], [28]. Beyond surface-level recognition, several benchmarks tar-get chemistry question answering and analysis that require integrating conceptual knowledge across subfields. General-purpose reasoning suites such as MMLU and MMLU-Pro include chemistry subsets spanning undergraduate- and graduate-level topics [29], [30], while domain-specific datasets address literature-based question answering, hypothesis gener-ation, and molecular property analysis [31]–[34]. These tasks typically require recalling and applying chemical principles to new contexts, rather than direct extraction from a single representation, and are often used to probe broader chemical reasoning capabilities in language models [17], [35], [36]. Another major line of work focuses on numeric and process-oriented reasoning in chemistry. Regression benchmarks evalu-ate the prediction of continuous-valued properties derived from experiments or simulations, including solubility, lipophilicity, hydration free energy, and quantum mechanical quantities, using datasets such as ESOL, Lipo, FreeSolv, QM9, and Open Catalyst [23], [37]–[39]. Complementary computational benchmarks assess chemistry-grounded calculations, includ-ing stoichiometry, unit conversions, yield estimation, and spectroscopy-related analysis [16], [18], [40]. Mechanistic rea-soning tasks further extend this scope by focusing on chemical reactions and transformations, drawing on large-scale reaction corpora such as USPTO and the Open Reaction Database to evaluate forward reaction prediction, retrosynthesis planning, and condition selection [41]–[46]. An important yet relatively unexplored evaluation task is comparative and relational reasoning between molecules. While some recent benchmarks incorporate relational tasks such as ranking the best reagents for a reaction and selecting the molecule most similar to a given description [7], [8], they remain relatively underrepresented in existing evaluations. While existing benchmarks probe many aspects of chemical knowledge, they are typically designed in isolation and em-phasize narrow task families or representations. As a result, current evaluations provide an incomplete and often inconsis-tent picture of a model’s overall chemical reasoning ability, motivating the construction of a benchmark that jointly spans diverse chemistry tasks under a common evaluation setting. III. T HE CHEM DIRT B ENCHMARK 
+
+ChemDIRT organizes chemistry tasks according to their primary reasoning demands. Its eight categories are descrip-tion, classification, design, analytical, regression, computation, mechanistic, and relational reasoning. Each is defined by the 8.9% (400) 13.5% (604) 11.2% (500) 9.2% (411) 17.3% (777) 19.9% (892) 13.4% (600) 6.7% (300)        
+
+> Description Classification Design Analytical Regression Computation Mechanistic Relational Fig. 2. Distribution of ChemDIRT evaluation examples across the eight chemical-reasoning categories.
+
+minimum chemical reasoning required for correctness rather than by prompt wording or output format. Consequently, re-formulating a task may change its category when the required reasoning changes. The taxonomy is scoped to reasoning over molecular en-tities, reactions, and chemical domain knowledge. Meta-level activities such as dataset curation, distributional analysis, and uncertainty estimation are excluded because their correctness does not directly depend on chemical inference. Table I lists the 33 task settings and their evaluation counts. Representation-specific variants are shown separately if they are evaluated independently. 
+
+A. Task Definitions 
+
+We define each category below and identify its ChemDIRT subtasks and reported metrics. 
+
+1) Description: Description tasks require intramolecular structural reasoning without empirical property inference. For-mally, we define description tasks as 
+
+LLM (pm,τ ) = a(d),
+
+where the input is a prompt p containing a molecule m
+
+and a structural target τ , and the output is a short answer 
+
+a(d) describing a structural attribute of the molecule. The description tasks include carbon count, ring count, functional-group presence, and bond-type presence. Carbon and ring counts require integer answers, whereas functional-group and bond-type presence require binary labels. All four tasks are evaluated using accuracy. Molecules for these tasks are sampled randomly from QM9 [37], ZINC [47], ChEMBL [48], and PubChem [49]. Ground-truth answers are extracted using RDKit [50]. For each sampled molecule, we additionally use the PubChem API to algorithmically convert SMILES into the corresponding IUPAC name, providing an alternative linguistic representation of the same molecular input. 
+
+2) Classification: Classification tasks correspond to em-pirical molecular property inference. Given a prompt p that contains a molecule m and a target property τ , the LLM is tasked with generating a binary classification label y(c), such that 
+
+LLM (pm,τ ) = y(c).
+
+The evaluation metric is accuracy. We include molecules from BACE, BBBP, ClinTox, and HIV as standard molecular property classification tasks following MoleculeNet [23]. 
+
+3) Design: Design tasks require generating a molecular structure conditioned on a molecular specification. We define the design task as 
+
+LLM (pt) = m, 
+
+where pt specifies a target molecule and m is the generated molecule, independent of whether it is expressed in the re-quested SMILES or IUPAC representation. We report exact match as a strict measure and MACCS, Morgan, and RDKit (RDK) fingerprint similarity as graded measures of structural agreement, following prior recommendations for molecule generation evaluation [51]. For SMILES-to-IUPAC translation, we separate structural exact match, computed after resolving the name to a structure, from literal IUPAC exact match. We include two types of design tasks. The first comprises IUPAC-to-SMILES, SMILES-to-IUPAC, image-to-SMILES, and image-to-IUPAC translation [8]. The image settings test robustness to input modality as well as representation. We construct these questions by sampling molecules from QM9 [37], ZINC [47], ChEMBL [48], and PubChem [49]. The second is description-based design, in which a detailed tex-tual description specifies the target molecule’s structural and chemical characteristics [8], [9]. 
+
+4) Analytical: Analytical tasks require chemical knowl-edge synthesis and reasoning expressed through open-form language. These tasks are defined as question–answer pairs 
+
+(q, a (s)), where 
+
+LLM (pq ) = a(s).
+
+These questions require causal, deductive, inductive, or abduc-tive inference grounded in chemical knowledge. We include literature-grounded QA, true/false questions, and short-answer open response, sourced and modified from ChemLit-QA [32], ChemLLMBench [8], and Mol-Instructions [9]. In literature-grounded QA, the model receives a passage as context and answers a question about that passage. Literature-grounded and open-response answers are scored using exact match and TABLE I CHEM DIRT TASK –REPRESENTATION SETTINGS AND EVALUATION COUNTS (N = 4 ,484 ). “O URS ” DENOTES EXAMPLES CONSTRUCTED FOR CHEM DIRT.                                                                                                                  
+
+> Category Subtask Source/Test nCategory Subtask Source/Test nCategory Subtask Source/Test n
+> Description Carbon count Ours 100 Design IUPAC →SMILES Ours 100 Regression ESOL 113 113 Ring count Ours 100 SMILES →IUPAC Ours 100 Lipophilicity 420 420 Functional-group presence Ours 100 Image →SMILES Ours 100 FreeSolv 65 65 Bond-type presence Ours 100 Image →IUPAC Ours 100 O2permeability 179 179 Classification BACE 152 152 Description-based design 100 100 Computation Physical-unit calculation 500 392 BBBP 204 204 Mechanistic Forward prediction (SMILES) 100 100 Coefficient balancing 500 100 ClinTox 148 148 Forward prediction (formula) Ours 100 Yield prediction 300 300 HIV 4,113 100 Forward prediction (image) Ours 100 Molecular-weight calculation Ours 100 Analytical Literature-grounded QA 211 211 Retrosynthesis (SMILES) 100 100 Relational Representation equivalence Ours 100 True/false 100 100 Retrosynthesis (formula) Ours 100 Chemical-similarity comparison Ours 100 Open response 100 100 Retrosynthesis (image) Ours 100 Molecular-weight comparison Ours 100
+> Total ChemDIRT Examples 4,484
+
+ROUGE-1, ROUGE-2, and ROUGE-L. True/false questions are scored using accuracy. 
+
+5) Regression: Regression tasks correspond to quantitative molecular property inference, defined as 
+
+LLM (pm,τ ) = y(r),
+
+where the prompt p contains a molecule m and a target property τ , and the output is a numerical label y(r). We include ESOL and lipophilicity from MoleculeNet [23], hydration free energy from FreeSolv [38], and O 2 gas permeability [52]. Each setting is evaluated using log root mean squared error (log RMSE), mean absolute error (MAE), relative RMSE, and RMSE. Lower values indicate better performance. 
+
+6) Computation: Computation tasks are governed by sym-bolic and calculation-based reasoning. These tasks are defined as 
+
+LLM (pq ) = a(r),
+
+where the question q requires a numerical or coefficient-vector answer a(r). The computation settings are physical-unit calculation, stoichiometric coefficient balancing, reaction-yield prediction, and molecular-weight calculation, with exam-ples drawn from ChemAlgebra [40], ChemistryQA [16], and ChemBench4K [7]. We use RDKit [50] to calculate reference molecular weights. Coefficient balancing is scored by accuracy while the other three settings use log RMSE, MAE, relative RMSE, and RMSE, matching the reported numerical-error metrics for regression. 
+
+7) Mechanistic: Mechanistic tasks require reasoning over chemical transformations and reaction pathways. These tasks are defined as 
+
+LLM (preact ) = m, 
+
+where preact specifies the reaction context and the output is the predicted molecular structure m.We include two mechanistic tasks: forward prediction, in which the major product of a reaction is predicted, and retrosynthesis, in which reactants are inferred from products and reagents. Each is evaluated with SMILES, molecular-formula, and molecular-graph-image inputs. SMILES exam-ples are drawn from ChemLLMBench [8], formula examples from ChemAlgebra [40], and corresponding graph images are generated with RDKit [50]. SMILES- and image-based 
+
+Model Full Accuracy Subset Accuracy 
+
+ChemLLM 0.955 0.950 ChemDFM 0.902 0.900 ChemR 0.827 0.830 General-Reasoner 0.334 0.340 Falcon 0.043 0.050 Galactica 0.541 0.540 Qwen2 0.516 0.520 Qwen3 0.944 0.950 Mistral 0.449 0.450 Gemma2 0.958 0.950 Gemma3 0.663 0.660 Llama2 0.805 0.800 Llama3 0.357 0.360 DeepSeek-R1 0.956 0.950 TABLE II FULL -TEST AND SELECTED -SUBSET HIV ACCURACIES FOR REFERENCE MODELS (n = 100 ). 
+
+ClinTox Classification Prompt Variants 
+
+Predict the clinical trial toxicity outcome for the molecule with SMILES: 
+
+{SMILES }.Did the compound represented by {SMILES } fail clinical trials due to toxicity? Classify the molecule {SMILES } with respect to clinical trial toxicity. Given the SMILES {SMILES }, determine whether the compound exhibits clinical trial toxicity. Does the structure {SMILES } indicate failure in clinical trials due to toxicity? Evaluate the clinical trial toxicity of the molecule encoded as {SMILES }.For the molecule {SMILES }, return whether it failed clinical trials because of toxicity. From the SMILES {SMILES }, predict the binary clinical trial toxicity label. Can you assess whether {SMILES } corresponds to a clinically toxic compound? What is the clinical trial toxicity classification for the compound 
+
+{SMILES }?TABLE III TEN VERIFIED CLIN TOX PROMPT CANDIDATES . T HE REPORTED EVALUATION USES THE FIRST FOUR VARIANTS FROM THIS SET , WITH 
+
+{SMILES } REPLACED AT INFERENCE TIME .
+
+settings are scored using exact match and MACCS, Mor-gan, and RDK fingerprint similarity. Because formulas lack explicit bonding information, formula-based settings instead use exact match, cosine similarity between elemental-count vectors (atom cosine), and atom-level F1. Exact match requires complete reconstruction, whereas atom cosine and F1 quantify partial compositional agreement. 
+
+8) Relational: Relational tasks require reasoning over rela-tionships between two or more molecular entities. These tasks TABLE IV PROMPT -VARIED RESULTS (MEAN ± SD OVER EVALUATED CONDITIONS ). P ANELS SHOW (A) TRANSLATION , CLASSIFICATION , AND COEFFICIENT BALANCING , ( B–C) REGRESSION , ( D) MECHANISTIC TASKS , AND (E) DESCRIPTION , RELATIONAL , AND MOLECULAR -WEIGHT TASKS .
+
+(a) Translation, classification, and coefficient balancing 
+
+Model IUPAC → SMILES ( n = 100 ) SMILES → IUPAC ( n = 100 ) BACE ( n = 152 ) BBBP ( n = 204 ) ClinTox ( n = 148 ) HIV ( n = 100 ) Coefficient Balancing ( n = 100 )Exact Match MACCS Morgan RDK Structural EM IUPAC EM MACCS Morgan RDK Accuracy Accuracy Accuracy Accuracy Accuracy ChemDFM [53] 0.250 ± 0.012 0.894 ± 0.003 0.651 ± 0.006 0.713 ± 0.003 0.158 ± 0.045 0.077 ± 0.013 0.822 ± 0.021 0.479 ± 0.026 0.554 ± 0.025 0.538 ± 0.047 0.567 ± 0.090 0.703 ± 0.149 0.720 ± 0.028 0.013 ± 0.008 
+
+ChemDFM-R [53] 0.777 ± 0.008 0.982 ± 0.002 0.922 ± 0.005 0.949 ± 0.003 0.722 ± 0.014 0.518 ± 0.004 0.971 ± 0.004 0.897 ± 0.006 0.930 ± 0.006 0.688 ± 0.029 0.841 ± 0.027 0.909 ± 0.003 0.725 ± 0.015 0.467 ± 0.037 
+
+ChemDFM-v2 [53] 0.740 ± 0.023 0.980 ± 0.002 0.912 ± 0.005 0.940 ± 0.004 0.770 ± 0.022 0.530 ± 0.000 0.980 ± 0.003 0.914 ± 0.014 0.946 ± 0.010 0.763 ± 0.022 0.806 ± 0.044 0.902 ± 0.012 0.727 ± 0.022 0.583 ± 0.089 
+
+ChemLLM [7] 0.022 ± 0.018 0.770 ± 0.011 0.427 ± 0.017 0.537 ± 0.031 0.000 ± 0.000 0.000 ± 0.000 0.887 ± 0.000 0.533 ± 0.000 0.813 ± 0.000 0.546 ± 0.000 0.230 ± 0.000 0.905 ± 0.000 0.700 ± 0.000 0.000 ± 0.000 
+
+ChemM-R1 [54] 0.010 ± 0.007 0.577 ± 0.023 0.246 ± 0.030 0.332 ± 0.016 0.067 ± 0.094 0.000 ± 0.000 0.531 ± 0.166 0.307 ± 0.125 0.229 ± 0.230 0.434 ± 0.012 0.688 ± 0.078 0.389 ± 0.104 0.423 ± 0.094 0.053 ± 0.035 
+
+ChemR [55] 0.728 ± 0.048 0.972 ± 0.005 0.901 ± 0.011 0.928 ± 0.010 0.721 ± 0.069 0.485 ± 0.145 0.961 ± 0.014 0.886 ± 0.041 0.906 ± 0.035 0.539 ± 0.031 0.585 ± 0.118 0.465 ± 0.181 0.480 ± 0.130 0.220 ± 0.012 
+
+ChemVLM-8B [56] 0.175 ± 0.005 0.857 ± 0.007 0.575 ± 0.014 0.668 ± 0.011 0.134 ± 0.006 0.003 ± 0.004 0.851 ± 0.017 0.567 ± 0.029 0.626 ± 0.033 0.558 ± 0.016 0.230 ± 0.000 0.905 ± 0.000 0.675 ± 0.027 0.000 ± 0.000 
+
+DeepSeek-R1-Direct [57] Unable to complete Unable to complete 0.454 ± 0.000 0.770 ± 0.000 0.095 ± 0.000 0.300 ± 0.000 0.260 ± 0.029 
+
+Falcon [58] 0.000 ± 0.000 0.103 ± 0.027 0.024 ± 0.008 0.023 ± 0.019 0.000 ± 0.000 0.000 ± 0.000 0.117 ± 0.030 0.050 ± 0.002 0.029 ± 0.009 0.454 ± 0.000 0.643 ± 0.230 0.280 ± 0.314 0.300 ± 0.000 0.755 ± 0.206 
+
+Galactica [59] 0.000 ± 0.000 0.619 ± 0.007 0.240 ± 0.030 0.335 ± 0.020 0.000 ± 0.000 0.000 ± 0.000 0.218 ± 0.022 0.082 ± 0.008 0.093 ± 0.015 0.454 ± 0.000 0.770 ± 0.000 0.095 ± 0.000 0.300 ± 0.000 0.092 ± 0.093 
+
+Gemma2 [60] 0.000 ± 0.000 0.424 ± 0.000 0.165 ± 0.000 0.248 ± 0.000 0.000 ± 0.000 0.000 ± 0.000 0.253 ± 0.120 0.108 ± 0.046 0.127 ± 0.085 0.546 ± 0.000 0.230 ± 0.000 0.905 ± 0.000 0.700 ± 0.000 0.190 ± 0.000 
+
+Gemma3 [61] 0.000 ± 0.000 0.402 ± 0.020 0.135 ± 0.005 0.222 ± 0.025 0.000 ± 0.000 0.000 ± 0.000 0.375 ± 0.008 0.133 ± 0.005 0.232 ± 0.010 0.454 ± 0.019 0.232 ± 0.002 0.498 ± 0.229 0.395 ± 0.097 0.000 ± 0.000 
+
+General-Reasoner [34] Unable to complete Unable to complete 0.454 ± 0.000 0.730 ± 0.028 0.095 ± 0.005 0.292 ± 0.013 0.273 ± 0.050 
+
+Kale-Chem [62] 0.117 ± 0.008 0.843 ± 0.005 0.536 ± 0.006 0.598 ± 0.002 0.148 ± 0.041 0.043 ± 0.011 0.803 ± 0.016 0.507 ± 0.025 0.561 ± 0.021 0.461 ± 0.015 0.510 ± 0.258 0.203 ± 0.145 0.338 ± 0.059 0.560 ± 0.070 
+
+Llama2 [63] 0.000 ± 0.000 0.207 ± 0.013 0.079 ± 0.015 0.113 ± 0.032 0.000 ± 0.000 0.000 ± 0.000 0.175 ± 0.018 0.079 ± 0.008 0.069 ± 0.004 0.454 ± 0.000 0.770 ± 0.000 0.118 ± 0.037 0.300 ± 0.000 0.007 ± 0.013 
+
+Llama3 [64] 0.000 ± 0.000 0.632 ± 0.022 0.215 ± 0.008 0.362 ± 0.011 0.000 ± 0.000 0.000 ± 0.000 0.481 ± 0.018 0.160 ± 0.006 0.238 ± 0.050 0.503 ± 0.079 0.540 ± 0.240 0.515 ± 0.384 0.435 ± 0.156 0.198 ± 0.039 
+
+Mistral [65] 0.000 ± 0.000 0.403 ± 0.033 0.120 ± 0.012 0.194 ± 0.028 0.000 ± 0.000 0.000 ± 0.000 0.338 ± 9.96 ×10 −4 0.122 ± 0.005 0.192 ± 0.007 0.475 ± 0.041 0.752 ± 0.019 0.194 ± 0.173 0.400 ± 0.173 0.362 ± 0.079 
+
+Qwen2 [66] 0.000 ± 0.000 0.368 ± 0.020 0.124 ± 0.008 0.232 ± 0.012 0.000 ± 0.000 0.000 ± 0.000 0.278 ± 0.007 0.096 ± 0.004 0.153 ± 0.013 0.551 ± 0.009 0.230 ± 0.000 0.818 ± 0.103 0.642 ± 0.088 0.820 ± 0.060 
+
+Qwen3 [67] 0.000 ± 0.000 0.517 ± 0.011 0.170 ± 0.008 0.283 ± 0.006 0.000 ± 0.000 0.000 ± 0.000 0.440 ± 0.012 0.153 ± 0.004 0.218 ± 0.012 0.535 ± 0.020 0.232 ± 0.002 0.905 ± 0.000 0.702 ± 0.004 0.397 ± 0.132 
+
+RetroDFM-R [68] 0.018 ± 0.019 0.710 ± 0.021 0.426 ± 0.014 0.513 ± 0.011 Unable to complete 0.457 ± 0.006 0.772 ± 0.004 0.150 ± 0.013 0.305 ± 0.005 0.000 ± 0.000 
+
+Claude-Sonnet-5 [69] 0.487 ± 0.033 0.901 ± 0.040 0.812 ± 0.033 0.834 ± 0.037 0.548 ± 0.032 0.180 ± 0.016 0.960 ± 0.008 0.836 ± 0.013 0.874 ± 0.010 0.523 ± 0.028 0.799 ± 0.037 0.642 ± 0.072 0.725 ± 0.023 0.875 ± 0.043 
+
+Gemini-3.5-Flash-Lite [70] 0.145 ± 0.017 0.881 ± 0.013 0.618 ± 0.019 0.675 ± 0.024 0.172 ± 0.035 0.038 ± 0.004 0.873 ± 0.021 0.585 ± 0.031 0.655 ± 0.030 0.484 ± 0.012 0.809 ± 0.023 0.654 ± 0.040 0.593 ± 0.057 0.595 ± 0.057 
+
+GPT-5.6-Luna [71] 0.158 ± 0.011 0.885 ± 0.012 0.614 ± 0.013 0.678 ± 0.008 0.090 ± 0.020 0.025 ± 0.005 0.833 ± 0.002 0.478 ± 0.016 0.567 ± 0.009 0.543 ± 0.078 0.525 ± 0.089 0.677 ± 0.265 0.613 ± 0.118 0.745 ± 0.203 
+
+(b) Regression: ESOL and lipophilicity 
+
+Model ESOL ( n = 113 ) Lipophilicity ( n = 420 )Log RMSE MAE Relative RMSE RMSE Log RMSE MAE Relative RMSE RMSE ChemDFM 3.269 ± 0.145 467 .239 ± 108 .379 2.54 ×10 3 ± 1.76 ×10 3 870 .280 ± 186 .688 1.919 ± 0.236 300 .031 ± 102 .987 955 .242 ± 479 .278 558 .706 ± 147 .705 
+
+ChemDFM-R 0.467 ± 0.142 3.602 ± 0.196 2.064 ± 1.155 4.288 ± 0.198 0.891 ± 0.147 2.115 ± 0.155 1.747 ± 0.189 2.257 ± 0.146 
+
+ChemDFM-v2 0.761 ± 0.367 3.733 ± 0.143 3.869 ± 1.600 4.401 ± 0.157 1.017 ± 0.130 2.030 ± 0.053 1.336 ± 0.146 2.206 ± 0.055 
+
+ChemLLM 0.986 ± 0.260 3.623 ± 0.053 1.712 ± 1.211 4.328 ± 0.118 0.513 ± 0.107 5.053 ± 0.686 6.601 ± 1.931 5.840 ± 0.306 
+
+ChemM-R1 17 .364 ± 23 .085 9.32 ×10 125 ± 1.16 ×10 126 3.59 ×10 126 ± 5.76 ×10 126 3.30 ×10 126 ± 3.31 ×10 126 13 .824 ± 7.875 2.14 ×10 125 ± 2.40 ×10 125 5.95 ×10 125 ± 6.18 ×10 125 1.39 ×10 126 ± 1.57 ×10 126 
+
+ChemR 1.306 ± 0.515 2.16 ×10 25 ± 3.74 ×10 25 3.37 ×10 25 ± 5.84 ×10 25 2.29 ×10 26 ± 3.97 ×10 26 1.446 ± 0.476 1.20 ×10 34 ± 2.07 ×10 34 5.84 ×10 34 ± 1.01 ×10 35 2.45 ×10 35 ± 4.25 ×10 35 
+
+ChemVLM-8B 0.816 ± 0.403 3.598 ± 0.047 1.093 ± 0.113 4.266 ± 0.041 0.294 ± 0.021 0.919 ± 0.064 5.467 ± 0.666 1.133 ± 0.052 
+
+DeepSeek-R1-Direct 1.596 ± 0.848 4.514 ± 0.110 5.951 ± 0.737 5.109 ± 0.080 0.332 ± 0.038 1.222 ± 0.144 4.406 ± 0.479 1.422 ± 0.144 
+
+Falcon 0.771 ± 0.616 4.034 ± 0.387 2.392 ± 1.731 4.691 ± 0.402 0.432 ± 0.007 1.992 ± 0.276 1.649 ± 0.759 2.285 ± 0.260 
+
+Galactica 2.283 ± 1.682 3.840 ± 0.408 2.212 ± 1.807 4.484 ± 0.361 0.408 ± 0.019 1.594 ± 0.267 3.363 ± 0.206 1.833 ± 0.330 
+
+Gemma2 3.369 ± 1.537 4.117 ± 0.479 2.738 ± 1.814 4.814 ± 0.499 0.394 ± 0.022 1.437 ± 0.063 3.163 ± 0.240 1.634 ± 0.064 
+
+Gemma3 0.995 ± 0.531 6.139 ± 3.955 15 .105 ± 20 .433 8.963 ± 7.788 0.453 ± 0.117 1.984 ± 0.794 6.883 ± 2.724 2.685 ± 1.165 
+
+General-Reasoner 1.625 ± 0.445 11 .557 ± 6.373 53 .114 ± 46 .797 35 .612 ± 38 .406 0.439 ± 0.018 2.605 ± 0.424 7.733 ± 2.207 5.940 ± 0.819 
+
+Kale-Chem 1.420 ± 0.367 3.631 ± 0.062 1.184 ± 0.049 4.283 ± 0.057 0.280 ± 0.009 0.981 ± 0.073 5.725 ± 0.826 1.183 ± 0.062 
+
+Llama2 1.959 ± 1.335 4.211 ± 0.383 3.470 ± 1.890 4.812 ± 0.344 0.406 ± 0.047 1.495 ± 0.077 3.310 ± 0.728 1.800 ± 0.103 
+
+Llama3 1.853 ± 0.767 10 .165 ± 6.024 46 .041 ± 42 .090 38 .598 ± 34 .490 0.479 ± 0.125 2.114 ± 0.351 3.077 ± 1.272 2.393 ± 0.384 
+
+Mistral 4.703 ± 1.497 69 .986 ± 73 .441 166 .570 ± 164 .718 374 .208 ± 574 .957 0.348 ± 0.029 1.303 ± 0.104 4.540 ± 0.570 1.608 ± 0.242 
+
+Qwen2 1.583 ± 1.220 3.468 ± 0.333 7.568 ± 10 .098 4.109 ± 0.344 0.588 ± 0.162 3.756 ± 0.629 8.289 ± 1.629 3.965 ± 0.595 
+
+Qwen3 1.905 ± 0.297 5.415 ± 3.560 25 .830 ± 40 .873 10 .142 ± 10 .555 0.496 ± 0.203 1.992 ± 0.695 5.097 ± 2.589 2.310 ± 0.621 
+
+RetroDFM-R Unable to complete 1.188 ± 0.205 1.57 ×10 12 ± 2.73 ×10 12 1.83 ×10 13 ± 3.17 ×10 13 3.17 ×10 13 ± 5.49 ×10 13 
+
+Claude-Sonnet-5 0.396 ± 0.096 0.987 ± 0.564 65 .158 ± 109 .087 2.036 ± 2.034 0.278 ± 0.009 0.927 ± 0.097 5.794 ± 0.146 1.259 ± 0.155 
+
+Gemini-3.5-Flash-Lite 1.892 ± 1.352 539 .823 ± 850 .388 1.44 ×10 4 ± 2.44 ×10 4 4.43 ×10 3 ± 7.34 ×10 3 0.322 ± 0.010 1.176 ± 0.090 9.328 ± 1.077 1.592 ± 0.084 
+
+GPT-5.6-Luna 1.051 ± 0.710 29 .384 ± 46 .244 838 .976 ± 1.45 ×10 3 245 .542 ± 419 .288 0.299 ± 0.003 1.006 ± 0.021 7.470 ± 0.914 1.328 ± 0.020 
+
+(c) Regression: FreeSolv and O 2 permeability 
+
+Model FreeSolv ( n = 65 ) O2 Permeability ( n = 179 )Log RMSE MAE Relative RMSE RMSE Log RMSE MAE Relative RMSE RMSE ChemDFM 3.015 ± 0.239 431 .903 ± 163 .933 6.89 ×10 4 ± 2.90 ×10 4 461 .251 ± 154 .836 3.395 ± 0.646 6.50 ×10 15 ± 1.13 ×10 16 1.29 ×10 16 ± 2.23 ×10 16 6.70 ×10 16 ± 1.16 ×10 17 
+
+ChemDFM-R 0.768 ± 0.271 0.530 ± 0.217 17 .258 ± 15 .379 0.790 ± 0.287 3.855 ± 0.135 358 .945 ± 0.003 1.055 ± 0.068 1.82 ×10 3 ± 3.00 ×10 −4
+
+ChemDFM-v2 1.123 ± 0.285 0.738 ± 0.152 17 .683 ± 14 .237 1.017 ± 0.230 3.926 ± 0.047 358 .913 ± 0.038 0.996 ± 0.003 1.82 ×10 3 ± 0.002 
+
+ChemLLM 0.947 ± 0.000 11 .331 ± 7.437 967 .325 ± 1.34 ×10 3 19 .390 ± 10 .843 3.101 ± 0.561 372 .004 ± 11 .597 207 .927 ± 221 .118 1.83 ×10 3 ± 9.503 
+
+ChemM-R1 3.806 ± 0.867 7.03 ×10 15 ± 1.22 ×10 16 8.40 ×10 16 ± 1.45 ×10 17 5.45 ×10 16 ± 9.43 ×10 16 17 .538 ± 5.472 1.89 ×10 182 ± 3.27 ×10 182 7.02 ×10 182 ± 1.22 ×10 183 2.51 ×10 183 ± 4.35 ×10 183 
+
+ChemR 2.346 ± 0.200 1.03 ×10 3 ± 1.50 ×10 3 6.04 ×10 3 ± 5.16 ×10 3 5.34 ×10 3 ± 8.57 ×10 3 5.623 ± 1.615 4.62 ×10 21 ± 7.66 ×10 21 1.31 ×10 21 ± 2.25 ×10 21 6.19 ×10 22 ± 1.02 ×10 23 
+
+ChemVLM-8B 1.450 ± 0.000 7.195 ± 8.879 7.97 ×10 3 ± 1.37 ×10 4 24 .188 ± 26 .420 1.986 ± 1.102 358 .934 ± 0.007 0.995 ± 0.006 1.82 ×10 3 ± 0.001 
+
+DeepSeek-R1-Direct 4.530 ± 4.464 1.226 ± 0.193 164 .381 ± 97 .818 1.716 ± 0.252 6.124 ± 3.644 3.38 ×10 16 ± 3.21 ×10 16 2.23 ×10 17 ± 2.25 ×10 17 1.58 ×10 17 ± 1.10 ×10 17 
+
+Falcon 1.179 ± 1.138 1.943 ± 1.339 119 .898 ± 115 .155 3.176 ± 2.347 1.439 ± 0.101 358 .604 ± 0.284 8.387 ± 6.848 1.82 ×10 3 ± 0.096 
+
+Galactica 0.754 ± 0.000 5.961 ± 4.106 902 .832 ± 720 .299 6.546 ± 3.682 9.721 ± 11 .783 1.40 ×10 125 ± 2.42 ×10 125 2.39 ×10 126 ± 4.15 ×10 126 5.91 ×10 125 ± 1.02 ×10 126 
+
+Gemma2 16 .313 ± 23 .899 5.77 ×10 125 ± 9.99 ×10 125 2.50 ×10 126 ± 4.33 ×10 126 1.20 ×10 126 ± 2.08 ×10 126 1.754 ± 0.765 358 .256 ± 0.053 16 .447 ± 1.477 1.82 ×10 3 ± 0.022 
+
+Gemma3 5.745 ± 5.071 42 .888 ± 38 .121 1.30 ×10 4 ± 1.13 ×10 4 59 .939 ± 57 .829 44 .744 ± 40 .472 2.69 ×10 126 ± 4.14 ×10 126 5.31 ×10 127 ± 5.11 ×10 127 4.18 ×10 126 ± 4.20 ×10 126 
+
+General-Reasoner 1.253 ± 0.388 12 .839 ± 10 .089 663 .265 ± 662 .819 29 .800 ± 20 .731 1.867 ± 0.231 486 .039 ± 123 .261 850 .657 ± 239 .061 1.83 ×10 3 ± 679 .184 
+
+Kale-Chem 0.510 ± 0.208 9.254 ± 9.575 46 .147 ± 29 .036 27 .052 ± 25 .152 4.893 ± 0.132 358 .941 ± 5.15 ×10 −5 1.000 ± 1.27 ×10 −4 1.82 ×10 3 ± 1.05 ×10 −5
+
+Llama2 0.730 ± 0.000 0.987 ± 0.086 40 .746 ± 68 .841 1.391 ± 0.143 27 .016 ± 32 .171 1.10 ×10 126 ± 1.69 ×10 126 3.49 ×10 126 ± 4.72 ×10 126 2.08 ×10 126 ± 2.59 ×10 126 
+
+Llama3 0.655 ± 0.497 4.760 ± 6.006 108 .001 ± 46 .874 12 .863 ± 19 .530 2.552 ± 1.180 4.88 ×10 5 ± 8.45 ×10 5 1.37 ×10 6 ± 2.36 ×10 6 1.40 ×10 6 ± 2.42 ×10 6
+
+Mistral 2.520 ± 1.612 31 .740 ± 27 .626 3.38 ×10 3 ± 1.90 ×10 3 41 .388 ± 42 .527 71 .319 ± 30 .945 4.89 ×10 126 ± 4.82 ×10 126 6.48 ×10 127 ± 6.07 ×10 127 7.44 ×10 126 ± 5.22 ×10 126 
+
+Qwen2 Unable to complete 4.284 ± 1.861 3.14 ×10 7 ± 5.01 ×10 7 1.49 ×10 8 ± 2.52 ×10 8 1.18 ×10 8 ± 1.56 ×10 8
+
+Qwen3 2.175 ± 0.000 15 .707 ± 15 .351 2.21 ×10 3 ± 2.77 ×10 3 28 .860 ± 25 .399 3.847 ± 1.003 359 .812 ± 0.952 54 .016 ± 76 .537 1.82 ×10 3 ± 0.766 
+
+RetroDFM-R 0.198 ± 0.000 0.311 ± 0.000 0.366 ± 0.000 0.311 ± 0.000 0.461 ± 0.000 1.890 ± 0.000 0.654 ± 0.000 1.890 ± 0.000 
+
+Claude-Sonnet-5 0.475 ± 0.436 4.829 ± 0.992 599 .838 ± 20 .971 7.437 ± 3.434 1.145 ± 0.039 366 .368 ± 0.513 104 .889 ± 115 .303 1.82 ×10 3 ± 0.378 
+
+Gemini-3.5-Flash-Lite 0.670 ± 0.519 10 .657 ± 4.348 1.48 ×10 3 ± 1.38 ×10 3 14 .699 ± 5.116 1.162 ± 0.082 503 .858 ± 84 .337 253 .386 ± 246 .040 2.05 ×10 3 ± 107 .004 
+
+GPT-5.6-Luna 0.291 ± 0.071 8.395 ± 4.182 638 .138 ± 61 .458 19 .699 ± 13 .976 2.480 ± 0.938 524 .793 ± 273 .093 2.27 ×10 4 ± 3.91 ×10 4 3.29 ×10 3 ± 2.56 ×10 3
+
+(d) Mechanistic tasks 
+
+Model Forward (SMILES) ( n = 100 ) Forward (Formula) ( n = 100 ) Retrosynthesis (SMILES) ( n = 100 ) Retrosynthesis (Formula) ( n = 100 )Exact Match MACCS Morgan RDK Exact Match Atom Cosine Atom F1 Exact Match MACCS Morgan RDK Exact Match Atom Cosine Atom F1 ChemDFM 0.470 ± 0.049 0.846 ± 0.015 0.740 ± 0.020 0.782 ± 0.014 0.000 ± 0.000 0.917 ± 0.094 0.769 ± 0.074 0.122 ± 0.025 0.793 ± 0.005 0.629 ± 0.016 0.742 ± 0.010 0.000 ± 0.000 0.743 ± 0.142 0.657 ± 0.098 
+
+ChemDFM-R 0.680 ± 0.010 0.911 ± 9.36 ×10 −4 0.834 ± 0.003 0.861 ± 0.004 0.000 ± 0.000 0.995 ± 1.38 ×10 −4 0.888 ± 0.005 0.497 ± 0.015 0.882 ± 0.005 0.780 ± 0.007 0.838 ± 0.005 0.000 ± 0.000 0.968 ± 0.026 0.908 ± 0.025 
+
+ChemDFM-v2 0.620 ± 0.033 0.888 ± 0.012 0.807 ± 0.011 0.837 ± 0.017 0.000 ± 0.000 0.995 ± 1.76 ×10 −4 0.901 ± 0.006 0.425 ± 0.011 0.860 ± 0.002 0.738 ± 0.002 0.796 ± 0.003 0.000 ± 0.000 0.947 ± 0.033 0.885 ± 0.039 
+
+ChemLLM 0.000 ± 0.000 0.700 ± 0.000 0.521 ± 0.000 0.709 ± 0.000 0.000 ± 0.000 0.007 ± 0.013 0.005 ± 0.008 0.000 ± 0.000 0.734 ± 0.056 0.535 ± 0.081 0.620 ± 0.100 0.000 ± 0.000 0.003 ± 0.005 0.003 ± 0.004 
+
+ChemM-R1 0.000 ± 0.000 0.604 ± 0.033 0.357 ± 0.050 0.398 ± 0.048 0.000 ± 0.000 0.153 ± 0.016 0.118 ± 0.020 0.000 ± 0.000 0.690 ± 0.038 0.475 ± 0.047 0.563 ± 0.051 0.000 ± 0.000 0.134 ± 0.047 0.107 ± 0.043 
+
+ChemR 0.645 ± 0.026 0.910 ± 0.009 0.848 ± 0.010 0.888 ± 0.004 0.003 ± 0.004 0.361 ± 0.085 0.244 ± 0.068 0.208 ± 0.120 0.816 ± 0.032 0.658 ± 0.050 0.746 ± 0.027 0.000 ± 0.000 0.222 ± 0.071 0.168 ± 0.056 
+
+ChemVLM-8B 0.003 ± 0.004 0.829 ± 0.023 0.528 ± 0.043 0.689 ± 0.003 0.000 ± 0.000 0.015 ± 0.026 0.014 ± 0.024 0.035 ± 0.009 0.600 ± 0.275 0.484 ± 0.222 0.563 ± 0.262 0.000 ± 0.000 0.036 ± 0.063 0.031 ± 0.053 
+
+DeepSeek-R1-Direct 0.000 ± 0.000 0.544 ± 0.222 0.378 ± 0.003 0.340 ± 0.128 0.000 ± 0.000 0.000 ± 0.000 0.000 ± 0.000 0.000 ± 0.000 0.211 ± 0.060 0.159 ± 0.063 0.137 ± 0.117 0.000 ± 0.000 0.003 ± 0.004 0.003 ± 0.004 
+
+Falcon 0.000 ± 0.000 0.441 ± 0.000 0.318 ± 0.000 0.355 ± 0.000 0.000 ± 0.000 0.032 ± 0.055 0.021 ± 0.036 0.000 ± 0.000 0.470 ± 0.202 0.357 ± 0.188 0.500 ± 0.307 0.000 ± 0.000 0.092 ± 0.048 0.088 ± 0.050 
+
+Galactica 0.000 ± 0.000 0.579 ± 0.262 0.485 ± 0.260 0.574 ± 0.277 0.000 ± 0.000 0.423 ± 0.390 0.335 ± 0.303 0.000 ± 0.000 0.765 ± 0.083 0.613 ± 0.091 0.736 ± 0.111 0.000 ± 0.000 0.532 ± 0.332 0.472 ± 0.269 
+
+Gemma2 0.000 ± 0.000 0.686 ± 0.019 0.515 ± 0.025 0.648 ± 0.050 0.000 ± 0.000 0.598 ± 0.227 0.534 ± 0.207 0.000 ± 0.000 0.649 ± 0.125 0.468 ± 0.109 0.532 ± 0.111 0.000 ± 0.000 0.690 ± 0.262 0.608 ± 0.240 
+
+Gemma3 0.000 ± 0.000 0.547 ± 0.023 0.355 ± 0.019 0.450 ± 0.027 0.000 ± 0.000 0.721 ± 0.029 0.611 ± 0.016 0.000 ± 0.000 0.640 ± 0.057 0.445 ± 0.063 0.546 ± 0.068 0.000 ± 0.000 0.646 ± 0.104 0.577 ± 0.087 
+
+General-Reasoner 0.000 ± 0.000 0.647 ± 0.000 0.373 ± 0.000 0.445 ± 0.000 0.000 ± 0.000 0.000 ± 0.000 0.000 ± 0.000 Unable to complete 0.000 ± 0.000 0.000 ± 0.000 0.000 ± 0.000 
+
+Kale-Chem 0.185 ± 0.011 0.771 ± 0.005 0.600 ± 0.009 0.663 ± 0.010 0.000 ± 0.000 0.983 ± 0.011 0.699 ± 0.043 0.020 ± 0.007 0.678 ± 0.045 0.476 ± 0.033 0.571 ± 0.047 0.000 ± 0.000 0.973 ± 0.023 0.759 ± 0.030 
+
+Llama2 0.000 ± 0.000 0.516 ± 0.048 0.373 ± 0.046 0.458 ± 0.057 0.000 ± 0.000 0.677 ± 0.306 0.551 ± 0.248 0.000 ± 0.000 0.657 ± 0.104 0.502 ± 0.091 0.583 ± 0.110 0.000 ± 0.000 0.801 ± 0.261 0.739 ± 0.234 
+
+Llama3 0.000 ± 0.000 0.093 ± 0.091 0.062 ± 0.070 0.078 ± 0.091 0.000 ± 0.000 0.000 ± 0.000 0.000 ± 0.000 0.000 ± 0.000 0.595 ± 0.119 0.363 ± 0.143 0.462 ± 0.148 0.000 ± 0.000 0.015 ± 0.015 0.015 ± 0.015 
+
+Mistral 0.000 ± 0.000 0.716 ± 0.000 0.546 ± 0.000 0.633 ± 0.000 0.000 ± 0.000 0.002 ± 0.004 0.002 ± 0.004 0.000 ± 0.000 0.131 ± 0.118 0.041 ± 0.041 0.055 ± 0.055 0.000 ± 0.000 0.005 ± 0.009 0.005 ± 0.008 
+
+Qwen2 0.000 ± 0.000 0.588 ± 0.069 0.397 ± 0.074 0.498 ± 0.077 0.000 ± 0.000 0.685 ± 0.138 0.636 ± 0.140 0.000 ± 0.000 0.557 ± 0.141 0.372 ± 0.145 0.453 ± 0.164 0.000 ± 0.000 0.528 ± 0.260 0.495 ± 0.265 
+
+Qwen3 0.005 ± 0.005 0.617 ± 0.031 0.444 ± 0.026 0.537 ± 0.038 0.000 ± 0.000 0.629 ± 0.112 0.538 ± 0.093 0.000 ± 0.000 0.696 ± 0.035 0.486 ± 0.036 0.589 ± 0.045 0.000 ± 0.000 0.843 ± 0.035 0.782 ± 0.017 
+
+RetroDFM-R 0.000 ± 0.000 0.692 ± 0.006 0.500 ± 0.009 0.634 ± 0.009 0.000 ± 0.000 0.020 ± 0.024 0.020 ± 0.024 0.685 ± 0.023 0.935 ± 0.010 0.874 ± 0.017 0.912 ± 0.012 0.000 ± 0.000 0.015 ± 0.009 0.014 ± 0.009 
+
+Claude-Sonnet-5 0.497 ± 0.044 0.768 ± 0.029 0.689 ± 0.041 0.723 ± 0.034 0.000 ± 0.000 0.259 ± 0.146 0.192 ± 0.118 0.113 ± 0.025 0.349 ± 0.122 0.280 ± 0.093 0.296 ± 0.107 0.000 ± 0.000 0.129 ± 0.070 0.118 ± 0.070 
+
+Gemini-3.5-Flash-Lite 0.083 ± 0.024 0.701 ± 0.010 0.500 ± 0.014 0.589 ± 0.009 0.000 ± 0.000 0.554 ± 0.110 0.471 ± 0.098 0.038 ± 0.016 0.767 ± 0.010 0.542 ± 0.024 0.635 ± 0.024 0.000 ± 0.000 0.658 ± 0.137 0.595 ± 0.120 
+
+GPT-5.6-Luna 0.057 ± 0.015 0.700 ± 0.005 0.536 ± 0.005 0.666 ± 0.017 0.000 ± 0.000 0.931 ± 0.054 0.845 ± 0.060 0.033 ± 0.008 0.782 ± 0.021 0.571 ± 0.044 0.675 ± 0.042 0.005 ± 0.005 0.755 ± 0.137 0.726 ± 0.129 
+
+(e) Description, relational, and molecular-weight calculation 
+
+Model Description Accuracy ( n = 100 ) Relational Accuracy ( n = 100 ) Molecular-Weight Calculation ( n = 100 )Carbon Ring Functional Group Bond Type Rep. Equiv. Chem. Sim. Weight Comp. Log RMSE MAE Relative RMSE RMSE ChemDFM 0.006 ± 0.009 0.001 ± 0.003 0.721 ± 0.081 0.689 ± 0.106 0.806 ± 0.097 0.475 ± 0.026 0.510 ± 0.026 0.428 ± 0.064 336 .977 ± 71 .569 3.404 ± 3.993 571 .395 ± 343 .928 
+
+ChemDFM-R 0.181 ± 0.069 0.165 ± 0.057 0.811 ± 0.042 0.753 ± 0.045 0.996 ± 0.005 0.511 ± 0.059 0.680 ± 0.069 0.031 ± 0.004 20 .238 ± 3.294 0.066 ± 0.007 43 .367 ± 2.186 
+
+ChemDFM-v2 0.101 ± 0.029 0.129 ± 0.053 0.790 ± 0.028 0.797 ± 0.040 0.991 ± 0.013 0.444 ± 0.027 0.709 ± 0.057 0.036 ± 0.008 25 .582 ± 6.025 0.075 ± 0.014 58 .252 ± 14 .859 
+
+ChemLLM 0.000 ± 0.000 0.000 ± 0.000 0.641 ± 0.072 0.647 ± 0.088 0.690 ± 0.125 0.434 ± 0.045 0.499 ± 0.020 0.150 ± 0.017 97 .953 ± 13 .309 0.304 ± 0.044 158 .860 ± 14 .200 
+
+ChemM-R1 0.068 ± 0.019 0.079 ± 0.056 0.639 ± 0.068 0.537 ± 0.045 0.560 ± 0.151 0.444 ± 0.043 0.499 ± 0.013 7.117 ± 10 .233 2.06 ×10 124 ± 5.44 ×10 124 6.27 ×10 122 ± 1.66 ×10 123 2.06 ×10 125 ± 5.44 ×10 125 
+
+ChemR 0.040 ± 0.017 0.236 ± 0.055 0.751 ± 0.046 0.657 ± 0.102 0.655 ± 0.091 0.522 ± 0.029 0.516 ± 0.029 1.501 ± 1.139 2.03 ×10 30 ± 5.37 ×10 30 3.99 ×10 28 ± 1.05 ×10 29 2.03 ×10 31 ± 5.37 ×10 31 
+
+ChemVLM-8B 0.000 ± 0.000 0.000 ± 0.000 0.684 ± 0.029 0.695 ± 0.069 0.945 ± 0.036 0.419 ± 0.003 0.492 ± 0.032 0.192 ± 0.111 47 .742 ± 2.910 0.158 ± 0.015 127 .838 ± 16 .456 
+
+DeepSeek-R1-Direct 0.005 ± 0.007 0.109 ± 0.011 0.505 ± 0.009 0.542 ± 0.112 0.490 ± 0.000 0.580 ± 0.000 0.510 ± 0.000 1.405 ± 0.558 477 .070 ± 116 .569 2.361 ± 1.160 559 .097 ± 128 .864 
+
+Falcon 0.007 ± 0.008 0.198 ± 0.054 0.500 ± 0.000 0.500 ± 0.000 0.490 ± 0.000 0.573 ± 0.007 0.511 ± 0.003 2.320 ± 0.266 1.25 ×10 15 ± 3.31 ×10 15 2.46 ×10 13 ± 6.50 ×10 13 1.25 ×10 16 ± 3.31 ×10 16 
+
+Galactica 0.005 ± 0.007 0.058 ± 0.055 0.500 ± 0.000 0.500 ± 0.000 0.490 ± 0.000 0.580 ± 0.000 0.510 ± 0.000 0.491 ± 0.079 246 .969 ± 10 .159 0.664 ± 0.025 300 .211 ± 5.947 
+
+Gemma2 0.054 ± 0.038 0.115 ± 0.019 0.500 ± 0.000 0.500 ± 0.000 0.512 ± 0.007 0.539 ± 0.060 0.499 ± 0.018 0.383 ± 0.035 341 .856 ± 21 .724 1.036 ± 0.093 412 .896 ± 22 .762 
+
+Gemma3 0.000 ± 0.000 0.000 ± 0.000 0.711 ± 0.111 0.740 ± 0.082 0.865 ± 0.160 0.507 ± 0.062 0.508 ± 0.016 0.097 ± 0.025 63 .163 ± 19 .622 0.275 ± 0.083 93 .325 ± 24 .737 
+
+General-Reasoner 0.010 ± 0.007 0.216 ± 0.056 0.477 ± 0.025 0.477 ± 0.024 0.485 ± 0.007 0.451 ± 0.104 0.497 ± 0.027 1.856 ± 0.101 345 .701 ± 2.641 0.964 ± 0.005 380 .578 ± 4.238 
+
+Kale-Chem 0.065 ± 0.072 0.198 ± 0.027 0.734 ± 0.042 0.819 ± 0.059 0.629 ± 0.172 0.570 ± 0.065 0.525 ± 0.038 0.165 ± 0.012 98 .492 ± 10 .436 0.281 ± 0.026 159 .984 ± 12 .312 
+
+Llama2 0.005 ± 0.007 0.011 ± 0.012 0.500 ± 0.000 0.497 ± 0.007 0.490 ± 0.000 0.496 ± 0.068 0.494 ± 0.009 0.420 ± 0.088 244 .542 ± 29 .544 0.684 ± 0.092 304 .783 ± 28 .671 
+
+Llama3 0.088 ± 0.060 0.120 ± 0.086 0.756 ± 0.070 0.663 ± 0.084 0.586 ± 0.081 0.549 ± 0.059 0.506 ± 0.011 1.348 ± 1.080 7.55 ×10 23 ± 1.99 ×10 24 7.84 ×10 22 ± 2.07 ×10 23 7.54 ×10 24 ± 1.99 ×10 25 
+
+Mistral 0.037 ± 0.021 0.126 ± 0.089 0.709 ± 0.071 0.641 ± 0.105 0.900 ± 0.122 0.547 ± 0.045 0.520 ± 0.019 0.284 ± 0.066 155 .874 ± 49 .624 0.517 ± 0.113 218 .228 ± 45 .190 
+
+Qwen2 0.043 ± 0.046 0.246 ± 0.127 0.670 ± 0.075 0.645 ± 0.089 0.883 ± 0.063 0.420 ± 0.000 0.581 ± 0.048 0.152 ± 0.061 86 .980 ± 25 .650 0.281 ± 0.062 132 .880 ± 30 .379 
+
+Qwen3 0.079 ± 0.023 0.220 ± 0.077 0.855 ± 0.057 0.863 ± 0.063 0.986 ± 0.005 0.571 ± 0.049 0.515 ± 0.046 0.126 ± 0.034 75 .987 ± 20 .862 0.269 ± 0.084 140 .187 ± 22 .852 
+
+RetroDFM-R 0.003 ± 0.004 0.015 ± 0.012 0.523 ± 0.027 0.501 ± 0.012 0.446 ± 0.061 0.579 ± 0.003 0.509 ± 0.003 6.517 ± 6.139 1.99 ×10 172 ± 5.27 ×10 172 4.17 ×10 170 ± 1.10 ×10 171 1.96 ×10 173 ± 5.19 ×10 173 
+
+Claude-Sonnet-5 0.130 ± 0.055 0.682 ± 0.087 0.826 ± 0.009 0.959 ± 0.009 1.000 ± 0.000 0.569 ± 0.038 0.701 ± 0.043 2.156 ± 0.183 348 .283 ± 6.173 0.968 ± 0.016 387 .573 ± 2.523 
+
+Gemini-3.5-Flash-Lite 0.050 ± 0.019 0.414 ± 0.052 0.525 ± 0.026 0.514 ± 0.016 0.610 ± 0.066 0.470 ± 0.085 0.460 ± 0.061 1.767 ± 0.095 327 .779 ± 18 .430 1.044 ± 0.317 394 .916 ± 73 .859 
+
+GPT-5.6-Luna 0.324 ± 0.101 0.657 ± 0.065 0.881 ± 0.024 0.925 ± 0.048 1.000 ± 0.000 0.633 ± 0.050 0.787 ± 0.052 0.049 ± 0.012 34 .952 ± 9.247 0.123 ± 0.032 53 .390 ± 9.070 Fig. 3. Variation across prompts for three tasks. Bars show the minimum and maximum. Points show the mean. Colors identify models across panels. SMILES mean IUPAC mean       
+
+> (a) Representation equivalence
+> 0.0 0.5 1.0
+> Kale-Chem
+> +0.27
+> Gemma3
+> +0.19
+> ChemR
+> +0.15
+> (b) Ring count
+> 0.0 0.5 1.0
+> Mistral
+> +0.16
+> Llama3
+> +0.15
+> Claude-Sonnet-5
+> +0.11
+> (c) Chemical-similarity comparison
+> 0.0 0.5 1.0
+> Gemini-3.5-Flash-Lite
+> +0.17
+> General-Reasoner
+> +0.15
+> Llama2
+> -0.13
+> Accuracy
+
+Fig. 4. Representation-dependent accuracy for selected model–task pairs. Blue circles show SMILES means, orange squares show IUPAC means, and connecting bars show the labeled difference (IUPAC minus SMILES). 
+
+are defined as 
+
+LLM (m1, . . . , m n, τ ) = y(s),
+
+where {mi}ni=1 is a set of molecules, τ specifies the rela-tional objective, and y(s) describes the relationship among the inputs. We include molecular representation equivalence, chemical-similarity comparison, and molecular-weight com-parison. Representation equivalence determines whether two representations denote the same molecule, chemical-similarity comparison selects which candidate is more similar to aquery molecule, and molecular-weight comparison selects the heavier or lighter of two molecules. Each subtask is rendered with both SMILES and IUPAC inputs, and all three are evaluated using accuracy. Relational tasks therefore embed a secondary task, namely the relational objective evaluated across the molecular inputs. 
+
+B. Subset Selection 
+
+To control evaluation cost when a source test set exceeds the evaluation budget, we construct a representative subset. Each example is encoded as a binary vector indicating which reference models answer it correctly. We cluster these vectors using K-means, where K is the desired subset size, and initially select the example nearest each cluster centroid. We then compare each reference model’s subset accuracy with its full-test accuracy. Starting with the model with the largest deviation, we swap examples within the subset in order to reduce deviation without increasing another model’s error TABLE V IMAGE -TASK RESULTS FOR VISION -CAPABLE MODELS (MEAN ± SD OVER EVALUATED CONDITIONS ). 
+
+Model Image → SMILES ( n = 100 ) Image → IUPAC ( n = 100 )Exact Match MACCS Morgan RDK Exact Match MACCS Morgan RDK ChemM-R1 0.195 ± 0.021 0.871 ± 0.037 0.679 ± 0.045 0.717 ± 0.055 0.233 ± 0.205 0.787 ± 0.066 0.515 ± 0.165 0.665 ± 0.086 
+
+ChemVLM-8B 0.200 ± 0.012 0.869 ± 0.004 0.634 ± 0.008 0.690 ± 0.008 0.006 ± 0.010 0.587 ± 0.013 0.231 ± 0.009 0.324 ± 0.010 
+
+Gemma3 0.000 ± 0.000 0.375 ± 0.016 0.124 ± 0.007 0.219 ± 0.015 0.000 ± 0.000 0.525 ± 0.011 0.192 ± 0.003 0.292 ± 0.012 
+
+Claude-Sonnet-5 0.633 ± 0.028 0.981 ± 0.005 0.902 ± 0.016 0.935 ± 0.013 0.687 ± 0.039 0.980 ± 0.002 0.903 ± 0.014 0.922 ± 0.011 
+
+Gemini-3.5-Flash-Lite 0.300 ± 0.031 0.915 ± 0.007 0.746 ± 0.015 0.775 ± 0.010 0.095 ± 0.024 0.830 ± 0.011 0.514 ± 0.017 0.553 ± 0.015 
+
+GPT-5.6-Luna 0.122 ± 0.041 0.875 ± 0.008 0.584 ± 0.017 0.654 ± 0.014 0.124 ± 0.014 0.833 ± 0.008 0.500 ± 0.008 0.560 ± 0.009 
+
+Model Forward Prediction (Image) ( n = 100 ) Retrosynthesis (Image) ( n = 100 )Exact Match MACCS Morgan RDK Exact Match MACCS Morgan RDK ChemM-R1 0.000 ± 0.000 0.613 ± 0.032 0.342 ± 0.019 0.423 ± 0.034 0.000 ± 0.000 0.744 ± 0.011 0.495 ± 0.010 0.583 ± 0.015 
+
+ChemVLM-8B 0.000 ± 0.000 0.607 ± 0.009 0.327 ± 0.008 0.444 ± 0.007 0.000 ± 0.000 0.735 ± 0.003 0.451 ± 0.005 0.555 ± 0.006 
+
+Gemma3 0.000 ± 0.000 0.334 ± 0.027 0.118 ± 0.001 0.199 ± 0.005 0.000 ± 0.000 0.366 ± 0.015 0.131 ± 0.004 0.218 ± 0.020 
+
+Claude-Sonnet-5 0.112 ± 0.008 0.739 ± 0.007 0.555 ± 0.008 0.631 ± 0.010 0.113 ± 0.026 0.677 ± 0.097 0.514 ± 0.075 0.587 ± 0.091 
+
+Gemini-3.5-Flash-Lite 0.028 ± 0.008 0.630 ± 0.017 0.423 ± 0.013 0.486 ± 0.020 0.003 ± 0.004 0.744 ± 0.016 0.513 ± 0.012 0.612 ± 0.012 
+
+GPT-5.6-Luna 0.005 ± 0.005 0.626 ± 0.018 0.341 ± 0.016 0.428 ± 0.022 0.000 ± 0.000 0.733 ± 0.009 0.420 ± 0.005 0.521 ± 0.006 
+
+TABLE VI RESULTS FOR TASKS WITHOUT PROMPT VARIATION : ( A) DESIGN AND ANALYTICAL TASKS , AND (B) LITERATURE -GROUNDED QA AND NUMERICAL TASKS .
+
+(a) Description-based design, open response, and true/false 
+
+Model Description-Based Design ( n = 100 ) Open Response ( n = 100 ) True/False ( n = 100 )Exact Match MACCS Morgan RDK Exact Match ROUGE-1 ROUGE-2 ROUGE-L Accuracy ChemDFM 0.500 0.946 0.850 0.905 0.020 0.148 0.035 0.147 0.610 
+
+ChemDFM-R 0.520 0.946 0.837 0.892 0.040 0.193 0.057 0.184 0.230 
+
+ChemDFM-v2 0.440 0.936 0.805 0.857 0.030 0.191 0.066 0.179 0.270 
+
+ChemLLM 0.000 0.622 0.264 0.393 0.020 0.086 0.013 0.085 0.140 
+
+ChemM-R1 Unable to complete 0.000 0.033 0.014 0.030 0.180 
+
+ChemR 0.350 0.888 0.746 0.807 0.000 0.025 0.012 0.025 0.430 
+
+ChemVLM-8B 0.040 0.549 0.326 0.394 0.170 0.287 0.094 0.283 0.120 
+
+DeepSeek-R1-Direct Unable to complete 0.000 0.064 0.019 0.061 0.640 
+
+Falcon Unable to complete 0.000 0.052 0.012 0.051 0.640 
+
+Galactica 0.000 0.308 0.168 0.170 0.070 0.114 0.021 0.114 0.640 
+
+Gemma2 0.020 0.523 0.338 0.354 0.000 0.018 6.64 × 10 −4 0.018 0.600 
+
+Gemma3 0.000 0.348 0.102 0.179 0.120 0.264 0.086 0.264 0.270 
+
+General-Reasoner 0.010 0.500 0.268 0.310 0.030 0.150 0.059 0.147 0.180 
+
+Kale-Chem 0.090 0.819 0.535 0.655 0.200 0.323 0.094 0.323 0.500 
+
+Llama2 0.000 0.106 0.024 0.049 0.000 0.024 0.003 0.024 0.630 
+
+Llama3 0.030 0.531 0.255 0.361 0.000 0.268 0.117 0.268 0.250 
+
+Mistral 0.000 0.427 0.156 0.218 0.050 0.216 0.093 0.215 0.120 
+
+Qwen2 0.000 0.297 0.100 0.156 0.120 0.239 0.058 0.239 0.170 
+
+Qwen3 0.010 0.503 0.224 0.295 0.170 0.344 0.117 0.339 0.180 
+
+RetroDFM-R 0.000 0.467 0.119 0.206 0.000 0.000 0.000 0.000 0.010 
+
+Claude-Sonnet-5 0.280 0.926 0.765 0.848 0.170 0.411 0.160 0.404 0.510 
+
+Gemini-3.5-Flash-Lite 0.100 0.868 0.574 0.709 0.230 0.469 0.197 0.463 0.490 
+
+GPT-5.6-Luna 0.090 0.843 0.534 0.659 0.160 0.414 0.179 0.409 0.250 
+
+(b) Literature-grounded QA, physical-unit calculation, and yield prediction 
+
+Model Literature-Grounded QA ( n = 211 ) Physical-Unit Calculation ( n = 392 ) Yield Prediction ( n = 300 )Exact Match ROUGE-1 ROUGE-2 ROUGE-L Log RMSE MAE Relative RMSE RMSE Log RMSE MAE Relative RMSE RMSE ChemDFM 0.019 0.225 0.147 0.220 4.197 3.04 × 10 22 1.03 × 10 23 2.60 × 10 23 0.754 310 .604 18 .953 1142 .241 
+
+ChemDFM-R 0.038 0.253 0.163 0.248 3.159 2.47 × 10 22 5.08 × 10 20 2.37 × 10 23 0.279 23 .252 1.403 30 .730 
+
+ChemDFM-v2 0.047 0.273 0.185 0.269 2.402 1.71 × 10 22 5.08 × 10 20 2.08 × 10 23 0.268 23 .861 1.395 30 .917 
+
+ChemLLM 0.043 0.163 0.076 0.159 2.707 9.88 × 10 21 3.34 × 10 20 1.29 × 10 23 0.238 37 .066 1.134 46 .565 
+
+ChemM-R1 0.009 0.104 0.039 0.102 10 .656 2.89 × 10 125 5.48 × 10 125 4.54 × 10 126 2.462 3.36 × 10 36 7.83 × 10 35 5.79 × 10 37 
+
+ChemR 0.062 0.158 0.075 0.157 5.483 6.39 × 10 28 8.53 × 10 44 1.26 × 10 30 1.674 1.32 × 10 10 2.29 × 10 9 2.29 × 10 11 
+
+ChemVLM-8B 0.071 0.306 0.210 0.302 2.204 4.23 × 10 21 5.21 × 10 20 8.07 × 10 22 0.333 34 .531 2.030 42 .913 
+
+DeepSeek-R1-Direct 0.005 0.163 0.096 0.159 6.052 2.81 × 10 35 2.54 × 10 34 5.56 × 10 36 1.663 61 .993 1.196 67 .556 
+
+Falcon 0.000 0.172 0.107 0.168 5.897 1.11 × 10 23 6.83 × 10 22 9.45 × 10 23 1.643 55 .865 1.113 62 .553 
+
+Galactica 0.038 0.211 0.114 0.209 17 .918 2.42 × 10 125 1.58 × 10 124 1.70 × 10 126 0.333 34 .557 2.030 42 .921 
+
+Gemma2 0.033 0.093 0.052 0.093 13 .337 1.28 × 10 125 2.53 × 10 127 1.13 × 10 126 0.333 34 .557 2.030 42 .921 
+
+Gemma3 0.137 0.348 0.194 0.345 12 .952 3.12 × 10 125 4.58 × 10 121 3.93 × 10 126 0.419 30 .932 1.872 39 .558 
+
+General-Reasoner 0.014 0.184 0.117 0.181 3.732 2.89 × 10 22 7.14 × 10 21 2.59 × 10 23 1.587 63 .098 0.959 68 .143 
+
+Kale-Chem 0.133 0.393 0.230 0.389 4.072 3.04 × 10 22 9.30 × 10 17 2.60 × 10 23 1.464 39 .591 1.432 49 .134 
+
+Llama2 0.000 0.071 0.041 0.070 22 .403 3.02 × 10 125 2.81 × 10 126 1.82 × 10 126 0.338 42 .960 1.909 51 .793 
+
+Llama3 0.066 0.379 0.256 0.377 3.914 5.58 × 10 22 1.56 × 10 22 5.83 × 10 23 1.662 60 .129 0.998 66 .060 
+
+Mistral 0.052 0.245 0.135 0.239 14 .042 4.17 × 10 125 2.54 × 10 126 5.03 × 10 126 0.976 50 .474 0.782 56 .723 
+
+Qwen2 0.152 0.383 0.251 0.379 3.426 3.04 × 10 22 5.05 × 10 26 2.60 × 10 23 0.328 33 .293 1.993 41 .800 
+
+Qwen3 0.185 0.428 0.292 0.424 1.855 4.22 × 10 23 5.08 × 10 19 8.15 × 10 24 0.288 24 .403 1.657 32 .266 
+
+RetroDFM-R 0.000 0.003 0.000 0.003 4.069 2.19 × 10 22 3.17 × 10 22 2.22 × 10 23 2.665 65 .073 0.992 69 .950 
+
+Claude-Sonnet-5 0.137 0.350 0.218 0.344 3.764 3.04 × 10 22 3.10 × 10 21 2.60 × 10 23 0.905 41 .611 1.534 52 .305 
+
+Gemini-3.5-Flash-Lite 0.185 0.419 0.270 0.415 2.290 8.58 × 10 21 9.56 × 10 8 1.20 × 10 23 1.134 86 .236 4.633 134 .877 
+
+GPT-5.6-Luna 0.133 0.383 0.242 0.374 3.266 3.04 × 10 22 7.08 × 10 13 2.60 × 10 23 0.277 25 .068 1.421 31 .589 
+
+beyond the previous maximum. This process continues until every reference model is within one percentage point of its full-test accuracy. We select the smallest subset satisfying this criterion, subject to a minimum of 100 and a maximum of 500 examples. Table II illustrates the resulting agreement for HIV. 
+
+C. Instruction Generation 
+
+LLMs are sensitive to semantically equivalent changes in prompt wording [12]. In our ClinTox evaluation, prompt choice changes model accuracy by as much as 81 percentage points (Figure 1). We therefore evaluate applicable tasks under multiple templates rather than a single fixed instruction. Following ChemBench4K [7], we use ChatGPT (GPT-5 Pro) to generate ten templates per task and manually verify that they preserve the same objective, required inputs, and expected output. To control evaluation costs while retaining instruction variation, we select the first four verified templates per task for the reported evaluation (the GitHub repository contains all ten prompts for all tasks). For description, molecular-weight calculation, and relational settings, the four templates are eval-uated with both SMILES and IUPAC inputs, producing eight prompt–representation conditions. Tables IV and V report the resulting means and population standard deviations. Table III presents the ten verified ClinTox templates. Analytical questions, description-based design, physical-unit calculation, and yield prediction do not use interchange-able templates. For these tasks, we retain the source questions after first manually cleaning and standardizing each question. 
+
+D. Evaluation Setup 
+
+We evaluate 23 models zero-shot with the same system prompt and task-specific output-format instructions across models. Image settings include only the six vision-capable models. Outputs are restricted by task to real-valued numbers, coefficient vectors, binary labels, molecular names, SMILES strings, molecular formulas, or short answers. Direct-answer models have a 128-token limit. Models with explicit reasoning traces have 256 tokens to accommodate thinking. We apply common answer extraction and normalization before scoring. “Unable to complete” indicates that all responses are missing, unusable, or otherwise invalid. IV. R ESULTS 
+
+Tables IV–VI report the baseline results on ChemDIRT. Reported standard deviations measure variation across prompts and, in panel (e) of Table IV, molecular representations. Note that they are not confidence intervals over examples. Most prompt-varied settings use four prompts, whereas panel (e) aggregates eight conditions (four prompts × SMILES and IUPAC inputs). Entries marked “Unable to complete” indicate that the model returned no usable responses. The central finding is not a single overall winner, but substantial variation both across tasks and across prompt formulations. Every model exhibits at least one major weakness: models that are strong on molecular translation or reaction prediction can be poor on regression, literature-grounded or open-response QA, or general chemistry reasoning, while models that perform well on language-oriented tasks often trail specialized chemistry models on structure generation. Thus, performance on any one task family is a poor proxy for general chemical reasoning ability. Figure 3 makes the within-task instability explicit. On ClinTox, Llama3 ranges from 0.095 to 0.905 accuracy across semantically equivalent prompts. Falcon ranges from 0.095 to 0.824, and GPT-5.6-Luna from 0.236 to 0.899. The same pattern extends beyond classification: Falcon’s coefficient-balancing accuracy spans 0.400–0.910, while Galactica’s atom-cosine score on formula-based retrosynthesis spans 0.100–0.991. These gaps are large enough to reverse apparent model rankings depending on the selected template. The mean and standard deviation in Table IV therefore provide a more representative summary than any single-prompt score. The strongest systems are also highly specialized. ChemDFM-R and ChemDFM-v2 are consistently strong on name translation, molecular classification, and mechanistic tasks, yet their open-response exact match is at most 0.040 and their true/false accuracy is at most 0.270. RetroDFM-R achieves the highest SMILES-retrosynthesis exact match (0.685), but remains unable to complete SMILES-to-IUPAC translation, reaches only 0.150 accuracy on ClinTox, and produces extreme errors on lipophilicity, molecular-weight, and physical-unit calculation. Claude-Sonnet-5 dominates the image-to-structure tasks, reaching 0.633 exact match for image-to-SMILES and 0.687 for image-to-IUPAC, but its formula-based mechanistic scores are substantially lower than those of the strongest chemistry-specialized models. Con-versely, models such as Falcon, Llama2, and DeepSeek-R1-Direct obtain zero exact match on most structure-generation tasks and remain weak across many other task families despite isolated successes. Numerical tasks expose an additional failure mode. Al-though some models attain comparatively low errors on ESOL, lipophilicity, or FreeSolv, no model performs reliably across all regression and computation settings. ChemM-R1, ChemR, Gemma3, RetroDFM-R, and several general-purpose baselines produce errors many orders of magnitude larger than their peers on at least one task. Oxygen-permeability prediction is especially difficult as most models either cluster around a high error floor or generate extreme outliers, and perfor-mance varies sharply across templates. Physical-unit calcu-lation shows a similarly broad failure pattern, whereas yield prediction is comparatively tractable for a subset of models. These results indicate that a model’s ability to produce fluent chemical text or valid molecular strings does not imply reliable numerical reasoning. Representation changes further alter the model ordering. Figure 4 shows that IUPAC has gains of 0.273 over SMILES for Kale-Chem on representation equivalence and 0.163 for Mistral on ring count, but a 0.133 SMILES advantage for Llama2 on chemical similarity. Direction also matters for name translation as success on IUPAC-to-SMILES does not guarantee comparable SMILES-to-IUPAC performance. The same asymmetry appears in reaction prediction, where perfor-mance differs between forward prediction and retrosynthesis for SMILES, molecular-formula, and image inputs. For exam-ple, ChemR is among the strongest models on SMILES-based reactions but falls well behind the leading systems on formula-based reactions, while RetroDFM-R shows the opposite spe-cialization between the forward and retrosynthetic SMILES settings. Taken together, Tables IV–VI show that current models are neither prompt-invariant nor broadly capable across ChemDIRT. Strong performance on narrow evaluation settings can conceal severe task-specific, representation-specific, and instruction-specific weaknesses. V. D ISCUSSION 
+
+ChemDIRT shows that current LLMs, including chemistry-specialized systems, do not exhibit robust general chemical reasoning. Many succeed only within narrow task or repre-sentation families, and performance can change sharply under equivalent prompt wording. These results caution against broad capability claims based on a single task or template. They also frame evaluation diversity as a benchmark data-quality requirement: a fixed prompt or representation can introduce substantial measurement bias. Releasing the exam-ples, verified templates, and scoring code makes these design choices auditable and supports reproducible scientific-model comparison. Tool augmentation, explicit molecular represen-tations, constrained numerical execution, and training across equivalent instructions are promising directions for improving robustness. 
+
+A. Limitations 
+
+ChemDIRT samples representative molecular-level tasks rather than every chemistry domain. It does not yet cover laboratory execution, spectroscopy and instrument interpre-tation, materials synthesis planning, or long-horizon experi-mental workflows. Image evaluation is limited to molecular graphs and does not include laboratory photographs, spectra, or scientific figures. Prompt robustness is measured using a finite set of manually verified templates, and subset-based evaluation cannot preserve every property of the complete source datasets. 
+
+B. Conclusion 
+
+ChemDIRT evaluates LLMs across diverse chemistry tasks while reducing dependence on specific wording and molecular representations. Across 23 models, performance is uneven and often highly sensitive to the prompt, task, or represen-tation. These findings show that current models do not yet demonstrate reliable general chemical reasoning under zero-shot evaluation. REFERENCES [1] L. Xiang, Y. Zhao, Y. Zhang, and C. Zong, “A survey of large language models in discipline-specific research: Challenges, methods and opportunities,” Studies in Informatics and Control , vol. 34, p. 1, 2025. [2] S. Ren, P. Jian, Z. Ren, C. Leng, C. Xie, and J. Zhang, “Towards scientific intelligence: A survey of llm-based scientific agents,” arXiv preprint arXiv:2503.24047 , 2025. [3] S. M. Narayanan, J. D. Braza, R.-R. Griffiths, A. Bou, G. Wellawatte, M. C. Ramos, L. Mitchener, S. G. Rodriques, and A. D. White, “Training a scientific reasoning model for chemistry,” arXiv preprint arXiv:2506.17238 , 2025. [4] A. M. Bran, S. Cox, O. Schilter, C. Baldassari, A. D. White, and P. Schwaller, “Chemcrow: Augmenting large-language models with chemistry tools,” arXiv preprint arXiv:2304.05376 , 2023. [5] H. Zhou, H. Geng, X. Xue, L. Kang, Y. Qin, Z. Wang, Z. Yin, and L. Bai, “Reso: A reward-driven self-organizing llm-based multi-agent system for reasoning tasks,” arXiv preprint arXiv:2503.02390 , 2025. [6] X. Lin, Q. Liu, H. Xiang, D. Zeng, and X. Zeng, “Enhancing chemical reaction and retrosynthesis prediction with large language model and dual-task learning,” arXiv preprint arXiv:2505.02639 , 2025. [7] D. Zhang, W. Liu, Q. Tan, J. Chen, H. Yan, Y. Yan, J. Li, W. Huang, X. Yue, W. Ouyang et al. , “Chemllm: A chemical large language model,” 
+
+arXiv preprint arXiv:2402.06852 , 2024. [8] T. Guo, B. Nan, Z. Liang, Z. Guo, N. Chawla, O. Wiest, X. Zhang et al. ,“What can large language models do in chemistry? a comprehensive benchmark on eight tasks,” Advances in Neural Information Processing Systems , vol. 36, pp. 59 662–59 688, 2023. [9] Y. Fang, X. Liang, N. Zhang, K. Liu, R. Huang, Z. Chen, X. Fan, and H. Chen, “Mol-instructions: A large-scale biomolecular instruction dataset for large language models,” arXiv preprint arXiv:2306.08018 ,2023. [10] L. Weber, E. Bruni, and D. Hupkes, “Mind the instructions: a holistic evaluation of consistency and interactions in prompt-based learning,” 
+
+arXiv preprint arXiv:2310.13486 , 2023. [11] M. Sclar, Y. Choi, Y. Tsvetkov, and A. Suhr, “Quantifying language models’ sensitivity to spurious features in prompt design or: How i learned to start worrying about prompt formatting,” arXiv preprint arXiv:2310.11324 , 2023. [12] M. Mizrahi, G. Kaplan, D. Malkin, R. Dror, D. Shahaf, and G. Stanovsky, “State of what art? a call for multi-prompt llm evaluation,” 
+
+Transactions of the Association for Computational Linguistics , vol. 12, pp. 933–949, 2024. [13] F. M. Polo, R. Xu, L. Weber, M. Silva, O. Bhardwaj, L. Choshen, A. F. M. de Oliveira, Y. Sun, and M. Yurochkin, “Efficient multi-prompt evaluation of llms,” arXiv preprint arXiv:2405.17202 , 2024. [14] B. Yan, A. Chen, and K. Cho, “Inconsistency of llms in molecular representations,” Digital Discovery , 2025. [15] G. Baker, M. Sanz-Guerrero, and K. von der Wense, “Molecular string representation preferences in pretrained llms: A comparative study in zero-& few-shot molecular property prediction,” in Proceedings of the 2025 Conference on Empirical Methods in Natural Language Process-ing , 2025, pp. 1071–1085. [16] Microsoft, “Chemistryqa data,” 2020. [Online]. Available: https: //github.com/microsoft/chemistry-qa/blob/main/README.md [17] A. Mirza, N. Alampara, S. Kunchapu, M. R´ ıos-Garc´ ıa, B. Emoekabu, A. Krishnan, T. Gupta, M. Schilling-Wilhelmi, M. Okereke, A. Aneesh 
+
+et al. , “A framework for evaluating the chemical knowledge and reason-ing abilities of large language models against the expertise of chemists,” 
+
+Nature Chemistry , pp. 1–8, 2025. [18] N. T. Runcie, C. M. Deane, and F. Imrie, “Assessing the chemical in-telligence of large language models,” arXiv preprint arXiv:2505.07735 ,2025. [19] H. Li, H. Cao, B. Feng, Y. Shao, X. Tang, Z. Yan, L. Yuan, Y. Tian, and Y. Li, “Beyond chemical qa: Evaluating llm’s chemical reasoning with modular chemical operations,” arXiv preprint arXiv:2505.21318 , 2025. [20] Y. Hao, J. Gu, H. W. Wang, L. Li, Z. Yang, L. Wang, and Y. Cheng, “Can mllms reason in multimodality? emma: An enhanced multimodal reasoning benchmark,” arXiv preprint arXiv:2501.05444 , 2025. [21] Y. Yang, X. He, H. Pan, X. Jiang, Y. Deng, X. Yang, H. Lu, D. Yin, F. Rao, M. Zhu et al. , “R1-onevision: Advancing generalized mul-timodal reasoning through cross-modal formalization,” arXiv preprint arXiv:2503.10615 , 2025. [22] M. Krallinger, O. Rabal, F. Leitner, M. Vazquez, D. Salgado, Z. Lu, R. Leaman, Y. Lu, D. Ji, D. M. Lowe et al. , “The chemdner corpus of chemicals and drugs and its annotation principles,” Journal of cheminformatics , vol. 7, pp. 1–17, 2015. [23] Z. Wu, B. Ramsundar, E. N. Feinberg, J. Gomes, C. Geniesse, A. S. Pappu, K. Leswing, and V. Pande, “Moleculenet: a benchmark for molecular machine learning,” Chemical science , vol. 9, no. 2, pp. 513– 530, 2018. [24] B. Yu, F. N. Baker, Z. Chen, X. Ning, and H. Sun, “Llasmol: Advancing large language models for chemistry with a large-scale, comprehensive, high-quality instruction tuning dataset,” arXiv preprint arXiv:2402.09391 , 2024. [25] X. Zhong, B. Jin, S. Ouyang, Y. Shen, Q. Jin, Y. Fang, Z. Lu, and J. Han, “Benchmarking retrieval-augmented generation for chemistry,” 
+
+arXiv preprint arXiv:2505.07671 , 2025. [26] Y. Zhu, G. Liu, E. Inae, and M. Jiang, “Moltextnet: A two-million molecule-text dataset for multimodal molecular learning,” arXiv preprint arXiv:2506.00009 , 2025. [27] G. Liu, M. Sun, W. Matusik, M. Jiang, and J. Chen, “Multimodal large language models for inverse molecular design with retrosynthetic planning,” arXiv preprint arXiv:2410.04223 , 2024. [28] K. Degtyarenko, P. De Matos, M. Ennis, J. Hastings, M. Zbinden, A. McNaught, R. Alc´ antara, M. Darsow, M. Guedj, and M. Ashburner, “Chebi: a database and ontology for chemical entities of biological interest,” Nucleic acids research , vol. 36, no. suppl 1, pp. D344–D350, 2007. [29] D. Hendrycks, C. Burns, S. Basart, A. Zou, M. Mazeika, D. Song, and J. Steinhardt, “Measuring massive multitask language understanding,” 
+
+arXiv preprint arXiv:2009.03300 , 2020. [30] Y. Wang, X. Ma, G. Zhang, Y. Ni, A. Chandra, S. Guo, W. Ren, A. Arulraj, X. He, Z. Jiang et al. , “Mmlu-pro: A more robust and chal-lenging multi-task language understanding benchmark,” in The Thirty-eight Conference on Neural Information Processing Systems Datasets and Benchmarks Track , 2024. [31] Q. Jin, B. Dhingra, Z. Liu, W. W. Cohen, and X. Lu, “Pubmedqa: A dataset for biomedical research question answering,” arXiv preprint arXiv:1909.06146 , 2019. [32] G. P. Wellawatte, H. Guo, M. Lederbauer, A. Borisova, M. Hart, M. Brucka, and P. Schwaller, “Chemlit-qa: a human evaluated dataset for chemistry rag tasks,” Machine Learning: Science and Technology ,vol. 6, no. 2, p. 020601, 2025. [33] Z. Yang, W. Liu, B. Gao, T. Xie, Y. Li, W. Ouyang, S. Poria, E. Cambria, and D. Zhou, “Moose-chem: Large language models for rediscovering unseen chemistry scientific hypotheses,” arXiv preprint arXiv:2410.07076 , 2024. [34] X. Ma, Q. Liu, D. Jiang, G. Zhang, Z. Ma, and W. Chen, “General-reasoner: Advancing llm reasoning across all domains,” arXiv preprint arXiv:2505.14652 , 2025. [35] D. Rein, B. L. Hou, A. C. Stickland, J. Petty, R. Y. Pang, J. Dirani, J. Michael, and S. R. Bowman, “Gpqa: A graduate-level google-proof q&a benchmark,” in First Conference on Language Modeling , 2024. [36] X. Du, Y. Yao, K. Ma, B. Wang, T. Zheng, K. Zhu, M. Liu, Y. Liang, X. Jin, Z. Wei et al. , “Supergpqa: Scaling llm evaluation across 285 graduate disciplines,” arXiv preprint arXiv:2502.14739 , 2025. [37] L. Ruddigkeit, R. Van Deursen, L. C. Blum, and J.-L. Reymond, “Enumeration of 166 billion organic small molecules in the chemical universe database gdb-17,” Journal of chemical information and model-ing , vol. 52, no. 11, pp. 2864–2875, 2012. [38] D. L. Mobley and J. P. Guthrie, “Freesolv: a database of experimental and calculated hydration free energies, with input files,” Journal of computer-aided molecular design , vol. 28, pp. 711–720, 2014. [39] R. Tran, J. Lan, M. Shuaibi, B. M. Wood, S. Goyal, A. Das, J. Heras-Domingo, A. Kolluru, A. Rizvi, N. Shoghi et al. , “The open catalyst 2022 (oc22) dataset and challenges for oxide electrocatalysts,” ACS Catalysis , vol. 13, no. 5, pp. 3066–3084, 2023. [40] A. Valenti, D. Bacciu, and A. Vergari, “Chemalgebra: Algebraic reason-ing on chemical reactions,” in 2024 International Joint Conference on Neural Networks (IJCNN) . IEEE, 2024, pp. 1–8. [41] D. Lowe, “Chemical reactions from US patents (1976-Sep2016),” 6 2017. [42] S. M. Kearnes, M. R. Maser, M. Wleklinski, A. Kast, A. G. Doyle, S. D. Dreher, J. M. Hawkins, K. F. Jensen, and C. W. Coley, “The open reaction database,” Journal of the American Chemical Society , vol. 143, no. 45, pp. 18 820–18 826, 2021. [43] N. Schneider, N. Stiefl, and G. A. Landrum, “What’s what: The (nearly) definitive guide to reaction role assignment,” Journal of chemical information and modeling , vol. 56, no. 12, pp. 2336–2346, 2016. [44] C. W. Coley, R. Barzilay, T. S. Jaakkola, W. H. Green, and K. F. Jensen, “Prediction of organic reaction outcomes using machine learning,” ACS central science , vol. 3, no. 5, pp. 434–443, 2017. [45] B. Chen, C. Li, H. Dai, and L. Song, “Retro*: learning retrosynthetic planning with neural guided a* search,” in International conference on machine learning . PMLR, 2020, pp. 1608–1616. [46] D. S. Wigh, J. Arrowsmith, A. Pomberger, K. C. Felton, and A. A. Lapkin, “Orderly: data sets and benchmarks for chemical reaction data,” 
+
+Journal of Chemical Information and Modeling , vol. 64, no. 9, pp. 3790– 3798, 2024. [47] T. Sterling and J. J. Irwin, “Zinc 15–ligand discovery for everyone,” 
+
+Journal of chemical information and modeling , vol. 55, no. 11, pp. 2324– 2337, 2015. [48] A. Gaulton, L. J. Bellis, A. P. Bento, J. Chambers, M. Davies, A. Hersey, Y. Light, S. McGlinchey, D. Michalovich, B. Al-Lazikani 
+
+et al. , “Chembl: a large-scale bioactivity database for drug discovery,” 
+
+Nucleic acids research , vol. 40, no. D1, pp. D1100–D1107, 2012. [49] S. Kim, P. A. Thiessen, E. E. Bolton, J. Chen, G. Fu, A. Gindulyte, L. Han, J. He, S. He, B. A. Shoemaker et al. , “Pubchem substance and compound databases,” Nucleic acids research , vol. 44, no. D1, pp. D1202–D1213, 2016. [50] G. Landrum, “Rdkit documentation,” Release , vol. 1, no. 1-79, p. 4, 2013. [51] A. Srivastava, A. Rastogi, A. Rao, A. A. M. Shoeb, A. Abid, A. Fisch, A. R. Brown, A. Santoro, A. Gupta, A. Garriga-Alonso et al. , “Beyond the imitation game: Quantifying and extrapolating the capabilities of language models,” Transactions on machine learning research , 2023. [52] Z. A. R. Gautama, Y. A. Hutapea, B. Hwang, J. Matsuda, A. Mu-fundirwa, T. Sugiyama, M. Ariyoshi, S. Fujikawa, S. M. Lyth, A. Hayashi et al. , “Suppression of radical attack in polymer electrolyte membranes using a vinyl polymer blend interlayer with low oxygen permeability,” Journal of Membrane Science , vol. 658, p. 120734, 2022. [53] Z. Zhao, D. Ma, L. Chen, L. Sun, Z. Li, Y. Xia, B. Chen, H. Xu, Z. Zhu, S. Zhu et al. , “Developing chemdfm as a large language foundation model for chemistry,” Cell Reports Physical Science , vol. 6, no. 4, 2025. [54] L. Huang, Z. Zhang, and S. Wang, “Chemm-r1: Enhancing chemical structure recognition and elucidation with reasoning multimodal large language models,” in Findings of the Association for Computational Linguistics: ACL 2026 , 2026, pp. 26 902–26 921. [55] W. Wang, B. Chen, D. Zhang, W. Liu, B. Gao, S. Pu, S. Sun, J. Zeng, T. Yu, W. Ouyang et al. , “Chem-r: Learning to reason as a chemist,” in Proceedings of the 32nd ACM SIGKDD Conference on Knowledge Discovery and Data Mining V. 2 , 2026, pp. 12 291–12 302. [56] J. Li, D. Zhang, X. Wang, Z. Hao, J. Lei, Q. Tan, C. Zhou, W. Liu, Y. Yang, X. Xiong et al. , “Chemvlm: Exploring the power of multimodal large language models in chemistry area,” in Proceedings of the AAAI Conference on Artificial Intelligence , vol. 39, no. 1, 2025, pp. 415–423. [57] DeepSeek-AI, “Deepseek-r1: Incentivizing reasoning capability in llms via reinforcement learning,” arXiv preprint arXiv:2501.12948 , 2025. [58] E. Almazrouei, H. Alobeidli, A. Alshamsi, A. Cappelli, R. Cojo-caru, M. Debbah, E. Goffinet, D. Hesslow, J. Launay, Q. Malartic 
+
+et al. , “The falcon series of open language models,” arXiv preprint arXiv:2311.16867 , 2023. [59] R. Taylor, M. Kardas, G. Cucurull, T. Scialom, A. Hartshorn, E. Saravia, A. Poulton, V. Kerkez, and R. Stojnic, “Galactica: A large language model for science,” arXiv preprint arXiv:2211.09085 , 2022. [60] G. Team, M. Riviere, S. Pathak, P. G. Sessa, C. Hardin, S. Bhupatiraju, L. Hussenot, T. Mesnard, B. Shahriari, A. Ram´ e et al. , “Gemma 2: Improving open language models at a practical size,” arXiv preprint arXiv:2408.00118 , 2024. [61] G. Team, A. Kamath, J. Ferret, S. Pathak, N. Vieillard, R. Merhej, S. Perrin, T. Matejovicova, A. Ram´ e, M. Rivi` ere et al. , “Gemma 3 technical report,” arXiv preprint arXiv:2503.19786 , 2025. [62] W. Dai, Y. Chen, Z. Dai, Y. Liu, Z. Huang, Y. Pan, B. Song, C. Zhong, X. Li, Z. Wang et al. , “Kale-lm-chem: Vision and practice toward an ai brain for chemistry,” in Pacific Rim International Conference on Artificial Intelligence . Springer, 2025, pp. 623–631. [63] H. Touvron, L. Martin, K. Stone, P. Albert, A. Almahairi, Y. Babaei, N. Bashlykov, S. Batra, P. Bhargava, S. Bhosale et al. , “Llama 2: Open foundation and fine-tuned chat models,” arXiv preprint arXiv:2307.09288 , 2023. [64] A. Grattafiori, A. Dubey, A. Jauhri, A. Pandey, A. Kadian, A. Al-Dahle, A. Letman, A. Mathur, A. Schelten, A. Vaughan et al. , “The llama 3 herd of models,” arXiv preprint arXiv:2407.21783 , 2024. [65] A. Q. Jiang, A. Sablayrolles, A. Mensch, C. Bamford, D. S. Chaplot, D. de las Casas, F. Bressand, G. Lengyel, G. Lample, L. Saulnier et al. ,“Mistral 7b,” arXiv preprint arXiv:2310.06825 , 2023. [66] A. Yang, B. Yang, B. Hui, B. Zheng, B. Yu, C. Zhou, C. Li, C. Li, D. Liu, F. Huang et al. , “Qwen2 technical report,” arXiv preprint arXiv:2407.10671 , 2024. [67] Qwen Team, “Qwen3 technical report,” arXiv preprint arXiv:2505.09388 , 2025. [68] S. Zhang, H. Li, L. Chen, Z. Zhao, X. Lin, Z. Zhu, B. Chen, X. Chen, and K. Yu, “Reasoning-driven retrosynthesis prediction with large language models via reinforcement learning,” arXiv preprint arXiv:2507.17448 ,2025. [69] Anthropic, “Claude models overview,” https://platform.claude.com/docs/ en/about-claude/models/overview, 2026. [70] Google, “Gemini models,” https://ai.google.dev/gemini-api/docs/models, 2026. [71] OpenAI, “Models,” https://developers.openai.com/api/docs/models, 2026.
