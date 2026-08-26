@@ -6,71 +6,64 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-25
-- 运行时间：2026-08-25 19:28:12 UTC
+- 最新运行日期：2026-08-26
+- 运行时间：2026-08-26 20:34:49 UTC
 - 运行状态：成功
-- 本次总论文数：17
+- 本次总论文数：14
 - 精读区：6
-- 速读区：11
+- 速读区：8
 
 ### 今日简报（AI）
-今日精读17篇论文，聚焦AutoML大模型与可解释特征工程，其中两篇高分工作连获9.0分。最值得关注：用语言模型进化出可执行pipeline的AutoML方案，以及元数据缺失下的SHAP引导自动特征生成，大幅降低人工调参成本。若想跟进，可先精读这两篇论文，再顺带浏览知识图谱推理与混合整数规划求解的效率提升新方法。
-- 详情：[/202608/25/README](/202608/25/README)
+今日聚焦 LLM 智能体与自动化特征工程，共精读 2 篇、速读 8 篇，覆盖特征提取与模拟实验。  
+最值得关注：SHAP 引导的元数据自由自动特征工程（9.0 分）与 LLM 代理模拟实验方法（9.0 分）。  
+建议普通读者优先了解 LLM 如何自动化数据科学流程，尤其是特征生成与受控实验设计。
+- 详情：[/202608/26/README](/202608/26/README)
 
 ### 精读区论文标签
-1. [Evolving Executable Pipeline Programs for AutoML with Language Models](/202608/25/2608.16416v1-evolving-executable-pipeline-programs-for-automl-with-language-models)  
+1. [SIGMA: SHAP-Guided Implicit-Trajectory Generation for Metadata-Free LLM-Based AutoFE](/202608/26/2608.17948v1-sigma-shap-guided-implicit-trajectory-generation-for-metadata-free-llm-based-autofe)  
    标签：评分：9.0/10、query:llm-dm
-   evidence：LACE利用大语言模型作为变异算子演化可执行流水线，直接服务于LLM辅助数据挖掘与自动化机器学习。
-2. [SIGMA: SHAP-Guided Implicit-Trajectory Generation for Metadata-Free LLM-Based AutoFE](/202608/25/2608.17948v1-sigma-shap-guided-implicit-trajectory-generation-for-metadata-free-llm-based-autofe)  
-   标签：评分：9.0/10、query:llm-dm
-   evidence：基于LLM的自动化特征工程，属于大语言模型辅助数据挖掘技术
-3. [A Scalable Cross-Domain Event Extraction System via a Unified Generative Training Framework](/202608/25/2608.23261v1-a-scalable-cross-domain-event-extraction-system-via-a-unified-generative-training-framework)  
-   标签：评分：9.0/10、query:llm-dm
-   evidence：面向文本事件抽取的统一生成式框架，是大语言模型辅助数据挖掘的核心任务
-4. [Synthesizing Feature Extractors: An Agentic Approach for Algorithm Selection](/202608/25/2608.17170v1-synthesizing-feature-extractors-an-agentic-approach-for-algorithm-selection)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：LLM智能体自动合成特征提取器，实现特征工程自动化
-5. [Closed-Loop Bayesian Molecular Inverse Design with Semantic LLM Surrogates](/202608/25/2608.22967v1-closed-loop-bayesian-molecular-inverse-design-with-semantic-llm-surrogates)  
+   evidence：基于LLM的自动特征工程，属于数据挖掘技术
+2. [LLM Agents Perform Controlled Experiments Using Simulation Models](/202608/26/2608.23622v1-llm-agents-perform-controlled-experiments-using-simulation-models)  
+   标签：评分：9.0/10、query:chemical-llm
+   evidence：LLM智能体设计并执行仿真实验，以优化制药过程参数
+3. [A tale of perfect fit and phantom optima: how data-driven models can fail in real-time optimization](/202608/26/2608.23885v1-a-tale-of-perfect-fit-and-phantom-optima-how-data-driven-models-can-fail-in-real-time-optimization)  
+   标签：评分：9.0/10、query:chemical-llm
+   evidence：化工过程系统建模与数据驱动实时优化
+4. [LLM-Guided Contextual Action Evaluation for Operational Decisions in Industrial Processes](/202608/26/2608.24156v1-llm-guided-contextual-action-evaluation-for-operational-decisions-in-industrial-processes)  
+   标签：评分：9.0/10、query:chemical-llm
+   evidence：LLM引导的上下文动作评估用于工业过程运行决策，直接契合LLM助力化工过程模型优化
+5. [Molecular LLM Agents: From Architectural Design to Scientific Autonomy](/202608/26/2608.23104v2-molecular-llm-agents-from-architectural-design-to-scientific-autonomy)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：基于LLM的语义代理驱动闭环分子逆设计
-6. [Molecular LLM Agents: From Architectural Design to Scientific Autonomy](/202608/25/2608.23104v1-molecular-llm-agents-from-architectural-design-to-scientific-autonomy)  
+   evidence：面向分子科学的LLM智能体，属化工应用
+6. [TRACE: Transition-Aware Residual Control for Multi-Objective Materials Discovery](/202608/26/2608.23631v1-trace-transition-aware-residual-control-for-multi-objective-materials-discovery)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：面向分子科学与化学对象的LLM智能体框架
+   evidence：LLM智能体结合转换感知残差反馈进行多目标材料发现
 
 ### 速读区论文标签
-1. [Structure-Internalized Rule Language Model for Faithful Knowledge Graph Reasoning](/202608/25/2608.17443v1-structure-internalized-rule-language-model-for-faithful-knowledge-graph-reasoning)  
+1. [Synthesizing Feature Extractors: An Agentic Approach for Algorithm Selection](/202608/26/2608.17170v1-synthesizing-feature-extractors-an-agentic-approach-for-algorithm-selection)  
    标签：评分：8.0/10、query:llm-dm
-   evidence：基于LLM的知识图谱推理用于数据挖掘
-2. [FormuEvo: LLM-Guided Evolution for Discovering Solver-Efficient Mixed-Integer Programming Formulations](/202608/25/2608.23353v1-formuevo-llm-guided-evolution-for-discovering-solver-efficient-mixed-integer-programming-formulations)  
+   evidence：LLM智能体自动合成特征提取器，属于数据挖掘特征工程
+2. [A Scalable Cross-Domain Event Extraction System via a Unified Generative Training Framework](/202608/26/2608.23261v1-a-scalable-cross-domain-event-extraction-system-via-a-unified-generative-training-framework)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：面向跨域事件抽取的统一生成式大语言模型框架，属于文本挖掘任务
+3. [Beyond Executable Models: The Pufibara Agent Harness and the Modelica Agent Workflow Benchmark for Physical System Modeling](/202608/26/2608.23653v1-beyond-executable-models-the-pufibara-agent-harness-and-the-modelica-agent-workflow-benchmark-for-physical-system-modeling)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：用LLM引导进化搜索求解器高效的MIP建模，可直接用于化工过程模型优化
-3. [Noesis: Bidirectional Graph-RAG with Adaptive Parallelism and Cross-Knowledge-Base Semantic Discovery](/202608/25/2608.15919v1-noesis-bidirectional-graph-rag-with-adaptive-parallelism-and-cross-knowledge-base-semantic-discovery)  
+   evidence：面向Modelica物理系统建模的智能体框架与基准，支持AI辅助的过程模型构建
+4. [A Multi-Domain and Multi-Task Generative Framework with Explicit Task and Domain Conditioning for Cross-Domain Event Extraction](/202608/26/2608.23235v1-a-multi-domain-and-multi-task-generative-framework-with-explicit-task-and-domain-conditioning-for-cross-domain-event-extraction)  
    标签：评分：7.0/10、query:llm-dm
-   evidence：Noesis图RAG支持跨知识库的语义发现，可用于LLM辅助的文本挖掘与数据挖掘。
-4. [MUSE: An Interactive Meta-Agent for Understanding and Steering LLM-powered Data Science Systems](/202608/25/2608.16181v1-muse-an-interactive-meta-agent-for-understanding-and-steering-llm-powered-data-science-systems)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：大模型数据科学系统的交互式引导与理解
-5. [J-Miner: Recovering Executable Decision Knowledge from Language-Model Classifiers](/202608/25/2608.17063v1-j-miner-recovering-executable-decision-knowledge-from-language-model-classifiers)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：J-Miner 从微调语言模型分类器中挖掘可执行决策知识，契合LLM助力数据挖掘主题
-6. [When Machines Speak: A Unified Generative Framework for Integrating Machine-Native Symbols into Pretrained Large Language Models](/202608/25/2608.19529v1-when-machines-speak-a-unified-generative-framework-for-integrating-machine-native-symbols-into-pretrained-large-language-models)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：将机器原生符号与LLM融合用于结构化模型构建
-7. [ChemDIRT: A Diversified Instruction, Representation, and Task Benchmark for Robust Chemistry-LLM Evaluation](/202608/25/2608.21504v1-chemdirt-a-diversified-instruction-representation-and-task-benchmark-for-robust-chemistry-llm-evaluation)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：面向化学领域大语言模型评估的基准，助力化工领域的LLM应用研究
-8. [Mol-JEPA: A multimodal Joint Embedding Predictive Architecture for Molecules](/202608/25/2608.22642v1-mol-jepa-a-multimodal-joint-embedding-predictive-architecture-for-molecules)  
-   标签：评分：7.0/10、query:coal-liquid
-   evidence：多模态分子表征学习，可应用于分子表征
-9. [Training Chemical Plausibility-Aware Large Language Models for Single-Step Retrosynthesis](/202608/25/2608.18940v1-training-chemical-plausibility-aware-large-language-models-for-single-step-retrosynthesis)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：面向逆合成的大语言模型应用，涉及化学工程中的人工智能
-10. [Gaussian process learning with flow map refinement for parameter estimation in dynamical systems](/202608/25/2608.22324v1-gaussian-process-learning-with-flow-map-refinement-for-parameter-estimation-in-dynamical-systems)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：面向动力系统参数估计的高斯过程方法，可迁移用于化学过程模型构建
-11. [A Multi-Domain and Multi-Task Generative Framework with Explicit Task and Domain Conditioning for Cross-Domain Event Extraction](/202608/25/2608.23235v1-a-multi-domain-and-multi-task-generative-framework-with-explicit-task-and-domain-conditioning-for-cross-domain-event-extraction)  
+   evidence：提出跨领域事件抽取的多任务生成框架，涉及基于大语言模型的文本挖掘方法，符合LLM助力数据挖掘主题
+5. [Ontology-Driven Structural Regularization for Document-Level Relation Extraction](/202608/26/2608.20856v1-ontology-driven-structural-regularization-for-document-level-relation-extraction)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：大语言模型辅助的跨域事件抽取，属于文本数据挖掘方法
+   evidence：文档级关系抽取是文本/数据挖掘任务；本体驱动去噪提升了抽取结果的一致性
+6. [Mol-JEPA: A multimodal Joint Embedding Predictive Architecture for Molecules](/202608/26/2608.22642v1-mol-jepa-a-multimodal-joint-embedding-predictive-architecture-for-molecules)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：多模态联合嵌入预测架构用于分子表示学习
+7. [Toward Effective and Reliable LLM Agents via Dynamic Ontology](/202608/26/2608.22974v1-toward-effective-and-reliable-llm-agents-via-dynamic-ontology)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：利用动态本体将领域知识整合进LLM智能体决策
+8. [Enhancing Bayesian Optimization and Active Learning Through Kernel Diversity](/202608/26/2608.24721v1-enhancing-bayesian-optimization-and-active-learning-through-kernel-diversity)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：通用的核集成贝叶斯优化与主动学习框架，可迁移至过程系统工程中的代理模型构建与优化
 
 
 <div class="dpr-home-promo-card">

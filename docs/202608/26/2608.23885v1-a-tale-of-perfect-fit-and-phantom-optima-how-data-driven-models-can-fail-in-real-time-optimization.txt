@@ -1,0 +1,1176 @@
+Title: A tale of perfect fit and phantom optima: how data-driven models can fail in real-time optimization
+
+URL Source: https://arxiv.org/pdf/2608.23885v1
+
+Published Time: Wed, 26 Aug 2026 00:25:35 GMT
+
+Number of Pages: 23
+
+Markdown Content:
+# A tale of perfect fit and phantom optima: how data-driven models can fail in real-time optimization 
+
+Prithvi Dake a, ∗, Rahul Bindlish b, James B. Rawlings a
+
+> aDepartment of Chemical Engineering, University of California, Santa Barbara, CA 93106, United States
+> bDow Chemical Company, TX, United States
+
+Abstract 
+
+Real-time optimization (RTO) relies on process models to locate economically optimal operating conditions. Because developing first-principles models requires significant process knowledge, data-driven alternatives are increasingly at-tractive. Modern machine-learning models can fit historical plant data accurately and often pass standard validation tests. Whether such models can be trusted for economic optimization, however, remains unclear. We investigate this question using a vinyl acetate monomer benchmark process with a unique, well-conditioned economic optimum. We train a structured hybrid model that combines known mass balances and thermodynamics with a neural-network closure for unknown kinetics, and a fully data-driven neural ordinary differential equation (ODE) model. Both models repro-duce plant measurements accurately and exhibit little variation in predictions across random initializations. Yet their economic optima differ substantially from that of the plant. Where the plant returns a single optimum on multistart search, the trained models return many phantom optima. We further show that the training optimizer alone can be yet another source of error. Even with noise-free data and initialization at weights that recover the plant optimum, stochastic gradient training can drift to weights that yield substantially worse RTO solutions. The identified model is thus an artifact of the training optimizer as well as the data. These results demonstrate that a good predictive fit of all available measurements does not guarantee reliable economic performance. A data-driven model for RTO should at least be required to recover the optimum on a decision-oriented benchmark like the one developed here before being considered for plant testing and application. 
+
+Keywords: Real-time optimization, Physics-constrained machine learning, Neural ordinary differential equations, Parameter estimation, Decision-oriented benchmark 
+
+1. Introduction 
+
+Growing global competition and sustainability demands have made RTO increasingly important to the chemical process industries (Naysmith and Douglas, 1995; Darby et al., 2011; Câmara et al., 2016). RTO operates on a timescale of hours to days, or is triggered when a price change or disturbance is detected. It supplies the prof-itable steady-state setpoints to lower-level regulatory lay-ers (Cutler and Perry, 1983). Traditional RTO strategies often use a rigorous nonlinear steady-state process model that is updated using plant measurements after each opti-mization iteration (Seborg et al., 2017, pg. 351). Specifically, the model parameters are reconciled against the most recent steady-state plant measurements, a step termed model adaptation or data reconciliation (Crowe, 1996). The updated model is then used to solve a steady-state economic optimization problem. This two-step ap-proach (Roberts and Williams, 1981) is a common way      
+
+> ∗Corresponding Author
+> Email addresses: prithvidake@ucsb.edu (Prithvi Dake),
+> rbindlish@dow.com (Rahul Bindlish), jbraw@ucsb.edu (James B. Rawlings)
+
+of practicing RTO. While the plant tracks the RTO set-point, it is in transient operation, and one must detect the new steady state before reconciling with measurements. Thus, the approach is limited by steady-state wait-times 
+
+and fragile detection algorithms that require careful tuning (Darby et al., 2011). Recent developments in the two-step RTO approach adapt the steady-state model using transient plant mea-surements (Krishnamoorthy et al., 2018), which eliminates both the steady-state wait-times and detection. The RTO problem can also be made dynamic, e.g., economic MPC (Rawlings et al., 2012). However, when the disturbances vary slowly relative to the plant’s settling time, steady-state RTO is preferred because it is cheaper to solve. Besides model-based methods, model-free methods also exist. RTO has been carried out using direct-search meth-ods that usually mimic gradient-free schemes like Nelder-Mead or evolutionary strategies (Box, 1957). Without gra-dient information, the number of plant evaluations grows steeply with the decision space for these methods. A second family of model-free methods can be under-stood as a feedback problem in the form of extremum seek-ing or self-optimizing type control (Skogestad, 2000). If we arXiv:2608.23885v1 [eess.SY] 24 Aug 2026 treat the gradient of profit with respect to the degrees of freedom at steady-state as a controlled variable and hold it at zero, the plant self-optimizes to a stationary point of the RTO problem. Most of the feedback methods there-fore focus on gradient estimation , e.g., using dither signals. The feedback approach does not distinguish among a maxi-mum , minimum , or saddle point , and leads to prohibitively slow convergence and a difficult dither tuning problem in practice (Krishnamoorthy and Skogestad, 2022). For these reasons, model-free methods are not considered further. A third method, modifier adaptation , combines the two: it converges in few plant iterations, like a model-based method, yet provably reaches the plant’s optimum, like the feedback-based schemes (Bonvin and Pannocchia, 2024). Crucially, it recovers the plant optimum despite model mismatch, provided the model already has the correct cur-vature at the plant optimum (a positive semidefinite Hes-sian in the case of a minimum), so that the plant’s gradi-ent corrections suffice (Chachuat et al., 2009; Papasavvas et al., 2019). Yet this curvature is not guaranteed even for a model with no mismatch, as we show in this paper. The accurate estimation of plant gradients remains an-other challenge. We therefore focus on model-based RTO using transient measurements. 
+
+1.1. Modeling 
+
+For RTO, practitioners usually start with first-principles models (FPMs), built on conservation laws and thermody-namics. The model’s structure leaves few free parameters, so it extrapolates well beyond the operating data and re-mains interpretable. These are exactly the properties an economic optimizer relies upon (Bindlish, 2025). But the cost to build and maintain such models is large since FPMs demand more process knowledge than is often available. An FPM is only as good as its assumed structure. When that structure is incomplete, e.g., when the reaction kinet-ics or fluid dynamics are not known from first principles, the model violates the adequacy condition of Forbes et al. (1994): no choice of parameters satisfies the plant’s opti-mality conditions, and its economic optimum is biased. Alternatives include purely data-driven or black-box 
+
+models that learn plant dynamics from input–output data with little structure imposed. Such models use neural net-works (NNs) that are universal function approximators (Hornik et al., 1989). Neural ordinary differential equa-tions (Chen et al., 2018) are a representative modern in-stance of such black-box models. They need little process knowledge, but they do not preserve conservation laws and degrade rapidly outside the training set. Violating conser-vation laws leads to infeasible predictions, which is usually the biggest concern in chemical engineering applications. Augmenting the first-principles balances with a data-driven closure for the unknown parts in FPMs has there-fore been a long-standing pursuit in chemical engineer-ing (see the reviews by Sansana et al., 2021; Schweidt-mann et al., 2024). The resulting modeling techniques have been recently surveyed under the umbrella of physics-constrained machine learning (PCML) by Mukherjee and Zavala (2026). PCML strategies are commonly grouped by how the physics is enforced. In soft -constrained mod-els, the known physical laws enter the loss as a penalty, as in physics-informed neural networks (Raissi et al., 2019; Sholokhov et al., 2023). In contrast, hard -constrained models enforce steady-state mass and energy balances ex-actly (Golder et al., 2025; Constante et al., 2026). Another example includes the simultaneous projection method, which is seen as a promising step toward using NNs to approximate parts of DAE models (Lueg et al., 2025). Fi-nally, in hybrid (or structured ) models, a data-driven term is wired into a partially mechanistic transient model and solved with shooting methods (Kumar and Rawlings, 2023; Thompson et al., 2026). The physics-based dynamic bal-ances are retained, while a data-learned term stands in for the part that is not known from first principles, typi-cally the reaction kinetics or fluid dynamics. We use both hybrid and black-box models in this work. Recent perspectives highlight the absence of decision-oriented benchmarks as central open problems in PCML (Pantelides et al., 2025; Mukherjee and Zavala, 2026). At the same time, a growing literature argues that reliable models for process systems can be built largely from his-torical plant data using machine learning (ML) and artifi-cial intelligence (AI) (Sansana et al., 2021; Schweidtmann et al., 2024). We take up both threads and ask: for a data-driven model built with the best modeling paradigms and software available to us, carrying as much physical struc-ture as the process permits, and clearing the usual valida-tion checks, does the optimum it yields under RTO match the plant’s? A graphical abstract of the work is shown in fig. 1. Our contributions are as follows: (i) Evidence that near-identical fits, tight even across random initializations, still yield sharply disparate economic optima, so standard validation and uncer-tainty quantification do not certify reliable RTO per-formance. (ii) A controlled demonstration that the stochastic train-ing optimizer alone can cause divergence from the op-timal weights. Given correct model structure, noise-free data, and initialization at weights at which the model recovers the plant optimum, stochastic gradi-ent training still drifts to a model whose RTO solution is significantly suboptimal. (iii) A decision-oriented benchmark, the vinyl acetate pro-cess with a well-conditioned economic optimum, on which a data-driven RTO model must recover the plant optimum rather than merely fit plant data. 
+
+Outline The paper is organized as follows: Section 2 in-troduces the vinyl acetate process used as the case study, sets up its economic optimization, and describes the struc-tured (hybrid) and black-box (neural ODE) models. Sec-tion 3 gives the training data, scaling, initialization, and 2RSD
+
+Chemical Plant (A) (B) 
+
+> Plant Data
+
+t
+
+Training Structured model 
+
+dc j
+
+dt = cjf − cj
+
+τ + P 
+
+> i
+
+νij 
+
+dc j
+
+dt =
+
+Black-box model ML/AI closure uy
+
+u∗ 
+
+> s
+
+= argmax ℓ(xs, u s)0 = f (xs, u s)
+
+Profit loss 
+
+> Counts
+
+< 30% < 100% 
+
+Economic Optimization 
+
+# RELIABLE? 
+
+(C) RTO    
+
+> Figure 1: (A) Historical plant datasets are used to train (B) a structured model and a black-box ML/AI closure model, each deployed in real-time optimization (RTO). (C) Near-identical fits map to very different optima, the worst-case structured model loses close to 30% profit and the black-box model over 50%. A reliable data-driven model must recover the optimum, not be judged solely on the validation dataset.
+
+software details. Section 4 reports the results, comparing the parametric, structured, and black-box models on how well they recover the plant economic optimum. Section 5 concludes. Further details on the flowsheet are provided in Appendices A and B. The supplementary material re-ports the hyperparameter tuning and the training opti-mizer comparison for every case studied in this paper. 
+
+2. Industrial case-study: Vinyl acetate process 
+
+The vinyl acetate monomer (VAc) production process has been used as a benchmark problem for plantwide con-trol study due to its challenging and coupled process net-work (Luyben and Tyréus, 1998; Chen et al., 2003). We model the process using a detailed reactor model coupled with a simplified separator system, which includes the absorber, flash drum and distillation column. Al-though the separator system is simplified, the nonlinear reactor model provides rich insight into the process for steady-state economic optimization (Ward et al., 2004). 
+
+2.1. Process description 
+
+The VAc process involves seven chemical species: ethy-lene (C 2H4) with inert ethane (C 2H6), oxygen (O 2) and acetic acid (CH 3COOH) as fresh feeds; vinyl acetate (C 4H6O2) is the product; water (H 2O) and carbon dioxide (CO 2) are byproducts. The following reactions take place inside the reactor: 
+
+C2H4 + CH 3COOH + 12 O2r1
+
+−−→ C4H6O2 + H 2OC2H4 + 3 O 2r2
+
+−−→ 2 CO 2 + 2 H 2O (1) 
+
+We develop a simplified flowsheet as shown in fig. 2. In the process, the chemical species (in gaseous phase) com-ing from the mixer (stream 2) are fed to the reactor. The gaseous effluent from the reactor (stream 3) is partly con-densed to separate into gas and liquid in the flash drum. The gases (stream 5) then pass through a CO 2 absorber, and stream 6 is then partly recycled back to the mixer by the splitter I (stream 7). The liquid stream 4 is then sent to a distillation column. The overhead products (mainly vinyl acetate and water) are withdrawn (stream 10) while the bottom products (mainly acetic acid and water) are re-cycled back to the mixer by splitter II (stream 13). Thus, the flowsheet constitutes a conventional reactor-separator system with two recycles. Note that the reactions in eq. (1) are not elementary but rather an overall representation of the actual reaction network. We also assume a lumped model of the catalyst, such that all the mass transfer re-sistances are represented by the following rate laws: 
+
+r1 = k1 × e−E1/RT × c1.1Ee c1.1O cA
+
+r2 = k2 × e−E2/RT × cEe cO (2) 3where cj , T are the concentration of species j and the tem-perature inside the reactor. The net production rates are given as, 
+
+REe 
+
+REa 
+
+RA
+
+RV
+
+RW
+
+RO
+
+RC
+
+
+
+=
+
+
+
+−1 −10 0
+
+−1 01 01 2
+
+−(1 /2) −30 2
+
+r1
+
+r2
+
+
+
+(3) We model the reactor as a single continuous stirred-tank reactor (CSTR) operating isothermally with negligible pressure drop. The reactor is maintained at the same tem-perature as inlet stream 2 in fig. 2, whose temperature is a setpoint we specify. We assume that the thermodynamic equation of state is valid even when the reactor is not at equilibrium (Rawlings and Ekerdt, 2020, pg. 133). As-suming an ideal gas mixture, the component balances for species j in the reactor are: 
+
+ϵV R
+
+dc j
+
+dt = Qf cjf − Qc j + (1 − ϵ)VRρcRj
+
+Q = Qf + RTP (1 − ϵ)VRρc
+
+X
+
+> j
+
+Rj (4) We make the following assumptions to simplify the flow-sheet: ethane, ethylene, oxygen and carbon dioxide are non-condensable and thus, we get perfect condensation of only acetic acid, water and vinyl acetate in the flash drum. We also assume that the separation in the distillation col-umn is sharp. Thus, stream 10 carries all the vinyl acetate and water produced in the reactor while stream 8 contains only acetic acid. Hence, neither vinyl acetate nor water gets recycled to the mixer. The CO 2 absorber is assumed to remove only carbon dioxide from stream 5. Finally, for unit operations other than the reactor, only material balances are solved; energy balances are not considered. Let N kj be the molar flow of chemical species j ∈ J := 
+
+{Ee , Ea , A, V, W, O, C} in stream k ∈ K := {1, 2, . . . , 13 }.Hence, the molar flow coming out of the reactor can be written as N 3 
+
+> j
+
+= Qc j . Since only the reactor contributes to dynamics in the flowsheet, all other process units are assumed to operate at quasi steady-state. Thus, the ma-terial balance for the mixer at any time can be concisely represented as: 
+
+N 2 = N 1 + N 7 + N 13 = N 1 + diag( ζ) · N 3
+
+ζ = ( α, α, β, 0, 0, α, α (1 − μ)) T
+
+Qf = X
+
+> j
+
+N 2 
+
+> j
+
+RT /P (5) where α := N 7 
+
+> j
+
+/N 6 
+
+> j
+
+, β := N 13  
+
+> j
+
+/N 8 
+
+> j
+
+are the recycle frac-tions corresponding to streams 7 and 13 respectively, while 
+
+μ := N 11 C /N 5C is the fraction of molar flow of carbon diox-ide removed by the CO 2 absorber. The concentrations at the reactor inlet can be calculated using cjf = N 2 
+
+> j
+
+/Q f .Equations (2) to (5) describe the transient behavior of the flowsheet forming a differential algebraic equation (DAE) system. We can simplify the DAE into an ODE by solving eq. (5) for Qf in terms of cj only. For the steady-state of the flowsheet, we need only to set the RHS terms of the ODE equations equal to zero. Note that the feeds 
+
+N 1W, N 1V, N 1C are set to zero while the inert feed enters as 
+
+N 1Ea = λN 1Ee where λ is a small constant number. Con-structing the remaining streams in the flowsheet is de-scribed in Appendix A. 
+
+2.2. Economic optimization 
+
+A candidate objective function that takes into account the steady-state economics of the flowsheet is defined as follows, 
+
+ℓ(xs, u s; p) := p1N 10  
+
+> V
+
+− p2
+
+X
+
+> j
+
+N 7 
+
+> j
+
+− p3
+
+X
+
+> j
+
+N 13 
+
+> j
+
+− X
+
+> j
+
+p4j N 1 
+
+> j
+
+− p5
+
+X
+
+> j
+
+N 9 
+
+> j
+
+− p6
+
+X
+
+> j
+
+N 12  
+
+> j
+
+(6) which is used to formulate the following RTO problem: 
+
+max 
+
+> xs,u s
+
+ℓ(xs, u s; p)
+
+s.t. f (xs, u s) = 0 
+
+g(xs, u s) = N 10  
+
+> V, nom
+
+− N 10  
+
+> V
+
+≤ 0
+
+u ≤ us ≤ ¯u (7) where x are the states which are the species concentrations 
+
+c in the reactor and c := ( cEe , c Ea , c A, c V, c W, c O, c C)T.The decision variables (or optimization degrees of freedom) 
+
+u are the feed rates, recycle fractions and the reactor inlet temperature, 
+
+u := [ N 1Ee , N 1O, N 1A, α, β, T ]T
+
+The price vector p := ( p1, p 2, p 3, p T4j , p 5, p 6)T characterizes the profit function ℓ(·). The RHS of the ODE formed by eqs. (2) to (5) is represented by f (·). The constraint g(·)
+
+ensures that the nominal production rate of vinyl acetate is met. We set N 10 V,nom = 0 to make the problem uncon-strained. We also fix the liquid recycle β = 0 .6 to remove the flat direction it forms with N 1A. The vector p and the bounds on the degrees of freedom u, ¯u are tabulated in Ap-pendix B. The subscript s denotes the steady-state values of the states and the degrees of freedom. The meaning of the terms in the objective function is as follows: • p1 represents the revenue from the vinyl acetate pro-duction N 10  
+
+> V
+
+. While the remaining costs represent the overall operating expenditure (opex). • p2, p 3 represent energy processing costs for gas and liquid recycle streams N 7, N 13 , while p5, p 6 represent the cost to process the purge streams N 9, N 12 .47$$$$      
+
+> $
+> $
+> Gas recycle α
+> Reactor
+> N1Ee
+> N1A
+> N1O
+> Flash
+> Distillation column
+> Absorber
+> Mixer
+> Splitter I
+> 1283410 11 965
+> 12 Splitter II
+> 13 Liquid recycle β
+> cEe
+> cEa
+> cA
+> cW
+> cV
+> cO
+> cC
+> TC
+> Figure 2: Simplified process flowsheet for the vinyl acetate (VAc) monomer plant consisting of 7 units and 13 streams. (Ee: Ethylene, Ea: Ethane, A: Acetic acid, O: Oxygen, W: Water, V: Vinyl acetate, C: Carbon dioxide). Outlet concentrations from the reactor are measured subject to step inputs in the decision variables (fresh feed rates, recycle fractions and reactor temperature), that are shown by the control valves and the controller icon.
+
+• p4j represent the material costs associated with each species j in the fresh feed N 1.If we supply excessively high feed rates, the residence time in the reactor and consequently the yield of vinyl acetate will be low. On the other hand, very low feed rates will lead to low production rates. A high gas recycle can lead to a better yield but incurs a large energy cost. Thus, an unconstrained optimum should exist in terms of the de-grees of freedom for the above objective function. Solving eq. (7), we obtain 
+
+u⋆s = [15 .54 mol /s, 11 .14 mol /s, 17 .15 mol /s, 0.57 , 0.6, 427 .1 K] T
+
+with 
+
+ℓ⋆ = 292 .87 $ /s N 10  
+
+> V
+
+= 13 .13 mol /s
+
+We analyze the reduced Hessian of the profit function with respect to the degrees of freedom. Because u contains vari-ables with different units, we rescale them using ˜u with 
+
+˜u = u/s u, where the scale factors su are tabulated in Appendix B, so that the condition number reflects cur-vature rather than the choice of units. The eigenvalues of the scaled reduced Hessian ∂2ℓ∂ ˜u2
+
+> s
+
+are all negative, confirm-ing a local maximum, and its condition number is 415, so the optimum is locally well-conditioned with no flat direc-tions. We performed a multi-start search from different initial guesses for us and xs. It revealed no other local optima within u ≤ us ≤ ¯u. Together with the negative definite scaled reduced Hessian, this establishes a strict, well-conditioned local maximum with no competing op-timum detected in the feasible region. At the computed optimum, profit is 7.4% of revenue, a margin typical of commodity chemicals, so the optimum reflects a genuine economic trade-off rather than a tiny difference between two large numbers. We retain the decision variable scaling for the models de-veloped in the upcoming sections. Problem eq. (7) is solved using the IPOPT solver provided by CasADi (Wächter and Biegler, 2006; Andersson et al., 2019). 
+
+2.3. Structured models 
+
+We consider eqs. (2) to (5) as the ground truth for the flowsheet. In reality, however, some parts of the plant model are not known precisely. The reactor is where the chemical transformation takes place, and the kinetics are usually not known from first principles. This is almost always the case in industrial practice (Bindlish, 2025). We assume that the separation factors for the simple separators are known. Thus, we choose to parameterize only the rate laws using feedforward neural networks as follows: 
+
+r1 = rNN ,1(cEe , c O, c A, T ; θrNN ,1 )
+
+r2 = rNN ,2(cEe , c O, T ; θrNN ,2 ) (8) where θrNN ,1 , θ rNN ,2 represent the weights and biases of the neural networks. These rate laws replace eq. (2) in the plant model and are trained as follows. 5If we represent the ODE formed by eqs. (4) and (5) by 
+
+˙x = f (x, u ), then we can write the following optimization problem to train the neural-network parameters ΘNN := (θrNN ,1 , θ rNN ,2 ) as, 
+
+Θ⋆ 
+
+> NN
+
+= argmin 
+
+> ΘNN
+
+1
+
+Ntr NtNtr X
+
+> i=1
+> Nt
+
+X
+
+> k=0
+
+yi(k) − ˆyi(k)
+
+σy
+
+> 2
+
+!1/2
+
+s.t. ˙ˆxi = f (ˆ xi, u i; Θ NN )ˆyi = h(ˆ xi, u i)ˆxi(0) = f0(yi(0)) (9) where x, u have been defined in section 2.2 and y = x, thus 
+
+h(x, u ) = I . Nt represents the number of time-steps in a trajectory while Ntr represents the number of trajectories in the training dataset. Training over a prediction horizon (Nt) reduces the compounding of one-step errors during open-loop rollout (Kumar and Rawlings, 2023). The sym-bol σy represents the standard deviation of the measure-ments y over the training dataset, while the hat represents model predictions. For full-state measurement, we simplify the training by initializing each trajectory at its first mea-surement rather than estimating the initial conditions, i.e., 
+
+f0(yi(0)) = yi(0) .Since the model shown in eq. (9) enforces both mass con-servation and the equation of state, we call it a structured 
+
+model. As written, problem eq. (9) is the most realistic formulation in an industrial setting, where only concen-tration measurements are available. However, we consider one more way to train the networks in eq. (8). Suppose that we have access to the rate measurements 
+
+[r1, r 2]T over the same training dataset used for eq. (9), thus we can train the neural networks simply as, 
+
+Θ⋆ 
+
+> NN
+
+= argmin 
+
+> ΘNN
+
+1
+
+Ntr NtNtr X
+
+> i=1
+> Nt
+
+X
+
+> k=0
+
+ri(k) − ˆri(k)
+
+σr
+
+> 2
+
+!1/2
+
+(10) where σr is the standard deviation of the rate measure-ments over the training dataset. We do not know the neural-network parameters that reproduce the plant kinetics exactly . A rate measurement reflects the kinetic rate itself, rather than its integrated ef-fect on concentration through the ODE in eq. (9). Hence eq. (10) gives the closest estimate of the closure we can obtain from data. Training on rates therefore acts as both a reference and a diagnostic. It tests whether the network has the capacity to represent the kinetics and whether the resulting model recovers the plant’s RTO optimum. If it does, we treat the rate-trained network as the best 
+
+attainable surrogate for the true closure and judge the concentration-trained models against it. If it does not, the shortfall lies with the dataset rather than the training, since no measurement is more informative about the ki-netics than the rates themselves, and the dataset must be 
+
+enlarged . Thus using eqs. (9) and (10) we consider three cases, defined together with all other cases studied in ta-ble 1: (a) rmeas : Problem eq. (10) with access to rate measure-ments [r1, r 2]T.(b) cmeas_rinit : Problem eq. (9) initialized with the NN parameters learned from rmeas .(c) cmeas : Problem eq. (9) with access to only concen-tration measurements c.
+
+2.4. Black-box models 
+
+We also train a complete black-box model for the reactor as, 
+
+θ⋆fNN = argmin 
+
+> θfNN
+
+1
+
+Ntr NtNtr X
+
+> i=1
+> Nt
+
+X
+
+> k=0
+
+yi(k) − ˆyi(k)
+
+σy
+
+> 2
+
+!1/2
+
+s.t. ˙ˆxi = fNN (ˆ xi, u i; θfNN )ˆyi = h(ˆ xi, u i)ˆxi(0) = f0(yi(0)) (11) where the RHS f of the ODE is approximated using a neural network. As in the previous section, we use y =
+
+x and set f0(yi(0)) = yi(0) . By construction, eq. (11) preserves neither individual species mass conservation nor the equation of state inside the reactor; it learns them from data instead. Hence, we call it a black-box model. To use it for RTO, we need to calculate the flowsheet streams. For that, we need to know the volumetric flow Q coming out of the reactor. From eq. (5), by applying an overall mass-balance across the flowsheet at steady state we get, 
+
+Q =
+
+P 
+
+> j
+
+Mj N 1
+
+> j
+
+P 
+
+> j
+
+Mj (1 − ζj )cj
+
+(12) where Mj is the molecular weight of the species j ∈ J.Thus, using eqs. (11) and (12) and N 3 
+
+> j
+
+= Qc j we can construct the flowsheet and use the black-box model for economic optimization. 
+
+3. Training and implementation details 
+
+3.1. Training dataset 
+
+As shown in fig. 2, we record the species concentrations at the reactor outlet while perturbing the decision vari-ables with pseudo-random binary signals under a zero-order hold. The decision variables are the feed rates 
+
+N 1Ee , N 1O, N 1A, the recycle fractions α, β and the reactor in-let temperature T . We sample 200 random inputs and hold out 30% as a validation set. The inputs u, except temper-ature, are varied by ±30% around their optimal values u⋆s ,while temperature is varied by ±10% . These limits coin-cide exactly with the box constraints of the RTO problem eq. (7), i.e., u = 0 .7 u⋆s and ¯u = 1 .3 u⋆s for all the feed rates and recycle fraction α, and u = 0 .9 T ⋆, ¯u = 1 .1 T ⋆ for 6the temperature, tabulated in Appendix B. Although β is perturbed ±30% to excite the data, it is held fixed at 0.6
+
+in the RTO problem eq. (7) (i.e., u = ¯ u for β). The train-ing dataset therefore spans exactly the feasible box over which we optimize. These perturbations are more aggres-sive than industrial model identification typically permits, so the training data here is richer than a practitioner could likely obtain. A subset of the noise-free training dataset is shown in fig. 3, and it brackets the measurements at the steady-state optimum xs, u s. Thus, we test the models purely on interpolation and not extrapolation. We ensure that the training data has enough steady-state information by holding the decision variables constant for a fixed period before injecting the next random step, so that the model learns the steady-state behavior of the flowsheet (Kumar and Rawlings, 2023). 
+
+3.2. Software details 
+
+Both the structured and black-box models are built and trained using the JAX open-source Python library devel-oped by Google DeepMind (Bradbury et al., 2018). We solve the ODEs using Diffrax (Kidger, 2021) with an adaptive step-size solver of the ESDIRK5(4) type. The neural networks are constructed and initialized using Flax 
+
+(Heek et al., 2024). The hyperparameters in this paper are the network width and depth, the learning rate, the batch size, and the epoch budget. We fixed the width and depth because the training error was already low at this architecture, so ad-ditional capacity was unnecessary. We also fixed the batch size and tuned only the learning rate and the epoch budget. We first swept the learning rate and kept the value with the lowest validation loss, then increased the epoch budget until the validation loss plateaued. The tuning procedure for each model we construct is detailed in figs. S2 to S5 of the supplementary material. We run ADAM (Kingma and Ba, 2014) for the first half of the epoch budget and then switch to L-BFGS (Liu and Nocedal, 1989) for the second half for faster convergence. A comparison of using only ADAM versus ADAM followed by L-BFGS is also shown in the supplementary material. Both the optimizers are obtained from Optax provided by JAX. 
+
+3.3. Scaling and initialization 
+
+We use hyperbolic tangent as the activation function for the neural networks. Since both structured and black-box 
+
+models are used inside a nonlinear program (NLP) eq. (7), 
+
+tanh ensures differentiability of the model outputs with respect to the inputs and parameters. For tanh , both the inputs and outputs of the neural net-works should be scaled so that the network operates on 
+
+O(1) quantities. The inputs are normalized by their mean and standard deviation over the entire training dataset. For the structured model, we deliberately separate the 
+
+shape of the rate function from its scale : the network learns the standardized shape, while a trainable location 
+
+ˆμr and scale ˆσr restore the physical magnitude. For ex-ample, r1 is scaled as 
+
+r1 = ˆ μr1 + ˆ σr1 × rNN ,1(·),
+
+so that rNN ,1(·) need only output an O(1) standardized rate, while ˆμr1 and ˆσr1 carry its mean and spread. This scaling keeps the raw network output well-scaled and the back-propagated gradients well-conditioned; without it, the network would have to emit values spanning the raw rate magnitudes directly, which readily causes vanishing 
+
+or exploding gradients, especially for stiff systems (Fronk and Petzold, 2025). To further stabilize training, we ap-ply gradient clipping to the network parameters ΘNN , but leave the scale factors ˆμri , ˆσri unclipped. The weights are thereby protected from large, destabilizing updates, while 
+
+ˆμri and ˆσri remain free to take the larger steps needed to reach the correct rate magnitude. We apply clipping only during the stochastic ADAM phase. The deterministic L-BFGS phase needs none, since its strong Wolfe line search already bounds each step size. The factors ˆμri , ˆσri must therefore be initialized with care. For problem eq. (9), we initialize at the mean and standard deviation of [r1, r 2]T computed from the plant model over the training dataset, so that the network begins by learning only the standardized shape. In practice, the plant rates are unavailable. One can instead use eq. (11) to get the RHS and back-calculate approximate rates using eq. (4) to set these initial estimates as shown by Peng et al. (2025), though that is not the focus of this work. For problem eq. (10), by contrast, we do not need these scale factors, since they are already available from the assumed rate measurements. For the black-box model, we use a similar scaling strat-egy. The inputs to the neural network fNN are normalized by their mean and standard deviation over the training dataset. The outputs are scaled by trainable location and scale factors ˆμfNN , ˆσfNN that restore the physical magni-tude while the network learns the standardized shape of the RHS of the ODE. As done for the structured model, we initialize ˆμfNN and ˆσfNN at the mean and standard de-viation of the true RHS ˙x computed from the plant model over the training dataset. 
+
+4. Results and discussion 
+
+We demonstrated in section 2.2 that the flowsheet de-fined by eqs. (2) to (5) has a well-conditioned optimum. As a control experiment, we first verify that the plant rate structure is identifiable from the data the plant generated, and that the identified model recovers the plant optimum. This rules out uninformative data or an ill-posed problem as a trivial explanation for any failure of the structured or black-box models. Whether the optimum remains recover-able without the correct structure is precisely the question these experiments address. 70 2 420 40                              
+
+> cEe  (mol /m3)0240.10 0.15 0.20
+> cEa  (mol /m3)02440 60 80 100
+> cA (mol /m3)02450 60 70 80
+> cW (mol /m3)02450 60 70
+> cV (mol /m3)02425 50 75 100
+> cO (mol /m3)02410 20 30
+> cC (mol /m3)0240.50.60.7
+> α
+> 024
+> t(hr) 0.50.60.7
+> β
+> 024
+> t(hr) 810 12 14
+> N 1O (mol /s) 024
+> t(hr) 12 .515 .017 .520 .0
+> N 1Ee  (mol /s) 024
+> t(hr) 12 .515 .017 .520 .022 .5
+> N 1A (mol /s) 024
+> t(hr) 400 420 440
+> T (K)
+
+Figure 3: A snapshot of training data from the plant model with no measurement noise. The measurements are shown in red and the decision variables in black. The dotted grey lines represent x⋆s and u⋆s from section 2.2. Table 1: Summary of the six data-driven cases. nl is the sensor-noise level in eq. (14). A random NN initialization uses the LeCun normal initialization popular for tanh -based neural networks (LeCun et al., 2002, pg. 20). 
+
+Model Case Training problem and measurements NN initialization Noise nl
+
+Structured 
+
+rmeas eq. (10), rates random 0
+
+cmeas_rinit eq. (9), concentrations rmeas solution 0
+
+cmeas eq. (9), concentrations random 0
+
+cmeas_noise eq. (9), concentrations random 10 −2
+
+Black-box bbox eq. (11), concentrations random 0
+
+bbox_noise eq. (11), concentrations random 10 −2
+
+4.1. Control experiment using parametric model 
+
+From eq. (2), we note that the plant rate laws are power law models. We rescale and parameterize them as follows: 
+
+r1 = ˜k1 × e− ˜E1/R (1 /T −1/T m)
+
+× (cEe /c Ee ,m)a1 (cO/c O,m)b1 (cA/c A,m)c1
+
+r2 = ˜k2 × e− ˜E2/R (1 /T −1/T m)
+
+× (cEe /c Ee ,m)a2 (cO/c O,m)b2 (13) where Tm, c j,m are the mean temperature and concentra-tions over the subset used to fit the parametric model eq. (13). This subset is roughly 0.25% of the entire training-and-validation dataset used for the neural net-works, shown in fig. 3. From it we estimate the param-eters [log ˜k1, log ˜E1, a 1, b 1, c 1, log ˜k2, log ˜E2, a 2, b 2] along with their confidence intervals. To avoid biasing the esti-mator, we initialize far from the true plant parameters. We also corrupt each measurement with multiplicative Gaus-sian sensor noise, 
+
+˜c = c (1 + η n l) = c + η n l c, (14) where η ∼ N (0 , 1) is drawn independently for each mea-surement and nl ∈ { 0, 10 −3, 10 −2} is the relative error level (0, 0.1%, 1%). The parameter estimation problem is solved using Paresto (Dake et al., 2024) which provides joint confidence intervals for the parameters. Paresto 
+
+solves a similar problem as eq. (9) using IPOPT, with r1, r 2
+
+replaced by eq. (13) and ΘNN by parameters in eq. (13). The results are shown in table 2. We see that the plant rate structure is identifiable from the training data, as in-dicated by the tight confidence intervals for the parameters even in the presence of noise. 8Each of the fits reports a single optimum even on multi-start RTO. We measure this recovery with the following metric, henceforth called the profit loss ,
+
+∆ℓ = ℓˆus − ℓ⋆
+
+ℓ⋆ × 100% (15) where ℓ⋆ is the optimal plant profit and ℓˆus is the profit obtained by evaluating the plant model at the estimated operating point ˆus from an identified model. Note that 
+
+∆ℓ ≤ 0% since ℓ⋆ is the global optimum. We see from table 2 that the profit loss is negligible at all noise lev-els, which indicates that the identified parametric model is able to recover the plant optimum. These results can be used as a benchmark to compare the performance of the structured and black-box models. 
+
+4.2. Training and validation of the data-driven models (a) Structured models 
+
+Because neural networks are over-parameterized and their training loss is non-convex, each random initializa-tion of the weights and biases can settle in a different basin and recover a distinct rate function. For each of the three cases rmeas , cmeas_rinit and cmeas , we therefore train an ensemble of 20 networks, each from an independent ran-dom initialization. Note that we randomly initialize only the NN weights and biases and not the scaling factors. We train one additional case called cmeas_noise , which is similar to cmeas but uses noisy measurements eq. (14) with nl = 10 −2 (i.e. 1% relative sensor noise). For the stochastic ADAM phase, the Ntr trajectories are partitioned into NB batches of size Ntr /N B , and the op-timizer takes one gradient step per batch (without resam-pling) usually to escape poor local minima/saddle points. One pass over all the batches is an epoch . We set NB = 5 
+
+and run for 250 epochs. We freeze the batch ordering across all 20 initializations to remove shuffling as a con-founder. Then, we switch to L-BFGS for 250 more epochs. Note no batch partitioning is needed for L-BFGS, since it is a deterministic optimizer. The architecture of the neural networks is also kept fixed across all cases. Unlike eqs. (9) and (10), which scale resid-uals by σy , we report a mean-normalized RMSE on the measurement and validation sets to read error as a frac-tion of the mean concentration, 
+
+RMSE s = 1
+
+NsNtNsX
+
+> i=1
+> Nt
+
+X
+
+> k=0
+
+yi(k) − ˆyi(k)
+
+μy
+
+> 2
+
+!1/2
+
+(16) for s ∈ { train , val } where μy is the mean output value, and 
+
+Ns the number of trajectories in set s; e.g. 0.02 means a 
+
+2% error relative to the mean concentrations. 
+
+(b) Black-box model 
+
+We train the black-box model with the same strat-egy as the structured models, taking care to remove any confounding factors across the 20 initializations. We la-bel eq. (11) as bbox and add a noisy-measurement case 
+
+bbox_noise , analogous to cmeas_noise . A summary of all six cases considered in the paper is provided in table 1. We set NB = 5 and run for 250 epochs of ADAM followed by 250 epochs of L-BFGS. We use the same mean-normalized RMSE of eq. (16) to report the training and validation errors. 
+
+(c) Validation 
+
+The training loss, validation loss and training time for all the identified models are reported in table 3. For the structured models we first look at the quantity a practitioner can actually observe, i.e., the concentra-tion predictions on the validation set. Figure 4 overlays these predictions on the validation measurements for all four cases. The fits are excellent, and the ensemble bands are so tight that they are barely visible. Every random initialization produces essentially the same predictions, so the 5–95% quantile range collapses onto the mean. In our simulation setting, we can also inspect a quantity the prac-titioner never sees, the plant reaction rates. The parity plots of the model rates against the truth in fig. 5 tell a very different story. The rate predictions degrade steadily from (a) rmeas to (d) cmeas_noise , even though the con-centration predictions above were indistinguishable. Despite discarding all physical structure, the black-box models attain a satisfactory fit when overlaid on the valida-tion measurements, as shown in fig. 6, though less accurate than that of the structured models. Here too the ensemble bands stay tight. The black-box models thus pass every check a practitioner would run. Herein lies the trap. Every case we considered so far reports a low training and validation RMSE and a tight ensemble spread across initializations, so nothing the prac-titioner can compute from the data flags a problem. Yet, as we show next, five of these six “validated” models are useless for RTO. 
+
+4.3. Optimization landscape 
+
+Instead of solving the RTO problem eq. (7) over all five degrees of freedom (i.e. [N 1Ee , N 1O, N 1A, α, T ]T), we first solve a simpler problem over only two degrees of freedom. To see how each model reshapes the optimization land-scape, we vary only the reactor inlet temperature T and the gas recycle fraction α over their box constraints [u, ¯u]
+
+from eq. (7), keeping the other three degrees of freedom fixed at the plant optimum. The plant profit ℓ(T, α ) is then a 2D surface we can draw. For model-based RTO, each trained model operates on its own predicted profit ˆℓ(T, α ). It is distinct from ℓˆus , the 
+
+plant profit evaluated at the operating point the model rec-ommends. This second quantity is what enters the profit-loss metric ∆ℓ used later. Figure 7 shows the plant land-scape ℓ, and fig. 8 the model landscape ˆℓ that each trained 9Table 2: Parameter estimation results and profit loss for the control experiment with parametric models for different levels of measurement noise. Parameter nl = 0 nl = 10 −3 nl = 10 −2
+
+log ˜k1 −4.836 ± 2.7 × 10 −11 −4.840 ± 4.4 × 10 −3 −4.876 ± 3.9 × 10 −2
+
+log ˜E1 10 .61 ± 4.3 × 10 −11 10 .60 ± 7.1 × 10 −3 10 .55 ± 6.7 × 10 −2
+
+a1 1.100 ± 5.2 × 10 −11 1.092 ± 8.6 × 10 −3 1.021 ± 7.7 × 10 −2
+
+b1 1.100 ± 5.5 × 10 −11 1.091 ± 9.0 × 10 −3 1.014 ± 8.1 × 10 −2
+
+c1 1.000 ± 4.4 × 10 −11 0.993 ± 7.2 × 10 −3 0.934 ± 6.5 × 10 −2
+
+log ˜k2 −7.992 ± 1.1 × 10 −11 −7.993 ± 1.8 × 10 −3 −7.994 ± 1.8 × 10 −2
+
+log ˜E2 10 .87 ± 1.8 × 10 −11 10 .87 ± 3.0 × 10 −3 10 .87 ± 3.0 × 10 −2
+
+a2 1.000 ± 2.4 × 10 −11 0.9996 ± 4.0 × 10 −3 0.996 ± 4.0 × 10 −2
+
+b2 1.000 ± 4.0 × 10 −11 1.000 ± 6.7 × 10 −3 0.9997 ± 6.7 × 10 −2
+
+∆ℓ < −0.001% −0.019% −1.28% 0.0 2.520 40                                   
+
+> cEe (a) 0.02.50.10.2
+> cEa
+> 0.02.550 100 150
+> cA
+> 0.02.540 60 80
+> cW
+> 0.02.540 60
+> cV
+> 0.02.520 40
+> cO
+> 0.02.520 40
+> cC
+> 0.02.520 40 (b) 0.02.50.10.20.02.550 100 150 0.02.540 60 80 0.02.540 60 0.02.520 40 0.02.5020 40 0.02.520 40 (c) 0.02.50.10.20.02.550 100 150 0.02.540 60 80 0.02.540 60 0.02.520 40 0.02.5020 40 0.02.5
+> t(hr) 20 40 (d) 0.02.5
+> t(hr) 0.10.20.02.5
+> t(hr) 50 100 150 0.02.5
+> t(hr) 40 60 80 0.02.5
+> t(hr) 40 60 0.02.5
+> t(hr) 20 40 0.02.5
+> t(hr) 020 40
+
+Figure 4: Concentration predictions on the validation set for (a) rmeas , (b) cmeas_rinit , (c) cmeas and (d) cmeas_noise . Measurements are shown in red. The shaded bands are the ensemble spread, taken as the 5–95% quantiles of the 20 random initializations. Table 3: Structured- and black-box-model results across cases. Values are reported as mean ± 1.96 σ over 20 random initializations (95% interval). rmse meas and rmse val are the mean-normalized errors of eq. (16) on the measurement and validation sets; training time is wall-clock. 
+
+Model Case NN architecture rmse meas rmse val Train time (hr) Structured 
+
+rmeas 
+
+rNN ,r 1 = [4 , 64 , 1] 
+
+rNN ,r 2 = [3 , 64 , 1] 0.00067 ± 0.00012 0.0069 ± 0.0021 0.22 ± 0.08 
+
+cmeas_rinit 0.00435 ± 0.00060 0.0146 ± 0.0024 11 .97 ± 0.94 
+
+cmeas 0.00966 ± 0.00131 0.0219 ± 0.0035 12 .27 ± 1.17 
+
+cmeas_noise 0.01472 ± 0.00064 0.0217 ± 0.0030 12 .45 ± 0.99 
+
+Black-box bbox fNN = [16 , 128 , 7] 0.03224 ± 0.00187 0.0484 ± 0.0051 12 .01 ± 1.06 
+
+bbox_noise 0.03410 ± 0.00177 0.0481 ± 0.0057 12 .04 ± 0.90 
+
+10 1 2 3 41234Prediction 
+
+r1
+
+(a) 
+
+0.5 1.0 1.5Truth 0.25 0.50 0.75 1.00 1.25 1.50 Prediction 
+
+r2
+
+1 2 3123
+
+(b) 
+
+0.5 1.0 1.5Truth 0.25 0.50 0.75 1.00 1.25 1.50 
+
+0 20123
+
+(c) 
+
+0.0 0.5 1.0 1.5Truth 0.00 0.25 0.50 0.75 1.00 1.25 1.50 
+
+0 20123
+
+(d) 
+
+0.0 0.5 1.0 1.5Truth 0.00 0.25 0.50 0.75 1.00 1.25 1.50 Figure 5: Parity plots of the reaction rates [r1, r 2]T on the validation set for (a) rmeas , (b) cmeas_rinit , (c) cmeas and (d) cmeas_noise .Top row shows r1 and bottom row r2. The dotted line is ideal parity. The bands are the ensemble spread, taken as the 5–95% quantiles across the 20 random initializations. 0.0 2.520 40 
+
+cEe (a) 0.0 2.50.10.2
+
+cEa 
+
+0.0 2.550 100 150 
+
+cA
+
+0.0 2.540 60 80 
+
+cW
+
+0.0 2.540 60 
+
+cV
+
+0.0 2.5025 50 
+
+cO
+
+0.0 2.5020 40 
+
+cC
+
+0.0 2.5
+
+t (hr) 020 40 (b) 0.0 2.5
+
+t (hr) 0.10.20.0 2.5
+
+t (hr) 50 100 150 0.0 2.5
+
+t (hr) 40 60 80 0.0 2.5
+
+t (hr) 40 60 0.0 2.5
+
+t (hr) 025 50 0.0 2.5
+
+t (hr) 020 40 
+
+Figure 6: Concentration predictions on the validation set for the black-box model, (a) bbox and (b) bbox_noise . Measurements are shown in red. The bands are the ensemble spread, taken as the 5–95% quantiles of the 20 random initializations. 
+
+11 model presents to the RTO optimizer, for one of the worst-performing members of the ensemble of 20, on the same axes and profit scale. 400 420 440 460       
+
+> T(K) 0.40 0.45 0.50 0.55 0.60 0.65 0.70
+> α
+> −32 .14.040 .176 .1112 .2148 .3184 .3220 .4256 .5292 .5
+> Figure 7: Plant profit landscape ℓ(T, α )with the remaining degrees of freedom fixed at the plant optimum. The star marks the plant optimum (T⋆, α ⋆). The surface is unimodal and well-conditioned.
+
+The plant landscape in fig. 7 has a single peak at 
+
+(T ⋆, α ⋆), consistent with the well-conditioned optimum discussed in section 2.2. Figure 8 tells a different story. Trained on rate measure-ments, rmeas reproduces both the plant landscape and its peak. The rmeas case also helps us diagnose that the train-ing dataset is informative enough to identify the plant rate structure. However, cmeas_rinit (table 1) is the telling case. Initialized at the same NN weights as rmeas that recovers the plant peak, the stochastic training optimizer deforms the surface so that cmeas_rinit no longer agrees with the landscape it started from. The same drift is vis-ible in the loss curves in Figure S1 of the supplementary material, where ADAM moves away from the initializa-tion and L-BFGS recovers only part of it. We trained 
+
+cmeas_rinit at the same learning rate (i.e., 0.05) tuned for cmeas and cmeas_noise . A smaller learning rate does damp the drift, only because it preserves an optimum that was supplied, not one that training located. An optimizer should not move away from an optimum simply because of a user-defined hyperparameter. cmeas , cmeas_noise ,
+
+bbox and bbox_noise distort the surface further with mul-tiple local maxima. cmeas even admits an optimum in a near-saddle region, where the curvature is indefinite and gradient-correction schemes such as modifier adaptation would fail to converge. 
+
+4.4. Economic performance under RTO 
+
+We next solve the actual RTO problem eq. (7) and eval-uate the profit loss ∆ℓ over the 20 ensembles for each case of the structured and the black-box models over 3 multi-start RTO seeds. Within each multi-start seed, the RTO problem eq. (7) for each model is initialized with the same 
+
+guess (xs, u s), which is obtained by perturbing the mid-point of the training data range. This ensures RTO ini-tialization is not a confounder within a seed. As shown in fig. 9, rmeas recovers the plant optimum with negli-gible profit loss and no variability across the multi-start seeds. This result again confirms that the training dataset is informative enough to identify the plant rate structure. Every other case, however, incurs a significant profit loss that varies across the RTO seeds. The worst-case profit loss for structured models is just over 30% as seen from fig. 9 panel (d) for seed 1. Models that were visually in-distinguishable on the validation dataset predict multiple 
+
+optima, even though the same multistart search returns a single optimum for the plant. This disparity among RTO solutions is not an artifact of noise, since apart from 
+
+cmeas_noise all results for structured models used noise-free measurements. Nor would training the models longer help, since the validation loss for the models has already plateaued within the chosen epoch budget. As noted previ-ously, a good starting point does not help either. Even af-ter warm-starting from the rmeas weights and biases that recover the plant optimum, cmeas_rinit drifts and returns a near-zero loss only occasionally. A natural objection, often raised in support of black-box models, is that imposing structure itself is the culprit. By fixing the stoichiometry with mass balances and thermo-dynamics, we may have imposed a model class too rigid for the plant, and letting the data determine the entire dy-namics might do better on RTO. We tested the claim di-rectly with the black-box models. Their economic perfor-mance, however, is still worse for the actual RTO problem. The profit loss in fig. 10 exceeds that of every structured case, with the worst-case exceeding 50% as seen from panel (b) for seed 3. 
+
+5. Conclusions 
+
+In this paper, we tested whether a data-driven model that predicts plant measurements accurately can be trusted to drive economic decisions. Using the vinyl ac-etate process as a benchmark, we trained hybrid (struc-tured) models, which embed a neural-network closure for reaction rates in the known mass balances and thermody-namics, and a fully data-driven black-box model. Within each model class, we considered several cases that differ in the measurements used for training and the noise level. We tested each case in real-time optimization. Across the en-semble based on random initializations, each model and its variants cleared the usual validation checks, with accurate fits and tight ensemble spread on the validation dataset, yet their RTO solutions showed a wide disparity. In the worst case, the structured models lost 30% of profit and the black-box cases over 50% . With losses this large, we 12 0.40 0.45 0.50 0.55 0.60 0.65 0.70 
+
+> α
+
+(a) (b) (c)     
+
+> 400 420 440 460
+> T(K) 0.40 0.45 0.50 0.55 0.60 0.65 0.70
+> α
+
+(d)     
+
+> 400 420 440 460
+> T(K)
+
+(e)     
+
+> 400 420 440 460
+> T(K)
+
+(f)            
+
+> plant model
+> −82 .7
+> −2.278 .3158 .8239 .3319 .8Figure 8: Model-predicted profit landscape ˆℓ(T, α )that each trained model presents to the RTO optimizer. Panels, in order of degrading structure and data, are (a) rmeas , (b) cmeas_rinit , (c) cmeas , (d) cmeas_noise , (e) bbox , and (f) bbox_noise .The star marks the plant optimum as a fixed reference and the circles each model’s own optimum. Each panel shows one of the worst-performing members of the 20 initializations.
+
+may do better for economic profitability by not using real-time optimization at all. Additionally, under the same multistart search that returns a single optimum for the plant, the models returned many spurious RTO solutions. We ran these simulations under the most ideal settings we could construct. We took care to have the measure-ments at the plant optimum bracketed within the training dataset, ensuring that the models are tested purely on in-terpolation. We trained the models on both noise-free and noisy measurements. In fact, in the cmeas_rinit case the NN weights and biases that recover the plant RTO land-scape were handed to the training optimizer as its starting point. Training on concentration data drove those param-eters away to a suboptimal fit whose RTO landscape no longer matched the one it started from. The observed optimizer drift is not a numerical fail-ure. Stochastic optimizers such as ADAM, which are workhorses of ML/AI frameworks, advance without a line search, and that is precisely what lets them escape poor local minima. The same property, however, can let them drift away from a good basin. Switching to a determinis-tic optimizer, L-BFGS, for the later epochs does not re-pair the drift; L-BFGS performs a line search but by the time it takes over, the initial ADAM phase has already left the good basin it was initialized in, so L-BFGS only refines within whichever basin it inherits. A practitioner does not expect an optimizer to leave an optimal solu-tion it was handed. The effect does not show up in the training or validation fit, but in the RTO decision. Nor is starting L-BFGS from the correct basin a remedy, since it presumes one already holds the RTO-optimal parameters. This fragility of the standard ML training recipe is what we highlight. This fragility can only worsen in the presence of pro-cess noise, unmodeled states or disturbances, or insuffi-ciently exciting closed-loop data. We ran these investiga-tions with the best software and tuned hyperparameters, and the models still failed under these ideal conditions. Any industrial vendor proposing to solve a similar prob-lem should first demonstrate recovery of the optimum on a benchmark of the type proposed here. Short of that, the attempt remains unreliable. Additional regularization of the structured models could help overcome such fragility. Future work could test whether imposing monotonicity constraints on certain in-puts (e.g., temperature) in the NN-approximated rate laws, to match insights from process chemistry, improves RTO performance. Another avenue is to impose a Lip-13 020 40 60 80 100 Frequency (%)  seed 1 
+
+(a) (b) (c) (d)                      
+
+> 020 40 60 80 100 Frequency (%)  seed 2
+> −30 −20 −10 0Profit loss (%) 020 40 60 80 100 Frequency (%)  seed 3
+> −30 −20 −10 0Profit loss (%)
+> −30 −20 −10 0Profit loss (%)
+> −30 −20 −10 0Profit loss (%) Figure 9: Profit loss ∆ℓfor (a) rmeas , (b) cmeas_rinit , (c) cmeas and (d) cmeas_noise . Columns are cases and rows are the 3 multi-start RTO seeds; each panel is the distribution over the 20 ensemble members, plotted as relative frequency. The dotted line marks the best achievable profit loss, 0% .
+
+schitz bound on the neural-network curvature and test whether this makes data-driven model-based RTO more robust. 
+
+Acknowledgment 
+
+The funding for this work was provided by the Dow Chemical Company. PD acknowledges support from the Mitsubishi Chemical Graduate Fellowship. Use was made of computational facilities purchased with funds from the National Science Foundation (CNS-1725797) and adminis-tered by the Center for Scientific Computing (CSC). The CSC is supported by the California NanoSystems Institute and the Materials Research Science and Engineering Cen-ter (MRSEC; NSF DMR 2308708) at UC Santa Barbara. 
+
+Data availability 
+
+The code and simulated data used to reproduce all re-sults are available at https://dakeprithvi.github.io/ 2026c_structure_id_plant and Dake et al. (2026). 
+
+Appendix A. Process units 
+
+Every separator and splitter acts as a linear split: an inlet molar flow N in  
+
+> j
+
+of species j divides into a split-off stream and a remainder, 
+
+N split  
+
+> j
+
+= δj N in  
+
+> j
+
+, N rem  
+
+> j
+
+= (1 − δj ) N in  
+
+> j
+
+, j ∈ J, 
+
+where J = {Ee , Ea , A, V, W, O, C} denotes ethylene, ethane, acetic acid, vinyl acetate, water, oxygen, and car-bon dioxide. Table A.4 lists each unit, its inlet/outlet streams, and its split fraction. Each unit carries its own symbol for δj so the flowsheet equations stay unambigu-ous, ϕj for the flash drum, γj for the distillation column, 
+
+μj for the absorber, and the recycle fractions α and β for splitters I and II. 
+
+Appendix B. Parameter values 
+
+The price-vector is given as, 
+
+(p1, p 2, p 3, p 4,Ee , p 4,O, p 4,A, p 5, p 6) = (300, 33, 50, 100, 50, 50, 30, 0) $/mol 
+
+14 020 40 60 80 100 Frequency (%)  seed 1 
+
+(a) (b) 
+
+020 40 60 80 100 Frequency (%)  seed 2 
+
+−50 −25 0Profit loss (%) 020 40 60 80 100 Frequency (%)  seed 3 
+
+−50 −25 0Profit loss (%) Figure 10: Profit loss ∆ℓ for (a) bbox and (b) bbox_noise . Columns are cases and rows are the 3 multi-start RTO seeds; each panel is the distribution over the 20 ensemble members, plotted as relative frequency. The dotted line marks the best achievable profit loss, 0% .
+
+References 
+
+J. A. E. Andersson, J. Gillis, G. Horn, J. B. Rawlings, and M. Diehl. CasADi—a software framework for nonlinear optimization and optimal control. Math. Prog. Comp. ,11(1):1–36, Mar 2019. doi: 10.1007/s12532-018-0139-4. R. Bindlish. An Industrial Perspective on Applying Pro-cess Knowledge and Mathematical Programming for RTO, MPC, NMPC, and Power Scheduling. Ind. Eng. Chem. Res. , 64(50):23810–23823, 2025. D. Bonvin and G. Pannocchia. On speeding-up modifier-adaptation schemes for real-time optimization. Comput. Chem. Eng. , 191:108839, 2024. G. E. P. Box. Evolutionary operation: A method for in-creasing industrial productivity. Journal of the Royal Statistical Society Series C , 6(2):81–101, June 1957. doi: 10.2307/2985505. URL https://ideas.repec.org/a/ bla/jorssc/v6y1957i2p81-101.html .   
+
+> Table A.4: Linear split for each separation unit and splitter. Stream superscripts follow the flowsheet; the last column gives each unit’s split fraction, the fraction of Nin
+> jrouted to the split-off stream.
+
+Unit In Split/Rem Split fraction 
+
+Flash drum N 3 N 5/N 4 ϕj = 1 :Ee,Ea,O,C; 0:A,V,W Distillation column N 4 N 8/N 10 γj = 1 : A; 0:otherwise Absorber N 5 N 11 /N 6 μj = 0 .03 : C; 
+
+0: otherwise Splitter I N 6 N 7/N 9 α (all j)Splitter II N 8 N 13 /N 12 β (all j)
+
+> Table B.5: Parameter values used for the VAc model.
+
+Parameter Value Units 
+
+k1 1.312 × 10 −2 mol /kg s 
+
+ m3
+
+/mol 
+
+3.2
+
+E1 40500 J/mol 
+
+k2 2.363 mol /kg s 
+
+ m3
+
+/mol 
+
+2
+
+E2 52500 J/mol R 8.314 J/mol K 
+
+P 882.529 kPa 
+
+VR 6.68 m3
+
+ϵ 0.8 -
+
+ρc 385 kg /m3
+
+λ 0.001 -
+
+u (10.88, 7.8, 12.01, 0.4, 0.6, 384.39) (mol /s, mol /s,
+
+> mol
+
+/s, -, -, K)
+
+¯u (20.20, 14.49, 22.30, 0.74, 0.6, 469.80) (mol /s, mol /s,
+
+> mol
+
+/s, -, -, K)
+
+su (13.85, 13.85, 13.08, 1, 1, 423.15) (mol /s, mol /s,
+
+> mol
+
+/s, -, -, K)J. Bradbury, R. Frostig, P. Hawkins, M. J. Johnson, C. Leary, D. Maclaurin, G. Necula, A. Paszke, J. Van-derPlas, S. Wanderman-Milne, and Q. Zhang. JAX: composable transformations of Python+NumPy pro-grams, 2018. URL http://github.com/jax-ml/jax .M. M. Câmara, A. D. Quelhas, and J. C. Pinto. Perfor-mance evaluation of real industrial RTO systems. Pro-cesses , 4(4):44, 2016. B. Chachuat, B. Srinivasan, and D. Bonvin. Adaptation strategies for real-time optimization. Comput. Chem. Eng. , 33(10):1557 – 1567, 2009. R. Chen, K. Dave, T. J. McAvoy, and M. Luyben. Anonlinear dynamic model of a vinyl acetate process. Ind. Eng. Chem. Res. , 42(20):4478–4487, 2003. 15 R. T. Chen, Y. Rubanova, J. Bettencourt, and D. K. Du-venaud. Neural ordinary differential equations. Adv. Neural Inf. Process. Syst. , 31:6571–6583, 2018. G. E. Constante, H. Chen, and C. Li. Enforcing hard linear constraints in deep learning models with decision rules. volume 38, pages 105075–105100, 2026. C. M. Crowe. Data reconciliation—progress and chal-lenges. J. Proc. Cont. , 6(2-3):89–98, 1996. C. R. Cutler and R. T. Perry. Real time optimization with multivariable control is required to maximize prof-its. Comput. Chem. Eng. , 7:663–667, 1983. P. Dake, M. R. Ilagan, S. Banerjee, S. L. Scott, and J. B. Rawlings. Identifying kinetic models from reactor mea-surements. J. Vac. Sci. Technol. A. , 42(6), Sep 2024. ISSN 1520-8559. doi: 10.1116/6.0003846. P. Dake, R. Bindlish, and J. Rawlings. Dataset for ‘A tale of perfect fit and phantom optima: how data-driven models can fail in real- time optimization’, Jul 2026. URL https://doi.org/10.5281/zenodo.21464342 .M. L. Darby, M. Nikolaou, J. Jones, and D. Nicholson. RTO: An overview and assessment of current practice. 
+
+J. Proc. Cont. , 21(6):874–884, 2011. ISSN 0959-1524. J. F. Forbes, T. E. Marlin, and J. F. MacGregor. Model adequacy requirements for optimizing plant operations. 
+
+Comput. Chem. Eng. , 18(6):497–510, 1994. ISSN 0098-1354. C. Fronk and L. Petzold. The vanishing gradient prob-lem for stiff neural differential equations. Chaos , 35(11), 2025. R. Golder, B. N. Roy, and M. Hasan. Dae-hardnet: A physics constrained neural network enforc-ing differential-algebraic hard constraints, 2025. J. Heek, A. Levskaya, A. Oliver, M. Ritter, B. Rondepierre, A. Steiner, and M. van Zee. Flax: A neural network library and ecosystem for JAX, 2024. URL http:// github.com/google/flax .K. Hornik, M. Stinchcombe, and H. White. Multilayer feedforward networks are universal approximators. Neu-ral Netw. , 2(5):359–366, 1989. P. Kidger. On Neural Differential Equations . PhD thesis, University of Oxford, 2021. D. P. Kingma and J. Ba. Adam: A method for stochastic optimization. arXiv preprint arXiv:1412.6980 , 2014. D. Krishnamoorthy and S. Skogestad. Real-time optimiza-tion as a feedback control problem–a review. Comput. Chem. Eng. , 161:107723, 2022. D. Krishnamoorthy, B. Foss, and S. Skogestad. Steady-state real-time optimization using transient measure-ments. Comput. Chem. Eng. , 115:34–45, 2018. P. Kumar and J. B. Rawlings. Structured nonlin-ear process modeling using neural networks and ap-plication to economic optimization. Comput. Chem. Eng. , 177:108314, 2023. doi: https://doi.org/10.1016/j. compchemeng.2023.108314. Y. LeCun, L. Bottou, G. B. Orr, and K.-R. Müller. Effi-cient backprop. In Neural networks: Tricks of the trade ,pages 9–50. Springer, 2002. D. C. Liu and J. Nocedal. On the limited memory bfgs method for large scale optimization. Math. Prog. , 45(1): 503–528, 1989. L. R. Lueg, V. Alves, D. Schicksnus, J. R. Kitchin, C. D. Laird, and L. T. Biegler. A simultaneous approach for training neural differential-algebraic systems of equa-tions. arXiv preprint arXiv:2504.04665 , 2025. M. L. Luyben and B. D. Tyréus. An industrial de-sign/control study for the vinyl acetate monomer pro-cess. Comput. Chem. Eng. , 22(7-8):867–877, 1998. A. Mukherjee and V. M. Zavala. Physics-constrained ma-chine learning for chemical engineering. Curr. Opin. Chem. Eng. , 51:101228, 2026. M. R. Naysmith and P. L. Douglas. Review of real time optimization in the chemical process industries. 3(2): 67–87, 1995. C. Pantelides, M. Baldea, A. T. Georgiou, B. Gopaluni, M. Mehmet, K. Sheth, V. M. Zavala, and C. Georgakis. From Automated to Autonomous Process Operations. 
+
+Comput. Chem. Eng. , 196, 2025. doi: https://doi.org/ 10.1016/j.compchemeng.2025.109064. A. Papasavvas, T. de Avila Ferreira, A. G. Marchetti, and D. Bonvin. Analysis of output modifier adaptation for real-time optimization. Comput. Chem. Eng. , 121:285– 293, 2019. W. Peng, Z.-S. Liu, and M. Boy. Spin-ode: Stiff physics-informed neural ode for chemical reaction rate estima-tion, 2025. M. Raissi, P. Perdikaris, and G. E. Karniadakis. Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving non-linear partial differential equations. J. Comput. Phys. ,378:686–707, 2019. J. B. Rawlings and J. G. Ekerdt. Chemical Reactor Anal-ysis and Design Fundamentals . Nob Hill Publishing, Santa Barbara, CA, 2nd, paperback edition, 2020. 664 pages, ISBN 978-0-9759377-4-7. 16 J. B. Rawlings, D. Angeli, and C. Bates. Fundamentals of economic model predictive control. In IEEE Confer-ence on Decision and Control (CDC) , pages 3851–3861, Maui, HI, December 2012. P. D. Roberts and T. W. C. Williams. On an algorithm for combined system optimisation and parameter esti-mation. Automatica , 17(1):199–209, 1981. J. Sansana, M. N. Joswiak, I. Castillo, Z. Wang, R. Ren-dall, L. H. Chiang, and M. S. Reis. Recent trends on hybrid modeling for industry 4.0. Comput. Chem. Eng. ,151:107365, 2021. A. M. Schweidtmann, D. Zhang, and M. Von Stosch. Areview and perspective on hybrid modeling methodolo-gies. Digital Chemical Engineering , 10:100136, 2024. D. E. Seborg, T. F. Edgar, D. A. Mellichamp, and F. J. Doyle. Process Dynamics and Control . John Wiley and Sons, New York, fourth edition, 2017. A. Sholokhov, Y. Liu, H. Mansour, and S. Nabi. Physics-informed neural ode (pinode): embedding physics into models using collocation points. Sci. Rep. , 13(1):10166, 2023. S. Skogestad. Self-optimizing control: The missing link between steady-state optimization and control. Comput. Chem. Eng. , 24(2-7):569–575, 2000. J. Thompson, B. M. Connors, V. M. Zavala, and O. S. Ven-turelli. Physics-constrained neural ordinary differential equation models to discover and predict microbial com-munity dynamics. Proc. Natl. Acad. Sci. USA , 123(13): e2517661123, 2026. A. Wächter and L. T. Biegler. On the implementation of a primal-dual interior-point filter line-search algorithm for large-scale nonlinear programming. Math. Prog. , 106 (1):25–57, 2006. J. D. Ward, D. A. Mellichamp, and M. F. Doherty. Im-portance of process chemistry in selecting the operating policy for plants with recycle. Ind. Eng. Chem. Res. , 43 (14):3957–3971, 2004. 17 Supplementary material for “A tale of perfect fit and phantom optima: how data-driven models can fail in real-time optimization” 
+
+## Prithvi Dake ∗ a Rahul Bindlish b James B. Rawlings aaDepartment of Chemical Engineering, University of California, Santa Barbara, CA 93106, United States 
+
+> b
+
+Dow Chemical Company, TX, United States 
+
+# S1 Learning-rate sweep and optimizer comparison 
+
+For reference, we restate the training problems whose learning rate is swept here. The concentration-measurement cases cmeas rinit , cmeas , and cmeas noise solve the structured training problem, Eq. (9) of the main paper, Θ⋆ 
+
+> NN
+
+= argmin 
+
+> ΘNN
+
+1
+
+Ntr NtNtr X
+
+> i=1
+> Nt
+
+X
+
+> k=0
+
+yi(k) − ˆyi(k)
+
+σy
+
+> 2
+
+!1/2
+
+s.t. ˙ˆxi = f (ˆ xi, u i; Θ NN )ˆyi = h(ˆ xi, u i)ˆxi(0) = f0(yi(0)) (1) while the two black-box cases bbox and bbox noise solve the black-box training problem, Eq. (11) of the main paper, 
+
+θ⋆fNN = argmin 
+
+> θfNN
+
+1
+
+Ntr NtNtr X
+
+> i=1
+> Nt
+
+X
+
+> k=0
+
+yi(k) − ˆyi(k)
+
+σy
+
+> 2
+
+!1/2
+
+s.t. ˙ˆxi = fNN (ˆ xi, u i; θfNN )ˆyi = h(ˆ xi, u i)ˆxi(0) = f0(yi(0)) (2) The symbols are defined in the main paper. Every sweep in this section is performed at the fixed batch count NB = 5 used throughout the paper (the Ntr training trajectories are partitioned into 
+
+NB batches of size Ntr /N B during the stochastic ADAM phase); only the learning rate is varied. Figures S1–S5 show the learning-rate sweep for each case, and every figure has the same four-panel layout. The top row is the training loss and the bottom row the validation loss, both on a logarithmic scale; the left column is ADAM alone and the right column is ADAM followed by  
+
+> ∗Corresponding author: prithvidake@ucsb.edu
+
+1L-BFGS. Panel (a) is therefore the training loss under ADAM, (b) the training loss under ADAM and then L-BFGS, (c) the validation loss under ADAM, and (d) the validation loss under ADAM and then L-BFGS. Within each panel we overlay one curve per learning rate across the full epoch budget, so a single panel shows both the learning-rate sweep and whether the loss has plateaued within that budget. In the right column, panels (b) and (d), the dashed vertical line at epoch 250 marks the switch from Adam to L-BFGS. For cmeas and cmeas noise , and for the two black-box cases, we select the learning rate that gives the lowest validation loss in panel (d) and confirm from the same panel that the validation loss has plateaued within the epoch budget. 
+
+cmeas rinit is read differently. It is initialized at the weights at which the model recovers the plant optimum, so no learning rate is selected from it. In the paper, however we show results for the same learning rate as chosen for cmeas and cmeas noise , i.e., 0.05. The dash-dotted horizontal line, labelled learning rate 0, is the loss at that initialization before any training step is taken. 10 −6               
+
+> 10 −5
+> 10 −4
+> 10 −3
+> 10 −2
+> 10 −1
+> 10 0
+> Training loss
+> (a) Adam (b) Adam →LBFGS
+> learning rate 00.1 0.05 0.01 0.001 0100 200 300 400 500 Epoch 10 −3
+> 10 −2
+> 10 −1
+> 10 0
+> Validation loss
+> (c)
+> 0100 200 300 400 500 Epoch
+> (d)
+> learning rate 00.1 0.05 0.01 0.001
+
+Figure S1: cmeas rinit : drift away from the initialization. The model is initialized at the weights at which it recovers the plant optimum, marked by the dash-dotted line (learning rate 0, no training step taken). Under ADAM (left) the loss moves away from that line as training proceeds, so the optimizer leaves the basin it was handed. After the switch to L-BFGS at epoch 250 (right) the loss returns toward the initialization, so L-BFGS recovers part of what ADAM gave up. As the learning rate decreases, ADAM takes smaller steps and the curves stay at the initialization; this preserves the optimum only because it was supplied, not because training located it. 210 −3
+
+10 −2
+
+10 −1
+
+10 0
+
+> Training loss
+
+(a) Adam (b) Adam → LBFGS 
+
+learning rate 0.1 0.05 0.01 0.001 0 100 200 300 400 500 Epoch 10 −2
+
+10 −1
+
+10 0
+
+> Validation loss
+
+(c) 
+
+0 100 200 300 400 500 Epoch 
+
+(d) 
+
+learning rate 0.1 0.05 0.01 0.001 Figure S2: Learning-rate sweep for cmeas . The chosen learning rate is 0 .05. 310 −2
+
+10 −1
+
+10 0
+
+> Training loss
+
+(a) Adam (b) Adam → LBFGS 
+
+learning rate 0.1 0.05 0.01 0.001 0 100 200 300 400 500 Epoch 10 −2
+
+10 −1
+
+10 0
+
+> Validation loss
+
+(c) 
+
+0 100 200 300 400 500 Epoch 
+
+(d) 
+
+learning rate 0.1 0.05 0.01 0.001 Figure S3: Learning-rate sweep for cmeas noise . The chosen learning rate is 0 .05. 410 −3
+
+10 −2
+
+10 −1
+
+10 0
+
+10 1
+
+10 2
+
+10 3
+
+10 4
+
+10 5
+
+> Training loss
+
+(a) Adam (b) Adam → LBFGS 
+
+learning rate 0.1 0.05 0.01 0.001 0 100 200 300 400 500 Epoch 10 −2
+
+10 −1
+
+10 0
+
+10 1
+
+10 2
+
+10 3
+
+10 4
+
+10 5
+
+> Validation loss
+
+(c) 
+
+0 100 200 300 400 500 Epoch 
+
+(d) 
+
+learning rate 0.1 0.05 0.01 0.001 Figure S4: Learning-rate sweep for bbox . The chosen learning rate is 0 .01. 510 −2
+
+10 −1
+
+10 0
+
+10 1
+
+10 2
+
+10 3
+
+10 4
+
+10 5
+
+> Training loss
+
+(a) Adam (b) Adam → LBFGS 
+
+learning rate 0.1 0.05 0.01 0.001 0 100 200 300 400 500 Epoch 10 −2
+
+10 −1
+
+10 0
+
+10 1
+
+10 2
+
+10 3
+
+10 4
+
+10 5
+
+> Validation loss
+
+(c) 
+
+0 100 200 300 400 500 Epoch 
+
+(d) 
+
+learning rate 0.1 0.05 0.01 0.001 Figure S5: Learning-rate sweep for bbox noise . The chosen learning rate is 0 .01. 6
