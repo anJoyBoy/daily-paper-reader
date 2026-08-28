@@ -6,64 +6,61 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-26
-- 运行时间：2026-08-26 20:34:49 UTC
+- 最新运行日期：2026-08-28
+- 运行时间：2026-08-28 04:10:05 UTC
 - 运行状态：成功
-- 本次总论文数：14
+- 本次总论文数：13
 - 精读区：6
-- 速读区：8
+- 速读区：7
 
 ### 今日简报（AI）
-今日聚焦 LLM 智能体与自动化特征工程，共精读 2 篇、速读 8 篇，覆盖特征提取与模拟实验。  
-最值得关注：SHAP 引导的元数据自由自动特征工程（9.0 分）与 LLM 代理模拟实验方法（9.0 分）。  
-建议普通读者优先了解 LLM 如何自动化数据科学流程，尤其是特征生成与受控实验设计。
-- 详情：[/202608/26/README](/202608/26/README)
+今日处理13篇论文，精读6篇、速读7篇，聚焦AI控制设计与跨域事件抽取两大方向。  
+最值得看：AI Control Scientist用大模型智能体实现自动化控制设计（9.0分），以及多领域多任务生成框架用于跨域事件抽取（8.0分）。  
+下一步可优先精读这两篇高分论文，并顺带留意多模态分子嵌入与图推理等速读热点。
+- 详情：[/202608/28/README](/202608/28/README)
 
 ### 精读区论文标签
-1. [SIGMA: SHAP-Guided Implicit-Trajectory Generation for Metadata-Free LLM-Based AutoFE](/202608/26/2608.17948v1-sigma-shap-guided-implicit-trajectory-generation-for-metadata-free-llm-based-autofe)  
-   标签：评分：9.0/10、query:llm-dm
-   evidence：基于LLM的自动特征工程，属于数据挖掘技术
-2. [LLM Agents Perform Controlled Experiments Using Simulation Models](/202608/26/2608.23622v1-llm-agents-perform-controlled-experiments-using-simulation-models)  
+1. [AI Control Scientist: LLM-driven Agentic System for Automated Control Design](/202608/28/2608.26780v1-ai-control-scientist-llm-driven-agentic-system-for-automated-control-design)  
    标签：评分：9.0/10、query:chemical-llm
-   evidence：LLM智能体设计并执行仿真实验，以优化制药过程参数
-3. [A tale of perfect fit and phantom optima: how data-driven models can fail in real-time optimization](/202608/26/2608.23885v1-a-tale-of-perfect-fit-and-phantom-optima-how-data-driven-models-can-fail-in-real-time-optimization)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：化工过程系统建模与数据驱动实时优化
-4. [LLM-Guided Contextual Action Evaluation for Operational Decisions in Industrial Processes](/202608/26/2608.24156v1-llm-guided-contextual-action-evaluation-for-operational-decisions-in-industrial-processes)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：LLM引导的上下文动作评估用于工业过程运行决策，直接契合LLM助力化工过程模型优化
-5. [Molecular LLM Agents: From Architectural Design to Scientific Autonomy](/202608/26/2608.23104v2-molecular-llm-agents-from-architectural-design-to-scientific-autonomy)  
+   evidence：首个由LLM驱动的自动控制设计智能体AICS，面向化工过程温度调节等应用
+2. [A Multi-Domain and Multi-Task Generative Framework with Explicit Task and Domain Conditioning for Cross-Domain Event Extraction](/202608/28/2608.23235v1-a-multi-domain-and-multi-task-generative-framework-with-explicit-task-and-domain-conditioning-for-cross-domain-event-extraction)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：面向跨领域事件抽取的多任务生成式LLM框架，属于文本挖掘
+3. [A Scalable Cross-Domain Event Extraction System via a Unified Generative Training Framework](/202608/28/2608.23261v1-a-scalable-cross-domain-event-extraction-system-via-a-unified-generative-training-framework)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：基于大语言模型的生成式框架用于跨领域事件抽取，属于文本挖掘任务
+4. [Data-driven Effective Modeling of Stochastic Chemical Reaction Networks](/202608/28/2608.25421v1-data-driven-effective-modeling-of-stochastic-chemical-reaction-networks)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：面向分子科学的LLM智能体，属化工应用
-6. [TRACE: Transition-Aware Residual Control for Multi-Objective Materials Discovery](/202608/26/2608.23631v1-trace-transition-aware-residual-control-for-multi-objective-materials-discovery)  
+   evidence：用机器学习为化工随机化学反应网络构建数据驱动仿真模型
+5. [Efficient Scheduling of Discrete Industrial Processes Through Continuous Modeling](/202608/28/2608.26487v1-efficient-scheduling-of-discrete-industrial-processes-through-continuous-modeling)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：LLM智能体结合转换感知残差反馈进行多目标材料发现
+   evidence：面向工业过程调度的连续RTN建模，属于过程系统工程建模方法
+6. [Discovering Relationships in Data Lakes Using Large Language Models: An Industrial Case](/202608/28/2608.26750v1-discovering-relationships-in-data-lakes-using-large-language-models-an-industrial-case)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：用LLM辅助发现数据湖中列关系，直接对应LLM辅助数据挖掘技术
 
 ### 速读区论文标签
-1. [Synthesizing Feature Extractors: An Agentic Approach for Algorithm Selection](/202608/26/2608.17170v1-synthesizing-feature-extractors-an-agentic-approach-for-algorithm-selection)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：LLM智能体自动合成特征提取器，属于数据挖掘特征工程
-2. [A Scalable Cross-Domain Event Extraction System via a Unified Generative Training Framework](/202608/26/2608.23261v1-a-scalable-cross-domain-event-extraction-system-via-a-unified-generative-training-framework)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：面向跨域事件抽取的统一生成式大语言模型框架，属于文本挖掘任务
-3. [Beyond Executable Models: The Pufibara Agent Harness and the Modelica Agent Workflow Benchmark for Physical System Modeling](/202608/26/2608.23653v1-beyond-executable-models-the-pufibara-agent-harness-and-the-modelica-agent-workflow-benchmark-for-physical-system-modeling)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：面向Modelica物理系统建模的智能体框架与基准，支持AI辅助的过程模型构建
-4. [A Multi-Domain and Multi-Task Generative Framework with Explicit Task and Domain Conditioning for Cross-Domain Event Extraction](/202608/26/2608.23235v1-a-multi-domain-and-multi-task-generative-framework-with-explicit-task-and-domain-conditioning-for-cross-domain-event-extraction)  
+1. [MolEmb: Multimodal Large Language Models Can Be Strong Molecular Embedding Models](/202608/28/2608.23646v1-molemb-multimodal-large-language-models-can-be-strong-molecular-embedding-models)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：面向分子嵌入的多模态大语言模型框架，支持物性预测与虚拟筛选，与化工相关
+2. [GRAIN: Bridging Name and Narrative Shifts in Real-World Graph Reasoning through Invariance-Rewarded Agentic RL](/202608/28/2608.27142v1-grain-bridging-name-and-narrative-shifts-in-real-world-graph-reasoning-through-invariance-rewarded-agentic-rl)  
    标签：评分：7.0/10、query:llm-dm
-   evidence：提出跨领域事件抽取的多任务生成框架，涉及基于大语言模型的文本挖掘方法，符合LLM助力数据挖掘主题
-5. [Ontology-Driven Structural Regularization for Document-Level Relation Extraction](/202608/26/2608.20856v1-ontology-driven-structural-regularization-for-document-level-relation-extraction)  
-   标签：评分：6.0/10、query:llm-dm
-   evidence：文档级关系抽取是文本/数据挖掘任务；本体驱动去噪提升了抽取结果的一致性
-6. [Mol-JEPA: A multimodal Joint Embedding Predictive Architecture for Molecules](/202608/26/2608.22642v1-mol-jepa-a-multimodal-joint-embedding-predictive-architecture-for-molecules)  
+   evidence：基于智能体强化学习的文本图结构提取，是数据挖掘技术
+3. [Inject, Align, Recover: Staged Post-Training for Retrieval-Free Document Knowledge Internalization](/202608/28/2608.20281v1-inject-align-recover-staged-post-training-for-retrieval-free-document-knowledge-internalization)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：多模态联合嵌入预测架构用于分子表示学习
-7. [Toward Effective and Reliable LLM Agents via Dynamic Ontology](/202608/26/2608.22974v1-toward-effective-and-reliable-llm-agents-via-dynamic-ontology)  
+   evidence：分阶段后训练将领域文档内化到LLM参数，为化工领域知识与机器学习结合提供途径
+4. [Sequential operator learning under dependent data](/202608/28/2608.24426v1-sequential-operator-learning-under-dependent-data)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：利用动态本体将领域知识整合进LLM智能体决策
-8. [Enhancing Bayesian Optimization and Active Learning Through Kernel Diversity](/202608/26/2608.24721v1-enhancing-bayesian-optimization-and-active-learning-through-kernel-diversity)  
+   evidence：面向序列数据算子学习的时间一致集中界限，对构建数据驱动的过程模型具有方法学价值
+5. [A Hierarchical Synergistic Deep Learning Framework Integrating Composition, Structure, and Ionic Transport for Solid-State Electrolyte Discovery](/202608/28/2608.25592v1-a-hierarchical-synergistic-deep-learning-framework-integrating-composition-structure-and-ionic-transport-for-solid-state-electrolyte-discovery)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：通用的核集成贝叶斯优化与主动学习框架，可迁移至过程系统工程中的代理模型构建与优化
+   evidence：面向电化学材料发现的层级深度学习框架，整合组成、结构与输运，与化工人工智能相关
+6. [Accelerating Scientific Research with Gemini in the Real-World](/202608/28/2608.26701v1-accelerating-scientific-research-with-gemini-in-the-real-world)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：基于Gemini的多智能体科研系统，应用于化学气相沉积工艺实验
+7. [A Variational Framework for Nonlinear Chemical Thermodynamics Employing the Maximum Energy Dissipation Principle](/202608/28/2608.26843v1-a-variational-framework-for-nonlinear-chemical-thermodynamics-employing-the-maximum-energy-dissipation-principle)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：非线性化学热力学的变分框架，是分离过程数学模型的基础
 
 
 <div class="dpr-home-promo-card">
