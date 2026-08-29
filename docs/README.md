@@ -6,61 +6,44 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-08-28
-- 运行时间：2026-08-28 04:10:05 UTC
+- 最新运行日期：2026-08-29
+- 运行时间：2026-08-29 03:25:30 UTC
 - 运行状态：成功
-- 本次总论文数：13
-- 精读区：6
-- 速读区：7
+- 本次总论文数：8
+- 精读区：3
+- 速读区：5
 
 ### 今日简报（AI）
-今日处理13篇论文，精读6篇、速读7篇，聚焦AI控制设计与跨域事件抽取两大方向。  
-最值得看：AI Control Scientist用大模型智能体实现自动化控制设计（9.0分），以及多领域多任务生成框架用于跨域事件抽取（8.0分）。  
-下一步可优先精读这两篇高分论文，并顺带留意多模态分子嵌入与图推理等速读热点。
-- 详情：[/202608/28/README](/202608/28/README)
+今日精读3篇、速读5篇，共扫描8篇论文，重点关注数据湖关系发现与跨域事件抽取两大方向。最推荐精读《Discovering Relationships in Data Lakes Using Large Language Models》（9.0分），其次可看多域多任务生成式事件抽取框架（8.0分）。普通读者建议优先从高分精读入手，速读可聚焦分子表征与材料热稳定性预测两篇。
+- 详情：[/202608/29/README](/202608/29/README)
 
 ### 精读区论文标签
-1. [AI Control Scientist: LLM-driven Agentic System for Automated Control Design](/202608/28/2608.26780v1-ai-control-scientist-llm-driven-agentic-system-for-automated-control-design)  
-   标签：评分：9.0/10、query:chemical-llm
-   evidence：首个由LLM驱动的自动控制设计智能体AICS，面向化工过程温度调节等应用
-2. [A Multi-Domain and Multi-Task Generative Framework with Explicit Task and Domain Conditioning for Cross-Domain Event Extraction](/202608/28/2608.23235v1-a-multi-domain-and-multi-task-generative-framework-with-explicit-task-and-domain-conditioning-for-cross-domain-event-extraction)  
+1. [Discovering Relationships in Data Lakes Using Large Language Models: An Industrial Case](/202608/29/2608.26750v1-discovering-relationships-in-data-lakes-using-large-language-models-an-industrial-case)  
+   标签：评分：9.0/10、query:llm-dm
+   evidence：利用大语言模型发现数据湖列关系，直接契合LLM助力数据挖掘
+2. [A Multi-Domain and Multi-Task Generative Framework with Explicit Task and Domain Conditioning for Cross-Domain Event Extraction](/202608/29/2608.23235v1-a-multi-domain-and-multi-task-generative-framework-with-explicit-task-and-domain-conditioning-for-cross-domain-event-extraction)  
    标签：评分：8.0/10、query:llm-dm
-   evidence：面向跨领域事件抽取的多任务生成式LLM框架，属于文本挖掘
-3. [A Scalable Cross-Domain Event Extraction System via a Unified Generative Training Framework](/202608/28/2608.23261v1-a-scalable-cross-domain-event-extraction-system-via-a-unified-generative-training-framework)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：基于大语言模型的生成式框架用于跨领域事件抽取，属于文本挖掘任务
-4. [Data-driven Effective Modeling of Stochastic Chemical Reaction Networks](/202608/28/2608.25421v1-data-driven-effective-modeling-of-stochastic-chemical-reaction-networks)  
+   evidence：通过基于大语言模型的方法进行跨领域事件抽取，属于LLM辅助文本挖掘
+3. [Interpretable physics-informed retrieval-augmented generation language model for end-to-end inorganic crystal synthesis planning](/202608/29/2608.25392v1-interpretable-physics-informed-retrieval-augmented-generation-language-model-for-end-to-end-inorganic-crystal-synthesis-planning)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：用机器学习为化工随机化学反应网络构建数据驱动仿真模型
-5. [Efficient Scheduling of Discrete Industrial Processes Through Continuous Modeling](/202608/28/2608.26487v1-efficient-scheduling-of-discrete-industrial-processes-through-continuous-modeling)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：面向工业过程调度的连续RTN建模，属于过程系统工程建模方法
-6. [Discovering Relationships in Data Lakes Using Large Language Models: An Industrial Case](/202608/28/2608.26750v1-discovering-relationships-in-data-lakes-using-large-language-models-an-industrial-case)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：用LLM辅助发现数据湖中列关系，直接对应LLM辅助数据挖掘技术
+   evidence：物理信息检索增强生成语言模型将领域知识融入化学合成规划
 
 ### 速读区论文标签
-1. [MolEmb: Multimodal Large Language Models Can Be Strong Molecular Embedding Models](/202608/28/2608.23646v1-molemb-multimodal-large-language-models-can-be-strong-molecular-embedding-models)  
+1. [Mol-JEPA: A multimodal Joint Embedding Predictive Architecture for Molecules](/202608/29/2608.22642v2-mol-jepa-a-multimodal-joint-embedding-predictive-architecture-for-molecules)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：面向分子嵌入的多模态大语言模型框架，支持物性预测与虚拟筛选，与化工相关
-2. [GRAIN: Bridging Name and Narrative Shifts in Real-World Graph Reasoning through Invariance-Rewarded Agentic RL](/202608/28/2608.27142v1-grain-bridging-name-and-narrative-shifts-in-real-world-graph-reasoning-through-invariance-rewarded-agentic-rl)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：基于智能体强化学习的文本图结构提取，是数据挖掘技术
-3. [Inject, Align, Recover: Staged Post-Training for Retrieval-Free Document Knowledge Internalization](/202608/28/2608.20281v1-inject-align-recover-staged-post-training-for-retrieval-free-document-knowledge-internalization)  
+   evidence：多模态分子表示学习可支撑分离过程建模中的物性预测
+2. [Differential Learning for Robust Prediction of Thermal Stability with Application to Energetic Materials](/202608/29/2608.23874v1-differential-learning-for-robust-prediction-of-thermal-stability-with-application-to-energetic-materials)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：面向化学工程中分子性质预测的人工智能方法
+3. [Beyond Scaling: Self-Evolving LLM Agents for Hardware Kernel Optimization via an Experience-Driven Workflow and Experience Graph Memory](/202608/29/2608.25570v1-beyond-scaling-self-evolving-llm-agents-for-hardware-kernel-optimization-via-an-experience-driven-workflow-and-experience-graph-memory)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：分阶段后训练将领域文档内化到LLM参数，为化工领域知识与机器学习结合提供途径
-4. [Sequential operator learning under dependent data](/202608/28/2608.24426v1-sequential-operator-learning-under-dependent-data)  
+   evidence：经验驱动的LLM智能体迭代优化工作流，可迁移至化工过程模型优化
+4. [CG4AI: A Column Generation Framework for Training AI Models Under Constraints](/202608/29/2608.26375v1-cg4ai-a-column-generation-framework-for-training-ai-models-under-constraints)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：面向序列数据算子学习的时间一致集中界限，对构建数据驱动的过程模型具有方法学价值
-5. [A Hierarchical Synergistic Deep Learning Framework Integrating Composition, Structure, and Ionic Transport for Solid-State Electrolyte Discovery](/202608/28/2608.25592v1-a-hierarchical-synergistic-deep-learning-framework-integrating-composition-structure-and-ionic-transport-for-solid-state-electrolyte-discovery)  
+   evidence：在AI模型训练中施加线性约束的列生成框架，适用于受约束的过程建模
+5. [A Unified Descriptive-Complexity Framework for Model Selection under Correlated Designs](/202608/29/2608.26618v1-a-unified-descriptive-complexity-framework-for-model-selection-under-correlated-designs)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：面向电化学材料发现的层级深度学习框架，整合组成、结构与输运，与化工人工智能相关
-6. [Accelerating Scientific Research with Gemini in the Real-World](/202608/28/2608.26701v1-accelerating-scientific-research-with-gemini-in-the-real-world)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：基于Gemini的多智能体科研系统，应用于化学气相沉积工艺实验
-7. [A Variational Framework for Nonlinear Chemical Thermodynamics Employing the Maximum Energy Dissipation Principle](/202608/28/2608.26843v1-a-variational-framework-for-nonlinear-chemical-thermodynamics-employing-the-maximum-energy-dissipation-principle)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：非线性化学热力学的变分框架，是分离过程数学模型的基础
+   evidence：适用于过程建模中大规模候选模型选择的模型选择准则
 
 
 <div class="dpr-home-promo-card">
