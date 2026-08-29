@@ -1,24 +1,25 @@
 # 日报 · 2026-08-29
 
-- 生成时间：2026-08-29 03:25:30 UTC
-- 当次推荐总数：8
-- 精读区：3
+- 生成时间：2026-08-29 22:42:58 UTC
+- 当次推荐总数：9
+- 精读区：4
 - 速读区：5
 
 ## 今日简报（AI）
-今日聚焦大模型在工业数据湖关系发现与跨域事件抽取中的前沿应用，并兼顾分子表征与材料稳定性研究。最值得关注的是精读论文《Discovering Relationships in Data Lakes Using Large Language Models》（9.0分），其工业案例验证了LLM挖掘数据关联的潜力；跨域事件抽取的多任务生成框架（8.0分）同样具参考价值。建议优先精读上述两篇高分工作，速读材料可作为拓展，尤其适合关注AI交叉应用的读者。
+今日精读聚焦大模型驱动的跨域事件抽取与数据湖关系发现，速读则覆盖AI材料合成与反应预测。最值得看的是统一生成式训练框架实现的事件抽取系统（8.0分），以及用LLM在工业数据湖中发现关系的案例（8.0分）。建议普通读者优先关注生成式方法如何同时提升结构化信息抽取效率和科学实验自主优化能力。
 
 ## 精读区
-1. [Discovering Relationships in Data Lakes Using Large Language Models: An Industrial Case](/202608/29/2608.26750v1-discovering-relationships-in-data-lakes-using-large-language-models-an-industrial-case) （9.0/10）
-2. [A Multi-Domain and Multi-Task Generative Framework with Explicit Task and Domain Conditioning for Cross-Domain Event Extraction](/202608/29/2608.23235v1-a-multi-domain-and-multi-task-generative-framework-with-explicit-task-and-domain-conditioning-for-cross-domain-event-extraction) （8.0/10）
-3. [Interpretable physics-informed retrieval-augmented generation language model for end-to-end inorganic crystal synthesis planning](/202608/29/2608.25392v1-interpretable-physics-informed-retrieval-augmented-generation-language-model-for-end-to-end-inorganic-crystal-synthesis-planning) （8.0/10）
+1. [A Scalable Cross-Domain Event Extraction System via a Unified Generative Training Framework](/202608/29/2608.23261v1-a-scalable-cross-domain-event-extraction-system-via-a-unified-generative-training-framework) （8.0/10）
+2. [Discovering Relationships in Data Lakes Using Large Language Models: An Industrial Case](/202608/29/2608.26750v1-discovering-relationships-in-data-lakes-using-large-language-models-an-industrial-case) （8.0/10）
+3. [pro-team at LLMs4OL 2026 Tasks Flagship and Reuse: Retrieval-Augmented Generation and Vocabulary-Constrained Filtering for Ontology Learning](/202608/29/2608.27101v1-pro-team-at-llms4ol-2026-tasks-flagship-and-reuse-retrieval-augmented-generation-and-vocabulary-constrained-filtering-for-ontology-learning) （8.0/10）
+4. [GRAIN: Bridging Name and Narrative Shifts in Real-World Graph Reasoning through Invariance-Rewarded Agentic RL](/202608/29/2608.27142v1-grain-bridging-name-and-narrative-shifts-in-real-world-graph-reasoning-through-invariance-rewarded-agentic-rl) （8.0/10）
 
 ## 速读区
-1. [Mol-JEPA: A multimodal Joint Embedding Predictive Architecture for Molecules](/202608/29/2608.22642v2-mol-jepa-a-multimodal-joint-embedding-predictive-architecture-for-molecules) （7.0/10）
-2. [Differential Learning for Robust Prediction of Thermal Stability with Application to Energetic Materials](/202608/29/2608.23874v1-differential-learning-for-robust-prediction-of-thermal-stability-with-application-to-energetic-materials) （7.0/10）
-3. [Beyond Scaling: Self-Evolving LLM Agents for Hardware Kernel Optimization via an Experience-Driven Workflow and Experience Graph Memory](/202608/29/2608.25570v1-beyond-scaling-self-evolving-llm-agents-for-hardware-kernel-optimization-via-an-experience-driven-workflow-and-experience-graph-memory) （6.0/10）
-4. [CG4AI: A Column Generation Framework for Training AI Models Under Constraints](/202608/29/2608.26375v1-cg4ai-a-column-generation-framework-for-training-ai-models-under-constraints) （6.0/10）
-5. [A Unified Descriptive-Complexity Framework for Model Selection under Correlated Designs](/202608/29/2608.26618v1-a-unified-descriptive-complexity-framework-for-model-selection-under-correlated-designs) （6.0/10）
+1. [Interpretable physics-informed retrieval-augmented generation language model for end-to-end inorganic crystal synthesis planning](/202608/29/2608.25392v1-interpretable-physics-informed-retrieval-augmented-generation-language-model-for-end-to-end-inorganic-crystal-synthesis-planning) （7.0/10）
+2. [Bayesian Optimization for Self-Driving Materials Laboratories: From Algorithms to Physics-Informed Workflows](/202608/29/2608.26016v1-bayesian-optimization-for-self-driving-materials-laboratories-from-algorithms-to-physics-informed-workflows) （7.0/10）
+3. [Mechanistic Reaction Prediction via Discrete Flow Matching on Graph-Structured Electron Occupation](/202608/29/2608.27429v1-mechanistic-reaction-prediction-via-discrete-flow-matching-on-graph-structured-electron-occupation) （7.0/10）
+4. [Packora: Systematic Design for Generative Molecular Crystal Structure Prediction](/202608/29/2608.26962v1-packora-systematic-design-for-generative-molecular-crystal-structure-prediction) （6.0/10）
+5. [Compositional Online Learning for Semantic Data Processing Systems](/202608/29/2608.27244v1-compositional-online-learning-for-semantic-data-processing-systems) （6.0/10）
 
 ---
 使用键盘方向键可在日报/论文之间快速切换。
