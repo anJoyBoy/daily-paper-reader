@@ -1,0 +1,702 @@
+Title: Conservative Hybrid Graph Networks for Process Systems with Learned Routing
+
+URL Source: https://arxiv.org/pdf/2608.28896v1
+
+Published Time: Tue, 01 Sep 2026 00:17:08 GMT
+
+Number of Pages: 17
+
+Markdown Content:
+# Conservative Hybrid Graph Networks for Process Systems with Learned Routing 
+
+Paolo Guida 
+
+Physical Science and Engineering King Abdullah University of Science and Technology (KAUST) Thuwal, Saudi Arabia 
+
+paolo.guida@kaust.edu.sa 
+
+September 1, 2026 
+
+Abstract 
+
+Industrial process networks do not maintain a single effective topology while operating. Streams are throttled or bypassed, and units move between idle, transition and active regimes. Models of such systems are usually trained on measured state trajectories, while the operating mechanisms that generated those trajectories remain latent. An unconstrained graph network can fit such a trajectory without assigning a stable physical meaning to the recovered routing. This work addresses both problems through the Conservative Hybrid Graph Network (CHGN). The idea behind the architecture is to model routing, regime assignment, and removal rates using data-driven surrogates and add them to a fixed transport equation. The surrogate model allows extrapolation of dynamics learned on small process networks of 10 to 20 nodes to unseen, larger graphs of 25 to 40 nodes without retraining. While other Graph Neural Network (GNN)-based methods result in a 6 × 10 −2 to 9 × 10 −2
+
+error, the CHGN algorithm presents an RMSE of 2 .118 × 10 −3 under the same zero-shot protocol, with a gate MAE of 7 .9 × 10 −3 and a regime accuracy of 94 .3%. On the fixed training topology, the corresponding values are 1 .2 × 10 −2 and 96 .4%. The model is also tested on a real fluid-mixing pilot plant, where CHGN improves on persistence for held-out physical fault prediction while failing to predict manual operations (when governing valve actions are not observed). The benefits of the model can therefore be summarised as its ability to be used across various process topologies without retraining and to allow inspection of the underlying mechanisms that govern plants’ decisions. 
+
+1 Introduction 
+
+A structural affinity suggests modelling complex systems, such as chemical processes and industrial applications, as graphs. Recently, this has gained substantial interest [1, 2, 3]. Learned simulators on graphs usually assume a static topology [4] or a topology whose evolution is supplied to the model in advance [5, 6]. These assumptions do not completely represent industrial operation. In a plant, the effective connections between units change because streams are throttled or bypassed and because equipment is taken offline for safety, economic or maintenance reasons [7, 8]. The measured state trajectory can remain available through sensor feedback, while the routing actions and operating regimes that generated it are only partially observed or not recorded at all [9, 10, 7]. A network modelled with an unconstrained graph neural network can then experience two failure modes. The first concerns topological identifiability, referring to whether an observed trajectory assigns a unique meaning to a named routing variable inside the model. For instance, assume the stream associated with edge 
+
+e enters the state dynamics through the product ˆ weϕe(x), where ˆ we is a learned routing weight and ϕe is a free learned message. If a positive constant α is introduced, the pair ( α ˆwe, α −1ϕe) yields the same product and, therefore, the same state update. More generally, a sufficiently flexible message function can compensate arXiv:2608.28896v1 [cs.LG] 28 Aug 2026 A preprint - September 1, 2026 
+
+for an incorrect routing weight. A small trajectory error, therefore, cannot uniquely identify an intended physical meaning. While simple, the example above illustrates why a latent mechanism is not identifiable without additional structure [11]. Recovering an interaction graph requires a restriction on the decoder, a prior that breaks the symmetry, direct mechanism information, or a combination of these elements [9]. The objective of the architecture proposed here is to remove the direct gate-message rescaling pathway by fixing the form through which routing enters transport. A second problem is leakage. The latter consists of the artificial creation or loss of the conserved quantity during prediction. For an internal process network, the sum of all transport contributions should be zero because each internal stream leaves one unit and enters another. The total inventory can change only through explicit boundary feeds, removals or reactions. If a model predicts an increment ∆ x = fθ (x) directly, and its parameterisation contains no corresponding balance restriction, nothing prevents material from appearing or vanishing over an autoregressive rollout. The model can still minimise a supervised prediction loss, but the resulting state evolution need not be compatible with the transport structure [12]. This work intends to address both challenges. The proposed process-network formulation contains two mechanisms that can change independently: switch-controlled routing on the edges and discrete operating regimes at selected units. Internal transport is not represented by an unconstrained learned message. It is reconstructed from the signed incidence matrix, known transport-rate coefficients, the current-source inventory, and the predicted routing weights. The information supplied to the gate, regime, and removal heads is also separated, so that the named mechanisms cannot be exchanged freely within a single common decoder. Shared, permutation-equivariant mappings make the same model applicable to graphs with different numbers of units. The following sections describe the dynamical system and the software architecture and evaluate the model on controlled synthetic networks as well as on a physically distinct system built from real sensor data. 
+
+2 The Conservative Hybrid Graph Network 
+
+The proposed formulation combines ideas from latent graph inference, hybrid dynamical systems, learned simulation and structure-preserving modelling. The intended distinction is that existing methods usually address only part of the problem considered here. Latent-structure methods infer fixed categorical edges [9], model changing graph content through memory [13], and highlight the assumptions required for interpretable causal representations [11]; hybrid-system approaches represent global mode transitions [14, 15, 16, 10]; graph simulators and neural operators approximate high-dimensional dynamics [5, 6, 17, 18, 19, 20, 21], including in continuous time [22]; structure-preserving models encode energetic constraints [23], soft physical residuals [24], local conservation and equivariance [12], or discrete operator consistency [25], although such biases are not universally beneficial [26]; and process-system graph models address monitoring, soft sensing, fault diagnosis [27, 28, 29, 30, 31, 32], equipment design [33, 34], and operating-phase switching [35, 36, 37], whereas CHGN performs forward simulation with exact internal transport balance by predicting state-dependent continuous edge routing and local unit regimes as distinct, potentially erroneous latent mechanisms rather than assuming a fixed known graph, a single global mode, or freely learned gate-conditioned messages. 
+
+Process graph and governing dynamics. The objective of the Conservative Hybrid Graph Network is to learn the evolution of a process in which stream routing and unit activity change during operation. The process is represented by a directed graph G = ( V, E) with n = |V| units and m = |E| internal streams. Its signed incidence matrix is 
+
+B ∈ {− 1, 0, +1 }n×m, Bie =
+
+
+
+−1, i = src( e),
+
++1 , i = dst( e),
+
+0, otherwise .
+
+(1) Each internal edge, therefore, contributes once with a negative sign at its source and once with a positive sign at its destination. The scalar state xi(t) ∈ R≥0 denotes the inventory of the tracked quantity in unit i. In the synthetic system, its evolution follows ˙xi(t) = ∑
+
+> e∈E
+
+Bie Fe(t) + [ Eu(t)] i − [1sink ]i ci(zi(t)) [κixi(t) + ρη ixi(t)2] . (2) 2A preprint - September 1, 2026 
+
+The first term is the net internal transport entering or leaving unit i. The second term represents external feeds. In the latter, E ∈ Rn×p is a known feed-incidence matrix and u(t) ∈ Rp contains the imposed boundary inputs. The final term represents material removal or consumption at the nodes selected by the static mask 
+
+1sink ∈ { 0, 1}n. The coefficient κi defines a first-order contribution, ηi defines a quadratic contribution and ρ
+
+scales the latter globally. The multiplier ci(zi) adjusts these rates based on the local operating regime. For nodes without a regime variable, this multiplier is fixed. Internal flow is not arbitrary. For each edge, 
+
+Fe(t) = qe we(t) xsrc( e)(t), qe ≥ 0, (3) where qe is a known transport-rate coefficient with units of inverse time and we(t) is the routing weight of that edge. Routing occurs through S switches. Switch s acts on two outgoing edges, denoted e1 
+
+> s
+
+and e2 
+
+> s
+
+, and is governed by 
+
+gs(t) = σ(βs [φs(x(t), u(t)) − θgs ]) , σ(v) = 11 + e−v , (4) with 
+
+we1 
+
+> s
+
+(t) = gs(t), we2 
+
+> s
+
+(t) = 1 − gs(t), we(t) = 1 for unswitched edges . (5) The function φs combines the current state and input, θgs shifts the switching threshold and βs > 0 controls the steepness of the response. The sigmoid produces a soft routing weight that approaches zero or one as the input moves away from the threshold. A subset of units M ⊆ V , with M = |M| , also experiences local regime changes. Each unit j ∈ M can be idle, transitioning or active, represented by zj (t) ∈ { 0, 1, 2}. The simulator assigns these states through a local threshold rule parameterised by θzj . The conditioning vector 
+
+μ = ( θg , θz , ρ ) (6) contains the switch thresholds, the local regime thresholds and the global quadratic scale. These quantities are supplied as operating conditions. The instantaneous gates gs(t) and regimes zj (t) are not supplied to the state predictor and must be recovered from the observed history. 
+
+Algorithm architecture. Rather than replacing the complete vector field with a black-box neural operator, CHGN learns four modules, 
+
+{ΦθΦ , ΓθΓ , Z θZ , R θR }, Θ = {θΦ, θ Γ, θ Z , θ R},
+
+where Θ denotes their trainable parameters. The first module, Φ θΦ , is a shared spatial GNN that maps the state history and unit information into a d-dimensional latent space. At time index τ , the input associated with node i is 
+
+ai,τ = H⊤ 
+
+> τ,i, :
+
+∥ e(type i) ∥ uτ ∈ Rh+de+p, (7) where ∥ denotes concatenation, e(type i) ∈ Rde is a learned unit-type embedding, uτ ∈ Rp collects the external inputs and 
+
+Hτ = [ xτ −h+1 , . . . , xτ ] ∈ Rn×h (8) is the variable-history matrix. The complete node-feature matrix is 
+
+Aτ = Hτ ∥ T ∥ 1nu⊤ 
+
+> τ
+
+∈ Rn×(h+de+p), (9) where the i-th row of T ∈ Rn×de is e(type i)⊤. The spatial encoder then gives 
+
+ν⊤ 
+
+> i,τ
+
+= [Φ θΦ (Aτ , G, q)] i, : , νi,τ ∈ Rd, (10) where G is the static process graph and q contains the static edge features, including the transport-rate coefficients qe. A permutation-invariant pooled vector ¯ ντ provides global context without fixing the number or ordering of nodes. The second module is the gate head Γ θΓ . Each of the S routers is indexed by s; router s is located at node vs
+
+and splits its throughput between destination nodes d1 
+
+> s
+
+and d2 
+
+> s
+
+along edges e1 
+
+> s
+
+and e2
+
+> s
+
+. It predicts the soft routing variable ˆgs,τ = Γ θΓ
+
+(νvs,τ , νd1  
+
+> s,τ
+
+, νd2  
+
+> s,τ
+
+, ¯ντ , switch s, uτ , ξgs
+
+) , ˆgs,τ ∈ (0 , 1) , (11) where switch s identifies the switch type and ξgs contains its static physical parameters, such as the switching threshold θgs . Neither contains the realised routing target. The predicted gate induces complementary edge weights, ˆwe1  
+
+> s,τ
+
+= ˆ gs,τ , ˆwe2  
+
+> s,τ
+
+= 1 − ˆgs,τ , ˆwe,τ = 1 for unswitched edges . (12) 3A preprint - September 1, 2026 
+
+The two branches share the same transport-rate coefficient, qe1 
+
+> s
+
+= qe2 
+
+> s
+
+= qs, so their combined outflow is independent of the gate: 
+
+qs ˆgs,τ ˆxvs,τ + qs(1 − ˆgs,τ )ˆ xvs,τ = qs ˆxvs,τ . (13) The role of the GNN is therefore to provide state- and topology-dependent features to the gate head. The third module is the regime head ZθZ acting locally on every unit that allows for the occurrence of different regimes j ∈ M and produces 
+
+ℓj,τ = ZθZ
+
+(H⊤
+
+> τ,j, :
+
+, e(type j ), uτ , ξzj
+
+) , ˆπj,τ = softmax( ℓj,τ ) ∈ ∆2, (14) where ξzj contains the static regime parameters, including the threshold θzj , and ˆ πj,τ contains the probabilities of the idle, transition and active regimes. The final module is the sink head RθR . It predicts a bounded, state-dependent removal-rate coefficient at every designated sink, 
+
+ri,τ = rmax σ(RθR
+
+(H⊤
+
+> τ,i, :
+
+, e(type i), uτ , ρ )) , (15) where σ(·) is the logistic function of Equation (4). The corresponding removal term is assembled algebraically as 
+
+si,τ = ri,τ ˆxi,τ [1sink ]i ¯ci,τ . (16) This parameterisation admits the first- plus second-order synthetic removal whenever the target coefficient 
+
+r⋆i,τ = κi + ρη i ˆxi,τ (17) lies inside the representable interval (0 , r max ). Pointwise, the required sink-head pre-activation is 
+
+R⋆i,τ = log 
+
+( r⋆i,τ 
+
+rmax − r⋆i,τ 
+
+)
+
+. (18) The neural sink head can approximate this mapping over the bounded state domain used for training, while the endpoints can only be approached asymptotically. The bounded parameterisation prevents the learned removal rate from becoming negative or unbounded and makes its representability condition explicit. 
+
+Assembly. Once the four modules have produced the routing weights, the regime multipliers and removal terms, the future state is obtained by reconstructing the process balance. Throughout the rollout, the state entering the right-hand side is the model’s own estimate, with the true initial history supplied at the beginning of the rollout. The predicted material flow on edge e is ˆFe,τ = qe ˆwe,τ ˆxsrc( e),τ . (19) The complete derivative then reads ˙ˆxτ = B ˆFτ + Euτ − sτ . (20) An explicit Euler step advances the state, ˜xτ +1 = ˆ xτ + ∆ t ˙ˆxτ , ˆxτ +1 = max( 0, ˜xτ +1 ), (21) where the maximum is applied element-wise as a numerical non-negativity safeguard. This safeguard would alter the balance if it were activated. In the reported experiments, its correction is identically zero at every evaluated rollout step, so the unmodified Euler update governs the rollout. The internal transport term is conservative by construction. Every column of B contains one −1 and one +1, so 1⊤ 
+
+> n
+
+B = 0⊤ and therefore 
+
+1⊤ 
+
+> n
+
+˙ˆxτ = 1⊤ 
+
+> n
+
+B ˆFτ
+
+︸ ︷︷ ︸
+
+> =0
+
++1⊤ 
+
+> n
+
+Euτ − 1⊤ 
+
+> n
+
+sτ . (22) The identity guarantees that routing can only redistribute material between units at a given instant. After each step, the history matrix is updated to include ˆ xτ +1 , and the calculation repeats in an autoregressive manner. 4A preprint - September 1, 2026 a τ
+
+CHGN update 
+
+τ + 1 
+
+b
+
+transport removal 
+
+Hτ Φ
+
+> ρ
+
+Γ
+
+> θgs
+
+R
+
+> ρ
+
+Z
+
+> θmj
+
+B
+
+×
+
+uτ E
+
+Σ ∆t + xτ +1 
+
+> +
+> −
+> +
+> xτ
+
+Figure 1: One-step CHGN update. The spatial encoder maps the state history, unit types, external inputs and static process graph into topology-dependent node representations used by the routing head. Local heads infer the unit regimes and bounded removal rates from the corresponding state histories and unit information. The predicted quantities are then inserted into the fixed incidence-based transport law and advanced by one time step. 
+
+Training. The four modules are trained jointly by unrolling Equation (21) for T transitions from a true initial history ending at τ = 0. The transition is evaluated at time τ predicts xτ +1 , with τ = 0 , . . . , T − 1. The objective combines state prediction with weak supervision of the routing and regime mechanisms, 
+
+L = Lstate + λg Lgate + λz Lregime . (23) The term is 
+
+Lstate = 
+
+> T−1
+
+∑ 
+
+> τ=0
+
+ωτ +1 
+
+1
+
+n
+
+> n
+
+∑
+
+> i=1
+
+( ˆxi,τ +1 − xi,τ +1 
+
+αi
+
+)2
+
+, (24) where αi > 0 is the state-normalisation constant and ωτ +1 weights the forecast horizon. The gate loss is a binary cross-entropy applied to the supervised soft gate targets gs,τ ∈ [0 , 1]. In contrast, the regime loss is a categorical cross-entropy applied to the supervised regime labels zj,τ . Let mgs,τ ∈ { 0, 1}
+
+and mzj,τ ∈ { 0, 1} indicate the labelled gate and regime entries, respectively. The losses are 
+
+Lgate = 1
+
+NgT −1∑ 
+
+> τ=0
+> S
+
+∑
+
+> s=1
+
+mgs,τ BCE(ˆ gs,τ , g s,τ ),
+
+Lregime = 1
+
+NzT −1∑ 
+
+> τ=0
+
+∑
+
+> j∈M
+
+mzj,τ CE( ℓj,τ , z j,τ ).
+
+(25) where 
+
+Ng = 
+
+> T−1
+
+∑ 
+
+> τ=0
+> S
+
+∑
+
+> s=1
+
+mgs,τ , Nz = 
+
+> T−1
+
+∑ 
+
+> τ=0
+
+∑
+
+> j∈M
+
+mzj,τ . (26) 5A preprint - September 1, 2026 
+
+Thus, both terms are averaged over all labelled entries. The sink head receives no direct supervision and is constrained only through the unrolled state-prediction loss. Optimisation uses AdamW [38] with a learning rate of 2 × 10 −3, a weight decay of 10 −6, over 150 epochs and gradient-norm clipping at 1 .0. The history window is h = 5 steps, the latent width is d = 96, and the encoder uses three message-passing rounds. 
+
+3 Results 
+
+Systems and organisation of the evaluation. The proposed architecture is evaluated on two systems. The first is a family of synthetic process networks in which the states, gates, regimes, interventions and balance laws are all known. This system allows trajectory prediction to be separated from mechanism recovery, and permits transfer, counterfactual response, and conservation to be examined independently of one another. The second test is a real fluid-mixing pilot plant, in which the same architectural principles are evaluated across operating conditions and anomaly categories not included in training. The first test evaluates whether the learned process graph can be extrapolated to larger systems without retraining. The second evaluates whether naming the mechanisms is necessary or whether similar accuracy can be achieved without that information. The third evaluates performance when predicting system dynamics is the only objective; it highlights one limitation of the proposed algorithm in its current configuration. 
+
+3.1 Experiment 1: Synthetic process-network benchmark Transfer to unseen graphs. CHGN is trained on a distribution of 10 to 20-node process graphs and then evaluated, without fine-tuning, on eight unseen 25 to 40-node graphs. The protocol contains 64 graph trajectory evaluations per seed and five independently trained seeds. Two shared-weight baselines are trained on the same multi-topology distribution and evaluated under the same zero-shot conditions: a Shared Dynamic GNN and a Shared Conservative GNN. The latter uses a conservative aggregation but does not include the complete CHGN factorisation into fixed physical transport, routing gates, and local regime variables. The comparison is therefore matched on parameter sharing and on the training distribution, and differs only in the internal factorisation. The difference is consistent across both graphs and seeds. CHGN remains near 2 × 10 −3 state RMSE over the unseen topologies, while the two shared baselines remain approximately in the 6 × 10 −2–9 × 10 −2
+
+range. CHGN also keeps gate MAE below 10 −2 and maintains regime accuracy at approximately 94%. The separation persists as graph size increases from 25 to 40 nodes, as shown in Figure 2 and, in more detail, in Appendix C. The transfer advantage, therefore, cannot be attributed solely to graph-size-independent parameter sharing. The weaker performance of the Shared Conservative GNN also shows that conservation alone does not reproduce the complete result. A secondary comparison against baselines retrained separately on each held-out graph is reported in Appendix C; that tests graph-specific fitting. 
+
+Recovery and calibration of the named mechanisms. The transfer result raises the question of what the model has actually recovered. Figure 3 examines the three predicted quantities on the training topology. State predictions follow parity across the full inventory range, with most of the dispersion occurring below an inventory of 0 .2. Gate predictions cover the complete interval (0 , 1), including values close to 0 .5. The absence of a gap around the switching threshold shows that the model has not reduced the task to a binary classification of the active branch. Regime accuracy is 0 .96 for idle and active and 0 .89 for transition. All regime errors occur between adjacent classes, consistent with errors near regime boundaries rather than with collapse to a single dominant class. The corresponding full-trajectory rollout and a unit-by-unit audit on the flowsheet are reported in Appendix A. 
+
+Mechanism ablations. Table 1 and Figure 4 separate state prediction from the recovery of the named mechanisms. Routing is obviously extremely relevant in the forumlation. Fixing the routing mechanism increases state RMSE from 0 .01267 to 0 .05293. Across five matched seeds, the mean increase is 0 .0403, and the paired bootstrap 95% interval [0 .0362 , 0.0443] excludes zero. Fixing the regime mechanism has a different effect. Regime accuracy falls to 30 .7%, but the mean state-RMSE change is only −4.6 × 10 −4, with a paired 95% interval of [ −2.69 × 10 −3, 2.60 × 10 −3]. The aggregate state error is therefore not separated from the joint model. Direct mechanism supervision is nevertheless necessary to recover the variables by name. Without regime labels, regime accuracy falls from 96 .4% to 45 .3% for the state-only variant and to 42 .1% for the gate-supervised variant, while the state error changes much less. Conversely, the regime-supervised model retains 6A preprint - September 1, 2026 G25 25 G27 25 G31 25 G32 27 G26 33 G28 36 G30 37 G29 40 
+
+Unseen graph (node count) 
+
+> 02468
+> State rollout RMSE
+> ×10 −2
+
+a
+
+> G25 25 G27 25 G31 25 G32 27 G26 33 G28 36 G30 37 G29 40
+
+Unseen graph (node count) 
+
+> 246
+> Routing-gate MAE
+> ×10 −2
+
+b
+
+> G25 25 G27 25 G31 25 G32 27 G26 33 G28 36 G30 37 G29 40
+
+Unseen graph (node count) 
+
+> 60 70 80 90
+> Unit-mode accuracy (%)
+
+c  
+
+> CHGN Shared Conservative GNN Shared Dynamic GNN
+
+Figure 2: Zero-shot transfer across unseen process graphs. CHGN and two shared-weight baselines are trained on the same 10–20-node graph distribution and evaluated without retraining on unseen 25–40-node topologies. Points and bars show the mean and 95% Student-t interval across seeds; faint points are individual-seed means. Node count orders graphs. 0.5 1.0 1.5              
+
+> True state
+> 0.2 0.4 0.6 0.8 1.0 1.2 1.4
+> Predicted state
+> State parity
+> a
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> True routing gate
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Predicted routing gate
+> Gate parity
+> b
+> idle transition active
+> Predicted regime
+> idle transition active
+> True regime (row-normalised)  0.96 0.04 0.00 0.05 0.89 0.06 0.00 0.04 0.96
+> c
+> 10 0
+> 10 1
+> 10 2
+> 10 3
+> 10 4
+> Count
+> 10 0
+> 10 1
+> 10 2
+> Count
+
+Figure 3: Calibration of the three predicted quantities. Predicted versus true (a) inventory and (b) routing gate, shown as hexagonally binned log-count densities; the dashed line is parity. (c) Row-normalised regime confusion matrix. Gates are calibrated across (0 , 1), and regime errors occur only between adjacent classes. 
+
+93 .5% regime accuracy, but its gate MAE increases to 0 .0264. The two heads, therefore, receive distinct supervisory information. Routing has the dominant effect on the aggregate state in this benchmark. At the same time, the regime variable can be recovered accurately even though its contribution to the total state error is smaller. 
+
+Interventional and counterfactual response. An ablation establishes if a mechanism is structurally relevant, but not that it responds correctly when it is manipulated. Three audits address the latter and are reported in full in Appendix B. Substituting mechanism variables into the same trained operator increases the one-step all-unit RMSE by a factor of 4 .7 when routing is held fixed and by a factor of 4 .8 in the worst ablation, while replacing the learned mechanisms with their true values leaves the error essentially unchanged. Sweeping each switch threshold over values absent from the held-out trajectory reproduces the true logistic response across the complete range, with a gate MAE between 9 .2 × 10 −3 and 2 .1 × 10 −2 and a monotone fraction of 1 .000. Propagating a threshold change through a 40-step rollout without teacher forcing gives an intervention-effect RMSE of 6 .4 × 10 −4 over 240 routing interventions and 8 .0 × 10 −5 over 192 regime interventions. The recovered gates, therefore, retain their role under manipulation, and not only on the factual trajectory from which they were inferred. 
+
+Fixed-graph benchmark. Table 2 shows the performance of the proposed solver against other methods. Seven models are compared on a single fixed 20-unit graph, and CHGN does not achieve the lowest point-7A preprint - September 1, 2026 
+
+Table 1: Mechanism ablations. Mean ± s.d. across five independently trained seeds. Entries without intervals are clamped and constant across seeds. Variant State RMSE ↓ Gate MAE ↓ Regime acc. ↑
+
+Joint CHGN 0.01267 ± 0.00108 0.01225 ± 0.00234 96 .37 ± 1.18% State only 0.01564 ± 0.00294 0.02985 ± 0.01535 45 .26 ± 8.00% Gate supervision 0.01337 ± 0.00199 0.01357 ± 0.00189 42 .08 ± 10 .06% Regime supervision 0.01690 ± 0.00246 0.02639 ± 0.00745 93 .51 ± 2.58% Fixed routing 0.05293 ± 0.00454 0.20051 73 .74 ± 2.97% Fixed regimes 0.01221 ± 0.00303 0.01499 ± 0.00208 30 .66% Fixed routing + regimes 0.05151 ± 0.00281 0.20051 30 .66% 10 −2 
+
+> State rollout RMSE
+> Joint CHGN State only Gate supervision Mode supervision Fixed topology Fixed modes Fixed topology + modes
+
+a 
+
+> 10 −2 10 −1
+> Routing-gate MAE
+
+b   
+
+> 40 60 80 100
+> Unit-mode accuracy (%)
+
+c  
+
+> Joint CHGN Worse than reference (disjoint 95% CI) Not separated from reference
+
+Figure 4: Mechanism ablations, five seeds per variant. Circles show seeds; diamonds and bars show the mean and two-sided 95% Student-t interval. The dashed line marks the joint-model mean. Red indicates an interval separated from the reference in the worst direction; grey indicates no separation. 
+
+prediction error in this setting. The LSTM reaches a state RMSE of 0 .00520 ± 0.00035, compared with 0.01267 ± 0.00108 for CHGN, and is therefore approximately 2 .4× more accurate. It also reaches the lowest gate MAE and the lowest balance-model discrepancy. The balance-model discrepancy measures the agreement between the predicted state evolution and the complete known inventory budget and therefore includes state, boundary, and removal errors. The structural residual 1⊤B ˆF instead isolates internal transport and is identically zero in exact arithmetic for CHGN. A flexible sequence model can consequently obtain a lower balance-model discrepancy through a more accurate trajectory fit without carrying an explicit internal conservation guarantee. The fixed-graph comparison, therefore, clarifies the intended scope of the formulation. Its structural restrictions do not guarantee the best fit when the topology does not change, and state prediction is the only objective. Their purpose is to preserve a defined transport law, expose named mechanisms that can be intervened on and provide graph-local mappings that remain applicable when the process topology changes. 
+
+Structural consistency. A numerical audit separates approximation error from structural consistency and is reported in full in Appendix E. Across independently trained seeds, the state-derivative RMSE is approximately 9 .8 × 10 −3, while the maximum internal-transport residual max τ |1⊤B ˆFτ | is approximately 1.2 × 10 −7 and is therefore at the level expected from floating-point accumulation. The non-negativity safeguard in Equation (21) is inactive over every entry and rollout step. The remaining derivative error, therefore, reflects the approximation of the non-transport dynamics and the difference between the Euler update and the RK4 integration used to generate the synthetic trajectories, rather than a violation of the incidence-based identity. 8A preprint - September 1, 2026 
+
+Table 2: Fixed-graph benchmark, five seeds per model. Bold marks the best mean, not statistical separation. Balance discrepancy measures agreement with the known full balance model and is distinct from the internal transport residual 
+
+1⊤B ˆF.Model State RMSE ↓ Gate MAE ↓ Regime acc. ↑ Balance disc. ↓
+
+CHGN 0.01267 ± 0.00108 0.01225 ± 0.00234 96 .37 ± 1.18% 0.01983 ± 0.00394 LSTM 0.00520 ± 0.00035 0.00621 ± 0.00037 94 .34 ± 0.22% 0.01091 ± 0.00082 
+
+MLP 0.01630 ± 0.00131 0.01661 ± 0.00218 92 .97 ± 0.31% 0.01574 ± 0.00121 Dynamic GNN 0.03421 ± 0.00035 0.01072 ± 0.00020 96 .57 ± 0.11 % 0.11376 ± 0.00157 NHA-inspired 0.03437 ± 0.00037 0.01061 ± 0.00028 96 .35 ± 0.12% 0.11430 ± 0.00133 NRI-inspired 0.05192 ± 0.00032 0.05263 ± 0.00378 91 .64 ± 0.63% 0.11667 ± 0.00220 Fixed GNN 0.06607 ± 0.00382 0.20051 81 .57 ± 3.14% 0.22629 ± 0.02543 
+
+3.2 Experiment 2: Real fluid-mixing system 
+
+The second experiment applies the architecture to a physically different, real fluid-mixing pilot plant with four tanks, two pumps and eleven valves [39]. The process graph contains four tanks, eight pipe junctions, three external ports and eighteen edges. In this case, the graph is constructed from the P&ID naming convention rather than inferred from the data. This experiment transfers the architectural constraints, not the parameters learned on the synthetic networks. A new CHGN model is trained on the fluid-mixing data while retaining the graph-based conservative accumulation and the separation between observed state, external forcing and mechanism-specific quantities. The mappings required by the physical system are learned from that dataset. Compared with persistence, CHGN reduces state MSE by a factor of 16 .0 on the held-out leakage-plus-clogging session and by a factor of 6 .3 on the stirring-error session. These values correspond to improvements of 4 .0×
+
+and 2 .5× in RMSE. The autoregressive rollout in Figure 5 follows the cyclic fill–drain pattern of the plant. Manual mode produces the opposite result. CHGN is 2 .0× worse than persistence in MSE and 1 .4× worse in RMSE, because the manual valve actions that determine the subsequent trajectory are not included in the model inputs. The experiment, therefore, separates faults whose dynamics can be inferred from the observed variables from operating changes driven by an unobserved exogenous control. leakage + clogging stirring error manual mode 10 −2 
+
+> 10 −1
+> state MSE (log scale)
+> Zero-shot test, by unseen category
+
+a        
+
+> 16.0× 6.3× 1/2.0×
+> Persistence CHGN (fluid-mix) 0100 200 300 400 500 600
+> time (s)
+> 050 100 150 200
+> tank level
+> Autoregressive rollout, leakage+clogging
+
+b   
+
+> B201 B202 B203 B204
+
+Figure 5: Structure-preserving architecture on held-out fluid-mixing conditions. (a) State MSE for persistence and CHGN on three anomaly categories held out from training; leakage+clogging and stirring error each contain one session, while manual mode contains eight. (b) Autoregressive rollout on the leakage+clogging session. 
+
+9A preprint - September 1, 2026 
+
+4 Discussion and limitations 
+
+The two experiments support the following conclusions. On synthetic networks, it was demonstrated that CHGN can be evaluated without retraining on larger process graphs, recover named routing and regime variables, respond consistently when their thresholds are changed, and preserve the internal transport balance by construction. These properties, however, do not improve trajectory prediction. The matched zero-shot transfer comparison narrows the possible explanations for the principal result. CHGN, the Shared Dynamic GNN and the Shared Conservative GNN all use graph-size-independent parameters and are trained on the same 10 to 20-node distribution. Only CHGN retains low state and mechanism errors on the unseen 25- to 40-node graphs. The result cannot, therefore, be attributed only to shared message-passing weights. The weaker Shared Conservative GNN also shows that conservation alone is insufficient. The current experiments support the combined role of the fixed transport law, named routing variables, information partitioning and graph-local parameter sharing. Isolating the individual contribution of each ingredient is left to future work. The mechanism results in separate recoverability from dynamical importance. Routing is strongly load-bearing: fixing the routing variable produces a five-seed increase in state error whose paired bootstrap interval excludes zero, and routing interventions propagate through the closed-loop trajectory. The regime variable is recovered accurately but has a much smaller effect on aggregate state error in the principal benchmark. Both variables also receive weak direct supervision during training. The experiments therefore show that the architecture can assign a stable role to supervised mechanism variables and preserve that role during rollout. A related limitation concerns the meaning of identifiability itself. Fixing the transport law to ˆFe = qe ˆwe ˆxsrc( e)
+
+removes the direct reciprocal scaling between a routing weight and an arbitrary learned edge message. Other ambiguities can persist when different internal routing choices produce the same observable evolution of the state. This situation can occur in networks containing cycles, insufficiently excited branches or a measurement set that does not distinguish the relevant branches. The intervention and threshold-sweep experiments provide evidence that the named gates are meaningful on the systems studied here. Finally, the real fluid-mixing experiment attempts at transferring architectural principles. Its held-out physical-fault results are satisfactory, but the leakage-plus-clogging and stirring-error categories each contain only one session. The tests performed on the algorithm suggest using CHGN as a structure-preserving simulator for systems in which the relevant state and external forcing are observed, while routing and operating mechanisms remain latent but physically defined and manipulable during prediction. 
+
+5 Conclusions 
+
+This work formulated learning on process networks whose effective routing is latent, state-dependent and dynamic. The Conservative Hybrid Graph Network predicts switch-controlled routing weights and local unit regimes, but constrains the ways in which these variables enter the state dynamics. The full-time evolution of the variables of interest is, in fact, reconstructed from both learned and fixed entries, thereby removing the direct gate-message rescaling pathway and guaranteeing that internal transport redistributes material without creating or destroying it. The model was evaluated on a fixed-graph benchmark, where a less-constrained sequence model remained more accurate at point prediction and was extrapolated to larger graph sizes without retraining. A second benchmark involved a real fluid-mixing system, in which the architecture retained its forecasting ability for held-out physical faults that were not explicitly associated with manual operations. The main result is therefore that CHGN provides routing variables that can be inspected and intervened on, an exact internal transport balance, and a single set of graph-local mappings that can be reused across process topologies. 
+
+Acknowledgements 
+
+The author gratefully acknowledges the support of King Abdullah University of Science and Technology (KAUST) through the Clean Energy Research Platform. 
+
+References 
+
+[1] Leo Torres, Ann S Blevins, Danielle Bassett, and Tina Eliassi-Rad. The why, how, and when of representations for complex systems. SIAM Review , 63(3):435–485, 2021. 10 A preprint - September 1, 2026 
+
+[2] Leonardo SG Leite, Swarup Banerjee, Yihui Wei, Jackson Elowitt, and Aurora E Clark. Modern chemical graph theory. Wiley Interdisciplinary Reviews: Computational Molecular Science , 14(5):e1729, 2024. [3] Yoel R Cortés-Peña and Victor M Zavala. Phenomena-based graph representations and applications to chemical process simulation. Computers & Chemical Engineering , page 109756, 2026. [4] Peter W Battaglia, Jessica B Hamrick, Victor Bapst, Alvaro Sanchez-Gonzalez, Vinicius Zambaldi, Mateusz Malinowski, Andrea Tacchetti, David Raposo, Adam Santoro, Ryan Faulkner, et al. Relational inductive biases, deep learning, and graph networks. arXiv preprint arXiv:1806.01261 , 2(3):5, 2018. [5] Alvaro Sanchez-Gonzalez, Jonathan Godwin, Tobias Pfaff, Rex Ying, Jure Leskovec, and Peter Battaglia. Learning to simulate complex physics with graph networks. In International Conference on Machine Learning (ICML) , pages 8459–8468, 2020. [6] Tobias Pfaff, Meire Fortunato, Alvaro Sanchez-Gonzalez, and Peter W. Battaglia. Learning mesh-based simulation with graph networks. In International Conference on Learning Representations (ICLR) , 2021. [7] Dale E. Seborg, Thomas F. Edgar, Duncan A. Mellichamp, and Francis J. Doyle. Process Dynamics and Control . John Wiley & Sons, 4th edition, 2016. [8] Hesham K Alfares. Plant shutdown maintenance workforce team assignment and job scheduling. Journal of Scheduling , 25(3):321–338, 2022. [9] Thomas Kipf, Ethan Fetaya, Kuan-Chieh Wang, Max Welling, and Richard Zemel. Neural relational inference for interacting systems. In International Conference on Machine Learning (ICML) , pages 2688–2697, 2018. [10] Scott W. Linderman, Matthew J. Johnson, Andrew C. Miller, Ryan P. Adams, David M. Blei, and Liam Paninski. Bayesian learning and inference in recurrent switching linear dynamical systems. Artificial Intelligence and Statistics (AISTATS) , 2017. [11] Bernhard Schölkopf, Francesco Locatello, Stefan Bauer, Nan Rosemary Ke, Nal Kalchbrenner, Anirudh Goyal, and Yoshua Bengio. Toward causal representation learning. Proceedings of the IEEE , 109(5):612– 634, 2021. [12] Masanobu Horie and Naoto Mitsume. Graph neural pde solvers with conservation and similarity-equivariance. arXiv preprint arXiv:2405.16183 , 2024. [13] Andrey Kurenkov, Michael Lingelbach, Tanmay Agarwal, Emily Jin, Chengshu Li, Ruohan Zhang, Li Fei-Fei, Jiajun Wu, Silvio Savarese, and Roberto Martın-Martın. Modeling dynamic environments with scene graph memory. In International Conference on Machine Learning , pages 17976–17993. PMLR, 2023. [14] Michael Poli, Stefano Massaroli, Luca Scimeca, Seong Joon Oh, Sanghyuk Chun, Atsushi Yamashita, Hajime Asama, Jinkyoo Park, and Animesh Garg. Neural hybrid automata: Learning dynamics with multiple modes and stochastic transitions. In Advances in Neural Information Processing Systems (NeurIPS) , volume 34, pages 9977–9989, 2021. [15] Giancarlo Ferrari-Trecate, Marco Muselli, Diego Liberati, and Manfred Morari. A clustering technique for the identification of piecewise affine systems. Automatica , 39(2):205–217, 2003. [16] Alberto Bemporad, Andrea Garulli, Simone Paoletti, and Antonio Vicino. A bounded-error approach to piecewise affine system identification. IEEE Transactions on Automatic Control , 50(10):1567–1580, 2005. [17] Mohammad Amin Nabian, Chang Liu, Rishikesh Ranade, and Sanjay Choudhry. X-meshgraphnet: Scalable multi-scale graph neural networks for physics simulation. arXiv preprint arXiv:2411.17164 ,2024. [18] Zongyi Li, Nikola Kovachki, Kamyar Azizzadenesheli, Burigede Liu, Kaushik Bhattacharya, Andrew Stuart, and Anima Anandkumar. Fourier neural operator for parametric partial differential equations. In International Conference on Learning Representations (ICLR) , 2021. [19] Lu Lu, Pengzhan Jin, Guofei Pang, Zhongqiang Zhang, and George Em Karniadakis. Learning nonlinear operators via DeepONet based on the universal approximation theorem of operators. Nature Machine Intelligence , 3(3):218–229, 2021. [20] Nikola Kovachki, Zongyi Li, Burigede Liu, Kamyar Azizzadenesheli, Kaushik Bhattacharya, Andrew Stuart, and Anima Anandkumar. Neural operator: Learning maps between function spaces with applications to pdes. Journal of Machine Learning Research , 24(89):1–97, 2023. 11 A preprint - September 1, 2026 
+
+[21] Zongyi Li, Nikola Kovachki, Kamyar Azizzadenesheli, Burigede Liu, Kaushik Bhattacharya, Andrew Stuart, and Anima Anandkumar. Neural operator: Graph kernel network for partial differential equations. 
+
+arXiv preprint arXiv:2003.03485 , 2020. [22] Ricky T. Q. Chen, Yulia Rubanova, Jesse Bettencourt, and David K Duvenaud. Neural ordinary differential equations. In Advances in Neural Information Processing Systems (NeurIPS) , volume 31, 2018. [23] Samuel Greydanus, Misko Dzamba, and Jason Yosinski. Hamiltonian neural networks. Advances in neural information processing systems , 32, 2019. [24] Maziar Raissi, Paris Perdikaris, and George E Karniadakis. Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations. Journal of Computational Physics , 378:686–707, 2019. [25] Yuelian Li and Andrew Hands. An operator-consistent graph neural network for learning diffusion dynamics on irregular meshes. arXiv preprint arXiv:2405.13586 , 2024. [26] Abishek Thangamuthu, Gunjan Kumar, Suresh Bishnoi, Ravinder Bhattoo, N. M. Anoop Krishnan, and Sayan Ranu. Unravelling the performance of physics-informed graph neural networks for dynamical systems. In Neural Information Processing Systems (NeurIPS) Datasets and Benchmarks Track , 2022. [27] Mingwei Jia, Yuan Yao, and Yi Liu. Review on graph neural networks for process soft sensor development, fault diagnosis, and process monitoring. Industrial & Engineering Chemistry Research , 64(17):8543–8564, 2025. [28] Dongyue Chen, Ruonan Liu, Qinghua Hu, and Steven X Ding. Interaction-aware graph neural networks for fault diagnosis of complex industrial processes. IEEE Transactions on neural networks and learning systems , 34(9):6015–6028, 2021. [29] Yingxiang Liu and Behnam Jafarpour. Graph attention network with granger causality map for fault detection and root cause diagnosis. Computers & Chemical Engineering , 180:108453, 2024. [30] Parth Brahmbhatt, Rahul Patel, Abhilasha Maheshwari, and Ravindra D Gudi. Improved fault detection and diagnosis using graph auto encoder and attention-based graph convolution networks. Digital Chemical Engineering , 11:100158, 2024. [31] Jin Seo, Yoojeong Noh, Young-Jin Kang, Jaehun Lim, Seungho Ahn, Inhyuk Song, and Kyung Chun Kim. Graph neural networks for anomaly detection and diagnosis in hydrogen extraction systems. Engineering Applications of Artificial Intelligence , 135:108846, 2024. [32] Yuan Xu, Chuan Zhang, Yi Luo, Wei Ke, Qun-Xiong Zhu, Yan-Lin He, Yang Zhang, and Ming-Qing Zhang. Multiattention spatiotemporal fusion graph neural network for chemical process fault diagnosis. 
+
+IEEE Transactions on Instrumentation and Measurement , 74:1–13, 2025. [33] Tingting Liu, Zicheng Meng, Wentao Du, Chengbo Liu, and Xizhong Chen. Multi-objective differential optimization of fixed bed reactor geometries driven by graph convolutional neural network. Chemical Engineering Journal , 511:161913, 2025. [34] Jian Cheng Wong, Chin Chun Ooi, Joyjit Chattoraj, Lucas Lestandi, Guoying Dong, Umesh Kizhakkinan, David William Rosen, Mark Hyunpong Jhon, and My Ha Dao. Graph neural network based surrogate model of physics simulations for geometry design. In 2022 IEEE symposium series on computational intelligence (SSCI) , pages 1469–1475. IEEE, 2022. [35] Sin Yong Teng, Leonardo Galvis, Carlos Mendez Blanco, Leyla Özkan, Ruud Barendse, Geert Postma, and Jeroen Jansen. Machine-learned digital phase switch for sustainable chemical production. Journal of Cleaner Production , 382:135168, 2023. [36] Furkan Elmaz, Ulderico Di Caprio, Min Wu, Yentl Wouters, Geert Van Der Vorst, Niels Vandervoort, Ali Anwar, M Enis Leblebici, Peter Hellinckx, and Siegfried Mercelis. Reinforcement learning-based approach for optimizing solvent-switch processes. Computers & Chemical Engineering , 176:108310, 2023. [37] Gonen Singer and Yuval Cohen. A framework for smart control using machine-learning modeling for processes with closed-loop control in industry 4.0. Engineering Applications of Artificial Intelligence ,102:104236, 2021. [38] Ilya Loshchilov and Frank Hutter. Decoupled weight decay regularization. arXiv preprint arXiv:1711.05101 , 2017. [39] Malte Ramonat, Bernd Zimmering, Silke Merkelbach, Felix Gehlhoff, Oliver Niggemann, and Alexander Fay. A fluid mixing benchmark for anomaly detection in CPS with real and simulated data. IEEE Access , 13:134113–134128, 2025. 12 A preprint - September 1, 2026 0 2 4 6 8
+
+> Time
+> Feed A buffer Feed B buffer Feed mixer Preheater Reactor 1 Primary separator Washer A Washer B Wash mixer Reactor 2 Secondary separator Filter A Filter B Dryer Recycle splitter Recycle tank Product conditioner Reactor bypass Polishing unit Product tank
+> Unit operation
+> Ground truth
+
+a    
+
+> 02468
+> Time
+> CHGN prediction
+
+b    
+
+> 02468
+> Time
+> Signed error
+
+c               
+
+> 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8
+> Inventory
+> −0.02 0.00 0.02
+> Predicted −truth
+> 0.0 2.5 5.0 7.5
+> Forecast horizon
+> 10 −3
+> 10 −2
+> State RMSE
+
+d  
+
+> 10--90th pct., all test Median, all test Displayed trajectory
+
+Figure 6: Full-trajectory state reconstruction. (a) Ground-truth inventory for all twenty units; (b) CHGN rollout on the same scale; (c) signed residual on a scale two orders of magnitude finer. The dashed line marks the end of the conditioning history. (d) State RMSE versus forecast horizon: median and 10–90th percentile band over the test split, with the displayed trajectory dashed. 
+
+A State reconstruction on the training topology 
+
+Figure 6 reports a complete autoregressive rollout over all twenty units. The model receives the initial history and is never teacher-forced afterwards. At the inventory scale, the predicted and true trajectories are almost indistinguishable. Panel (c) therefore reports the signed residual on a scale two orders of magnitude finer. Most of the visible errors occur in the product and recycle tanks, where the biases have opposite signs and grow together. This behaviour is consistent with a small error at switch S5: material is sent slightly too often to one branch and slightly too little to the other. Because the transport update remains conservative, the routing error redistributes inventory between the two tanks instead of creating a common positive or negative drift. The horizon error rises during the first part of the forecast and then approaches a plateau near the aggregate rollout RMSE reported in Table 2. Figure 7 places the recovered mechanisms directly on the process graph at one held-out instant. Every unit reports its inventory and, where applicable, its true and predicted regime. Every switched branch reports the true gate, the predicted gate and the resulting error. The selected instant contains two visible failures. The dryer is predicted to be active rather than transitioning, and the S2 bypass gate has an absolute error of 0 .11, compared with 0 .01–0 .02 for the other switches. Both errors are consistent with the aggregate results. Transition is the least accurate regime class in Figure 3c, while S2 lies close to g = 0 .5, where the logistic response of Equation (4) is most sensitive to a threshold error because g(1 − g) is maximal at the centre of the sigmoid. 
+
+B Interventional audit and counterfactual response 
+
+One-step substitution. The learned and oracle mechanisms produce comparable one-step errors. The all-unit RMSE is 4 .115 × 10 −4 with learned variables and 4 .239 × 10 −4 when both mechanisms are replaced by their true values. True regimes alone leave the all-unit error unchanged to four significant digits. In contrast, fixing the routing increases the error by a factor of 4 .7 to 1 .932 × 10 −3, while shuffling both mechanisms raises it to 1 .987 × 10 −3. The effect also occurs where the mechanism acts. Fixed routing increases the error at switch destinations by a factor of 5 .9, while fixed regimes increase the error at regime-bearing units by a factor of 3 .6. 13 A preprint - September 1, 2026 0. Feed A buffer x=0.267 2. Feed mixer x=0.067 1. Feed B buffer x=0.109 3. Preheater x=0.046 4. Reactor 1x=0.019 GT mode=idle | Pred=idle 5. Primary separator x=0.069 6. Washer Ax=0.197 7. Washer Bx=0.132 8. Wash mixer x=0.230 9. Reactor 2x=0.045 GT mode=idle | Pred=idle 17. Reactor bypass x=0.111 10. Secondary separator x=0.207 11. Filter Ax=0.046 12. Filter Bx=0.105 13. Dryer x=0.250 GT mode=transition | Pred=active 18. Polishing unit x=0.176 14. Recycle splitter x=0.216 15. Recycle tank x=0.197 16. Product conditioner x=0.183 GT mode=active | Pred=active 19. Product tank x=0.131                                         
+
+> Switch GT g(A) Pred g(A) |error|
+> S1: Primary wash routing 0.09 0.11 0.01 S2: Second-reactor bypass 0.50 0.39 0.11 S3: Filter routing 0.15 0.16 0.01 S4: Polishing bypass 0.46 0.48 0.02 S5: Recycle/product split 0.24 0.25 0.02 green <0.08 |orange 0.08–0.20 |red >0.20
+
+Figure 7: Recovered mechanism on the plant graph , held-out trajectory 255 at t = 0 .20. Node labels show inventory and, for regime-bearing units, true and predicted regime; a red border marks disagreement. Edge colour shows absolute gate error (green < 0.08, orange 0 .08–0 .20, red > 0.20), and the inset lists true and predicted gate values. Because all columns are rounded independently, the printed error at S1 and S5 differs by 0 .01 from the difference between the printed gate values. This instant was chosen to show the dryer and S2 errors; aggregate accuracy is reported in Table 2. 
+
+Table 3: Teacher-forced one-step intervention audit, 7488 samples. Values are RMSE after substituting mechanism variables into the same trained operator; ratios are relative to the learned mechanism. Single seed ; see §4. Substitution All units Switch destinations Regime-bearing units Learned 4.115 × 10 −4 4.627 × 10 −4 1.084 × 10 −4
+
+Oracle: both 4.239 × 10 −4 4.847 × 10 −4 0.778 × 10 −4
+
+Oracle: routing only 4.240 × 10 −4 4.847 × 10 −4 0.786 × 10 −4
+
+Oracle: regimes only 4.115 × 10 −4 4.627 × 10 −4 1.079 × 10 −4
+
+Fixed: regimes only 4.441 × 10 −4 4.622 × 10 −4 3.890 × 10 −4
+
+Fixed: routing only 1.932 × 10 −3 2.710 × 10 −3 9.620 × 10 −4
+
+Fixed: both 1.939 × 10 −3 2.709 × 10 −3 1.026 × 10 −3
+
+Shuffled: both 1.987 × 10 −3 2.777 × 10 −3 1.358 × 10 −3
+
+Worst ablation / learned 4.8× 6.0× 12 .5×
+
+The learned variables are more accurate than the oracle substitution in two columns of Table 3. The latter indicates that the learned gates can compensate for approximation error in the remaining parts of the operator. The evidence that a mechanism is load-bearing is therefore the error increase produced when it is fixed or shuffled, rather than the expectation that the oracle row must always be the numerical lower bound. 
+
+Fixed-history threshold sweeps. In the counterfactual audit, each threshold θgs is swept while the held-out history remains fixed. The recovered response follows the true logistic response over the complete range. All five switch responses and four regime responses are monotonically decreasing over the entire sweep, yielding a monotone fraction of 1 .000. The switch-gate MAE ranges from 9 .2 × 10 −3 to 2 .1 × 10 −2,while regime agreement ranges from 96 .4% to 99 .7%. S2 shows the only clear deviation, with an offset of approximately 0 .04 at the low-threshold end while remaining almost parallel to the true curve. The latter is consistent with a threshold bias rather than with failure to recover the response form. 
+
+Closed-loop, multi-step intervention effects. The one-step substitutions and fixed-history sweeps do not propagate the effect of an intervention through the future state. A third audit, therefore, changes one threshold by ∆ = ±0.08 for switches or ∆ = ±0.04 for regimes. For each of 24 held-out trajectories, the simulator and CHGN then roll forward for 40 steps without teacher forcing. The comparison is made through 14 A preprint - September 1, 2026 25 30 35 40 
+
+Number of nodes    
+
+> 02468
+> State rollout RMSE
+> ×10 −2
+> G25 G27 G31 G32 G26 G28 G30 G29
+
+a   
+
+> 25 30 35 40
+
+Number of nodes    
+
+> 246
+> Routing-gate MAE
+> ×10 −2
+> G25 G27 G31 G32 G26 G28 G30 G29
+
+b   
+
+> 25 30 35 40
+
+Number of nodes  
+
+> 60 70 80 90
+> Unit-mode accuracy (%)  G25 G31 G27 G32 G26 G28 G30 G29
+
+c  
+
+> CHGN Shared Conservative GNN Shared Dynamic GNN
+
+Figure 8: Zero-shot transfer as a function of graph size. State rollout RMSE, routing-gate MAE and regime accuracy for CHGN, the Shared Conservative GNN and the Shared Dynamic GNN on unseen 25–40-node process graphs. Dashed lines are descriptive least-squares trends. CHGN remains substantially more accurate across the full range of graph sizes. CHGN Shared Conservative GNN Shared Dynamic GNN 0246
+
+> State rollout RMSE
+> ×10 −2
+
+a
+
+> CHGN Shared Conservative GNN Shared Dynamic GNN 12345
+> Routing-gate MAE
+> ×10 −2
+
+b
+
+> CHGN Shared Conservative GNN Shared Dynamic GNN 80 85 90 95
+> Unit-mode accuracy (%)
+
+c     
+
+> Model seed Mean ±95% tCI
+
+Figure 9: Seed robustness of zero-shot transfer. Circles show independently trained model seeds; diamonds and bars show the mean and 95% Student-t interval. CHGN retains a lower state-rollout RMSE and routing-gate MAE, and higher regime accuracy, than both shared-weight baselines across seeds. 
+
+the intervention effect, defined as the counterfactual trajectory minus the factual trajectory for the same initial history. Across 240 routing interventions, the intervention-effect RMSE is 6 .4 × 10 −4 and reaches 1 .0 × 10 −3 at the final step. Across 192 regime interventions, the corresponding RMSE is 8 .0 × 10 −5, eight times smaller, and reaches 1 .2 × 10 −4 at the final step. The absolute counterfactual-state error is nevertheless similar for the two groups, 4 .05 × 10 −3 for routing and 3 .99 × 10 −3 for regimes. The difference, therefore, reflects the smaller dynamical effect of the regime perturbations rather than a uniformly easier counterfactual prediction problem. 
+
+C Additional zero-shot transfer results 
+
+Figures 8 and 9 resolve the transfer comparison of Figure 2 by graph size and by training seed, respectively. The separation persists across the full 25–40-node range and across independently trained seeds, so it is not due to a small number of favourable topologies or to a single fortunate initialisation. Table 4 retains an earlier graph-specific comparison. The listed baselines are retrained separately on each held-out graph, thereby testing graph-specific fitting rather than zero-shot transfer. They are not a matched 15 A preprint - September 1, 2026                                                                              
+
+> Table 4: Secondary graph-specific reference. CHGN is evaluated zero-shot on the eight held-out topologies (mean ±
+> s.d. across five seeds, each averaged over all graphs). In contrast, the listed comparators are retrained from scratch on each held-out graph (mean ±s.d. across eight single-seed fits). Bold marks the zero-shot reference row; values in the two blocks are not directly comparable. These values complement, but do not replace, the matched shared-weight zero-shot comparison of §3.1. Method State RMSE ↓Gate MAE ↓Regime acc. ↑
+> CHGN (zero-shot) (2.118 ±0.230 )×10 −3(7.861 ±1.218 )×10 −394 .27 ±0.49 %
+> Retrained per graph
+> MLP 0.07483 ±0.00712 0.12386 ±0.01117 55 .71 ±9.13% LSTM 0.05374 ±0.00951 0.09535 ±0.01492 59 .82 ±7.15% Fixed GNN 0.04395 ±0.01769 0.32299 ±0.02731 92 .84 ±2.13% Dynamic GNN 0.03051 ±0.00924 0.02101 ±0.00832 95 .62 ±1.14% NRI-inspired 0.03750 ±0.01092 0.07431 ±0.01811 93 .55 ±2.12% NHA-inspired 0.03046 ±0.00924 0.02086 ±0.00797 95 .28 ±1.78%
+
+replacement for the shared-weight comparison of §3.1. Under this secondary protocol, the best retrained models reach approximately 0 .0305 state RMSE, compared with 2 .118 × 10 −3 for CHGN without parameter updates. 
+
+D Fixed-graph predictive benchmark 
+
+Figure 10 shows the seed-level distribution behind Table 2. The ordering of the models is stable across seeds, and a single outlying run does not produce the LSTM advantage on this fixed topology. 
+
+E Numerical physics audit 
+
+The numerical audit separates approximation error from structural consistency. Across independently trained seeds, the state-derivative RMSE is approximately 9 .8 × 10 −3, indicating that finite-model form and discretisation errors persist in the learned dynamics. Reconstructing the reported state update directly from the predicted derivative yields zero RMSE for every seed, confirming that the stored update and the implemented Euler step are numerically consistent. The maximum internal-transport residual, max 
+
+> τ
+
+∣∣∣1⊤B ˆFτ
+
+∣∣∣ , (27) is approximately 1 .2 × 10 −7 and is therefore at the level expected from floating-point accumulation. The non-negativity correction in Equation (21) is also zero in RMS over every entry and rollout step. The remaining derivative error reflects the approximation of the non-transport dynamics, as well as the difference between the Euler update used by CHGN and the RK4 integration used to generate the synthetic trajectories. The baselines do not expose a separate transport term, so the same structural audit cannot be applied to them. This absence of an auditable term does not by itself prove that a baseline violates conservation on every trajectory. 16 A preprint - September 1, 2026 10 −2 
+
+State rollout RMSE 
+
+> CHGN LSTM MLP Dynamic GNN NHA-inspired NRI-inspired Fixed GNN
+
+a 
+
+> 10 −2 10 −1
+
+Routing-gate MAE 
+
+b   
+
+> 80 85 90 95
+
+Unit-mode accuracy (%) 
+
+> CHGN LSTM MLP Dynamic GNN NHA-inspired NRI-inspired Fixed GNN
+
+c 
+
+> 10 −2 10 −1
+
+Balance-model discrepancy 
+
+d     
+
+> Independent seed Mean ±95% tCI
+
+Figure 10: Fixed-graph predictive benchmark. Circles show independent seeds; diamonds and bars show the mean and 95% Student-t interval. Error metrics use logarithmic axes. On this fixed graph, the LSTM leads panels (a), (b), and (d). 
+
+17
