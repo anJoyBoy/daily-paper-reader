@@ -1,0 +1,1343 @@
+Title: Mechanistic Reaction Prediction via Discrete Flow Matching on Graph-Structured Electron Occupation
+
+URL Source: https://arxiv.org/pdf/2608.27429v2
+
+Published Time: Mon, 31 Aug 2026 01:05:10 GMT
+
+Number of Pages: 26
+
+Markdown Content:
+# Mechanistic Reaction Prediction via Discrete Flow Matching on Graph-Structured Electron Occupation 
+
+Xuan-Vu Nguyen 1, Octavian Susanu 1, Daniel Armstrong 1, Philippe Schwaller 1,2 
+
+> 1
+
+École Polytechnique Fédérale de Lausanne (EPFL) 
+
+> 2
+
+National Centre of Competence in Research (NCCR) Catalysis 
+
+{nguyen.nguyen,philippe.schwaller}@epfl.ch 
+
+## Abstract 
+
+Chemical reactions are fundamentally transformations in electron space, yet most machine learning approaches model them either through de novo generation of prod-uct molecules or through heuristic graph edits that operate directly on molecular topology. We introduce MAELLE ( Mech Anistic Edit f Low-matching on e Lectron rEarrangements), which instead models reactions as discrete flow matching over electron occupation vectors. Concretely, we formulate the reactant-to-product mapping as a Continuous-time Markov Chain (CTMC) over the graph-structured integer-valued electron occupation space defined on all bonding, non-bonding, and hydrogen sites. To construct the interpolants between the reactants and products, we generalize the discrete flow matching mixture path to an edit-based formulation, where the electron moves are interpolated using Optimal Transport, yielding a mechanism-like set of moves without elementary step annotations. MAELLE achieves competitive performance on the USPTO-480K benchmark compared with leading reaction prediction models. Beyond in-distribution accuracy, we evaluate robustness across two out-of-distribution settings - structural complexity and reac-tion type - and find that MAELLE maintains strong performance where existing methods degrade. Finally, because the learned flow operates over the full electron redistribution, MAELLE naturally recovers mechanistic trajectories that align with known chemistry and can predict side products of a reaction. 
+
+## 1 Introduction 
+
+Predicting the outcome of a chemical reaction is one of the central problems at the interface of chemistry and machine learning, with consequences for drug discovery, materials design, and the broader question of how to realize a target molecule once it has been proposed [1, 2]. The space of possible reactions is larger than the already intractable space of drug-like molecules, and a single retrosynthetic plan may chain together a dozen or more steps, each of which must succeed for the route to be viable [3]. Reliable prediction, with calibrated uncertainty, is therefore a prerequisite for automating any meaningful portion of synthetic chemistry. Reaction prediction has cycled through a succession of representations, each reflecting the dominant ML paradigm of its moment: fixed molecular fingerprints classified by similarity [4, 5, 6, 7]; SMILES-to-SMILES translation with sequence and Transformer models [8, 9]; hybrid graph-encoder/SMILES-decoder architectures [10, 11]; and, most recently, generative graph-edit approaches that produce the product by editing the reactant graph directly [12, 13]. All of these approaches treat reactions as opaque input-to-output mappings, offering no account of the underlying transformation, while chemists reason via arrow-pushing diagrams that track electron flow between donor and acceptor sites [14]. As black-box predictors, they are exposed to spurious shortcuts in USPTO – patent-level stylistic signatures [15] and substrate-level cues (e.g., a single free           
+
+> Preprint. arXiv:2608.27429v2 [cs.AI] 28 Aug 2026 1
+> 2
+> 35
+> 6
+> 4
+> Source
+> Sink
+> 1
+> 2
+> 35
+> 6
+> 4
+> Reactants
+> Products
+> Interpolation of electron moves with
+> Optimal Transport
+> 1
+> 2
+> 35
+> 6
+> 4
+> 1
+> 2
+> 35
+> 6
+> 4
+> 1
+> 2
+> 35
+> 6
+> 4
+> Move set Active mask Move set Active mask
+> (sampled) Active mask Move set
+> Atom-wise Self Attention
+> Electron-wise Self Attention
+> Reactant graphs
+> Intermediate graphs
+> + time
+> MPNN MPNN
+> Atom-wise Self Attention
+> Atom-wise Cross Attention
+> Electron Featurizer
+> Electron-wise Self Attention
+> Electron Featurizer
+> Electron-wise Cross Attention
+> Atomic
+> features
+> # Atoms
+> # Dim
+> Atomic
+> features
+> # Atoms
+> # Dim
+> Electron
+> features
+> # Dim
+> # Electron pairs
+> Electron
+> features
+> # Dim
+> # Electron pairs
+> Prediction heads
+> Outputs per electron pair
+> Reactants Products Interpolant
+> Encoder
+> Decoder
+> Inputs
+
+c. 
+
+d. 
+
+e.   
+
+> Atomic Layers Electron Layers
+> Inactive moves as
+> prediction target
+> Bregman Divergence
+> Loss
+> Transport plan
+> Reactants Products
+> MAELLE's Sampling Process
+
+a. 
+
+> 1
+> 2
+> 1
+> 2
+> 1
+> 2
+> Alcolhol to ketone oxidation
+> 1
+> 2
+> 1
+> 2
+> 1
+> 2
+> Ketone to alcohol reduction
+
+b. Figure 1: Conceptual overview of MAELLE: a. MAELLE’s sampling process with mechanism-like trajectories that model the transition from reactants to products as CTMC. b. The three elementary actions on electrons, FLOW, DEL, and ADD, demonstrated on an oxidation and a reduction reactions. At training time: c. Electron actions are interpolated using OT; d. interpolant graphs are sampled by sampling a subset of electron moves and applying them to the reactant graphs. e. MAELLE model architecture and learning objective. hydroxyl among protected ones telegraphing an alcohol-selective transformation). Top-k accuracy on standard benchmarks therefore conflates first-principles reactivity reasoning with exploitation of such shortcuts, making out-of-distribution evaluation a more faithful test [16, 17, 18]. A few recent works have sought to incorporate mechanistic reasoning into reaction prediction. Early work by Kayala et al. [19] and Kayala and Baldi [20] pioneered the prediction of reactions at the mechanistic level by learning electron-flow patterns, decomposing the problem into identifying reactive sites and predicting electron sources and sinks. Bradshaw et al. [21] later extended this direction with a GNN-based model that predicts elementary steps for reactions with linear electron flow (LEF) topology, though this restricts coverage to a subset of reaction mechanisms. More recently, Joung et al. [22] model electron redistribution via continuous flow matching over bond-electron (BE) matrices, but require mechanistic trajectories imputed from expert-curated templates [23, 24, 25], limiting scalability to new reaction types. In this work, we introduce MAELLE (Mech Anistic Edit fLow-matching on eLectron rEarrangements), which models reactions as discrete flow matching (DFM) over integer-valued electron occupation vectors defined on the molecular graph (Figure 1). MAELLE formulates reaction prediction as a Continuous-time Markov Chain (CTMC) in the electron space: given a reactant, the model learns a rate function that drives the electron occupation from the reactant state to the product state through a sequence of sparse, interpretable edit moves, without requiring elementary step annotations. The intermediate trajectory is constructed via optimal transport over electron sites, and the mixture path factorizes over an auxiliary move-state space, enabling tractable training through the discrete flow matching framework. Our contributions are: (i) we generalize DFM to graph-structured electron spaces with three chemistry-aware edit operations (flow, deletion, addition), and lift the problem to an auxiliary move-state space derived from optimal transport over electron occupations, yielding a factorized mixture path with tractable training and no need for elementary-step labels; (ii) on USPTO-480K we are competitive with the best SMILES- and graph-edit baselines, and on out-of-distribution splits along molecular weight and reaction type we outperform all baselines; (iii) framing reaction prediction generatively gives MAELLE calibrated, ranked product predictions, enabling side-product prediction validated by LLM-as-judge plausibility. 2Table 1: Comparison of reaction prediction approaches.                                                                
+
+> Method Input Output Mech. step Directional Broad Atom label-free elec. re-dist. coverage conservative
+> Molecular Transformer [9] SMILES SMILES ✓✗✓✗
+> Graph2SMILES [11] SMILES SMILES ✓✗✓✗
+> Chemformer [26] SMILES SMILES ✓✗✓✗
+> MEGAN [12] Graph Graph edits ✓✗✓✗
+> GTPN [13] Graph Graph edits ✓✗✓✓
+> NERF [27] Graph Electron re-dist. ✓✗✓✓
+> FlowER [22] Graph Electron re-dist. ✗†✓✗†✓
+> ELECTRO [21] Graph Electron re-dist. ✓✓✗‡✓
+> MAELLE (ours) Graph Electron re-dist. ✓✓✓✓§†FlowER covers 86 expert-curated reaction types and requires a mechanistic dataset with imputed elementary steps.
+> ‡ELECTRO is restricted to reactions with linear electron flow topology.
+> §MAELLE is heavy-atom conservative because protonation and deprotonation are simplified.
+
+## 2 Related Work 
+
+2.1 Translation-based reaction prediction 
+
+Early work by Schwaller et al. [9] cast reaction prediction as translation from the SMILES string of the reactants to that of the products. Because a molecule admits many valid SMILES strings, these models are typically trained with SMILES augmentation – multiple strings per molecule [9, 26] – which is data-inefficient. Graph2SMILES [11] partially addresses this by encoding the reactants as a 2D graph, removing the need to augment the input, while still decoding the product as a SMILES string with a Transformer decoder. Sequence representations such as SMILES [28] and SELFIES [29] make products easy to generate with well-established autoregressive text models, but they come at a cost: the model generates the product de novo , with no structural link to the reactants. This has three consequences. First, generation is unconstrained, so there is no guarantee that the predicted reaction is atom-conservative – a critical chemical constraint. Second, because the reactant-product correspondence is not explicit, recovering what actually changed requires a separate atom-mapping tool [30]; and even when a prediction appears atom-conserving, nothing ensures a valid mechanistic pathway connects reactants to products, so a chemically sound transformation and a hallucinated one can look alike. Third, generating the entire product from scratch makes these models degrade on molecules whose complexity falls outside the training domain, even when the underlying chemistry is simple [16, 17, 18]. 
+
+2.2 Reactions as graph edits 
+
+To build the chemical change directly into the model, another line of work predicts reactions as topological transformations of the reactant graph, and atom conservation can be enforced through the choice of edit operations. MEGAN [12] uses EditAtom, EditBond, AddAtom, and AddBenzene, explicitly modeling a reaction as a sequence of graph edits; operations such as EditAtom, AddAtom, and AddBenzene break atom conservation, though one can restrict the operation set to bond-only edits to preserve it, as in GTPN [13]. Graph edits make the transformation explicit and give atom mapping for free, and atom conservation is achievable – but the edits are purely topological, so no mechanistic pathway is guaranteed to connect the two endpoints. Bond formation is the clearest case: a graph-edit model simply inserts a bond between two atoms, whereas chemically the electrons forming that bond are drawn from elsewhere in the molecule. 
+
+2.3 Reactions as electron redistribution 
+
+At a level deeper than topological graph edits, a reaction is a redistribution of electrons: a sequence of elementary steps in which electrons flow from a source to a sink, described in chemistry by 3arrow-pushing notation. Modeling reactions this way is informative about what actually happens, but capturing the elementary steps explicitly has traditionally required expert-labeled mechanisms or heavy physical calculation. Kayala et al. [19] assemble a dataset of 1,630 reactions with 2,989 mechanistic steps and train a model to rank orbital reactivity for a single elementary step, wrapping it in a recursive loop to reach the product. In the same spirit, Joung et al. [22] scale the mechanistic dataset to 290K reactions and over 2 million elementary steps, and train a flow-matching model over the bond-electron matrix. Both are informative but depend on expert-labeled elementary steps, and are therefore less scalable than the end-to-end approaches above. ELECTRO [21] removes the labeling requirement, interpolating electron moves directly from end-to-end reactant-product pairs. However, it is restricted to reactions with linear electron flow topology – those whose mechanism has a well-defined start and end to the electron flow – and so does not cover cyclic mechanisms. NERF [27] also avoids mechanism labels but takes a non-autoregressive, one-shot view: it predicts, for each bond, the net number of electron pairs added or removed between reactants and products. Because it models only the change at each bond and not a transfer between sites, the direction of electron flow is left implicit – the prediction records that a bond gained or lost electrons, but not where those electrons came from or went. It also models bond electrons only, excluding lone pairs and other valence electrons from the representation. MAELLE models reactions as directional electron redistribution while guaranteeing heavy-atom conservation (Table 1). Like ELECTRO, it needs no elementary-step labels, but it is not limited to linear flow: our FLOW operation moves an electron pair from a source site to a sink site, making the direction of flow explicit – answering where electrons come from and where they go – and composing freely into cyclic as well as linear mechanisms. In place of mechanism labels, we recover the net electron moves with Optimal Transport (Section 4.3), sample interpolant graphs between reactants and products, and train a discrete flow-matching model over these electron edits. 
+
+2.4 Discrete generative modeling on graphs 
+
+From the standpoint of generative modeling, discrete generative models on graphs typically cast generation as iterative substitution of node and edge types under a denoising diffusion or flow-matching process that maps from a source distribution that is easy to sample, such as a uniform distribution, to the data distribution. DiGress [31] and DeFoG [32] generate graphs by employing discrete denoising diffusion processes [33, 34] and discrete flow matching [35], respectively. More related to our setting, RetroBridge [36] tackles the problem of retrosynthesis, i.e., predicting possible precursors given the products, in a reversed setting compared to our work. The model learns a bridge between two coupled distributions of products and reactants via Markov bridge [37]. Both lines model generation as resampling of categorical node/edge types — from a noise prior (DiGress, DeFoG) or a coupled endpoint distribution (RetroBridge). MAELLE instead operates over integer-valued electron occupation, where transitions are electron transfers (flow/add/delete) rather than type substitutions; this makes the process atom-conserving by construction and yields mechanistically interpretable trajectories. 
+
+## 3 Background 
+
+3.1 Discrete Flow Matching 
+
+Let T be a vocabulary and X = T ∗ = SNn=0 T n the space of token sequences of length at most 
+
+N . Discrete flow matching (DFM) [35, 38] learns a Continuous-time Markov Chain (CTMC) that transports a source distribution p0 at t = 0 to a target p1 at t = 1 . As in the continuous case, the central construction is a conditional mixture path pt(x | x0, x 1) with boundary conditions 
+
+p0(x | x0, x 1) = δx0 (x) and p1(x | x0, x 1) = δx1 (x); the endpoints (x0, x 1) are drawn from a coupling π(x0, x 1) whose marginals are the source and target, and marginalizing the conditional path over π gives the marginal path pt that interpolates p0 and p1.For sequences of a common length n, the standard choice is the factorized, token-wise mixture path 
+
+pt(xi | x0, x 1) = (1 − κ(t)) δxi 
+
+> 0
+
+(xi) + κ(t) δxi 
+
+> 1
+
+(xi), pt(x | x0, x 1) = 
+
+> n
+
+Y
+
+> i=1
+
+pt(xi | x0, x 1), (1) 4where the schedule κ : [0 , 1] → [0 , 1] is monotone with κ(0) = 0 , κ(1) = 1 . Each token indepen-dently switches from its source value xi 
+
+> 0
+
+to its target value xi
+
+> 1
+
+, and does so by time t with probability 
+
+κ(t). The CTMC that generates (1) has the token-wise marginal rate 
+
+ut(xi | xt) = κ′(t)1 − κ(t)
+
+ p1|t(xi | xt) − δxit (xi) , (2) where p1|t(xi | xt) is the model’s posterior over the target token at position i. Training therefore reduces to predicting p1|t per position, and the coefficient κ′(t)/(1 − κ(t)) is the rate at which a position that has not yet reached its target switches to it. 
+
+3.2 Edit Flows 
+
+The token-wise path (1) assumes a fixed, common length and a position-to-position correspondence between x0 and x1. Edit Flows [39] remove this assumption, allowing sequences of differing length related by edit operations – insertion, deletion, and substitution – rather than position-wise substitution alone. To recover a factorized path in this setting, the construction is lifted to an auxiliary space of aligned (padded) sequences Z = ( T ∪ { ϵ})N , where ϵ is a padding symbol, together with the map frm −blanks : Z → X that deletes all padding. Given endpoints x0, x 1 and a chosen alignment 
+
+z0, z 1 ∈ Z with frm −blanks (zj ) = xj , the mixture path is defined on the augmented space X × Z as 
+
+pt(x, z | z0, z 1) = pt(z | z0, z 1) δfrm -ϵ(z)(x), (3) where pt(z | z0, z 1) is the token-wise path (1) applied on the aligned sequences. The data-space path is the pushforward of the auxiliary path through frm −blanks : the factorization lives in Z, while the observed sequence x = frm −blanks (z) can have variable length. Because each aligned position independently takes its source or target value, this is equivalent to sampling edit operations to apply to x0. We adopt this view in this paper, and show that it is equivalent to the token-wise sampling in Section 4.4 (Proposition 1). 
+
+## 4 Pseudo mechanistic reaction prediction with MAELLE 
+
+4.1 Electron occupation as the main source of change 
+
+We represent a molecule as an augmented graph G = ( V, A, E, o ), where V is the set of heavy atoms, 
+
+A is the heavy-atom adjacency, and E is a fixed set of electron sites comprising bonding sites eij 
+
+(i̸ = j), lone-pair sites eii , and per-atom hydrogen sites eHi (hydrogens on the same heavy atom are topologically equivalent and pooled into one site [40]). The occupation vector o ∈ Z|E| counts electron pairs at each site, including virtual ones with oe = 0 . See Appendix B for the formal definitions and an illustration on ethanol. A chemical reaction maps reactants Gx to products Gy by redistributing electrons, i.e., changing o.The atom set V is preserved. Moreover, the heavy-atom adjacency can be recovered deterministically from the occupation through 
+
+aij = 1[ oeij > 0 ] , (4) so p(Gy | G x) = p(oy | G x). Thus, we could model a reaction by acting entirely on the vector o.
+
+4.2 Edit operations on electron occupation 
+
+In this section, we describe the electron edit operations that enacts on o. Let 1e ∈ { 0, 1}|E| denote the one-hot vector with a single nonzero entry at the position corresponding to site e ∈ E . We define the following actions on o (Figure 1b): 
+
+FLOW Transfer one electron pair from site esource to site esink , requiring o(esource ) > 0:
+
+> FLOW
+
+(esource → esink )( o) = o − 1esource + 1esink (5) 
+
+DEL Remove one electron pair from site e, requiring oe > 0:
+
+> DEL
+
+(e)( o) = o − 1e (6) 5ADD Add one electron pair to site e:
+
+> ADD
+
+(e)( o) = o + 1e (7) The sparsity of these three operations enables us to define a tractable distribution of the intermediate states between the occupation vectors of the reactants and products ox and oy .
+
+4.3 Interpolation of pseudo mechanistic steps via Optimal Transport 
+
+To obtain a set of moves that transform ox into oy , we solve a balanced integer Optimal Transport problem over the electron sites. To handle reactions where the total electron count is not conserved, we augment the site set with a virtual sink/source e∅, yielding ¯E = E ∪ { e∅} with augmented occupations ¯ox, ¯oy . The transport cost between two sites is the minimum shortest-path distance between their constituent atoms on either the reactant or product graph, with a large penalty c∅ for transport to or from e∅. The optimal transport plan could be solved with the simplex algorithm, where the design of the objective, marginal constraints, and cost matrix can be found in Appendix C. This results in the optimal transport matrix T ∗ ∈ Z| ¯E|×| ¯E| .
+
+The move set as a deterministic alignment. Each non-zero off-diagonal entry T ∗ 
+
+> e,e ′
+
+> 0 is translated to an electron action m ∈ { FLOW , DEL , ADD } (Eqs. 5–7): 
+
+m =
+
+
+
+FLOW (e → e′) if e̸ = e∅, e ′̸ = e∅
+
+DEL (e) if e̸ = e∅, e ′ = e∅
+
+ADD (e′) if e = e∅, e ′̸ = e∅
+
+(8) Together, they form an un-ordered set of move M, such that we would recover oy if we fully apply 
+
+M to ox:
+
+M = {m1, . . . , m K }, K = X
+
+> e̸=e′
+
+T ∗ 
+
+> e,e ′
+
+, (9) 
+
+ApplyEdit( ox, M) = oy (10) 
+
+4.4 Discrete Flow Matching over Electron Edits Edit-based mixture path Let S ⊆ M be a subset of the moves, interpreted as the moves that have been applied so far. We define the interpolant occupation corresponding to S as 
+
+oS = ApplyEdit( ox, S), which by (9) recovers ox at S = ∅ and oy at S = M. To interpo-late between the two endpoints, we place a distribution over which subset has been applied at time t
+
+and read the occupation off through ApplyEdit . Following a monotone schedule κ : [0 , 1] → [0 , 1] 
+
+with κ(0) = 0 , κ(1) = 1 , each move is applied independently with probability κ(t), giving the edit-based mixture path 
+
+pt(o | ox, o y ) = X
+
+> S⊆M
+
+κ(t)|S|  1 − κ(t)|M|−|S| 
+
+| {z }
+
+pt(S | ox, o y )
+
+1[ ApplyEdit( ox, S) = o ] (11) Equivalently, the path is the law of ApplyEdit( ox, St) where St is obtained by including each move mk ∈ M independently with probability κ(t): sampling an interpolant amounts to flipping one Bernoulli( κ(t)) mask per move and applying the selected subset to the reactant occupation (Algorithm 1). Since each move is an independent binary variable, the weight pt(S | ox, o y )
+
+factorizes over M, and the endpoints follow directly: at t = 0 no moves are sampled so p0 = δox ,and at t = 1 all moves are applied so p1 = δoy .The path (11) is the electron-space instance of the augmented-space mixture path of Edit Flows [39]. There, the path is defined over an auxiliary space of padded sequences and pushed to token sequences by removing padding; here it is defined over subsets of electron moves and pushed to occupations by ApplyEdit . In both, an interpolant is obtained by sampling which edits to apply, and the two constructions yield the same conditional path. We state this equivalence in Proposition 1. 6Conditional and marginal rates The mixture path (11) is generated by a CTMC whose conditional rate fires each unapplied move independently. Following the standard DFM derivation, the rate of switching a move mk from unapplied to applied is the hazard rate of its Bernoulli( κ(t)) flip, 
+
+ut
+
+ mk | ot, o x, o y
+
+ = κ′(t)1 − κ(t) , (12) with the reverse rate zero (moves fire once and stay fired). This conditional rate assumes the product 
+
+oy is known. At inference it is not, so the training target is the marginal rate, obtained by taking the expectation over the posterior of the endpoints given the current state, 
+
+ut(m | ot, Gx) = Ept(oy |ot,Gx) ut
+
+ m | ot, o x, o y
+
+, (13) which depends only on the current state and the reactant, and is therefore learnable by a neural network. By the auxiliary-variable result of Havasi et al. [39], a model trained to match the conditional rate in the move space yields the correct marginal rate after marginalization. 
+
+Training We model the reactant-to-product mapping as a coupling π(Gx, Gy ) over reactant-product pairs. At training time, π is the empirical distribution of reactions in the training set, each of which provides one coupled pair. The training target is the marginal rate ut(m | ot, Gx) of Eq. (13), which we approximate with a graph neural network uθt (m | G x, Gt, t ). We adopt an encoder–decoder architecture: the encoder processes the fixed reactant Gx into conditioning representations, and the decoder processes the interpolant Gt and cross-attends to them at every layer, so the predicted rates are conditioned on the reactant throughout, analogous to conditioning on the source in conditional flow matching. Unlike standard molecular GNNs, which typically featurize only atoms and bonds, our edits act on the electron occupation o over the full site set E, including bonding sites, lone pairs, and per-atom hydrogen sites, so an E LECTRON FEATURIZER lifts atom representations into a vector for every electron site (Figure 1e). The per-move rates are read off these electron-site representations, matching the granularity at which the edits operate. Full architectural details can be found in Appendix E. We fit uθt with the Bregman-divergence objective of Holderrieth et al. [41], Havasi et al. [39], which for a CTMC rate reduces to a total-rate penalty minus a log-rate reward on the correct transitions. Let 
+
+Mtarget = M \ S be the moves not yet applied at the sampled interpolant. The loss is 
+
+L(θ) = E  
+
+> (Gx,Gy)∼πt∼U (0 ,1)
+> S∼ pt(·| ox,o y)
+
+X
+
+> m
+
+uθt (m | G x, Gt, t )
+
+| {z }
+
+Λθ,t 
+
+− κ′(t)1 − κ(t)
+
+X
+
+> m∈M target
+
+log uθt (m | G x, Gt, t )
+
+
+
+(14) Because a FLOW move acts on pairs of atoms, and the ADD move could act on virtual electron sites, calculating the rates of all possible moves would make the term Λθ,t scale as O(|E| 2). We therefore factorize the move’s rate for these two operations into a per-site source rate and a sink distribution over destinations: 
+
+uθt (m | · ) = 
+
+
+
+λflow  
+
+> θ,t
+
+(esource | · ) psink ,flow  
+
+> θ
+
+(esink | esource , ·) m = FLOW (esource → esink ),λdel  
+
+> θ,t
+
+(esource | · ) m = DEL (esource ),λadd  
+
+> θ,t
+
+(v | · ) psink ,add  
+
+> θ
+
+(esink | v, ·) m = ADD (esink ),
+
+(15) Here λflow  
+
+> θ,t
+
+and λdel  
+
+> θ,t
+
+are per-site firing rates over non-virtual electron sites esource ∈ E , oesource > 0;
+
+λadd  
+
+> θ,t
+
+is a per-atom rate over atoms v ∈ V , and psink ,flow  
+
+> θ
+
+, psink ,add  
+
+> θ
+
+are separately parameterized distributions over destination sites. For DEL no sink is needed, since the operation only removes an electron pair. We parameterize ADD through an atom v rather than a site because a new electron pair is not associated with any existing site a priori. Intuitively, the model first decides to donate a pair of electrons to atom 7v, and v then decides where to place them – selecting a destination site esink among its associated sites through a dedicated sink head. In this sense ADD behaves as a pseudo-FLOW whose source is the atom itself rather than an occupied electron site, though the two use separate sink parameterizations. The total rate then factorizes as P 
+
+> m
+
+uθt (m | · ) = P
+
+> e
+
+(λflow + λdel ) + P 
+
+> a
+
+λadd , since each psink 
+
+sums to one. The training loop can be found in Algorithm 2. 
+
+Inference At inference, the products are generated by the marginal CTMC starting from the reactants. We initialize Gt = Gx at t = 0 and take N Euler steps of size ∆t = 1 /N . Since the reactant is fixed, the encoder is run once on Gx and its representations are reused at every step, while the decoder predicts the move rates on the current graph Gt. At each step, every admissible move fires independently as a thinned Poisson process: a move m with predicted rate uθt (m | G x, Gt, t ) is applied with probability 
+
+pfire (m) = 1 − exp  − uθt (m | G x, Gt, t ) ∆ t (16) The sampled edit moves are applied to Gt via ApplyEdit . Iterating to t = 1 yields a predicted product ˆG1. The full procedure is given in Algorithms 4. 
+
+Confidence and ranking through multiple trajectories A chemical reaction may proceed along several competing pathways, yielding a mixture of products rather than a single deterministic outcome. Because firing in (16) is stochastic, running multiple independent CTMC trajectories from the same reactant Gx produces a distribution over products. We canonicalize the resulting product graphs, group them by identity, and define the confidence of each unique product as its frequency among the samples; ranking by descending confidence yields a top-k list. This ranking plus the edits only acting on the electrons let MAELLE model a distribution of heavy atom-conservative products, capturing not only the main products as high-confidence predictions, but also plausible side products (Section 5.4). 
+
+## 5 Results 
+
+5.1 Experiments Datasets and splits. All experiments use the USPTO-480K reaction corpus of ∼480K patent reactions [42, 43], evaluated under two partitionings. The first is the corpus’s standard train/val/test split, a common benchmark for reaction prediction [43, 9, 12, 27, 13] (Section 5.2). The standard split, however, measures only in-distribution learning and, as recent work notes, misses the failure modes that matter most in chemistry [16, 17, 18]. We therefore construct a second partitioning of the same corpus into three test sets probing different axes of generalization (Section 5.3): (i) an in-distribution control (IID); (ii) OOD Mass , holding out high-molecular-weight products to probe structural complexity; and (iii) OOD Ester , holding out non-methyl esterification reactions to probe generalization to unseen reaction types. Split construction, sizes, and preprocessing (atom-mapping with RXNMapper [30] and electron-move interpolation, Section 4.3) are detailed in Appendix F. 
+
+Baselines. We compare against representative methods spanning the three prediction modali-ties, which lets us probe the inductive biases of each modality rather than raw accuracy alone: SMILES generation – Molecular Transformer (MT) [9] and Graph2SMILES (G2S) [11]; graph edits – MEGAN [12] and GTPN [13]; and electron redistribution – NERF [27]. We exclude ELECTRO [21] and FlowER [22], which by design cannot be trained on USPTO-480K: ELECTRO applies only to reactions with linear-electron-flow topology, and FlowER requires elementary-step annotations, unavailable for most USPTO-480K reactions. 
+
+Metrics. We report top-k exact-match accuracy, with predicted and reference products canonical-ized before comparison. Beyond exact match – which penalizes chemically plausible side products – we additionally report a plausibility rate judged by a large language model (Section 5.4; protocol in Appendix E.5). The directional-flow evaluation of Section 5.5 uses a separate reference dataset and its own coverage metrics, which are discussed there. 8Table 2: Top-k accuracy comparison on USPTO-480K. Entries taken from the original papers are marked with " †"                                        
+
+> Method Prediction Top-1 Top-3 Top-5 Top-10 modality
+> Molecular Transformer †[9] SMILES 0.886 0.935 0.942 —Graph2SMILES †[11] SMILES 0.903 0.940 0.948 0.953 MEGAN †[12] Graph edits 0.863 0.924 0.940 0.954 GTPN †[13] Graph edits 0.832 0.860 0.865 —NERF †[27] Electron edits 0.907 0.933 0.937 —
+> MAELLE (ours) Electron flow 0.872 0.930 0.939 0.946
+
+5.2 USPTO-480K benchmark 
+
+Table 2 compares MAELLE against representative baselines spanning the three prediction modalities: SMILES generation (Molecular Transformer [9], Graph2SMILES [11]), graph edits (MEGAN [12], GTPN [13]), and electron redistribution (NERF [40]). On the standard USPTO-480K split, MAELLE reaches a top-1 accuracy of 87.2%, rising to 93.0%, 93.9%, and 94.6% at top-3, top-5, and top-10 respectively. This places it on par with the graph-edit models – comparable to MEGAN (86.3% top-1) and above GTPN (83.2%) – and within 3.5 points of the strongest SMILES-based model, Graph2SMILES (90.3%), while trailing the electron-redistribution baseline NERF (90.7%) at top-1. At top-5, MAELLE performs on par with NERF and MEGAN, and lags only slightly behind the SMILES-based models. The standard USPTO-480K split measures in-distribution learning, and by this measure all models capture the training distribution well: at top-5, every method except GTPN exceeds 93% accuracy. We therefore report USPTO-480K performance to establish that MAELLE is able to learn the coupled distribution between reactants and products, using the existing approaches as references. In the next section, we turn to out-of-distribution evaluation (Section 5.3), where differences between modalities are more pronounced. 
+
+5.3 Out-of-distribution benchmark 
+
+A major pitfall of reaction-prediction models is poor generalization outside their training domain [16, 17, 18]. We re-split USPTO-480K along two axes – molecular complexity ( OOD Mass ) and reaction novelty ( OOD Ester , with all non-methyl esterifications held out from training) – alongside an in-distribution control (IID); see Appendix F.3. Top-k accuracies on these three test sets are shown for MAELLE, Graph2SMILES, MolecularTrans-formers, and MEGAN in Figure 2a. As expected, all models perform on par with each other on the IID test, with top-10 accuracies of approximately 90%, agreeing with the trend in the test set of the original USPTO-480K benchmark. On the "OOD Mass", models that predict transformations -MAELLE and MEGAN - perform significantly better than the de-novo generative models like Molec-ular Transformers and Graph2SMILES. This is attributed to the former not having to reconstruct the products from scratch [15]. Indeed, plotting the top-1 accuracy against the molecular weight reveals Molecular Transformers performance decays rapidly as the target becomes more complex, while Graph2SMILES shows a less severe drop. The better accuracy of Graph2SMILES compared with Molecular Transformers could be attributed to its graph encoder, which supports the permutation invariance. On the other hand, MAELLE and MEGAN maintain a stable accuracy across the bins. While MAELLE and MEGAN perform similarly on OOD Mass, MAELLE shows a significant advantage over MEGAN on the OOD Ester, being the most performant model in this domain. This highlights the benefit of CTMC framework: Even though the model does not see the exact reaction type in the training data, it most likely has seen the intermediate graph states of reactions similar to esterification, such as amide coupling. Two examples are shown in Figure 2b and 2c for the "OOD Mass" and "OOD Ester", respectively. The first case features a complex macrocycle structure but a very simple amide coupling reaction. Both MAELLE and MEGAN successfully recover the ground truth, while Graph2SMILES and 9Test case from OOD Mass  
+
+> Test case from OOD Ester
+> Ground truth
+> Correctly predicted at top-1 by MAELLE and
+> top-2 by MEGAN
+> Top-1 by G2S
+> Top-1 by MT
+> Ground truth
+> Correctly predicted at top-1 by
+> MAELLE Top-1 by G2S
+> Top-1 by MT and MEGAN
+> a
+> b
+> c
+
+Figure 2: Comparative performance of MAELLE, Graph2SMILES, Molecular Transformers, and MEGAN on our OOD benchmark. a. From left to right, the first three plots show top-k accuracy on in-distribution test set (IID), esterification-split test set (OOD Ester), and molecular-weight-split test set (OOD Mass). The last plot describes the top-1 accuracy divided into weight bins. b. An illustrative example from the OOD Mass split. c. An illustrative example from the OOD Ester split. Molecular Transformers struggle to reconstruct the molecular structure in SMILES format. The second case involves an esterification reaction with an anhydride. Out of the four models, only MAELLE correctly predicts the ester as the product 
+
+5.4 Side product prediction with confidence 
+
+By modeling reaction as a generative problem, simulating multiple trajectories, and taking the most popular outputs, we are somewhat mimicking how a real chemistry process happens, where multiple pathways compete with others. To characterize this behavior, we sampled 5000 cases from the test set of USPTO-480K where MAELLE has at least 2 high-confidence predictions with confidence no less than 7.8%, corresponding with 5 out of 64 samples. These examples are then matched with the predictions of Molecular Transformers and Graph2SMILES. As sequence-based methods, these model relies on beam-search for sampling different outcomes in the token space, in contrast with MAELLE which samples in a more chemistry-friendly electron space. As recent LLMs have shown remarkable symbolic understanding and chemistry knowledge [44, 45], we opted to use LLM-as-a-judge to address the plausibility of the proposed outcomes. Due to the inference nature, the number of unique outcomes from MAELLE is much less than what comes out of Molecular Transformers or Graph2SMILES and thus we capped the number of predictions for 10 test case to be the smallest number of predictions among the models. Given a precursor set and a list of products, the LLM has to give a verdict of whether each of the products is plausible or not, without knowing which prediction comes from which model. As a sanity check, we also include the ground truth product into this list and measure how much proportion of the ground truth is deemed as plausible by the LLM (see Appendix E.5 for more details). The plausibility rate is then calculated as the number of predictions classified as plausible by the LLMs divided by the total number of predictions according to top-k. Figure 3a displays side-by-side top-k accuracy and top-k plausibility rate. Agreeing with the results in Table 2, top-k accuracy is ranked in the order of Graph2SMILES > Molecular Transformers > MAELLE. However, top-1 plausibility rate of MAELLE (80.7%) is significant higher than its top-1 accuracy (60.3%), suggesting that incorrect predictions are not always implausible. Furthermore, we observe a reversed order when it comes to top-2 and top-3 plausibility rates, with MAELLE being the highest, followed by Molecular Transformers and Graph2SMILES. This hints at the fact that SMILES-based models are likely trained to overfit to one single outcome, which conflicts with the stochastic nature of chemical reactions. For demonstration, Figure 3b shows an example where an incorrect prediction by MAELLE is still considered plausible by the LLM-judge. In the test dataset, this reaction is a bromide substitution reaction involving an imidazole ring with two nucleophilic nitrogen N:10 and N:12. The ground truth product features an attack of N:12 to C:21 as the main product, likely attributed to the fact that N:12 is less sterically hindered by the benzoyl group compared with N:10. All three models manage to predict the correct ground truth as top-1. However, intuitively speaking, the side product involved N:10 is not entirely impossible, and MAELLE was able to recover this minor outcome as its top-2 prediction. On the other hand, due to the fact that Graph2SMILES and Molecular Transformers sample in the token space, top-2 predictions of these models are just hallucinated versions of their top-1 prediction. This example is also aligned with the observation that AI systems have limited capability in writing SMILES and other symbolic sequences, which is one of the major bottlenecks in AI applications for chemistry [46, 47]. Figure 3c showcases how the step-by-step CTMC of electron edits enables MAELLE to sample multiple outcomes that agree with chemical mechanisms. The confidence scores assigned to each outcome successfully differentiate the major and minor products, agreeing with the ground truth. 
+
+5.5 Recovery of net directional electron flows 
+
+Table 3: MAELLE’s coverage of bond-forming elementary steps categorized into persistent and 
+
+transient bonds.               
+
+> Bond formation type # ground-truth elementary steps Recovered by MAELLE’s trajectories Correct Top 1 All
+> Persistent 17,925 13,137 (73.3%) 14,236 (79.4%) 17,847 (99.6%) Transient 19,658 3,042 (15.5%) 747 (3.8%) 5,814 (29.6%) Total 37,583 16,179 (43.0%) 14,983 (39.9%) 23,661 (63.0%)
+
+Beyond predicting the product, a further advantage of electron-based trajectories is that they reveal 
+
+how the electrons are redistributed. NERF also models reactions as electron redistributions, but because it predicts only the net change at each bond, it cannot say where the electrons come from or go. For MAELLE this information is explicit: the FLOW operation names a source and a sink, so each trajectory carries a directional electron flow that resembles an arrow-pushing mechanism. We train MAELLE on the FlowER dataset [22], which contains ∼290K reactions extracted from USPTO-Full [42], each annotated with a sequence of expert-labeled elementary steps ( ∼2M steps in total). MAELLE is trained end-to-end and never consumes these labels. We draw S = 64 trajectories per reaction and, for each ground-truth bond-forming elementary step, check whether some MAELLE trajectory forms the same bond and, if so, whether the source and sink of its FLOW agree with the reference. To support our claim that MAELLE can recover the directional electron flow , i.e. bonds created as a result of the FLOW operation, we collect all bond-forming elementary steps in the test set of FlowER, 11 12     
+
+> 10 11
+> 20
+> 21
+> 10
+> 11
+> 12
+> 21
+> 20
+> 10
+> 11
+> 12
+> 21
+> Input
+> Ground truth
+> Correctly predicted at top-1
+> by all models.
+> 10
+> 11
+> 12
+> 21
+> 12
+> 10 11
+> 20
+> 21
+> 21
+> 12
+> 10 11
+> 10
+> 11
+> 12
+> 21
+> MAELLE's top-2
+> Plausible
+> G2S's top-2
+> Implausible
+> MT's top-2
+> Implausible
+> Missing C=O
+> Missing C
+> MAELLE's top-2
+> (Confidence: 7.8%)
+> MAELLE's top-1
+> (Confidence: 85.9%)
+> a
+> b
+> c
+
+Figure 3: a. Top-k accuracy and plausibility rate, with the latter having mean and standard deviation reported for 3 runs of LLM evaluation. The LLM-judge has a ground truth coverage of 81 .1 ± 0.1% .b. 
+
+Test case 39591 from the test set of USPTO-480K serves as an illustrative example where MAELLE successfully predicts the main product as top-1 and the side product as top-2, while Graph2SMILES and MolecularTransformers propose hallucinated outcomes. c. Two example trajectories that MAELLE samples leading to the two different outcomes. Table 4: MAELLE’s coverage of bond-forming elementary steps and their directional agreement with FlowER’s reference. For a MAELLE-predicted step and a ground-truth step that form the same bond, their directions agree if their sources and sinks are identical. 
+
+Sampling mode Elementary steps coverage Directional agreement of elementary steps 
+
+Correct 16,179/37,583 (43.0%) 13,694/16,179 (84.6%) Top-1 14,983/37,583 (39.9%) 13,342/14,983 (89.0%) All 23,661/37,583 (63.0%) 18,505/23,661 (78.2%) 
+
+and check how many of them are recovered from MAELLE’s predictions, and check if the directions of the electron flow are correct, that is, when the source and sink are similar to the reference. FlowER’s test set contains 37 ,583 bond-forming steps. We consider three ways of selecting among the 64 trajectories: CORRECT keeps only trajectories that reach the ground-truth product; TOP -1 takes the trajectories leading to the highest-confidence product regardless of correctness; and ALL 
+
+pools all 64. These recover 43 .0% , 39 .9% , and 63 .0% of the annotated steps, respectively (Table 3). The gap from full coverage is expected: expert pathways contain many transient bonds – formed as short-lived intermediates and broken again before the product – whereas MAELLE is trained on moves interpolated by optimal transport with a topological cost (Sections 4.3, 4.4), which favors the persistent bonds that survive into the product. Indeed, sampling all trajectories recovers 99 .6% 
+
+of persistent bonds but only 29 .6% of transient ones (Table 3). Additionally, the coverage when we sample all trajectories is higher compared with sampling those of just the correct products or 12 Persistent 
+
+> bond
+> Transient
+> bond
+> a. Expert-annotated mechanistic steps
+> b. Steps in MAELLE's trajectory
+
+Figure 4: a. An example from FlowER’s test set with expert-labeled elementary steps. b. Pseudo mechanistic steps in MAELLE’s trajectory. Note that during training, MAELLE does not consume the labeled elementary steps. top-1, meaning that stochastic sampling surfaces additional annotated bonds, which contributes to the multi-outcome behavior in Section 5.4. Among the annotated steps that MAELLE recovers, we also observe high agreement in terms of the direction of the electron moves (Table 4). For CORRECT , TOP -1, and ALL sampling schemes, the directional agreement rates are 84.6%, 89.0%, and 78.2%, respectively, showing that the electron moves produced by MAELLE, which is an artifact of the edit-based mixture path (Section 4.4), serve as a good approximation of the labeled steps. Figure 4 shows a representative case from FlowER’s test set: the esterification of a carboxylic acid activated by thionyl chloride ( SOCl 2). The expert pathway proceeds through a chlorosulfite intermediate – the carboxylic oxygen attacks sulfur, chloride leaves then attacks the carboxylic carbon, displacing the chlorosulfite ester. The chloride itself ultimately becomes the leaving group for the substitution of methanol. Throughout the trajectory, several transient bonds are formed, including C-Cl and one electron pair of the C=O bond. On the other hand, MAELLE’s trajectory recovers the persistent bond formations that define the product – the new acyl C-O bond to the incoming alkoxy group, the change from C-O single bond to C=O double bond, and the formation of the S=O double bond. The predicted flows are directionally consistent with the reference on the persistent steps, illustrating both the coverage and the directional-agreement statistics above. Together these results support our claim that MAELLE’s trajectories are pseudo-mechanistic : without any elementary-step supervision, they recover the persistent, product-defining electron flows and their direction, serving as an approximation of expert-annotated mechanisms. 
+
+## 6 Conclusion 
+
+We introduced MAELLE, a reaction prediction model that operates in the electron occupation space via discrete flow matching. By formulating reactions as CTMCs over an auxiliary move-state space derived from optimal transport, MAELLE bridges the gap between machine learning and the arrow-pushing formalism that chemists use to reason about reactivity. Our experiments demonstrate three key findings: (i) competitive in-distribution performance on USPTO-480K despite operating in a more constrained representation than SMILES-based methods; (ii) strong out-of-distribution robustness on both molecular-weight and reaction-type generalization, where MAELLE outperforms all baselines; and (iii) the ability to predict chemically plausible side products through multiple CTMC trajectory sampling, a capability inaccessible to deterministic or beam-search-based approaches. 
+
+Limitations and future work. MAELLE currently models electron pairs rather than individual electrons, which precludes radical reactions involving unpaired electrons; extending the occupation 13 space to single-electron resolution would address this. The framework predicts forward reactions only; adapting the edit operations to the atom level (e.g., atom insertion and deletion) would enable retrosynthetic prediction. While the OT-derived move trajectories are mechanistically interpretable and correlate with known chemistry, they represent pseudo-mechanisms rather than energy-optimal elementary steps – the model learns the most likely combinatorial path between reactant and product occupations, not the true potential energy surface. Incorporating energetic priors or non-optimal-transport pathways could improve mechanistic fidelity. We note that reagents and catalysts are already incorporated as context through the reactant graph G0; the model conditions on them even though they do not directly participate in the electron flow. 
+
+## References 
+
+[1] Connor W Coley, Pankaj Daga, Marco De Vivo, Willem Jespers, Ashutosh S Jogalekar, S Roy Kimura, Lucien Koenekoop, Anne-Grete Märtson, Timothy R Newhouse, Soumya Ray, et al. Grand challenges for predictive modeling in small molecule drug discovery. 2026. [2] Elias James Corey and W Todd Wipke. Computer-assisted design of complex organic syntheses: Pathways for molecular synthesis can be devised with a computer and equipment for graphical communication. Science , 166(3902):178–192, 1969. [3] Philippe Schwaller, Riccardo Petraglia, Valerio Zullo, Vishnu H Nair, Rico Andreas Haeusel-mann, Riccardo Pisoni, Costas Bekas, Anna Iuliano, and Teodoro Laino. Predicting retrosyn-thetic pathways using transformer-based models and a hyper-graph exploration strategy. Chem. Sci. , 11:3316–3325, 2020. [4] Harry L Morgan. The generation of a unique machine description for chemical structures-a technique developed at chemical abstracts service. Journal of chemical documentation , 5(2): 107–113, 1965. [5] David Rogers and Mathew Hahn. Extended-connectivity fingerprints. J. Chem. Inf. Model. , 50 (5):742–754, 2010. [6] Marwin HS Segler and Mark P Waller. Neural-symbolic machine learning for retrosynthesis and reaction prediction. Chem. Eur. J. , 23:5966–5971, 2017. [7] Connor W Coley, Regina Barzilay, Tommi S Jaakkola, William H Green, and Klavs F Jensen. Prediction of organic reaction outcomes using machine learning. ACS Cent. Sci. , 3(5):434–443, 2017. [8] Philippe Schwaller, Theophile Gaudin, David Lanyi, Costas Bekas, and Teodoro Laino. “Found in Translation”: predicting outcomes of complex organic chemistry reactions using neural sequence-to-sequence models. Chem. Sci. , 9:6091–6098, 2018. [9] Philippe Schwaller, Teodoro Laino, Théophile Gaudin, Peter Bolgar, Christopher A Hunter, Costas Bekas, and Alpha A Lee. Molecular transformer: a model for uncertainty-calibrated chemical reaction prediction. ACS central science , 5(9):1572–1583, 2019. [10] Connor W Coley, Wengong Jin, Luke Rogers, Timothy F Jamison, Tommi S Jaakkola, William H Green, Regina Barzilay, and Klavs F Jensen. A graph-convolutional neural network model for the prediction of chemical reactivity. Chem. Sci. , 10:370–377, 2019. [11] Zhengkai Tu and Connor W Coley. Permutation invariant graph-to-sequence model for template-free retrosynthesis and reaction prediction. Journal of chemical information and modeling , 62 (15):3503–3513, 2022. [12] Mikołaj Sacha, Mikołaj Błaz, Piotr Byrski, Paweł Dabrowski-Tumanski, Mikołaj Chrominski, Rafał Loska, Paweł Włodarczyk-Pruszynski, and Stanisław Jastrzebski. Molecule edit graph attention network: modeling chemical reactions as sequences of graph edits. Journal of Chemical Information and Modeling , 61(7):3273–3284, 2021. [13] Kien Do, Truyen Tran, and Svetha Venkatesh. Graph transformation policy network for chemical reaction prediction. In Proceedings of the 25th ACM SIGKDD international conference on knowledge discovery & data mining , pages 750–760, 2019. 14 [14] Robert B Grossman and Robert Grossman. The art of writing reasonable organic reaction mechanisms . Springer, 2003. [15] Nguyen Xuan-Vu, Daniel Armstrong, Zlatko Joncev, and Philippe Schwaller. Tempre: Template generation for single and direct multi-step retrosynthesis. arXiv preprint arXiv:2507.21762 ,2025. [16] Victor Sabanza Gil, Andres M Bran, Malte Franke, Remi Schlama, Jeremy S Luterbacher, and Philippe Schwaller. Holistic chemical evaluation reveals pitfalls in reaction prediction models. 
+
+arXiv preprint arXiv:2312.09004 , 2023. [17] John Bradshaw, Anji Zhang, Babak Mahjour, David E Graff, Marwin HS Segler, and Connor W Coley. Challenging reaction prediction models to generalize to novel chemistry. ACS Central Science , 11(4):539–549, 2025. [18] Suong BA Tran, Jihye Roh, and Connor W Coley. Quantifying the failure modes of current one-step retrosynthesis models. Chemical Science , 2026. [19] Matthew A Kayala, Chloé-Agathe Azencott, Jonathan H Chen, and Pierre Baldi. Learning to predict chemical reactions. J. Chem. Inf. Model. , 51:2209–2222, September 2011. [20] Matthew A Kayala and Pierre Baldi. Reactionpredictor: prediction of complex chemical reactions at the mechanistic level using machine learning. Journal of chemical information and modeling , 52(10):2526–2540, 2012. [21] John Bradshaw, Matt J Kusner, Brooks Paige, Marwin HS Segler, and José Miguel Hernández-Lobato. A generative model for electron paths. arXiv preprint arXiv:1805.10970 , 2018. [22] Joonyoung F Joung, Mun Hong Fong, Nicholas Casetti, Jordan P Liles, Ne S Dassanayake, and Connor W Coley. Electron flow matching for generative reaction mechanism prediction. 
+
+Nature , 645(8079):115–123, 2025. [23] Joonyoung F Joung, Mun Hong Fong, Jihye Roh, Zhengkai Tu, John Bradshaw, and Connor W Coley. Reproducing reaction mechanisms with machine-learning models trained on a large-scale mechanistic dataset. Angewandte Chemie International Edition , 63(43):e202411296, 2024. [24] Mohammadamin Tavakoli, Ryan J Miller, Mirana Claire Angel, Michael A Pfeiffer, Eugene S Gutman, Aaron D Mood, David Van Vranken, and Pierre Baldi. Pmechdb: A public database of elementary polar reaction steps. Journal of Chemical Information and Modeling , 64(6): 1975–1983, 2024. [25] Mohammadamin Tavakoli, Yin Ting T Chiu, Pierre Baldi, Ann Marie Carlton, and David Van Vranken. Rmechdb: A public database of elementary radical reaction steps. Journal of chemical information and modeling , 63(4):1114–1123, 2023. [26] Ross Irwin, Spyridon Dimitriadis, Jiazhen He, and Esben Jannik Bjerrum. Chemformer: a pre-trained transformer for computational chemistry. Machine Learning: Science and Technology ,3(1):015022, 2022. [27] Hangrui Bi, Hengyi Wang, Chence Shi, Connor Coley, Jian Tang, and Hongyu Guo. Non-autoregressive electron redistribution modeling for reaction prediction. In International Confer-ence on Machine Learning , pages 904–913. PMLR, 2021. [28] Daylight Theory: SMILES. URL https://www.daylight.com/dayhtml/doc/theory/ theory.smiles.html . (Accessed Nov 15, 2021). [29] Mario Krenn, Florian Häse, AkshatKumar Nigam, Pascal Friederich, and Alan Aspuru-Guzik. Self-Referencing Embedded Strings (SELFIES): A 100% robust molecular string representation. 
+
+Mach. Learn.: Sci. Technol. , 1:045024, 2020. [30] Philippe Schwaller, Benjamin Hoover, Jean-Louis Reymond, Hendrik Strobelt, and Teodoro Laino. Extraction of organic chemistry grammar from unsupervised learning of chemical reactions. Science Advances , 7(15):eabe4166, 2021. 15 [31] Clement Vignac, Igor Krawczuk, Antoine Siraudin, Bohan Wang, Volkan Cevher, and Pas-cal Frossard. Digress: Discrete denoising diffusion for graph generation. arXiv preprint arXiv:2209.14734 , 2022. [32] Yiming Qin, Manuel Madeira, Dorina Thanou, and Pascal Frossard. Defog: Discrete flow matching for graph generation. arXiv preprint arXiv:2410.04263 , 2024. [33] Jascha Sohl-Dickstein, Eric Weiss, Niru Maheswaranathan, and Surya Ganguli. Deep unsuper-vised learning using nonequilibrium thermodynamics. In International conference on machine learning , pages 2256–2265. pmlr, 2015. [34] Jonathan Ho, Ajay Jain, and Pieter Abbeel. Denoising diffusion probabilistic models. Advances in neural information processing systems , 33:6840–6851, 2020. [35] Andrew Campbell, Jason Yim, Regina Barzilay, Tom Rainforth, and Tommi Jaakkola. Gener-ative flows on discrete state-spaces: Enabling multimodal flows with applications to protein co-design. arXiv preprint arXiv:2402.04997 , 2024. [36] Ilia Igashov, Arne Schneuing, Marwin Segler, Michael Bronstein, and Bruno Correia. Retro-bridge: Modeling retrosynthesis with markov bridges. In International Conference on Learning Representations , volume 2024, pages 39622–39640, 2024. [37] Umut Çetin and Albina Danilova. Markov bridges: Sde representation. Stochastic Processes and their Applications , 126(3):651–679, 2016. [38] Itai Gat, Tal Remez, Neta Shaul, Felix Kreuk, Ricky TQ Chen, Gabriel Synnaeve, Yossi Adi, and Yaron Lipman. Discrete flow matching. Advances in Neural Information Processing Systems ,37:133345–133385, 2024. [39] Marton Havasi, Brian Karrer, Itai Gat, and Ricky TQ Chen. Edit flows: Flow matching with edit operations. arXiv preprint arXiv:2506.09018 , 2025. [40] Shuan Chen, Kye Sung Park, Taewan Kim, Sunkyu Han, and Yousung Jung. Predicting chemical reaction outcomes based on electron movements using machine learning. arXiv preprint arXiv:2503.10197 , 2025. [41] Peter Holderrieth, Marton Havasi, Jason Yim, Neta Shaul, Itai Gat, Tommi Jaakkola, Brian Karrer, Ricky TQ Chen, and Yaron Lipman. Generator matching: Generative modeling with arbitrary markov processes. arXiv preprint arXiv:2410.20587 , 2024. [42] Daniel Mark Lowe. Extraction of chemical structures and reactions from the literature . PhD thesis, University of Cambridge, 2012. [43] Wengong Jin, Connor Coley, Regina Barzilay, and Tommi Jaakkola. Predicting organic reaction outcomes with weisfeiler-lehman network. In I. Guyon, U. V. Luxburg, S. Bengio, H. Wallach, R. Fergus, S. Vishwanathan, and R. Garnett, editors, Advances in Neural Information Processing Systems 30 , pages 2607–2616. Curran Associates, Inc., 2017. [44] Andres M Bran, Theo A Neukomm, Daniel P Armstrong, Zlatko Jonˇ cev, and Philippe Schwaller. Chemical reasoning in llms unlocks steerable synthesis planning and reaction mechanism elucidation. arXiv preprint arXiv:2503.08537 , 2025. [45] Varvara Voinarovska, Rocío Mercado, Mikhail Kabeshov, and Samuel Genheden. Do humans and large language models agree on the quality of synthesis plans? 2026. [46] Carl Edwards, Tuan Lai, Kevin Ros, Garrett Honke, Kyunghyun Cho, and Heng Ji. Translation between molecules and natural language. Proc. Conf. Empirical Methods Nat. Lang. Process. ,pages 375–413, 2022. [47] Hyosoon Jang, Yunhui Jang, Jaehyung Kim, and Sungsoo Ahn. Can llms generate diverse molecules? towards alignment with structural diversity. arXiv preprint arXiv:2410.03138 , 2024. 16 [48] Alexandre Duval, Simon V Mathis, Chaitanya K Joshi, Victor Schmidt, Santiago Miret, Fragkiskos D Malliaros, Taco Cohen, Pietro Lio, Yoshua Bengio, and Michael Bronstein. A hitchhiker’s guide to geometric gnns for 3d atomic systems. arXiv preprint arXiv:2312.07511 ,2023. [49] Petar Veliˇ ckovi´ c, Guillem Cucurull, Arantxa Casanova, Adriana Romero, Pietro Lio, and Yoshua Bengio. Graph attention networks. arXiv preprint arXiv:1710.10903 , 2017. [50] Daniel Mark Lowe. Extraction of chemical structures and reactions from the literature . PhD thesis, University of Cambridge, 2012. [51] Daniel Lowe. Chemical reactions from US patents (1976-Sep2016) http://doi.org/10. 6084/m9.figshare.5104873.v1 , 6 2017. [52] RDKit, online. RDKit: Open-source cheminformatics. http://www.rdkit.org , 2023. 
+
+## A Equivalence of the edit-based and augmented-space mixture paths 
+
+We show, in a setting-agnostic form, that the augmented-space mixture path of Edit Flows [39] is equivalent to directly sampling a subset of edit moves and applying them. The statement is indepen-dent of what the edits are: it applies verbatim to sequence edits (insertion, deletion, substitution) and to the electron-occupation edits (F LOW , D EL , A DD ) used in the main text. 
+
+Setup. Let D be a state space (e.g. token sequences, or electron occupation vectors) and fix a source state x0 ∈ D . Let M = {m1, . . . , m K } be a finite set of edit moves, each an operation on D, and let 
+
+Apply : D × 2M → D (17) apply a subset of moves to a state, assumed well defined (independent of the order in which the moves in the subset are applied). Write x1 = Apply( x0, M) for the state obtained by applying all moves. Let κ : [0 , 1] → [0 , 1] be a schedule with κ0 = 0 and κ1 = 1 .We compare two ways of building a conditional path pt( · | x0, x 1) on D that interpolates from x0 at 
+
+t = 0 to x1 at t = 1 .
+
+(A) Augmented-space path. Introduce the auxiliary space Z = {0, 1}K , one binary coordinate per move, with the readout 
+
+g : Z → D , g(z) = Apply  x0, {mk : zk = 1 }. (18) Treating each coordinate as an independent binary token that interpolates zk : 0 → 1 [35, 38] gives the factorized path on Z
+
+pt(z | x0, x 1) = 
+
+> K
+
+Y
+
+> k=1
+
+h
+
+(1 − κt) δ0(zk) + κt δ1(zk)
+
+i
+
+, (19) and the augmented-space path on D is its pushforward through g,
+
+pA 
+
+> t
+
+(x | x0, x 1) = X
+
+> z∈Z
+
+pt(z | x0, x 1) 1[g(z) = x]. (20) For sequence edits with Z realized as padded sequences and g as padding removal, (20) is the mixture path of Havasi et al. [39]. 
+
+(B) Edit-based path. Include each move independently with probability κt, collect the applied subset S, and apply it to x0. The resulting law is 
+
+pB 
+
+> t
+
+(x | x0, x 1) = X
+
+> S⊆M
+
+κ |S|  
+
+> t
+
+(1 − κt) K−|S| 1[Apply( x0, S) = x]. (21) 17 Proposition 1 (Edit-sampling form of the augmented-space path) . For every t ∈ [0 , 1] and every 
+
+x ∈ D ,
+
+pA 
+
+> t
+
+(x | x0, x 1) = pB 
+
+> t
+
+(x | x0, x 1). (22) 
+
+Consequently sampling z ∼ pt(· | x0, x 1) from (19) and returning g(z) has the same law as sampling a subset S of moves by independent Bernoulli( κt) inclusion and returning Apply( x0, S).In particular pA0 = pB0 = δx0 and pA1 = pB1 = δx1 , so both are valid conditional interpolants. Proof. The map z 7 → S (z) := {mk : zk = 1 } is a bijection between Z = {0, 1}K and the power set 2M, with inverse S 7 → z where zk = 1[mk ∈ S ]. We rewrite the augmented-space weight (19) under this bijection. Each factor in (19) selects one of its two terms according to zk: it contributes κt when zk = 1 and 
+
+1 − κt when zk = 0 . Hence for a fixed z,
+
+pt(z | x0, x 1) = 
+
+> K
+
+Y
+
+> k=1
+
+κ zk 
+
+> t
+
+(1 −κt) 1−zk = κ  
+
+> P
+> kzk
+> t
+
+(1 −κt) K−P  
+
+> kzk
+
+= κ |S (z)| 
+
+> t
+
+(1 −κt) K−|S (z)|, (23) using P 
+
+> k
+
+zk = |S (z)|. By definition of the readout (18), g(z) = Apply( x0, S(z)) . Substituting both identities into (20) and reindexing the sum from z to S = S(z),
+
+pA 
+
+> t
+
+(x | x0, x 1) = X
+
+> z∈Z
+
+κ |S (z)| 
+
+> t
+
+(1 − κt) K−|S (z)| 1[Apply( x0, S(z)) = x]= X
+
+> S⊆M
+
+κ |S|  
+
+> t
+
+(1 − κt) K−|S| 1[Apply( x0, S) = x] = pB 
+
+> t
+
+(x | x0, x 1). (24) This proves the equality for all t and x.For the boundary conditions, at t = 0 we have κ0 = 0 , so the weight κ|S|  
+
+> 0
+
+(1 − κ0)K−|S| is nonzero only for S = ∅, where it equals 1; since Apply( x0, ∅) = x0, we get p0 = δx0 . At t = 1 , κ1 = 1 ,so the weight is nonzero only for S = M, where it equals 1; since Apply( x0, M) = x1, we get 
+
+p1 = δx1 .
+
+Corollary 1 (Sequence edits) . Taking D to be token sequences and M a set of insertion, deletion, and substitution moves aligning x0 to x1, Proposition 1 recovers the augmented-space mixture path of Edit Flows [39], with Z realized as padded sequences and g = frm −blanks that strips all padding tokens. 
+
+Corollary 2 (Electron edits) . Taking D = Z|E| ≥0, x0 = ox, M the move set of Eq. (9) , and Apply = ApplyEdit , Proposition 1 shows that the edit-based mixture path (11) equals the augmented-space pushforward, justifying the interpolant-sampling scheme of Algorithm 1. 
+
+## B Problem-statement details 
+
+Atoms, adjacency, and electron sites. V = {vi | 1 ≤ i ≤ |V|} is the set of heavy atoms; hydrogens are not nodes but are pooled into per-atom electron sites. The adjacency A = {aij ∈{0, 1} | 1 ≤ i < j ≤ |V|} follows the standard molecular graph convention [48]. The electron-site set 
+
+E = {eij | 1 ≤ i ≤ j ≤ |V|} ∪ { eHi | 1 ≤ i ≤ |V|} 
+
+has |E| =  |V| 
+
+> 2
+
+ + 2 |V| entries: bonding sites eij (i̸ = j), lone-pair sites eii , and per-atom hydrogen sites eHi . Hydrogens bonded to the same heavy atom are topologically equivalent so a single eHi
+
+suffices [40]. Each site is either realized (existing bond/lone pair/hydrogen attachment) or virtual 
+
+(o(e) = 0 , available to become realized). 
+
+Occupation ⇒ topology. The map fo→a : ( V, E, o ) 7 → A deterministically recovers the heavy-atom adjacency from the occupation via Eq. (4). Combined with the fact that V (and hence E) is preserved by a reaction, this yields the simplification 
+
+p(Gy | G x) = p(Vy , Ay , Ey , o y | V x, Ax, Ex, o x) = p(oy | V x, Ax, Ex, o x).
+
+18 Ethanol example. Consider ethanol (CH 3CH 2OH) with heavy atoms V = {C1, C2, O3}. The electron sites and their occupations are: 
+
+Site Electron type Occupation o Description 
+
+e1,2 (C 1–C 2) Bond 1 Single bond 
+
+e2,3 (C 2–O) Bond 1 Single bond 
+
+e1,3 (C 1–O) Virtual 0 Virtual (no bond) 
+
+e3,3 (O lone pairs) Valence 2 Two lone pairs 
+
+e1,1, e2,2 Virtual 0 No lone pairs on carbons 
+
+eH 
+
+> 1
+
+(C 1) w/ Hydrogens 3 Three hydrogens 
+
+eH 
+
+> 2
+
+(C 2) w/ Hydrogens 2 Two hydrogens 
+
+eH 
+
+> 3
+
+(O) w/ Hydrogens 1 One hydrogen 
+
+This gives a total of 10 occupied electron pairs across 9 sites, consistent with ethanol’s 20 valence electrons. 
+
+## C Optimal Transport Details 
+
+To handle reactions where the total electron count is not conserved, we augment the electron site set with a virtual site e∅ acting as a source and sink for electron pairs gained or lost. Let ¯E = E ∪ { e∅}
+
+and define augmented occupation vectors ¯ox, ¯oy ∈ Z| ¯E| ≥0:
+
+¯ox(e) = 
+
+ox(e) if e ∈ E ,
+
+P 
+
+> e′∈E
+
+max( oy (e′) − ox(e′), 0) if e = e∅,
+
+¯oy (e) = 
+
+oy (e) if e ∈ E ,
+
+P 
+
+> e′∈E
+
+max( ox(e′) − oy (e′), 0) if e = e∅,
+
+so that P  
+
+> e∈¯E
+
+¯ox(e) = P  
+
+> e∈¯E
+
+¯oy (e), ensuring balanced transport. 
+
+Cost matrix. We define the cost matrix C ∈ Z| ¯E|×| ¯E| ≥0 based on shortest-path distances. Let dx(v, v ′)
+
+and dy (v, v ′) denote shortest-path distances on the reactant and product graphs, respectively. Since bonds may form or break, we take the minimum over both: 
+
+Ce,e ′ = min 
+
+ min 
+
+> v∈atoms (e)
+> v′∈atoms (e′)
+
+dx(v, v ′), min 
+
+> v∈atoms (e)
+> v′∈atoms (e′)
+
+dy (v, v ′)
+
+ , ∀ e, e ′ ∈ E ,
+
+where atoms (e) ⊆ V denotes the atoms associated with site e:atoms (e) = 
+
+{vi, v j } if e = ei,j with i̸ = j, 
+
+{vi} if e = ei,i or e = eHi .
+
+The cost to or from the virtual site is set to a fixed large constant Ce,e ∅ = Ce∅,e = c∅, incentivizing the solver to use e∅ only when necessary. 
+
+## D Algorithms 
+
+Algorithm 1 SAMPLE INTERMEDIATE GRAPH (G0, M, κ )
+
+Require: Reactant graph G0, set of electron moves M, interpolation level κ ∈ [0 , 1] 
+
+Ensure: Intermediate graph Gt, remaining target moves Mtarget  
+
+> 1:
+
+for each move (es, e d) ∈ M do  
+
+> 2:
+
+Sample zs,d ∼ Bernoulli( κ) 
+
+> 3:
+
+end for  
+
+> 4:
+
+Mfired ← { (es, e d) : zs,d = 1 } ▷ moves already applied  
+
+> 5:
+
+Mtarget ← { (es, e d) : zs,d = 0 } ▷ moves still to predict  
+
+> 6:
+
+Gt ← APPLY ELECTRON EDITS (G0, Mfired ) 
+
+> 7:
+
+return Gt, Mtarget 
+
+19 Algorithm 2 MAELLE ’s Training Loop 
+
+Require: Data distribution p(x, y), model uθ , kappa schedule κ(·) 
+
+> 1:
+
+Sample (G0, G1) ∼ p(x, y) ▷ reactant and product graphs  
+
+> 2:
+
+M ← SOLVE OPTIMAL TRANSPORT (G0, G1) ▷ electron moves from OT plan  
+
+> 3:
+
+Sample t ∼ Uniform(0 , 1)  
+
+> 4:
+
+Gt, Mtarget ← SAMPLE INTERMEDIATE GRAPH (G0, M, κ (t)) ▷ Alg. 1  
+
+> 5:
+
+// Forward pass  
+
+> 6:
+
+λflow , λdel , λadd , E ← uθ (Gt, G0, t )
+
+▷ per-site flow/del rates over E; per-atom add rates over V 
+
+> 7:
+
+// Bregman divergence loss  
+
+> 8:
+
+Compute L and update θ via back-propagation: 
+
+L = X
+
+> e∈E
+
+ λflow  
+
+> e
+
++ λdel 
+
+> e
+
+ + X
+
+> a∈V
+
+λadd  
+
+> a
+
+− κ′(t)1 − κ(t)
+
+X  
+
+> (es, e d)∈Mtarget
+
+
+
+log λadd  
+
+> a
+
++ log psink  
+
+> θ
+
+(ed | a, E) if es = ∅
+
+log λdel  
+
+> es
+
+if ed = ∅
+
+log λflow  
+
+> es
+
++ log psink  
+
+> θ
+
+(ed | es, E) otherwise 20 Algorithm 3 SAMPLE MOVES (Gt, λflow , λdel , λadd , E, ∆t, τ )
+
+Require: Rates λflow , λdel (per site), λadd (per atom), electron sites E, step size ∆t, temperature τ
+
+Ensure: Set of moves Mstep  
+
+> 1:
+
+// Fire sites via thinned Poisson process  
+
+> 2:
+
+for each site e ∈ E do  
+
+> 3:
+
+psite  
+
+> e
+
+← 1 − exp  −(λflow  
+
+> e
+
++ λdel  
+
+> e
+
+) ∆ t / τ  
+
+> 4:
+
+Sample fe ∼ Bernoulli( psite  
+
+> e
+
+) 
+
+> 5:
+
+end for  
+
+> 6:
+
+F ← { e : fe = 1 } ▷ fired sites  
+
+> 7:
+
+// Fire addition atoms  
+
+> 8:
+
+for each atom a ∈ V do  
+
+> 9:
+
+padd  
+
+> a
+
+← 1 − exp  −λadd  
+
+> a
+
+∆t / τ  
+
+> 10:
+
+Sample fa ∼ Bernoulli( padd  
+
+> a
+
+) 
+
+> 11:
+
+end for  
+
+> 12:
+
+Aadd ← { a : fa = 1 } ▷ fired addition atoms  
+
+> 13:
+
+// Resolve actions for fired sites  
+
+> 14:
+
+Mflow , Mdel ← ∅, ∅ 
+
+> 15:
+
+for each efired ∈ F do  
+
+> 16:
+
+action ←
+
+(flow w.p. λflow  
+
+> e
+
+/(λflow  
+
+> e
+
++ λdel  
+
+> e
+
+)
+
+del otherwise  
+
+> 17:
+
+if action = flow then  
+
+> 18:
+
+Sample sink ed ∼ psink  
+
+> θ
+
+( · | efired , E) 
+
+> 19:
+
+Mflow ← Mflow ∪ { (efired , e d)} 
+
+> 20:
+
+else  
+
+> 21:
+
+Mdel ← Mdel ∪ { (efired , ∅)} 
+
+> 22:
+
+end if  
+
+> 23:
+
+end for  
+
+> 24:
+
+Resolve conflicts in Mflow : keep highest λflow  
+
+> e
+
+per destination  
+
+> 25:
+
+// Resolve actions for fired additions  
+
+> 26:
+
+Madd ← ∅ 
+
+> 27:
+
+for each a ∈ A add do  
+
+> 28:
+
+Sample sink ed ∼ psink  
+
+> θ
+
+( · | a, E) 
+
+> 29:
+
+Madd ← Madd ∪ { (∅, e d)} 
+
+> 30:
+
+end for  
+
+> 31:
+
+return Mstep ← Mflow ∪ Mdel ∪ Madd 
+
+21 Algorithm 4 MAELLE ’s Inference 
+
+Require: Reactant graph G0, trained model uθ , number of steps N , temperature τ
+
+Ensure: Predicted product graph ˆG1 
+
+> 1:
+
+Gt ← G 0, ∆t ← 1/N  
+
+> 2:
+
+Encode reactant: z0 ← ENCODE uθ (G0) ▷ computed once, reused at every step  
+
+> 3:
+
+for n = 0 , . . . , N − 1 do  
+
+> 4:
+
+t ← n / N  
+
+> 5:
+
+∆tadapt ← ADAPTIVE STEP SIZE (∆ t, t, κ ) ▷ adaptive h from schedule  
+
+> 6:
+
+// Decode current state  
+
+> 7:
+
+λflow , λdel , λadd , E ← DECODE uθ (Gt, z0, t )
+
+▷ per-site flow/del rates; per-atom add rates; E: electron sites in Gt 
+
+> 8:
+
+// Sample and apply moves  
+
+> 9:
+
+Mstep ← SAMPLE MOVES (Gt, λflow , λdel , λadd , E, ∆tadapt , τ ) ▷ Alg. 3  
+
+> 10:
+
+Gt ← APPLY ELECTRON EDITS (Gt, Mstep ) 
+
+> 11:
+
+end for  
+
+> 12:
+
+return ˆG1 ← G t
+
+## E Neural Network Architecture 
+
+MAELLE uses a conditional encoder-decoder architecture. The encoder processes the fixed reactant graph G0 to produce conditioning representations; the decoder processes the time-dependent interme-diate graph Gt and cross-attends to the encoder outputs. Both operate at two levels of granularity: atoms and electron sites (entries). 
+
+Notation. Let d denote the model dimension, N the number of heavy atoms in a graph, and 
+
+Ne =  N
+
+> 2
+
+ + 2 N the number of electron sites (valence, hydrogen, and bond entries). We write 
+
+h ∈ RN ×d for atom embeddings and e ∈ RNe×d for entry embeddings. 
+
+E.1 Graph encoder (GNN backbone) 
+
+Both the encoder and decoder share the same GNN architecture but with separate weights. The backbone is a stack of L Graph Attention Network (GAT) layers [49]. Intermediate layers use multi-head attention with 4 heads and concatenation (output dimension 4 × dhidden ), while the final layer uses a single head without concatenation (output dimension d). An ELU activation is applied between intermediate layers. Input atom features are first projected via a linear layer h(0) = Wnode x + bnode , where x ∈ RN ×din 
+
+are the raw atom features. 
+
+Time embedding. The decoder’s GNN incorporates the flow time t ∈ [0 , 1] via a sinusoidal positional embedding followed by a two-layer MLP with SiLU activation: 
+
+temb = MLP time (SinEmb( t)) ∈ Rdhidden ,
+
+which is broadcast-added to the initial node embeddings h(0) before the GAT layers. The encoder’s GNN omits the time embedding, as the reactant graph G0 is fixed. 
+
+E.2 Two-level attention 
+
+After the GNN backbone, both encoder and decoder refine representations through two stages of attention operating at different granularities. 22 Stage 1: Atom-level attention. The atom embeddings h ∈ RN ×d from the GNN are passed through a Transformer. In the encoder , this is a TransformerEncoder (self-attention only). In the 
+
+decoder , this is a TransformerDecoder: each layer applies self-attention over the decoder’s atom embeddings, followed by cross-attention to the encoder’s atom embeddings. This allows the decoder to condition on the reactant atom representations at every layer. 
+
+Stage 2: Entry-level feature construction and attention. Atom embeddings are lifted to electron-site (entry) embeddings via three learned projections: • Valence entries (lone pairs): eval  
+
+> i
+
+= ReLU( Wval [hi ∥ ϕ(nnb  
+
+> i
+
+)]) for each atom i, where nnb 
+
+> i
+
+is the non-bonding electron count and ϕ(·) is a 4-bin one-hot encoding of the electron pair count (0, 1, 2, ≥3 pairs). • Hydrogen entries : eHi = ReLU( WH [hi ∥ ϕ(nHi )]) for each atom i, where nHi is the hydrogen electron count. • Bond entries : ebond  
+
+> ij
+
+= ReLU( Wbond [agg( hi, hj ) ∥ ρ(dij ) ∥ ϕ(nbond  
+
+> ij
+
+)]) for each realized bond (i, j ), where agg( ·, ·) is a symmetric aggregation (sum, mean, Hadamard, or bilinear), 
+
+ρ(dij ) is a one-hot encoding of the topological distance (up to 10 hops), and nbond  
+
+> ij
+
+is the bond electron count. These three sets of entry embeddings are interleaved into a single sequence of Ne entries per graph and passed through another Transformer block — self-attention in the encoder, self-attention plus cross-attention to the encoder’s entry embeddings in the decoder. 
+
+E.3 Output heads 
+
+The decoder produces three types of predictions from the entry embeddings, corresponding to the source–sink factorization in Eq. (8): 
+
+Rate head. A 3-layer MLP (with ReLU activations and hidden dimension 2d) maps each entry embedding to three non-negative scalars via softplus: 
+
+[λflow  
+
+> θ,t
+
+(e), λ del  
+
+> θ,t
+
+(e), λ add  
+
+> θ,t
+
+(e)] = softplus(MLP rate (e)) .
+
+The addition rate λadd  
+
+> θ,t
+
+is only used for atom-level entries (valence sites); for bond entries it is masked out. 
+
+Sink heads. Two separate MLPs parameterize the sink distributions psink ,flow  
+
+> θ
+
+and psink ,add  
+
+> θ
+
+. Given a fired source entry with embedding es and a candidate destination with embedding ed, the unnor-malized score is: 
+
+s(es, e d) = MLP sink ([ es ∥ ed]) ,
+
+where [· ∥ · ] denotes concatenation and the MLP maps R2d → R. The sink distribution is obtained by applying softmax over all valid candidates. The candidate sets are kept local: for FLOW , the destination must share at least one atom with the source, restricting the candidate set to O(|V| ) per fired source; for ADD from atom a, the candidates are {ea,a }∪{ eHa }∪{ ea,j | j̸ = a}, yielding at most 
+
+|V| + 1 candidates. For virtual bond entries (destinations that do not yet exist in Gt), representations are constructed on-the-fly from the atomic embeddings of the endpoint atoms. 
+
+E.4 Training details 
+
+The full MAELLE model has approximately 16M trainable parameters with hidden dimension 
+
+d = 256 throughout. The GNN backbone uses 2 GAT layers; the encoder applies 4 fully-connected attention layers ( 2 atom-level + 2 entry-level), and the decoder applies 6 fully-connected attention layers ( 3 atom-level + 3 entry-level), with the latter two stages including cross-attention to the encoder. We train for ∼50 epochs (about 72 hours on a single NVIDIA H100 GPU) with an effective batch size of 64 , using gradient accumulation to fit memory. 23 E.5 LLM-as-a-judge for benchmarking side product prediction 
+
+To evaluate the chemical plausibility of predicted products beyond exact-match top-k accuracy (Section 5.4), we use a large language model as a chemistry judge. Concretely, we query 
+
+gemini-3-flash with minimal thinking effort. For each reaction, the LLM is given the reac-tant SMILES and a anonymized list of candidate products pooled across MAELLE, Molecular Transformer, and Graph2SMILES (with the ground-truth product additionally injected as a sanity-check item). The judge has no information about which model produced which candidate. Each of the three independent runs uses a fresh shuffle and a non-zero sampling temperature, providing the standard deviation reported in Figure 3a. 
+
+Prompt structure. The query consists of a system prompt followed by a per-reaction user message assembled from three templated blocks ( PREFIX , INPUTS , SUFFIX ):       
+
+> System prompt. You are an expert organic chemist. Your task is to evaluate whether predicted products are chemically plausible outcomes of a given reaction. A product is plausible if it could reasonably arise from the listed reactants under standard organic-chemistry conditions, considering valence, connectivity, common reactivity, and likely mechanisms. You do not need the product to be the major product — minor or side products are acceptable as long as they are mechanistically reasonable.
+> Prefix. Reaction <reaction_id> . Reactants (SMILES): <reactant_smiles> .
+> Inputs. Below is a list of candidate products. Evaluate each candidate independently.
+> [1] <product_smiles_1> [2] <product_smiles_2> ... [n] <product_smiles_n>
+> Suffix. For each candidate, provide a brief mechanistic reasoning and a plausibility verdict (true /false ). Return your answer as a JSON object of the form:
+> {"verdicts": [ {"index": 1, "reasoning": "...", "plausible": true}, {"index": 2, "reasoning": "...", "plausible": false}, ... ]}
+
+Aggregation. For each reaction and each model, the top-k plausibility rate is the fraction of the model’s first k predictions that the judge marks plausible . We report the mean and standard deviation over three independent LLM runs (Figure 3a). To control for systematic over- or under-permissiveness of the judge, we additionally inject the ground-truth product into the candidate list and report its plausibility coverage as a sanity check; across runs we obtain 81 .1 ± 0.1% ground-truth coverage, indicating a moderately conservative but stable judge. 
+
+Anonymization and de-duplication. Because MAELLE typically yields fewer unique candidates than beam-search SMILES models, for every test case we cap the per-model candidate list at the smallest number of unique predictions across the three models, ensuring a balanced comparison. Within a single query the candidate list is shuffled, and SMILES are canonicalized with RDKit before being passed to the judge so that surface-form differences do not bias the verdict. 
+
+## F Dataset 
+
+All experiments use the USPTO-480K reaction corpus [50, 51]. This appendix describes the prepro-cessing applied to the corpus (Appendix F.1), the standard and re-split partitionings used in the main text, and the construction of the out-of-distribution test axes (Appendix F.3). 
+
+F.1 Preprocessing 
+
+The following steps are applied once to every reaction in the corpus, prior to any split. 24 Re-mapping. USPTO-480K ships with atom-mapped SMILES of the form 
+
+reactants>reagents>products , but the provided maps are noisy and occasionally incon-sistent. Because MAELLE’s electron-site alignment relies on a correct atom correspondence between reactants and products (Section 4.1), we discard the original maps and re-map every reaction with RXNMapper [30], yielding a consistent atom mapping across the corpus. 
+
+Electron-move interpolation. For each re-mapped reaction we solve the optimal-transport problem of Section 4.3 once, ahead of training, to obtain the move set M that transforms the reactant occupation ox into the product occupation oy . These precomputed moves are cached and reused across epochs; the per-step Bernoulli sampling of the mixture path (Section 4.4) is then applied at training time. 
+
+Atom maps and model inputs. The re-mapped correspondence is used to construct MAELLE’s occupation targets and is therefore retained for our model. For the SMILES- and graph-based baselines, which do not consume atom maps, maps are stripped from the inputs so that all baselines receive the same map-free reactions they were designed for. This is a property of each model’s input format, not an asymmetry in the data: every model sees the same reactions, and only MAELLE makes use of the atom correspondence. 
+
+Deduplication. Exact duplicates are identified by a canonical reaction key canon (reactant ) ≫
+
+canon_main (product ), where canon_main selects the largest product fragment by heavy-atom count after stripping atom maps and canonicalizing with RDKit [52]. Pairwise overlap between all splits is verified to be zero on this key. 
+
+F.2 Standard and low-MW splits 
+
+For the standard benchmark (Section 5.2) we use the corpus’s original train/validation/test partition. For the out-of-distribution study (Section 5.3) we re-partition the corpus as follows. The base train/validation/IID-test partition is constructed by Gaussian sampling over the product molecular weight (MW), with mean 250 Da and variance 1643 .782 Da 2 (std ≈ 40 .5 Da); we refer to this as the 
+
+low-MW split . The deliberately low mean ensures the training distribution is well separated from the high-mass OOD axis below. The pooled train+validation set is partitioned 80/20, giving 304 228 
+
+training reactions after deduplication, a validation set of 37 582 , and an IID test set of 37 578 drawn from the remaining half of the validation fold. 
+
+F.3 Out-of-distribution test axes OOD Mass (high molecular weight). Similary to the training corpus, a test set was constructed using Gaussian sampling with mean 750 Da and variance of 6575 .13 Da 2. The parameters of the Gaussian were chosen in order to ensure a clear separation between this set and the training-validation one. The test set described will be called hereon test_ood_mass (38 909 reactions, median product MW 576 Da). Reactions that were present in test_ood_mass and also in the training-validation set were eliminated in the latter. Because the Molecular Transformer must generate the full product SMILES autoregressively, the length of the output sequence scales with molecular size; the mechanism model, which predicts only local bond edits, is invariant to this factor. This split therefore directly probes sensitivity to molecular size. 
+
+OOD Ester (non-methyl ester chemistry). An additional axis was constructed to isolate ester-forming reactions that produce linkages other than methyl esters – a transformation class under-represented in the training set relative to its synthetic importance. Reactions belonging to the following named reaction classes were excluded from all training and IID evaluation splits and instead pooled into a dedicated test set, test_ood_ester (1779 reactions): Ethyl esterification , CO 2H-tBu protection , O-Acetylation , O-Piv protection , O-Formylation , Acetoxy thioether synthesis , Salol reaction , Yamaguchi esterification , Yamaguchi lactonization , Shiina macrolactonization , 2-Benzofuranone synthesis , and 
+
+Baeyer–Villiger oxidation . In addition, eight reaction classes that produce ester linkages of ambiguous type ( Esterification , Ester Schotten–Baumann , Fischer–Speier esterification , Steglich esterification ,
+
+Mitsunobu ester synthesis , Transesterification , Carboxylic anhydride alcoholysis , and Diazoalkane esterification ) were dropped from all splits entirely to prevent soft leakage of ester-chemistry signal into the training distribution. 25 F.4 Summary statistics 
+
+Table 5: Split sizes, sampling MW (mean ± std of the Gaussian over product molecular weight), and OOD criteria for uspto_unified_v3 .Split N MW (mean ± std) [Da] OOD criterion train 304 228 311 .9 ± 90 .6 –val 37 582 312 .7 ± 90 .6 –test_iid 37 578 311 .3 ± 90 .5 none (IID) test_ood_mass 38 909 585 .2 ± 83 .0 product MW > 529 Da test_ood_ester 1779 321 .1 ± 112 .1 non-methyl ester chemistry 26
