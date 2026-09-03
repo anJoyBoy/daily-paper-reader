@@ -6,50 +6,48 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-02
-- 运行时间：2026-09-02 21:23:25 UTC
+- 最新运行日期：2026-09-03
+- 运行时间：2026-09-03 22:57:02 UTC
 - 运行状态：成功
-- 本次总论文数：10
-- 精读区：3
-- 速读区：7
+- 本次总论文数：8
+- 精读区：4
+- 速读区：4
 
 ### 今日简报（AI）
-今日10篇推荐中3篇精读，聚焦大语言模型在表格数据与数据湖分析中的突破应用。最值得精读的是两篇9分工作：LLM自动发现数据湖隐藏关系，以及LLM加速符号回归实现自动化特征工程。后续可优先关注这两大高价值方向，结合工业场景验证其实际效果。
-- 详情：[/202609/02/README](/202609/02/README)
+今日共读8篇论文，其中4篇精读、4篇速读，聚焦大模型在数据管理与科学发现中的应用。
+
+最值得关注两篇高分精读：一是用LLM在工业数据湖中发现关系的案例（9.0），二是为化学假设生成设计的MAIL自适应增量框架（9.0），均展示LLM驱动推理的落地潜力。
+
+若想快速跟进，可先看这两篇的摘要与图表；对数据集成或化学辅助研究感兴趣的读者建议深入精读，其余速读文章可作背景拓展。
+- 详情：[/202609/03/README](/202609/03/README)
 
 ### 精读区论文标签
-1. [Discovering Relationships in Data Lakes Using Large Language Models: An Industrial Case](/202609/02/2608.26750v1-discovering-relationships-in-data-lakes-using-large-language-models-an-industrial-case)  
+1. [Discovering Relationships in Data Lakes Using Large Language Models: An Industrial Case](/202609/03/2608.26750v1-discovering-relationships-in-data-lakes-using-large-language-models-an-industrial-case)  
    标签：评分：9.0/10、query:llm-dm
-   evidence：用大语言模型发现数据湖中的列关系，契合LLM助力数据挖掘主题
-2. [SymboLLM-FE: LLM-Accelerated Symbolic Regression for Automated Feature Engineering on Tabular Data](/202609/02/2608.28408v1-symbollm-fe-llm-accelerated-symbolic-regression-for-automated-feature-engineering-on-tabular-data)  
+   evidence：基于LLM的数据湖关系发现是LLM辅助数据挖掘的直接案例
+2. [MAIL: Memory-driven, Adaptive, Incremental, and Literature-grounded Framework for Hypothesis Generation in Chemistry](/202609/03/2608.28315v1-mail-memory-driven-adaptive-incremental-and-literature-grounded-framework-for-hypothesis-generation-in-chemistry)  
    标签：评分：9.0/10、query:llm-dm
-   evidence：将大语言模型用于表格数据自动化特征工程，属于LLM辅助数据挖掘技术
-3. [Automated Event Log Generation from Unstructured Text Using Finetuned LLMs](/202609/02/2609.01320v1-automated-event-log-generation-from-unstructured-text-using-finetuned-llms)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：LLM将非结构化文本自动转换为结构化事件日志以支撑过程挖掘，是LLM辅助文本/数据挖掘的典型应用
+   evidence：利用LLM挖掘化学文献并生成假设，高度契合LLM助力数据挖掘组合主题
+3. [SymboLLM-FE: LLM-Accelerated Symbolic Regression for Automated Feature Engineering on Tabular Data](/202609/03/2608.28408v1-symbollm-fe-llm-accelerated-symbolic-regression-for-automated-feature-engineering-on-tabular-data)  
+   标签：评分：9.0/10、query:llm-dm
+   evidence：提出LLM辅助的表格自动特征工程方法，面向数据挖掘建模
+4. [Automated Event Log Generation from Unstructured Text Using Finetuned LLMs](/202609/03/2609.01320v1-automated-event-log-generation-from-unstructured-text-using-finetuned-llms)  
+   标签：评分：9.0/10、query:llm-dm
+   evidence：微调LLM作为数据翻译器，将非结构化文本转为事件日志，是LLM辅助数据挖掘的直接体现
 
 ### 速读区论文标签
-1. [D-TAIA: Domain-Aware LLM Adaptation for Multi-Task Predictive Process Monitoring](/202609/02/2608.28236v1-d-taia-domain-aware-llm-adaptation-for-multi-task-predictive-process-monitoring)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：面向预测性过程监控的领域感知LLM适配，属于LLM辅助数据挖掘/过程挖掘应用
-2. [MAIL: Memory-driven, Adaptive, Incremental, and Literature-grounded Framework for Hypothesis Generation in Chemistry](/202609/02/2608.28315v1-mail-memory-driven-adaptive-incremental-and-literature-grounded-framework-for-hypothesis-generation-in-chemistry)  
-   标签：评分：7.0/10、query:llm-dm
-   evidence：用LLM从化学文献中增量挖掘知识并自动化生成可验证假设，契合LLM助力数据挖掘主题
-3. [Evaluating LLM-based AI agents integrated with materials synthesis tools: the case of atomic layer deposition](/202609/02/2608.29309v1-evaluating-llm-based-ai-agents-integrated-with-materials-synthesis-tools-the-case-of-atomic-layer-deposition)  
+1. [Generative artificial intelligence for reliable mechanistic reasoning for corrosion](/202609/03/2609.00099v1-generative-artificial-intelligence-for-reliable-mechanistic-reasoning-for-corrosion)  
    标签：评分：7.0/10、query:chemical-llm
-   evidence：面向材料合成工具的LLM智能体评测，属化学/材料领域LLM应用
-4. [SOVER: Formal Certification of Optimization Reformulations via LLM-Assisted SMT Verification](/202609/02/2609.00728v1-sover-formal-certification-of-optimization-reformulations-via-llm-assisted-smt-verification)  
-   标签：评分：7.0/10、query:chemical-llm
-   evidence：LLM辅助SMT形式化验证优化重构，可用于化工过程模型构建与优化的可靠性保障
-5. [Co-Evolving Structured Knowledge and Reasoning in Language Models](/202609/02/2608.26386v1-co-evolving-structured-knowledge-and-reasoning-in-language-models)  
+   evidence：将生成式AI用于腐蚀机理推理，属于化工领域对LLM的利用
+2. [D-TAIA: Domain-Aware LLM Adaptation for Multi-Task Predictive Process Monitoring](/202609/03/2608.28236v1-d-taia-domain-aware-llm-adaptation-for-multi-task-predictive-process-monitoring)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：大语言模型驱动的结构化知识构建与推理协同进化框架，可辅助文本挖掘
-6. [Efficient Online Continual Foundation Model Fine-Tuning for Predictive Process Monitoring](/202609/02/2608.28237v1-efficient-online-continual-foundation-model-fine-tuning-for-predictive-process-monitoring)  
-   标签：评分：6.0/10、query:llm-dm
-   evidence：将基础模型持续微调用于预测性过程监控，属于事件日志上的数据挖掘应用
-7. [S3C-LLM: Skill-Code Guided Agentic Language Models for Spectrum-to-Structure Elucidation](/202609/02/2608.30910v1-s3c-llm-skill-code-guided-agentic-language-models-for-spectrum-to-structure-elucidation)  
-   标签：评分：6.0/10、query:coal-liquid
-   evidence：基于技能-代码智能体的LLM用于谱图到结构解析，可关联煤液化产物的分子表征
+   evidence：面向多任务流程预测监控的LLM适配方法，属于LLM在数据挖掘/流程挖掘中的应用
+3. [COGTRL: Training LLMs for Scientific Discovery Assistance using Cognitive Traces via Reinforcement Learning](/202609/03/2608.30109v1-cogtrl-training-llms-for-scientific-discovery-assistance-using-cognitive-traces-via-reinforcement-learning)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：用强化学习让LLM学习包含约束与反复迭代的认知轨迹，可迁移用于LLM辅助化工过程建模和优化方法研发
+4. [One Policy Is Enough: Single-Agent Reinforcement Learning Outperforms Tree Search for Chemistry Tool Learning](/202609/03/2608.30952v1-one-policy-is-enough-single-agent-reinforcement-learning-outperforms-tree-search-for-chemistry-tool-learning)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：化学工具学习的单智能体强化学习方法，涉及化学与语言模型，与人工智能在化学工程中的应用相关
 
 
 <div class="dpr-home-promo-card">
