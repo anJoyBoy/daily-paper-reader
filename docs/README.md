@@ -6,42 +6,43 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-05
-- 运行时间：2026-09-05 22:01:39 UTC
+- 最新运行日期：2026-09-06
+- 运行时间：2026-09-06 21:28:07 UTC
 - 运行状态：成功
-- 本次总论文数：6
-- 精读区：2
+- 本次总论文数：7
+- 精读区：3
 - 速读区：4
 
 ### 今日简报（AI）
-今日精读聚焦LLM加速表格特征工程与化学假设生成，共读6篇论文。
-
-最值得关注：符号回归自动特征工程（9.0分）与记忆驱动化学假设框架（8.0分）。
-
-建议优先精读这两篇，体验LLM在数据科学和科学发现中的实操路径。
-- 详情：[/202609/05/README](/202609/05/README)
+今日共读7篇，精读2篇聚焦文档属性图谱与LLM实体匹配，速读3篇涉及知识图谱推理、事件日志生成及科学软件形态。  
+最值得关注：文档属性图谱通过分块嵌入与逆距离加权发现隐藏关系（8.0），CaRL-EM用成本感知强化学习提升LLM实体匹配效率（8.0）。  
+建议优先精读上述2篇，再速读RACER的可解释知识图谱推理，把握LLM与结构化知识融合的当前热点。
+- 详情：[/202609/06/README](/202609/06/README)
 
 ### 精读区论文标签
-1. [SymboLLM-FE: LLM-Accelerated Symbolic Regression for Automated Feature Engineering on Tabular Data](/202609/05/2608.28408v1-symbollm-fe-llm-accelerated-symbolic-regression-for-automated-feature-engineering-on-tabular-data)  
-   标签：评分：9.0/10、query:llm-dm
-   evidence：利用LLM加速符号回归进行表格数据自动特征工程，属于LLM辅助数据挖掘技术
-2. [MAIL: Memory-driven, Adaptive, Incremental, and Literature-grounded Framework for Hypothesis Generation in Chemistry](/202609/05/2608.28315v1-mail-memory-driven-adaptive-incremental-and-literature-grounded-framework-for-hypothesis-generation-in-chemistry)  
+1. [Hidden relationships in a document-derived property graph: top-k chunk embeddings and inverse-distance weighting over a dynamically evolving ontology](/202609/06/2609.00387v1-hidden-relationships-in-a-document-derived-property-graph-top-k-chunk-embeddings-and-inverse-distance-weighting-over-a-dynamically-evolving-ontology)  
    标签：评分：8.0/10、query:llm-dm
-   evidence：用LLM从海量化学文献中挖掘知识并生成新颖假设，契合LLM助力数据挖掘主题
+   evidence：在LLM知识图谱上做嵌入与潜在关系发现，正对LLM助力文本/数据挖掘主题
+2. [CaRL-EM: Cost-Aware Reinforcement Learning for Entity Matching with LLMs](/202609/06/2609.01195v1-carl-em-cost-aware-reinforcement-learning-for-entity-matching-with-llms)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：利用强化学习将LLM实体匹配建模为成本感知序列决策，属于LLM辅助数据挖掘方法
+3. [From Confusion to Clarity: Confusion-Aware Retrieval and Knowledge Injection for Text Classification](/202609/06/2609.01564v1-from-confusion-to-clarity-confusion-aware-retrieval-and-knowledge-injection-for-text-classification)  
+   标签：评分：8.0/10、query:llm-dm
+   evidence：面向大标签空间的LLM文本分类，用混淆感知检索和知识注入支持文本挖掘
 
 ### 速读区论文标签
-1. [Generating Workflow DAGs from Natural Language with Non-Reasoning LLMs](/202609/05/2608.30250v1-generating-workflow-dags-from-natural-language-with-non-reasoning-llms)  
+1. [RACER: Reinforced Agent Collaboration for Explainable Reasoning on Knowledge Graphs](/202609/06/2608.29263v1-racer-reinforced-agent-collaboration-for-explainable-reasoning-on-knowledge-graphs)  
+   标签：评分：7.0/10、query:llm-dm
+   evidence：基于知识图谱的LLM可解释推理路径挖掘，与数据挖掘任务高度相关
+2. [Automated Event Log Generation from Unstructured Text Using Finetuned LLMs](/202609/06/2609.01320v1-automated-event-log-generation-from-unstructured-text-using-finetuned-llms)  
+   标签：评分：7.0/10、query:llm-dm
+   evidence：微调LLM作为数据转换器，将非结构化文本转换为事件日志，属于LLM辅助数据挖掘应用
+3. [Agentic programs: an emerging form of scientific software in computational materials science](/202609/06/2609.00795v1-agentic-programs-an-emerging-form-of-scientific-software-in-computational-materials-science)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：将自然语言转化为可执行结构化图模型的可迁移神经符号LLM方法，可关联分离过程模型构建
-2. [S3C-LLM: Skill-Code Guided Agentic Language Models for Spectrum-to-Structure Elucidation](/202609/05/2608.30910v1-s3c-llm-skill-code-guided-agentic-language-models-for-spectrum-to-structure-elucidation)  
-   标签：评分：6.0/10、query:coal-liquid
-   evidence：智能体LLM光谱到结构解析可支撑煤基液体等复杂产物的分子表征工作流
-3. [Automated Event Log Generation from Unstructured Text Using Finetuned LLMs](/202609/05/2609.01320v1-automated-event-log-generation-from-unstructured-text-using-finetuned-llms)  
+   evidence：基于LLM智能体的科学模型构建软件范式，对化工建模具迁移价值
+4. [Unifying Conformal Language Tasks with In-Context Ensembles](/202609/06/2609.03005v1-unifying-conformal-language-tasks-with-in-context-ensembles)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：微调LLM将非结构化文本转为结构化事件日志，助力过程挖掘与数据分析
-4. [Frontier LLMs are effective batch optimizers: Assessing reasoning models in continuous and discrete settings](/202609/05/2609.03177v1-frontier-llms-are-effective-batch-optimizers-assessing-reasoning-models-in-continuous-and-discrete-settings)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：系统评估前沿LLM在连续与离散设置中的批量优化能力，为用LLM辅助化工过程模型优化提供参考
+   evidence：面向文档内容抽取与文本挖掘，用LLM与上下文集成构造覆盖率保证的相关性评分函数
 
 
 <div class="dpr-home-promo-card">
