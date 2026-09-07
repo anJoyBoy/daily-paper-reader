@@ -6,43 +6,41 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-06
-- 运行时间：2026-09-06 21:28:07 UTC
+- 最新运行日期：2026-09-07
+- 运行时间：2026-09-07 22:41:40 UTC
 - 运行状态：成功
-- 本次总论文数：7
-- 精读区：3
+- 本次总论文数：6
+- 精读区：2
 - 速读区：4
 
 ### 今日简报（AI）
-今日共读7篇，精读2篇聚焦文档属性图谱与LLM实体匹配，速读3篇涉及知识图谱推理、事件日志生成及科学软件形态。  
-最值得关注：文档属性图谱通过分块嵌入与逆距离加权发现隐藏关系（8.0），CaRL-EM用成本感知强化学习提升LLM实体匹配效率（8.0）。  
-建议优先精读上述2篇，再速读RACER的可解释知识图谱推理，把握LLM与结构化知识融合的当前热点。
-- 详情：[/202609/06/README](/202609/06/README)
+- 今日共生成 6 篇推荐（精读 2 篇，速读 4 篇）
+- 精读：《CaRL-EM: Cost-Aware Reinforcement Learning for Entity Matching with LLMs》（9.0/10）, 《Automated Event Log Generation from Unstructured Text Using Finetuned LLMs》（9.0/10）
+- 速读：《Hidden relationships in a document-derived property graph: top-k chunk embeddings and inverse-distance weighting over a dynamically evolving ontology》（7.0/10）, 《From Confusion to Clarity: Confusion-Aware Retrieval and Knowledge Injection for Text Classification》（7.0/10）, 《SMILE: Bridging Continuous Optimization and Discrete Symbolic Recovery》（7.0/10）
+- 这些结果覆盖了当下较热的方向，建议先看精读区论文的关键问题与方法。
+- 详情：[/202609/07/README](/202609/07/README)
 
 ### 精读区论文标签
-1. [Hidden relationships in a document-derived property graph: top-k chunk embeddings and inverse-distance weighting over a dynamically evolving ontology](/202609/06/2609.00387v1-hidden-relationships-in-a-document-derived-property-graph-top-k-chunk-embeddings-and-inverse-distance-weighting-over-a-dynamically-evolving-ontology)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：在LLM知识图谱上做嵌入与潜在关系发现，正对LLM助力文本/数据挖掘主题
-2. [CaRL-EM: Cost-Aware Reinforcement Learning for Entity Matching with LLMs](/202609/06/2609.01195v1-carl-em-cost-aware-reinforcement-learning-for-entity-matching-with-llms)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：利用强化学习将LLM实体匹配建模为成本感知序列决策，属于LLM辅助数据挖掘方法
-3. [From Confusion to Clarity: Confusion-Aware Retrieval and Knowledge Injection for Text Classification](/202609/06/2609.01564v1-from-confusion-to-clarity-confusion-aware-retrieval-and-knowledge-injection-for-text-classification)  
-   标签：评分：8.0/10、query:llm-dm
-   evidence：面向大标签空间的LLM文本分类，用混淆感知检索和知识注入支持文本挖掘
+1. [CaRL-EM: Cost-Aware Reinforcement Learning for Entity Matching with LLMs](/202609/07/2609.01195v1-carl-em-cost-aware-reinforcement-learning-for-entity-matching-with-llms)  
+   标签：评分：9.0/10、query:llm-dm
+   evidence：LLM辅助实体匹配结合成本感知强化学习，直接体现LLM助力数据挖掘技术
+2. [Automated Event Log Generation from Unstructured Text Using Finetuned LLMs](/202609/07/2609.01320v1-automated-event-log-generation-from-unstructured-text-using-finetuned-llms)  
+   标签：评分：9.0/10、query:llm-dm
+   evidence：利用大语言模型将非结构化文本自动转化为事件日志以支持流程挖掘，体现LLM辅助数据挖掘与文本挖掘
 
 ### 速读区论文标签
-1. [RACER: Reinforced Agent Collaboration for Explainable Reasoning on Knowledge Graphs](/202609/06/2608.29263v1-racer-reinforced-agent-collaboration-for-explainable-reasoning-on-knowledge-graphs)  
+1. [Hidden relationships in a document-derived property graph: top-k chunk embeddings and inverse-distance weighting over a dynamically evolving ontology](/202609/07/2609.00387v1-hidden-relationships-in-a-document-derived-property-graph-top-k-chunk-embeddings-and-inverse-distance-weighting-over-a-dynamically-evolving-ontology)  
    标签：评分：7.0/10、query:llm-dm
-   evidence：基于知识图谱的LLM可解释推理路径挖掘，与数据挖掘任务高度相关
-2. [Automated Event Log Generation from Unstructured Text Using Finetuned LLMs](/202609/06/2609.01320v1-automated-event-log-generation-from-unstructured-text-using-finetuned-llms)  
+   evidence：针对LLM抽取的文本知识图谱补充挖掘隐藏实体关系，属于大模型辅助的文本数据挖掘技术
+2. [From Confusion to Clarity: Confusion-Aware Retrieval and Knowledge Injection for Text Classification](/202609/07/2609.01564v1-from-confusion-to-clarity-confusion-aware-retrieval-and-knowledge-injection-for-text-classification)  
    标签：评分：7.0/10、query:llm-dm
-   evidence：微调LLM作为数据转换器，将非结构化文本转换为事件日志，属于LLM辅助数据挖掘应用
-3. [Agentic programs: an emerging form of scientific software in computational materials science](/202609/06/2609.00795v1-agentic-programs-an-emerging-form-of-scientific-software-in-computational-materials-science)  
+   evidence：面向大标签空间文本分类的LLM方法，通过困惑感知检索与知识注入提升类别区分能力，属于LLM辅助文本挖掘/数据挖掘
+3. [SMILE: Bridging Continuous Optimization and Discrete Symbolic Recovery](/202609/07/2609.04639v1-smile-bridging-continuous-optimization-and-discrete-symbolic-recovery)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：从数据学习闭式数学表达式的混合符号回归框架，可支持过程系统工程中的模型构建。
+4. [HiPoly: a hierarchical polymer-native AI framework for property prediction and generative design](/202609/07/2609.02746v1-hipoly-a-hierarchical-polymer-native-ai-framework-for-property-prediction-and-generative-design)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：基于LLM智能体的科学模型构建软件范式，对化工建模具迁移价值
-4. [Unifying Conformal Language Tasks with In-Context Ensembles](/202609/06/2609.03005v1-unifying-conformal-language-tasks-with-in-context-ensembles)  
-   标签：评分：6.0/10、query:llm-dm
-   evidence：面向文档内容抽取与文本挖掘，用LLM与上下文集成构造覆盖率保证的相关性评分函数
+   evidence：面向聚合物的层次图神经网络AI框架用于性质预测与生成设计；属于化工AI应用，但与LLM及分离过程建模无直接关联
 
 
 <div class="dpr-home-promo-card">
