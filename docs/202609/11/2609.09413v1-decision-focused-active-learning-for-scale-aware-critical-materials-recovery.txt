@@ -1,0 +1,293 @@
+Title: Decision-Focused Active Learning for Scale-Aware Critical-Materials Recovery
+
+URL Source: https://arxiv.org/pdf/2609.09413v1
+
+Published Time: Thu, 10 Sep 2026 00:23:39 GMT
+
+Number of Pages: 13
+
+Markdown Content:
+# Decision-Focused Active Learning for Scale-Aware Critical-Materials Recovery 
+
+Niranjan Srinivas 1 Debajyoti Ray 1 Elias Nakouzi 21Coactive Inc. 2Pacific Northwest National Laboratory 
+
+Correspondence: niranjan@coactive.science 
+
+Technical note — September 2026 
+
+Abstract 
+
+Choosing a recovery process for scale-up requires connecting laboratory results with product re-quirements, process costs, and scale effects. We analyze records from Pacific Northwest National Laboratory’s Computer Intelligence for Critical Element Recovery and Optimization (CICERO) workflow for autonomous selective precipitation. Active learning uses prior results to choose experiments. In a conditional retrospective benchmark with fitted models and recycled neodymium–iron–boron (NdFeB) magnet records, active learning finds the best recorded result with fewer experiments than nonadaptive space filling. Enrichment is the selected rare-earth-to-iron ratio relative to that in the feed. Adaptive policies reach the recorded enrichment maximum by 16–24 wells (individual experiments), versus 48. Our two-stage reconstruction ties two adaptive alternatives at 16 wells. Conditional analyses of recycled samarium–cobalt (SmCo) magnets show a Round 2 tradeoff between purity and nominal yield, the recov-ery fraction calculated from an assumed starting amount; NdFeB Round 1 routes differ in enrichment. Rankings for produced water from oil and gas extraction depend on phase and dilution assumptions requiring confirmation. We propose choosing batches by their expected reduction in downstream Bayes risk: the minimum expected loss among available process decisions under current beliefs. In exploratory simulations, a hybrid that filters candidates has lower estimated loss than the implemented joint search across routes and conditions. Differences involving the synthetic two-stage policy are small relative to estimation uncertainty. We outline a pre-registered prospective test under a shared loss and logging standard, requiring clarified measurements and records, a defined process decision and relevant outputs, credible economic inputs, and validation at the intended scale. 
+
+# 1 Background and motivation 
+
+Choosing a recovery route and operating conditions for a larger scale requires more than laboratory purity or yield targets. The choice also depends on product requirements, process costs, and how laboratory results carry over to the intended scale. We ask how to select finite experimental batches to inform that choice. Pacific Northwest National Laboratory (PNNL) developed Computer Intelligence for Critical Element Recovery and Optimization (CICERO), an agentic autonomous-laboratory workflow for selective precipitation from produced water (water from oil and gas extraction) and magnet leachates (Ritchhart et al., 2026). It connects feedstock characterization, technoeconomic reasoning, planning, robotic execution, inductively coupled plasma mass spectrometry (ICP-MS), and Bayesian optimization. Its archive contains initial feed measurements, five per-well result files, liquid-handling scripts, experiment-agent records, qualitative technoeconomic analyses (TEA), and one saved Bayesian-optimization state. 1arXiv:2609.09413v1 [cs.AI] 8 Sep 2026 In a companion preprint, two of this note’s authors first distinguish recovery pathways using a policy motivated by EC 2 (equivalence-class edge cutting; Golovin et al., 2010). They then optimize continuous conditions within the selected route using batch Gaussian-process upper confidence bound (GP-UCB) optimization (Ray and Srinivas, 2026; Srinivas et al., 2010). Their benchmark minimizes experimental cost to a laboratory target on CICERO-inspired synthetic surfaces, useful when resources constrain a campaign. The stages use different utilities, with no common experiment-selection criterion. The PNNL co-author confirms that experimental cost was not material to route or condition selection in the CICERO campaigns considered here. Our focus is the eventual process choice, where product requirements and downstream process costs enter the decision. Our NdFeB benchmark, using fitted models, supports faster search by adaptive policies than by the tested nonadaptive designs on the recorded pool. The SmCo tradeoff illustrates why selecting a condition to advance also requires a downstream criterion. We propose selecting batches by how much their results are expected to reduce the loss of the eventual process choice. Under current beliefs, the minimum expected downstream loss among available decisions is the downstream Bayes risk. A batch’s value is the expected reduction in that risk after observing its results. This objective covers discrete routes and continuous conditions at the intended downstream scale. Closing this experimental loop requires standardized, interoperable data with traceable provenance. Versioned pipelines should convert raw measurements and linked metadata into decision inputs before the next batch. We first review the records, then formulate the decision objective and benchmark search on the recorded NdFeB pool. Synthetic comparisons inform the proposed prospective test. 
+
+# 2 What the current evidence supports 
+
+SmCo illustrates a process-choice tradeoff, NdFeB supplies a conditional search target, and produced water identifies measurement and scale-transfer requirements. We distinguish four evidence classes. O BSERVED statements appear directly in the published paper or de-posited records. D ERIVED statements are calculations under stated assumptions. M ODEL -BASED statements require a response, noise, economic, censoring, or scale-transfer model. PNNL-CONFIRMED statements reflect the PNNL co-author’s direct knowledge and interpretation of the experimental campaigns, limited by the deadline for submitting the current manuscript, which constrained the ability to collect more detailed information. Table 1 summarizes the principal evidence sources; a claim-level evidence ledger linking each statement to source records, transformations, and assumptions is maintained by the authors and available on request. 
+
+2.1 SmCo: purity and nominal yield 
+
+PNNL-CONFIRMED . The paper’s purity metric is nSm /(nSm + nCo ), and the reported moles include the ICP-MS dilution corrections (20,000 × in Round 1 and 34,000 × in Round 2). O BSERVED . Both protocols use 200 μL of leachate per well. D ERIVED . Assuming the initial Sm concentration of 3928.381 mg/L applies to both rounds gives 5.225 μmol nominal starting Sm per well. We define 
+
+Ynom = 100 nSm ,recovered 
+
+5.2253006 μmol .
+
+DERIVED . The recorded purity–yield frontiers contain four Round 1 and eight Round 2 conditions (Fig. 1). Among the five Round 2 frontier points at or below 100% nominal yield, purity decreases from 96.92% to 2Table 1: Principal evidence sources. 
+
+Campaign Record Supported statement Restriction SmCo Rounds 1–2 CSVs, initial ICP-MS, proto-cols, and PNNL-author con-firmation DERIVED :purity–nominal-yield frontiers; MODEL -BASED : decision regions Common feed and symbolic downstream loss NdFeB Round 1 Initial ICP-MS, CSV, pro-tocol, and the companion preprint’s two-stage method DERIVED : route profiles; MODEL -BASED : finite-pool policies Conditional map, signal semantics, and surrogate Produced water Initial ICP-MS, CSV, proto-col, and agent JSON DERIVED : row summaries; MODEL -BASED :interpretation sensitivities Stock, map, units, dilution, and phase require confirmation Produced water bench Initial ICP-MS, protocol and agent records, and supple-mentary information DERIVED : plate row B and bench run use similar NaOH:Mg ratios Conditional on a common feed and recorded stocks SmCo BO state smco_round2_bo_ agent.state.json 
+
+OBSERVED : model and experiment-selection configuration No recommendation list or selection history TEA and UV–Vis Agent JSON; supplementary information OBSERVED : qualitative economic factors and UV–Vis/ICP-MS slope 0.97 No numerical decision rule, paired residuals, or relative assay cost 
+
+85.14% as nominal yield increases from 84.36% to 98.78%; three additional frontier points exceed 100% and are reported uncorrected pending confirmation of the feed concentration. The frontier characterizes the purity–yield tradeoff and provides a target for further chemistry development. Selecting one condition to advance requires an explicit downstream criterion.      
+
+> 020 40 60 80 100 020 40 60 80 100 120
+> A04 B03 C02 H12
+
+Binary Sm–Co purity (%) Raw nominal Sm yield (%)  (a) Round 1             
+
+> Recorded condition Pareto frontier Ynom >100% 100% nominal yield
+> 020 40 60 80 100 020 40 60 80 100 120
+> B12 G09 A12 E10 F11 E11 H10 H11
+
+Binary Sm–Co purity (%) (b) Round 2 
+
+Figure 1: Derived recorded SmCo purity–raw-nominal-yield frontiers. Gray points are recorded conditions; labels identify nondominated wells. Values above 100% remain unmodified. PNNL-CONFIRMED . Purity is binary Sm–Co purity, not total elemental purity, and Nd and Dy were not tracked during purification. D ERIVED . Initial Nd and Dy together account for about 0.2 mol%; the raw calculation gives one Round 1 and six Round 2 wells above 100% nominal yield. 3MODEL -BASED . To express the downstream choice symbolically, let 
+
+ℓi(g, ρ ) = 1 − ri + ρr i1(pi < g ),
+
+where ri is the raw nominal-yield fraction, pi is binary Sm–Co purity, g ∈ [0 , 1] is the required grade, and 
+
+ρ ≥ 0 is the below-grade consequence per recovered Sm normalized by the value of recovered Sm; not deploying has loss one. When the below-grade consequence is small, greater nominal recovery can outweigh lower purity in this model. For Round 2 at g = 0 .95 , the loss-minimizing recorded condition switches from H11 to B12 at 
+
+ρ = 0 .259 (tie at the boundary): H11 has 113.86% nominal yield and 41.82% purity, whereas B12 has 84.36% nominal yield and 96.92% purity. At this boundary, the consequence per recovered Sm is about a quarter of the value assigned to that Sm. If g > 0.9692 , no recorded condition meets grade and not deploying is optimal for ρ > 1 (Fig. 2). Exact intervals and boundary ties are retained in machine-readable form and are available from the authors.        
+
+> H11
+> H10 E11 F11 E10
+> A12 G09 B12
+> 40 50 60 70 80 90 00.10.20.3
+
+Required binary Sm–Co purity, g (%) Consequence ratio,  ρ
+
+(a) Operating-condition regions       
+
+> ρ= 0 .259
+> B12 H11
+> do not deploy
+> 95 96 97 98 99 100 00.25 0.50.75 1
+
+Required binary Sm–Co purity, g (%) (b) High-grade boundary 
+
+Figure 2: Model-based Round 2 decision regions using raw nominal yield. Panel (a) resolves the operating-condition boundaries over the range where recorded optima switch; panel (b) shows the 95%-grade break-even and the high-grade do-not-deploy region. 
+
+2.2 NdFeB Round 1: conditional route contrast 
+
+OBSERVED . The deposited ndfeb_round1.py assigns 1 M NaOH to columns 1–6 and 0.2 M sodium oxalate to columns 7–12, giving 48 wells per route. Reagent volume increases from 30 to 180 μL within each block, and leachate volume increases by row. The experiment-agent JSON describes a different map and oxalate concentration, so the script must be confirmed before the mapping is treated as executed. Conditional on that script and on mass-proportional signals, define atomic-weight-adjusted signal proxies 
+
+enSj = zSj /M j and normalized rare-earth-element (REE)/Fe enrichment 
+
+eN SR = enS 
+
+> Pr
+
++ enS 
+
+> Nd
+
++ enS 
+
+> Gd
+
++ enS 
+
+> Tb
+
++ enS
+
+> Dy
+
+, E = eN PR /enP
+
+> Fe
+
+eN FR /enF
+
+> Fe
+
+,
+
+where zSj is the recorded signal for element j in sample S, Mj is its atomic weight, and P and F denote the recorded Round 1 plate sample and initial feed. The calculation uses elements present in both files and assumes common element-wise dilution; the plate phase and signal units remain unconfirmed. 4We use the NdFeB enrichment score as a reproducible benchmark target because it can be calculated from the recorded measurements under these assumptions. DERIVED . Across increasing reagent-volume columns, median E values are approximately 135, 43, 5.7, 3.3, 2.3, and 1.9 for hydroxide, and 73, 240, 138, 255, 201, and 129 for oxalate. Maximizing E while minimizing precipitant amount within each route leaves F01 on the hydroxide frontier and E07, D08, and H10 on the oxalate frontier (Fig. 3). M ODEL -BASED . Quadratic ridge fits have nested leave-one-out root-mean-square errors in log enrichment (log-RMSE) of 0.536 for hydroxide and 1.606 for oxalate; the latter provides little support for smooth interpolation of the oxalate response. These results are conditional normalized-enrichment contrasts, not recovery, a confirmed separation factor, or economic preference.            
+
+> F01 0.03 0.06 0.09 0.12 0.15 0.18
+> 10 0
+> 10 1
+> 10 2
+> Precipitant amount (mmol) Normalized REE/Fe enrichment  E (a) Hydroxide (1 M NaOH)
+> D08 E07 H10 0.006 0.012 0.018 0.024 0.030 0.036
+> 10 0
+> 10 1
+> 10 2
+> Precipitant amount (mmol) (b) Oxalate (0.2 M sodium oxalate)
+
+Figure 3: Derived conditional NdFeB Round 1 profiles. Gray points are enrichment values for individual recorded wells, blue lines and bars are medians and interquartile ranges, and labeled diamonds are within-route frontiers. The deposited-script map and concentrations remain unconfirmed. 
+
+2.3 Produced water: replication and plate-to-bench correspondence 
+
+OBSERVED . The deposited script assigns 30–210 μL NaOH to rows A–G and no NaOH to row H; each row has 12 wells. The experiment-agent record specifies 1 M NaOH. The supplementary information reports a 20 mL bench experiment using 9 mL of 0.5 M NaOH and a product containing 98.68 mol% Mg (Ritchhart et al., 2026). D ERIVED . Under the recorded stock concentrations and deposited map, the shared initial Mg concentration of 1578.838 mg/L gives 3.42 mol NaOH per mol Mg in plate row B and, under a common-feed assumption, 3.46 in the bench experiment. Equivalently, the NaOH doses are 1.71 and 1.73 times the formal 2:1 OH:Mg stoichiometry of Mg(OH) 2. These dose ratios alone determine neither aqueous hydroxide availability nor precipitation yield. DERIVED . The direct (un-normalized) Mg medians decrease in the order B, C, D, E, F, A, G, H (Fig. 4). MODEL -BASED . If signals are condition-comparable, omitting any one well leaves this order unchanged (minimum Spearman ρs = 1 , maximum rank shift 0). Under the additional common-feed and linear-response assumptions required for feed-fraction normalization, the product-phase leader changes from B to G; if the signals are instead read as residual-phase measurements, both the direct and the feed-normalized readings select row H. The Mg–Ca frontiers also change. Replication therefore does not identify a preferred row without knowing the measured phase and dilution corrections. The matched ratios motivate a scale-transfer question; they do not show that the plate selected the bench condition or establish plant-scale transfer. 5A B C D E F G H
+
+> 0100 200 300 400 500 600
+
+Protocol row Recorded Mg signal (units unconfirmed) (a) Recorded Mg values        
+
+> ABCDEFGH
+> Direct product Direct residual Feed-norm. product Feed-norm. residual
+
+Protocol row (b) Model-based decision scenarios 
+
+> Mg–Ca frontier Mg-only leader
+
+Figure 4: Produced-water replication and interpretation sensitivity. Panel (a) retains all 12 recorded Mg values per row (gray) and shows their medians (blue). Panel (b) gives Model-based Mg–Ca frontiers; diamonds mark the Mg-only leader. Rows jointly vary NaOH and produced-water volumes, and signal units and measured phase remain unconfirmed. 
+
+2.4 Other records 
+
+OBSERVED . The saved SmCo BO state specifies a Matérn-2.5 model, fixed-low noise, UCB with β = 0 .2,and a 96-point terminal batch. Its optimization history is empty, so it documents the configuration but lacks complete selection provenance. The deposited TEA records identify possible products and missing inputs but do not define a numerical downstream loss or recorded feedback rule for selecting experiments. The supplementary information reports a UV–Vis versus ICP-MS slope of 0.97. Without paired values, residual calibration, turnaround, and cost, UV–Vis is a candidate alternative assay rather than a calibrated substitute. 
+
+# 3 Decision-focused formulation and algorithmic direction 
+
+3.1 Downstream loss 
+
+The SmCo example links a recorded condition to loss through nominal recovery and a grade requirement. We now extend that decision structure to uncertain technical responses, process costs, and the intended deployment scale. Let r ∈ R denote a recovery route, x ∈ X r an operating condition, and s ∈ S an experimental scale or assay fidelity (how faithfully the assay measures the quantity of interest). For action a = ( r, x, s ),
+
+Ya ∼ p(· | a, θ ),
+
+where θ contains uncertain technical quantities such as response surfaces, recovery, impurity behavior, measurement noise, and scale discrepancy. Let ϕ contain exogenous economic quantities such as product value, reagent price, disposal cost, and throughput value. A deployment decision d ∈ D is evaluated at target scale s⋆ by 
+
+Ls⋆ (d, θ, ϕ ) = Cprocess (d, θ, ϕ ; s⋆) + Cpenalty (d, θ, ϕ ; s⋆).
+
+Applying this loss to a selected campaign requires defining non-overlapping terms. 6Let bt(θ) be the technical posterior after t batches and q(ϕ) an economic scenario distribution. The notation treats ϕ as exogenous to θ; a joint distribution can replace it if dependence matters. Current Bayes risk is 
+
+Rs⋆ (bt, q ) = min  
+
+> d∈D
+
+Eθ∼bt, ϕ ∼q
+
+Ls⋆ (d, θ, ϕ ).
+
+Under this factorized model, laboratory observations update bt but not q unless an action measures an economic quantity. Under a joint model, they may also update beliefs about correlated components of ϕ.
+
+3.2 Value of a batch 
+
+For feasible batch B with future outcome YB , define 
+
+∆( B | bt, q, s ⋆) = Rs⋆ (bt, q ) − EYB |bt
+
+h
+
+Rs⋆ (bB,Y B 
+
+> t+1
+
+, q )
+
+i
+
+.
+
+Under exact Bayesian updating and optimization, ∆( B) ≥ 0 because the decision maker can ignore an observation. This normative value-of-information objective (Lindley, 1956; Frazier et al., 2008) still requires a tractable acquisition rule for selecting 96-well batches. If every plate has capacity Q and the same cost, the primary selection problem is 
+
+B∗ 
+
+> t
+
+∈ arg max 
+
+> B∈B Q
+
+∆( B | bt, q, s ⋆),
+
+where BQ contains physical, timing, control, and replication constraints. Subtracting a common plate cost does not change the ranking. Experimental cost matters when comparing unequal fidelities, variable batch sizes, turnaround, or stopping. It can then enter as a constraint cexp (B) ≤ Ct or as ∆( B) − cexp (B) after conversion to common loss units. 
+
+3.3 Candidate method family 
+
+The exact method is open. Three paths are plausible: 1. Downstream-aware two-stage policy: retain discrimination followed by within-route optimization, but define both around downstream loss. 2. Joint decision-value policy: optimize approximate ∆( B) directly over route–condition actions. 3. Hybrid structured policy: use EC 2-style route discrimination and route-specific GP criteria to generate candidates, then allocate the finite batch by approximate downstream value. The hybrid is a plausible candidate because it retains the companion preprint’s useful structure without adding an EC 2 impurity score directly to a GP-UCB score. It would fit route-specific posteriors, group plausible scenarios sampled from those posteriors by their preferred route, generate conditions near promising or decision-sensitive regions, and allocate wells across routes, conditions, replicates, and controls by approximate marginal ∆. Posterior representation, batching, and any theoretical result should follow from the selected implementation. 74 Retrospective analyses and process decision model 
+
+4.1 Valid retrospective evaluation 
+
+An observation-based policy may select only recorded CICERO conditions. Off-grid outcomes require a response model and must be labeled M ODEL -BASED .The produced-water plate has 12 recorded wells at each of eight conditions. Completed leave-one-out and prespecified outlier checks are confined to those conditions; centered column ranks are descriptive and do not identify causal position effects. SmCo and NdFeB generally have one outcome per condition. They support benchmarks that reveal entries from the completed grid, not repeated noisy trajectories or claims about the policy that originally generated the grid. 
+
+4.2 Conditional NdFeB finite-pool benchmark 
+
+Each policy selects recorded conditions and then sees their stored outcomes. We measure how many revealed wells it requires to find the exact maximum among the fixed recorded E values, at H10. The route map and enrichment definition follow the assumptions in Section 2.2. GP predictions guide selection; stored outcomes determine search performance. This differs from the quadratic-ridge interpolation diagnostic in that section. Within the recorded pool, an explicit downstream loss and sufficient decision inputs could support a different ranking. The two-stage reconstruction replaces the companion method’s EC 2 diagnostic stage with an initial batch split equally between routes. Using separate GPs fitted to those results, it commits to the route with the highest posterior mean log enrichment at any of its recorded conditions, then uses GP-UCB within that route. Routewise GP-UCB lets separate route models compete without committing to one route; mixed-route BO uses one joint route–condition model. Equal route splitting uses GP-UCB adaptively within each route. The space-filling baseline spreads selections across the recorded grid without using outcomes. Each next point is as far as possible from its nearest previously selected point in normalized route–condition coordinates. MODEL -BASED . Under fitted GP hyperparameters, the two-stage reconstruction, routewise GP-UCB, and equal route split reveal H10 by 16 wells. Mixed-route BO does so by 24 and deterministic space filling by 48. This comparison supports faster discovery by adaptive search on this pool. Random sampling falls short of the pool-optimum enrichment of 508.97 by 21.36 on average (grid simple regret) after 48 wells. Figure 5 shows the search trajectories; per-budget metrics are tabulated in Appendix A. The first three adaptive policies tie on best-revealed enrichment throughout the benchmark. Their common initial batch reveals H12 ( E = 493 .11 ), near the pool maximum 508.97. Space filling also reveals H12 in its initial batch; different initial designs prevent isolating the effect of adaptation alone. The three adaptive policies allocate differently: by 48 wells they assign 44, 43, and 24 wells, respectively, to oxalate. Once H10 is revealed, best-revealed enrichment is saturated and cannot value those differences. The terminal-only symbolic shortfall max(0 , T − E), for a fixed enrichment target T , ties all conditions with 
+
+E ≥ T and does not drive acquisition; the benchmark therefore does not test downstream-aware selection. MODEL -BASED . Plug-in latent intervals describe uncertainty in the underlying log-enrichment response with fitted GP hyperparameters held fixed. At 16 wells, nominal 90% plug-in latent intervals cover 42.5% of the 80 hidden recorded conditions under both the two-stage and routewise models (identical coverage), so the trajectories do not establish calibrated uncertainty reduction. 8Recorded-pool optimum 
+
+> 250 300 350 400 450 500
+> Enrichment  E
+
+(a)         
+
+> Three coincident policies Mixed-route BO Space filling Random mean + IQR
+> 816 24 32 40 48 00.25 0.50.75 1
+
+Revealed wells Oxalate share  (b)   
+
+> Two-stage Routewise GP-UCB Equal route split
+
+Figure 5: Model-based reveal-only search on the conditional NdFeB Round 1 pool under fitted GP hy-perparameters. Panel (a) shows the best recorded enrichment revealed; random points are means with interquartile-range bars over 20 seeds, and space filling is an outcome-blind maximin baseline. Panel (b) shows the cumulative oxalate share for the three policies with coincident incumbent trajectories. 
+
+4.3 Decision inputs and evidence requirements 
+
+The downstream loss should contain only quantities that can affect the deployment choice, value of informa-tion, or stopping. Laboratory-resolvable quantities include the executed protocol, measured phase, units and dilution, recovery, grade or selectivity, replicate variation, and condition–response relationships. PNNL-CONFIRMED . CICERO’s precipitation operations were chosen for transferability to conventional tank reactors. Scale-transfer quantities include mixing, mass transfer, residence time, reactor geometry, solid–liquid handling, throughput, and process robustness. Validating pilot or plant performance requires experiments at the corresponding scales; extrapolations remain M ODEL -BASED . Scale affects both technical response and the consequence of deployment; these effects should not be collapsed into one multiplier. Economic and decision inputs include product specifications; the marginal value of higher purity; reagent, waste, and refining costs; throughput requirements; customer requirements; and market conditions. Because these inputs may be incomplete or time-varying, the analysis should use credible ranges, scenarios, qualitative orderings, or symbolic decision boundaries. Laboratory observations inform technical responses, and paired multi-scale experiments inform scale transfer. Under the factorized model, economic beliefs remain fixed unless an action measures an economic quantity. The analysis may identify a robust, viable process choice or a missing input that could change that choice. 
+
+# 5 Exploratory synthetic design probe 
+
+MODEL -BASED . We compared implementations of the candidate architectures under a common normalized downstream loss. The synthetic two-stage policy starts with a balanced batch, commits to the route whose best condition has the lowest estimated expected downstream loss, then selects experiments by approximate decision value within that route. The joint decision-value policy selects across routes and conditions. The structured hybrid proxy first filters for promising or uncertain candidates, then applies the joint policy’s 9decision-value rule. This proxy is not the proposed EC 2/GP-UCB hybrid. The full 32-cell factorial spans route gap, batch capacity, scale discrepancy, loss shape, and grade-specification uncertainty. Each cell used the same 100 world seeds, a resource budget of 16, and laboratory and bench resource costs of one and two. Particles are posterior samples of model coefficients: we used 256 acquisition particles for experiment selection and 4,096 terminal particles for the final process decision. Excess loss is the downstream loss of the chosen action minus that of a synthetic oracle. On this normalized scale, not deploying has loss one. Table 2 reports paired excess-loss differences averaged across cells; world-seed Monte Carlo standard errors use 50 balanced adjacent-seed blocks. Mean excess losses are 0.041 for the structured hybrid proxy, 0.045 for synthetic two-stage, and 0.046 for the joint decision-value policy. The largest contrast is roughly a tenth of the policies’ mean excess loss. Table 2: Exploratory synthetic policy contrasts. Paired contrast Mean difference World-MC SE Structured hybrid proxy − Two-stage -0.0039 0.0051 Structured hybrid proxy − Joint decision-value -0.0043 0.0019 Joint decision-value − Two-stage 0.0004 0.0047 
+
+> Negative values favor the first-named policy. Standard errors are conditional on the configured synthetic model and acquisition approximation.
+
+The structured hybrid proxy has lower estimated loss than the direct joint decision-value policy; both contrasts involving synthetic two-stage are small relative to their world-seed Monte Carlo standard errors. Across 64, 128, and 256 acquisition particles, the structured-minus-two-stage and structured-minus-joint estimates remain negative, while joint-minus-two-stage remains near zero. Across particle counts the aggregate pattern is stable; individual acquisition paths are not. These simulations contain no empirical target-scale inputs. The next step is to select an acquisition method for the prospective comparison. 
+
+# 6 Proposed prospective campaign 
+
+A prospective campaign should use a feedstock with at least two credible routes and continuous conditions within each route. It should be small enough for two or three adaptive batches but large enough that exhaustive testing is impractical. Before the first batch, a prospective campaign should pre-register the route set, condition bounds, measured outputs, downstream loss or economic scenarios, candidate pool, physical constraints, common budget, controls, stopping rule, and evaluation metrics. The pre-registration should also state that an unchanged preferred decision is a valid result. The first batch should cover routes, feasibility, and the downstream decision boundary. The second should compare the incumbent proposal with the decision-focused allocation using the same information. Where prac-tical, both recommendations should share a plate to reduce batch confounding. Bench or pilot confirmation should carry forward the selected condition and at least one credible alternative. For each round, retain the candidate set, exclusions, code and configuration versions, random seeds, model state, acquisition values, proposed and executed batches, manual changes, timestamps, resource use, raw measurements, dilution and QC metadata, and stopping decision. Use versioned pipelines and interoperable schemas to convert these records into decision-ready variables. 10 7 Related work, limitations, and open questions 
+
+The proposed objective draws on Bayesian experimental design and knowledge-gradient methods, which value observations by their expected effect on later decisions (Lindley, 1956; Frazier et al., 2008). The companion preprint supplies a two-stage structure: equivalence-class discrimination followed by within-route GP optimization (Ray and Srinivas, 2026). EC 2 addresses Bayesian decision-region identification (Golovin et al., 2010); GP-UCB and related methods address expensive black-box optimization (Srinivas et al., 2010; Frazier, 2018). Batch and cost-aware BO address parallel evaluations and differences in experimental cost (Desautels et al., 2014; Astudillo et al., 2021). A detailed comparison with batch knowledge gradient, terminal Bayesian optimization, decision-focused design, technoeconomic-aware optimization, and multi-fidelity design will depend on the acquisition method selected. The CICERO archive supports conditional comparisons among recorded conditions. It cannot directly validate policies that select unrecorded conditions: better metadata would improve reconstruction but would not supply the missing outcomes. Most conditions lack independent replicates, limiting estimates of repeatability. Policy trajectories are unavailable, and changes between rounds may combine chemistry and protocol effects, limiting reconstruction of the original campaign. The archive also lacks a validated downstream loss and sufficient data to establish plant-scale transfer. Several measurement and provenance details remain unresolved in the available files and publications. Author confirmation or additional records could resolve them; they are likely known to the experimental team, but confirmation was limited by the deadline for submitting the current manuscript. For SmCo, interpreting nominal yield requires confirming whether the 3928.381 mg/L feed concentration applies to both rounds and how nominal yields above 100% should be treated. Interpreting the repeated Co value 4.8983050847 × 10 −10 mol requires confirming whether it is an analytical floor. Reconstructing the Round 2 selection also requires the unavailable BO recommendations and their mapping to executed wells. For NdFeB, interpreting the route comparison requires the executed plate maps, reagent concentrations, measured phases, dilution treatment, and intended separation-factor definition. Calculating recovery across rounds additionally requires the enriched-stock preparation and recovery denominator. For produced water, condition rankings depend on the executed map and stock concentration, signal units, dilution treatment, and measured phase. Assessing replication requires confirming whether columns are replicates and clarifying any outlier treatment. Linking plate row B to the bench experiment requires confirming whether it informed that experiment and whether the feed was materially comparable. Choosing a process also requires decision inputs: the Sm product-grade threshold, rework cost, and value of recovered Sm. The NdFeB enrichment score alone omits recovery, reagent demand, throughput, waste, and downstream purification. These inputs are distinct from the measurement and provenance gaps, which motivate the data infrastructure and logging requirements specified above. 
+
+# 8 Conclusion 
+
+In the conditional M ODEL -BASED NdFeB benchmark, adaptive policies reach the recorded enrichment maximum by 16–24 wells, compared with 48 for space filling. Our two-stage reconstruction shares the earliest discovery budget of 16 wells with two adaptive alternatives. Conditional retrospective analyses show a tradeoff between purity and nominal yield in SmCo, different enrichment profiles across NdFeB routes, and produced-water condition rankings that depend on how the measurements are interpreted. Selecting an economically preferred process requires an explicit downstream loss and the inputs needed to evaluate it. We propose using expected reduction in downstream Bayes risk to 11 select experimental batches. The prospective comparison would test batch selection under a common downstream loss and logging standard. Preparing it requires selecting an acquisition method, resolving the archive’s measurement and provenance gaps, and defining the deployment decision, relevant outputs, and credible economic ranges. 
+
+# Acknowledgments 
+
+We thank the PNNL CICERO team, whose published study and deposited records made these analyses possible. We are also grateful to Chinmayee Subban, Grant Johnson, Maxim Ziatdinov, and Andrew Ritchhart of Pacific Northwest National Laboratory. E.N. was supported by the Foundational Autonomy Investment (FAI) under the Laboratory Directed Research and Development (LDRD) Program at Pacific Northwest National Laboratory. PNNL is a multi-program national laboratory operated for the U.S. Department of Energy by Battelle Memorial Institute under Contract No. DE-AC05-76RL01830. 
+
+# A Finite-pool policy table 
+
+Table 3: Model-based reveal-only NdFeB finite-pool grid simple regret by well budget. Random-design entries average 20 seeded runs; other policies are deterministic. Values measure enrichment shortfall from the recorded-pool optimum.                                                         
+
+> Policy Runs 816 24 32 40 48 wells Two-stage reconstruction 115.86 0.00 0.00 0.00 0.00 0.00 Routewise GP-UCB 115.86 0.00 0.00 0.00 0.00 0.00 Equal route split 115.86 0.00 0.00 0.00 0.00 0.00 Mixed-route BO 115.86 15.86 0.00 0.00 0.00 0.00 Random 20 205.82 167.77 113.00 86.13 53.35 21.36 Space filling 115.86 15.86 15.86 15.86 15.86 0.00 Oracle 10.00 0.00 0.00 0.00 0.00 0.00
+
+Grid simple regret uses the best revealed condition. Symbolic downstream metrics use each policy’s permitted terminal action; the two-stage terminal action remains within its committed route. 
+
+# B Robustness and descriptive analyses 
+
+SmCo. MODEL -BASED . A common positive feed-denominator multiplier leaves raw Pareto membership unchanged. Capping or excluding nominal yields above 100% changes some frontier membership but not the five-point Round 2 tradeoff at or below 100%; the main analysis retains raw nominal values. 
+
+Produced water. MODEL -BASED . The Mg-only leaders and Mg–Ca frontiers are unchanged under the retain-all, Tukey 1.5-IQR, and modified-z 3.5 rules. These rules are sensitivity checks; the main analysis retains all measurements. 
+
+NdFeB Round 2. DERIVED . Within-plate row and column profiles retain all 96 recorded values, including finite negative signals. No cross-round recovery or material balance is calculated because the enriched-stock denominator is unavailable. 12 Finite-pool sensitivity. MODEL -BASED . Across the fitted and four perturbed GP specifications, the first grid-optimum discovery occurs at 16–24 wells for the two-stage and routewise policies, 16–40 for equal route splitting, and 24–40 for mixed-route BO. These scenarios probe model sensitivity; they do not provide uncertainty intervals. 
+
+Synthetic particle sensitivity. MODEL -BASED .Paired contrast 64 particles 128 particles 256 particles Structured hybrid proxy − Two-stage -0.0057 -0.0013 -0.0039 Structured hybrid proxy − Joint decision-value -0.0052 -0.0035 -0.0043 Joint decision-value − Two-stage -0.0005 0.0022 0.0004 
+
+> Point estimates only; negative values favor the first-named policy.
+
+# References 
+
+Raúl Astudillo, Daniel R. Jiang, Maximilian Balandat, Eytan Bakshy, and Peter I. Frazier. Multi-step budgeted bayesian optimization with unknown evaluation costs. In Advances in Neural Information Processing Systems , 2021. Thomas Desautels, Andreas Krause, and Joel W. Burdick. Parallelizing exploration-exploitation tradeoffs in gaussian process bandit optimization. Journal of Machine Learning Research , 15:3873–3923, 2014. Peter I. Frazier. A tutorial on bayesian optimization. arXiv preprint arXiv:1807.02811 , 2018. Peter I. Frazier, Warren B. Powell, and Savas Dayanik. A knowledge-gradient policy for sequential information collection. SIAM Journal on Control and Optimization , 47(5):2410–2439, 2008. Daniel Golovin, Andreas Krause, and Debajyoti Ray. Near-optimal bayesian active learning with noisy observations. In 
+
+Advances in Neural Information Processing Systems , 2010. Dennis V. Lindley. On a measure of the information provided by an experiment. The Annals of Mathematical Statistics ,27(4):986–1005, 1956. Debajyoti Ray and Niranjan Srinivas. Cost-aware recovery-pathway identification and bayesian optimization for autonomous materials discovery. arXiv preprint arXiv:2607.23896 , 2026. Andrew Ritchhart, Sarah I. Allec, Pravalika Butreddy, Krista Kulesa, Qingpu Wang, Dan Thien Nguyen, Maxim Ziatdinov, and Elias Nakouzi. Agentic workflow enables the recovery of critical materials from complex feedstocks via selective precipitation. Materials Horizons , 2026. doi: 10.1039/D6MH00475J. Advance Article; first published 21 May 2026. Niranjan Srinivas, Andreas Krause, Sham M. Kakade, and Matthias Seeger. Gaussian process optimization in the bandit setting: No regret and experimental design. In International Conference on Machine Learning , 2010. 
+
+13

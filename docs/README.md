@@ -6,29 +6,38 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-10
-- 运行时间：2026-09-10 22:03:57 UTC
+- 最新运行日期：2026-09-11
+- 运行时间：2026-09-11 22:08:08 UTC
 - 运行状态：成功
-- 本次总论文数：2
-- 精读区：0
-- 速读区：2
+- 本次总论文数：6
+- 精读区：1
+- 速读区：5
 
 ### 今日简报（AI）
-今日速读2篇、精读0篇，两篇均6.0分，聚焦LLM辅助系统工程建模与小分子制造团聚预测。  
-值得看的是“LLM架构建模输出如何用于系统工程设计并评价”和“群体平衡+多物理场预测小分子制造不良团聚”两个方向。  
-普通读者可先浏览速读摘要，判断与自身工作相关性后再决定是否深挖原文。
-- 详情：[/202609/10/README](/202609/10/README)
+今日精读1篇、速读5篇，重点聚焦AI与化学反应的交叉研究。最值得看的是动态语言模型表示用于多目标反应优化（8.0分），以及TSBench等两项化学反应机理评测工作（均7.0分）。普通读者可优先从精读文章入手，理解AI如何辅助化学优化。
+- 详情：[/202609/11/README](/202609/11/README)
 
 ### 精读区论文标签
-- 本次无精读推荐。
+1. [Dynamic language model representations for multi-objective reaction optimisation](/202609/11/2609.11790v1-dynamic-language-model-representations-for-multi-objective-reaction-optimisation)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：从文本学习反应表示用于化工优化
 
 ### 速读区论文标签
-1. [Context operations to architecture modelling output from large language models and evaluation criteria for their use in systems engineering design](/202609/10/2609.10132v1-context-operations-to-architecture-modelling-output-from-large-language-models-and-evaluation-criteria-for-their-use-in-systems-engineering-design)  
+1. [TSBench: A physics-grounded benchmark for evaluating LLM understanding of chemical reaction mechanisms](/202609/11/2609.08503v1-tsbench-a-physics-grounded-benchmark-for-evaluating-llm-understanding-of-chemical-reaction-mechanisms)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：面向化学反应机理理解的LLM评测基准
+2. [Autonomous Chemical Mechanistic Discovery through Agentic Reasoning and Validation](/202609/11/2609.11147v1-autonomous-chemical-mechanistic-discovery-through-agentic-reasoning-and-validation)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：面向化学机理发现的自主LLM智能体系统
+3. [Decision-Focused Active Learning for Scale-Aware Critical-Materials Recovery](/202609/11/2609.09413v1-decision-focused-active-learning-for-scale-aware-critical-materials-recovery)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：面向工程设计建模与评估的LLM框架
-2. [Integrated Population Balance and Multiphysics Modeling for Predicting Undesired Agglomeration in Small Molecule Manufacturing](/202609/10/2609.10256v1-integrated-population-balance-and-multiphysics-modeling-for-predicting-undesired-agglomeration-in-small-molecule-manufacturing)  
+   evidence：主动学习用于分离回收工艺放大
+4. [From Document Silos to Process Intelligence: A Multi-Layer Knowledge Graph for CMC Process Development](/202609/11/2609.11493v1-from-document-silos-to-process-intelligence-a-multi-layer-knowledge-graph-for-cmc-process-development)  
+   标签：评分：6.0/10、query:llm-dm
+   evidence：智能体AI平台，过程文档知识图谱，化工过程开发
+5. [Distributed Optimization of Modular Production Systems using Model-based Reinforcement Learning with Inverse Models](/202609/11/2609.11615v1-distributed-optimization-of-modular-production-systems-using-model-based-reinforcement-learning-with-inverse-models)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：过滤干燥单元操作的机理模型
+   evidence：面向模块化生产过程系统的模型强化学习
 
 
 <div class="dpr-home-promo-card">
