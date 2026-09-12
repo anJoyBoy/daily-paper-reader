@@ -1,6 +1,9 @@
 * <a class="dpr-sidebar-root-link" href="#/">首页</a>
 * <a class="dpr-sidebar-root-link dpr-sidebar-noactive-link" href="javascript:void(0)" data-dpr-hash="#/tutorial/README">使用教程</a>
 * Daily Papers
+  * 2026-09-12 <!--dpr-date:20260912-->
+    * 速读区
+      * <a class="dpr-sidebar-item-link dpr-sidebar-item-structured" href="#/202609/12/2609.04511v1-lentex-generalizable-latent-entity-extraction-via-synthetic-data-and-instruction-tuned-llms" data-sidebar-item="{&quot;title&quot;: &quot;LentEx: Generalizable Latent Entity Extraction via Synthetic Data and Instruction-Tuned LLMs&quot;, &quot;link&quot;: &quot;https://arxiv.org/abs/2609.04511v1-lentex-generalizable-latent-entity-extraction-via-synthetic-data-and-instruction-tuned-llms&quot;, &quot;score&quot;: &quot;6.0&quot;, &quot;tags&quot;: [{&quot;kind&quot;: &quot;query&quot;, &quot;label&quot;: &quot;llm-dm&quot;}], &quot;evidence&quot;: &quot;面向文本挖掘的指令微调大模型潜在实体抽取&quot;}">LentEx: Generalizable Latent Entity Extraction via Synthetic Data and Instruction-Tuned LLMs</a>
   * 2026-09-11 <!--dpr-date:20260911-->
     * 精读区
       * <a class="dpr-sidebar-item-link dpr-sidebar-item-structured" href="#/202609/11/2609.11790v1-dynamic-language-model-representations-for-multi-objective-reaction-optimisation" data-sidebar-item="{&quot;title&quot;: &quot;Dynamic language model representations for multi-objective reaction optimisation&quot;, &quot;link&quot;: &quot;https://arxiv.org/abs/2609.11790v1-dynamic-language-model-representations-for-multi-objective-reaction-optimisation&quot;, &quot;score&quot;: &quot;8.0&quot;, &quot;tags&quot;: [{&quot;kind&quot;: &quot;query&quot;, &quot;label&quot;: &quot;chemical-llm&quot;}], &quot;evidence&quot;: &quot;从文本学习反应表示用于化工优化&quot;}">Dynamic language model representations for multi-objective reaction optimisation</a>
