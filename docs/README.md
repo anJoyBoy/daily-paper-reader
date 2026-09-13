@@ -6,26 +6,27 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-12
-- 运行时间：2026-09-12 21:09:30 UTC
+- 最新运行日期：2026-09-13
+- 运行时间：2026-09-13 21:35:49 UTC
 - 运行状态：成功
-- 本次总论文数：1
+- 本次总论文数：2
 - 精读区：0
-- 速读区：1
+- 速读区：2
 
 ### 今日简报（AI）
-今日速读 1 篇：LentEx 用合成数据加指令微调大模型做可泛化的隐式实体抽取（6.0/10）。
-最值得看的是它"合成数据+指令微调"提升跨域泛化的思路，适合关注信息抽取落地的读者快速浏览。
-建议先看它的数据合成与评测部分，判断这套方法能否迁移到你手头的抽取任务。
-- 详情：[/202609/12/README](/202609/12/README)
+2026-09-13 日报速读2篇、精读0篇，聚焦运筹学语言模型与CMC工艺知识图谱两个方向。两篇均值得一看：前者用求解器反馈自蒸馏提升运筹建模能力，后者用多层知识图谱打通CMC工艺文档孤岛。普通读者可先浏览摘要，若关注AI+工业研发可优先读知识图谱那篇。
+- 详情：[/202609/13/README](/202609/13/README)
 
 ### 精读区论文标签
 - 本次无精读推荐。
 
 ### 速读区论文标签
-1. [LentEx: Generalizable Latent Entity Extraction via Synthetic Data and Instruction-Tuned LLMs](/202609/12/2609.04511v1-lentex-generalizable-latent-entity-extraction-via-synthetic-data-and-instruction-tuned-llms)  
+1. [Beyond Verified Answers: Solver-Informed Self-Distillation for Bootstrapping Operations Research Language Models](/202609/13/2609.09957v1-beyond-verified-answers-solver-informed-self-distillation-for-bootstrapping-operations-research-language-models)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：LLM将自然语言转为运筹学优化模型，可迁移至LLM辅助的化工过程模型构建
+2. [From Document Silos to Process Intelligence: A Multi-Layer Knowledge Graph for CMC Process Development](/202609/13/2609.11493v1-from-document-silos-to-process-intelligence-a-multi-layer-knowledge-graph-for-cmc-process-development)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：面向文本挖掘的指令微调大模型潜在实体抽取
+   evidence：从工艺文档中挖掘知识的智能体式AI知识图谱
 
 
 <div class="dpr-home-promo-card">
