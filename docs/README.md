@@ -6,27 +6,28 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-13
-- 运行时间：2026-09-13 21:35:49 UTC
+- 最新运行日期：2026-09-14
+- 运行时间：2026-09-14 22:43:38 UTC
 - 运行状态：成功
-- 本次总论文数：2
-- 精读区：0
-- 速读区：2
+- 本次总论文数：1
+- 精读区：1
+- 速读区：0
 
 ### 今日简报（AI）
-2026-09-13 日报速读2篇、精读0篇，聚焦运筹学语言模型与CMC工艺知识图谱两个方向。两篇均值得一看：前者用求解器反馈自蒸馏提升运筹建模能力，后者用多层知识图谱打通CMC工艺文档孤岛。普通读者可先浏览摘要，若关注AI+工业研发可优先读知识图谱那篇。
-- 详情：[/202609/13/README](/202609/13/README)
+今日精读 1 篇 8.0 分论文，聚焦 LLM 驱动的地下储气库地面工艺设计中"工程推理"与"DEXPI 序列化"的分离。
+
+最值得看的是它用三个案例来验证这一分离思路——若你关注 LLM 落地工业设计、或 DEXPI 这类工程数据标准与推理环节的边界问题，这篇值得一读。
+
+普通读者可先看摘要中的三个案例设定，判断这套"推理与序列化解耦"的做法能否迁移到你熟悉的工程场景。
+- 详情：[/202609/14/README](/202609/14/README)
 
 ### 精读区论文标签
-- 本次无精读推荐。
+1. [Separating Engineering Reasoning from DEXPI Serialization in LLM-Based Greenfield Surface-Process Design: A Three-Case Study for Underground Gas Storage](/202609/14/2609.12656v1-separating-engineering-reasoning-from-dexpi-serialization-in-llm-based-greenfield-surface-process-design-a-three-case-study-for-underground-gas-storage)  
+   标签：评分：8.0/10、query:chemical-llm
+   evidence：基于LLM的过程设计，分离工程推理与DEXPI序列化
 
 ### 速读区论文标签
-1. [Beyond Verified Answers: Solver-Informed Self-Distillation for Bootstrapping Operations Research Language Models](/202609/13/2609.09957v1-beyond-verified-answers-solver-informed-self-distillation-for-bootstrapping-operations-research-language-models)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：LLM将自然语言转为运筹学优化模型，可迁移至LLM辅助的化工过程模型构建
-2. [From Document Silos to Process Intelligence: A Multi-Layer Knowledge Graph for CMC Process Development](/202609/13/2609.11493v1-from-document-silos-to-process-intelligence-a-multi-layer-knowledge-graph-for-cmc-process-development)  
-   标签：评分：6.0/10、query:llm-dm
-   evidence：从工艺文档中挖掘知识的智能体式AI知识图谱
+- 本次无速读推荐。
 
 
 <div class="dpr-home-promo-card">
