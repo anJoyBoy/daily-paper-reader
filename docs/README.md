@@ -6,28 +6,35 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-14
-- 运行时间：2026-09-14 22:43:38 UTC
+- 最新运行日期：2026-09-15
+- 运行时间：2026-09-15 22:40:13 UTC
 - 运行状态：成功
-- 本次总论文数：1
+- 本次总论文数：4
 - 精读区：1
-- 速读区：0
+- 速读区：3
 
 ### 今日简报（AI）
-今日精读 1 篇 8.0 分论文，聚焦 LLM 驱动的地下储气库地面工艺设计中"工程推理"与"DEXPI 序列化"的分离。
-
-最值得看的是它用三个案例来验证这一分离思路——若你关注 LLM 落地工业设计、或 DEXPI 这类工程数据标准与推理环节的边界问题，这篇值得一读。
-
-普通读者可先看摘要中的三个案例设定，判断这套"推理与序列化解耦"的做法能否迁移到你熟悉的工程场景。
-- 详情：[/202609/14/README](/202609/14/README)
+- 今日共生成 4 篇推荐（精读 1 篇，速读 3 篇）
+- 精读：《Separating Engineering Reasoning from DEXPI Serialization in LLM-Based Greenfield Surface-Process Design: A Three-Case Study for Underground Gas Storage》（8.0/10）
+- 速读：《VFNet: Multi-View Spatio-Temporal Model for Void Fraction Estimation in Gas-Liquid Two-Phase Flow》（6.0/10）, 《SAGE-Loop: Reliable Closed-Loop LLM-Driven AutoML with Trial-and-Correction and Adaptive Ensembling》（6.0/10）, 《SAILOR: Solver-Assisted Interactive LLM-based Optimization Recovery》（6.0/10）
+- 这些结果覆盖了当下较热的方向，建议先看精读区论文的关键问题与方法。
+- 详情：[/202609/15/README](/202609/15/README)
 
 ### 精读区论文标签
-1. [Separating Engineering Reasoning from DEXPI Serialization in LLM-Based Greenfield Surface-Process Design: A Three-Case Study for Underground Gas Storage](/202609/14/2609.12656v1-separating-engineering-reasoning-from-dexpi-serialization-in-llm-based-greenfield-surface-process-design-a-three-case-study-for-underground-gas-storage)  
+1. [Separating Engineering Reasoning from DEXPI Serialization in LLM-Based Greenfield Surface-Process Design: A Three-Case Study for Underground Gas Storage](/202609/15/2609.12656v1-separating-engineering-reasoning-from-dexpi-serialization-in-llm-based-greenfield-surface-process-design-a-three-case-study-for-underground-gas-storage)  
    标签：评分：8.0/10、query:chemical-llm
-   evidence：基于LLM的过程设计，分离工程推理与DEXPI序列化
+   evidence：基于LLM的地下储气地面工艺设计
 
 ### 速读区论文标签
-- 本次无速读推荐。
+1. [VFNet: Multi-View Spatio-Temporal Model for Void Fraction Estimation in Gas-Liquid Two-Phase Flow](/202609/15/2609.09711v1-vfnet-multi-view-spatio-temporal-model-for-void-fraction-estimation-in-gas-liquid-two-phase-flow)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：面向化工气液两相流的机器学习建模
+2. [SAGE-Loop: Reliable Closed-Loop LLM-Driven AutoML with Trial-and-Correction and Adaptive Ensembling](/202609/15/2609.12455v1-sage-loop-reliable-closed-loop-llm-driven-automl-with-trial-and-correction-and-adaptive-ensembling)  
+   标签：评分：6.0/10、query:llm-dm
+   evidence：闭环LLM驱动的自动机器学习
+3. [SAILOR: Solver-Assisted Interactive LLM-based Optimization Recovery](/202609/15/2609.13945v1-sailor-solver-assisted-interactive-llm-based-optimization-recovery)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：求解器辅助的交互式LLM优化模型恢复
 
 
 <div class="dpr-home-promo-card">
