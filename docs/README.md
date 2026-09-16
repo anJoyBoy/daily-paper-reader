@@ -6,35 +6,29 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-15
-- 运行时间：2026-09-15 22:40:13 UTC
+- 最新运行日期：2026-09-16
+- 运行时间：2026-09-16 22:26:03 UTC
 - 运行状态：成功
-- 本次总论文数：4
-- 精读区：1
-- 速读区：3
+- 本次总论文数：2
+- 精读区：0
+- 速读区：2
 
 ### 今日简报（AI）
-- 今日共生成 4 篇推荐（精读 1 篇，速读 3 篇）
-- 精读：《Separating Engineering Reasoning from DEXPI Serialization in LLM-Based Greenfield Surface-Process Design: A Three-Case Study for Underground Gas Storage》（8.0/10）
-- 速读：《VFNet: Multi-View Spatio-Temporal Model for Void Fraction Estimation in Gas-Liquid Two-Phase Flow》（6.0/10）, 《SAGE-Loop: Reliable Closed-Loop LLM-Driven AutoML with Trial-and-Correction and Adaptive Ensembling》（6.0/10）, 《SAILOR: Solver-Assisted Interactive LLM-based Optimization Recovery》（6.0/10）
-- 这些结果覆盖了当下较热的方向，建议先看精读区论文的关键问题与方法。
-- 详情：[/202609/15/README](/202609/15/README)
+2026-09-16 日报：今日无精读，速读 2 篇，聚焦知识图谱与语义中间件在工业流程中的应用。
+最值得一看的是《From Document Silos to Process Intelligence》（7.0/10），用多层知识图谱打通 CMC 工艺开发中的文档孤岛；其次是《GenOR-Twin》（6.0/10），尝试把业务话语与数学优化对接起来。
+普通读者可先从第一篇入手了解知识图谱如何落地工艺开发，再顺带浏览第二篇感受语义层与优化模型的结合思路。
+- 详情：[/202609/16/README](/202609/16/README)
 
 ### 精读区论文标签
-1. [Separating Engineering Reasoning from DEXPI Serialization in LLM-Based Greenfield Surface-Process Design: A Three-Case Study for Underground Gas Storage](/202609/15/2609.12656v1-separating-engineering-reasoning-from-dexpi-serialization-in-llm-based-greenfield-surface-process-design-a-three-case-study-for-underground-gas-storage)  
-   标签：评分：8.0/10、query:chemical-llm
-   evidence：基于LLM的地下储气地面工艺设计
+- 本次无精读推荐。
 
 ### 速读区论文标签
-1. [VFNet: Multi-View Spatio-Temporal Model for Void Fraction Estimation in Gas-Liquid Two-Phase Flow](/202609/15/2609.09711v1-vfnet-multi-view-spatio-temporal-model-for-void-fraction-estimation-in-gas-liquid-two-phase-flow)  
+1. [From Document Silos to Process Intelligence: A Multi-Layer Knowledge Graph for CMC Process Development](/202609/16/2609.11493v1-from-document-silos-to-process-intelligence-a-multi-layer-knowledge-graph-for-cmc-process-development)  
+   标签：评分：7.0/10、query:chemical-llm
+   evidence：面向化工过程开发知识的智能体AI平台
+2. [GenOR-Twin: A Semantic Middleware for Integrating Operational Discourse with Mathematical Optimization](/202609/16/2609.12863v1-genor-twin-a-semantic-middleware-for-integrating-operational-discourse-with-mathematical-optimization)  
    标签：评分：6.0/10、query:chemical-llm
-   evidence：面向化工气液两相流的机器学习建模
-2. [SAGE-Loop: Reliable Closed-Loop LLM-Driven AutoML with Trial-and-Correction and Adaptive Ensembling](/202609/15/2609.12455v1-sage-loop-reliable-closed-loop-llm-driven-automl-with-trial-and-correction-and-adaptive-ensembling)  
-   标签：评分：6.0/10、query:llm-dm
-   evidence：闭环LLM驱动的自动机器学习
-3. [SAILOR: Solver-Assisted Interactive LLM-based Optimization Recovery](/202609/15/2609.13945v1-sailor-solver-assisted-interactive-llm-based-optimization-recovery)  
-   标签：评分：6.0/10、query:chemical-llm
-   evidence：求解器辅助的交互式LLM优化模型恢复
+   evidence：用大模型把操作文本翻译为数学优化约束
 
 
 <div class="dpr-home-promo-card">
