@@ -1,0 +1,1628 @@
+Title: TEAR: Table Extraction with Attribute Recommendation from Texts via Large Language Models
+
+URL Source: https://arxiv.org/pdf/2609.15205v1
+
+Published Time: Tue, 15 Sep 2026 02:06:51 GMT
+
+Number of Pages: 22
+
+Markdown Content:
+# TEAR: Table Extraction with Attribute Recommendation from Texts via Large Language Models 
+
+# Tong Li 
+
+Hong Kong University of Science and Technology Hong Kong SAR, China tlice@connect.ust.hk 
+
+# Shuye Ding 
+
+Hong Kong University of Science and Technology Hong Kong SAR, China sdingah@connect.ust.hk 
+
+# Jiachuan Wang ∗
+
+Hong Kong University of Science and Technology Hong Kong SAR, China jwangey@connect.ust.hk 
+
+# Yongqi Zhang 
+
+Hong Kong University of Science and Technology (Guangzhou) Guangzhou, China yzhangee@connect.ust.hk 
+
+# Shuangyin Li 
+
+South China Normal University Guangzhou, China shuangyinli@scnu.edu.cn 
+
+# Lei Chen 
+
+Hong Kong University of Science and Technology Hong Kong SAR, China leichen@cse.ust.hk 
+
+# Bo Li 
+
+Hong Kong University of Science and Technology Hong Kong SAR, China 
+
+## Abstract 
+
+Table extraction from texts is an important task for information systems, and recent approaches that prompt large language mod-els (LLMs) with instructions have drawn great attention for their strong performance. Existing works have assumed the input texts to be table descriptions or specialized documents. However, these efforts have largely overlooked another prevalent category of texts, commonly found in news reports and social media: naturally occur-ring texts. Extracting tabular information from such texts poses two distinct challenges. First, high variability and the absence of explicit structural cues make fixed heuristic LLM prompts limited in pre-cisely delineating extraction boundaries. Second, manually prede-fined schemas cannot capture open-ended, unseen attributes in nat-urally occurring text. In this paper, we propose a framework, TEAR, to address these challenges. It comprises two synergistic workflows: a Table Extraction Workflow that dynamically adapts instructions to overcome the limitation of heuristic instructions, and an At-tribute Recommendation Workflow that discovers new attributes from texts to complement the heuristic schema. To our knowledge, TEAR is the first framework that supports automated text-driven attribute recommendation, enabling exploratory schema design for table extraction. To evaluate TEAR, we establish the benchmark for table extraction and attribute recommendation on naturally occur-ring texts, including two real-world datasets, manual annotations, 
+
+> ∗Corresponding author. Permission to make digital or hard copies of all or part of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for profit or commercial advantage and that copies bear this notice and the full citation on the first page. Copyrights for components of this work owned by others than the author(s) must be honored. Abstracting with credit is permitted. To copy otherwise, or republish, to post on servers or to redistribute to lists, requires prior specific permission and/or a fee. Request permissions from permissions@acm.org.
+> Conference acronym ’XX, Woodstock, NY
+> © 2026 Copyright held by the owner/author(s). Publication rights licensed to ACM. ACM ISBN 978-1-4503-XXXX-X/2018/06 https://doi.org/XXXXXXX.XXXXXXX
+
+appropriate metrics, and baseline comparisons. Experiments show that TEAR achieves state-of-the-art performance on both tasks, and the recommended attributes effectively enhance extraction performance in exploratory scenarios. 
+
+## CCS Concepts 
+
+• Information systems → Information extraction ; • Comput-ing methodologies → Information extraction .
+
+## Keywords 
+
+table extraction, attribute recommendation, text-to-table, large lan-guage models 
+
+ACM Reference Format: 
+
+Tong Li, Shuye Ding, Jiachuan Wang, Yongqi Zhang, Shuangyin Li, Lei Chen, and Bo Li. 2026. TEAR: Table Extraction with Attribute Recom-mendation from Texts via Large Language Models. In Proceedings of Make sure to enter the correct conference title from your rights confirmation email (Conference acronym ’XX). ACM, New York, NY, USA, 22 pages. https: //doi.org/XXXXXXX.XXXXXXX 
+
+## 1 Introduction 
+
+Table extraction from texts, also known as text-to-table , is an emerg-ing task focused on identifying semantic values from unstructured texts and organize them into tabular format [67], which unlocks the practical utility of texts for a wide range of downstream applications [26, 31, 43, 76], as well as simplifies data management [20, 71, 75, 77]. Previous works have developed into two lines, focusing on differ-ent categories of input texts. The first category is table descriptions ,which are manually written or artificially generated according to well-defined tables, such as the NBA game summary and their origi-nal box scores in Figure 1(a). In this line of research, the tables exist natively, and description text can be obtained in bulk [4, 35, 44, 64]. Thus, with paired (text, table)s, researchers adopt a supervised par-adigm, training generation models end-to-end to reconstruct the arXiv:2609.15205v1 [cs.DB] 14 Sep 2026 Conference acronym ’XX, June 03–05, 2018, Woodstock, NY Tong Li, Shuye Ding, Jiachuan Wang, Yongqi Zhang, Shuangyin Li, Lei Chen, and Bo Li Civil Judgment of the XXX Court No.001                                
+
+> Plaintiff: XXX
+> Defendant: XXX
+> The case of XXX v. XXX regarding a private lending dispute was filed with this Court on March 29, 2016.
+> XXX alleges: ...The plaintiff requests that XXX
+> XXX argued: … The defendant requests that XXX
+> I need to archive the information according to the schema.
+> The Atlanta Hawks (46 - 12) beat the
+> Orlando Magic (19 - 41) 95 - 88.
+> logical index
+> Recover the box scores from its description.
+> What’s said about the accidents
+> in these texts? Such as Victim name, Victim age, Victim status.
+> tables with heuristic schema
+> According to officials at the scene , a 15-year-old was
+> injured , and the other, aged eighteen , was rescued from
+> the vehicle by emergency crews and is said to be in a
+> life-threatening condition. Both victims were transported to City General Hospital for treatment.
+> Victim name Victim age Victim status
+> \15-year-old injured
+> \eighteen life-threatening
+> Villanueva ,currently at the Jersey Medical Center , told Dunn on Facebook Messenger that he came across eight
+> undercover officers and then a man came out of
+> nowhere, saw him first, and shot him.
+> text-driven attributes (based on underlined texts)
+> Information source
+> Rescuer
+> Encounter
+> Hospital name Right! I would also like to extract for Hospital name.
+> Hospital name
+> City General Hospital
+> City General Hospital
+> update schema
+> and label sets
+> updated tables with exploratory schema
+> Losses Total points Wins
+> Hawks 12 95 46
+> Magic 41 88 19
+
+(a) Table descriptions. 
+
+(b) Specialized documents. 
+
+> In every document, there are (1) Plaintiff and Defendant; (2) Court Judges is about lending evidence, agreed lending amount, agreed
+> repayment dates…; (3) Plaintiff can have multiple claims…(4)
+> Note a valid agreement refers to
+> an event in which the parties
+> have entered into a written or oral agreement.
+> instruction with specialized knowledge
+> describes reconstruct
+
+(c) Naturally occurring texts.     
+
+> Table
+> Extraction
+> Victim name Victim age Victim status
+> Villanueva \shot
+> Hospital name
+> Jersey Medical Center
+> Attribute
+> Recommendation
+> Table
+> Extraction
+
+Figure 1: Table extraction from different categories of input texts. 
+
+original table from its description [32, 50, 67]. However, their in-put texts are generated under control and are dominated by the pre-existing tables, which are limited in reflecting the true difficulty of extracting from real-world texts. The second category is specialized documents , such as legal docu-ments [5, 26] and biographies [5, 28]. These documents do not come with pre-aligned tables and involve more complicated contents, making annotating sufficient paired data for supervised learning expensive. Alternatively, researchers have shifted toward agentic extraction [7, 25, 26] powered by large language models (LLMs). This paradigm is known as in-context learning (ICL) [18], where the user depicts the task as instruction prompts that guide the LLMs to locate and extract relevant information without task-specific fine-tuning. The effectiveness of ICL stems not only from LLMs’ general semantic understanding, but also from how these docu-ments are composed to facilitate information retrieval. Specifically, specialized documents usually follow established writing conven-tions to convey predefined knowledge, offering structural cues for human readability, which the LLM can also recognize and exploit. For example, in Figure 1(b), the prefix “Plaintiff:” or pattern “Party A v. Party B” are reliable cues that help readers and LLMs quickly identify important information. 
+
+Our focus. Although effective for their assumed input texts, pre-vious works have overlooked the extraction demands for naturally occurring texts [29, 34], the unscripted language produced for daily human communication, pervasive in news reports, social media discourse, and customer service interactions. Ubiquitous naturally occurring texts (n-texts) encapsulate the authentic, unfiltered infor-mation that flows through human interaction, a quality inherently absent from curated descriptions or specialized documents. Extract-ing tables from them, therefore, represents a pivotal advance of the field into realistic scenarios. Unlike previously studied input texts, n-texts are not organized around pre-existing tables or predefined knowledge. Instead, they unfold in a fluid, narrative style, exhibit-ing less literal consistency, which introduces new challenges for extraction. 
+
+Challenge 1. Ineffective heuristic instruction. Resorting to LLM-based in-context learning for n-texts is appealing, given its semantic capability and data efficiency. Nevertheless, n-texts lack stable structural templates or cues in contrast to specialized doc-uments. This high variability means that even carefully crafted instructions are often insufficient to delineate all possible extrac-tion boundaries and convey nuanced task requirements [48, 55]. 
+
+Example 1.1. Consider the attribute “Victim status” in Figure 1(c). Unlike the explicit plaintiff name in Figure 1(b), its scope is am-biguous: it may encompass only direct casualties (“injured”), or also extend to relocation (“transported”). Such ambiguity is not resolvable via LLM common sense but requires task specification. Exhaustive enumeration of analogous ambiguities in static instruc-tion is not only impractical, but may instead dilute model attention to cause lost-in-the-middle [36]. 
+
+Challenge 2. Inadequate heuristic schema. A crucial step in extraction is understanding what information the texts contain, so as to determine the target schema, i.e., the attributes of interest. Existing methods typically work with heuristic schemas provided by human experts [25, 26], which may be satisfactory for their assumed inputs, where experts easily anticipate text contents. How-ever, n-texts do not adhere to a stable informational template. Even TEAR: Table Extraction with Attribute Recommendation from Texts via Large Language Models Conference acronym ’XX, June 03–05, 2018, Woodstock, NY 
+
+if one were to navigate massive volumes of such texts and painstak-ingly summarize the observed contents into attributes, missing some attributes remains a risk. In other words, users confronting n-texts face an exploratory scenario : initially, they can only list some obvious attributes that immediately come to mind, yet still seek to uncover all the relevant attributes that will emerge from the texts ahead. 
+
+Example 1.2. Consider the two texts in Figure 1(c). Though both are news reports about accidents, one details a rescue effort (“emer-gency crews”), and the other details a sudden, hostile encounter (“eight undercover officers”). Such contents diverge more sharply compared to those of the judgment in Figure 1(b), where each document follows a stable informational template to mention the plaintiff, defendant, case number, etc. 
+
+Our proposals. In this paper, we propose a framework TEAR, short for Table Extraction with Attribute Recommendation, to address the above challenges for naturally occurring texts. To tackle the dilemma of heuristic instructions of Challenge 1 ,our idea is to dynamically select and insert demonstrative examples 
+
+into the prompt for each text. These examples complement the ab-stract instructions with customized task specifications, enabling the LLM to perform extraction with clearer objectives. Also, retaining a small set of labeled data to supply such examples offers a practical trade-off between LLM usability and data efficiency [55]. Deter-mining what constitutes an effective demonstration is non-trivial, because general text similarity [54] does not fully reflect the task utility of an example, such as its ability to clarify the extraction boundaries of a particular attribute. To this end, TEAR incorpo-rates a proactive module that first performs a fuzzy prediction of what contents are likely to appear in the target table cells, and then retrieves examples that are informative for the specific extraction. To overcome the limitations of heuristic schemas discussed in 
+
+Challenge 2 and support exploratory scenarios, TEAR introduces a novel attribute recommendation task, which automatically discovers new attributes in texts to assist in refining the prior schema, as in Figure 1(c). Although the capabilities of recent LLMs in processing open-ended information [1, 72] render this task possible, naively in-voking LLMs and blindly accepting their outputs leaves the system vulnerable. Intuitively, an effective LLM-based attribute recommen-dation method should possess further abilities to (i) guide the LLM to propose attributes grounded in texts rather than ad-hoc fabri-cation; (ii) integrate the LLM’s differently articulated discoveries across multiple texts into a global candidate set; and (iii) prioritize the most salient candidates, shielding users from an undifferenti-ated, exhaustive list. Accordingly, we equip TEAR with components that operationalize these three intuitions. Finally, we establish an evaluation methodology tailored to this new setting. Prior work on table descriptions and specialized docu-ments assumes the presence of logical indices to align and compare records [67], which are not applicable to n-texts because they of-fer no such convenience. We therefore introduce a new metric for extraction that assesses table semantics without relying on in-dices, along with a dedicated evaluation protocol for the novel attribute recommendation task. We accompany this evaluation with two n-text datasets, comprising 3,375 manually annotated ground-truth tables spanning two domains. Extensive experiments on these datasets demonstrate that TEAR consistently outperforms state-of-the-art baselines on both extraction and recommendation tasks. To sum up, our main contributions are as follows: (1) We introduce an LLM-based framework TEAR for table ex-traction with attribute recommendation from naturally oc-curring texts. To the best of our knowledge, it is the first framework that could recommend new relevant attributes derived from texts under exploratory scenarios. (2) For table extraction, we propose a Proactive Demonstra-tion Module that dynamically retrieves examples for adap-tive instructions for each text. (3) For attribute recommendation, we propose a Discovery Mechanism that frames open-ended attribute discovery as table expansion to engage the LLM in proposing faithful new attributes, a Hybrid Integration Strategy that resolves duplicate LLM discoveries via diversity checking and con-textualized analysis, and a Schema Coherence Score that ranks candidates by their holistic coherence with the initial schema. (4) We establish a new and fair evaluation methodology given the emergent evaluation difficulty from table extraction and attribute recommendation from naturally occurring texts. In the rest of this paper, we begin with a discussion of related work (Section 2) and the formal problem definition (Section 3). We then present TEAR, including an overview (Section 4.1), the table extraction workflow (Section 4.2), and the attribute recommenda-tion workflow (Section 4.3). Next, we elaborate on the new eval-uation methodology (Section 5). Lastly, we report the experiment results(Section 6) and conclusion (Section 7). 
+
+## 2 Related Works 2.1 Table Extraction from Texts 
+
+Existing methods can be classified according to whether model parameters are updated. 1. Supervised paradigm. These methods treat table extraction as an end-to-end sequence generation task. They feed the text sequence into a language generation model [30, 56] and design different decoding strategies to generate rectangular tables as sequences, including row-by-row generation [67], parallel row generation [32], learnable cell ordering [50], and pointer-based decoding for the medical domain [76]. Researchers collect large amounts of paired (text, table) data and update the model parame-ters to minimize a loss function. Because these methods rely heavily on the training data distribution, they tend to perform well when the input texts are table descriptions that follow controlled patterns, but they struggle with n-texts, which exhibit higher variability and lack large-scale training data. 2. In-context learning para-digm. Recent works employ LLMs as general-purpose extractors via ICL [13, 38, 47]. Researchers convey the task to the LLM of the task through instructions rather than training it, thereby steering model behavior without any parameter updates. The research focus is on mimicking human-like behavior by decomposing the extrac-tion task into subtasks (e.g., identifying entities, planning layout, and filling cells), and supplying each subtask with a dedicated in-struction [1, 25, 26]. These heuristic instructions are coupled with specialized documents and tend to be effective because human Conference acronym ’XX, June 03–05, 2018, Woodstock, NY Tong Li, Shuye Ding, Jiachuan Wang, Yongqi Zhang, Shuangyin Li, Lei Chen, and Bo Li 
+
+experts are themselves proficient at extracting knowledge from such documents. For instance, TKGT [26] translates human ex-pertise in the legal domain into a knowledge graph and uses it to instruct the LLM. However, it is difficult to guarantee the success of this mode for n-texts, as the necessary template consistency and domain-specific heuristics are largely absent. 
+
+## 2.2 Open Information Extraction 
+
+Our attribute recommendation task is related to Open Information Extraction (OIE) [46, 77]. Among all subareas, the most relevant is novel slot detection [33, 68, 69], since a slot also manifests as a key-value pair. However, these works detect the existence of a new type, rather than revealing its semantic identity via canonical naming. Further, the slot types they defined are often distinguishable via surface value (e.g., a date vs. a name), hence are insufficient to represent distinct attributes that share similar values (e.g., “Victim name” or “Suspect name”). Other OIE tasks diverge farther from AR. For example, schema induction and event schema learning [6, 22, 37, 39, 72] discover unseen n-ary tuples representing predicates, entities, and relations, instead of extending known tuples with new dimensions; ontology learning [3, 66] establishes terminology, taxonomies, and axioms that are formal and universal rather than specific to input texts. 
+
+## 2.3 Other Table Extraction Tasks 
+
+Our task aims to identify semantic values in unstructured texts and align them into tables. We acknowledge that several other tasks are also termed “table extraction”, yet their intended application scenarios differ fundamentally from ours. 1. Table extraction by format mining. These methods rely on mining formatting patterns rather than deep semantic understanding, and thus cannot extract attribute values from completely unstructured, free-form texts. For example, web record extraction [9, 11, 58, 78] processes list or detail pages; tables repairing processes CSV files [10, 23] or PDF texts [61] with explicit delimiters; another recent work [2] considers text in heterogeneous data lakes where attributes appear in the fixed form of " <name>: <value> ". 2. Table extraction by information inte-gration. These works focus on reasoning or calculating for the attributes that are not directly stated in the texts. For instance, some count event occurrences [16]; others derive attributes such as lifespan or zodiac sign from extracted dates [5, 17]. Crucially, these approaches do not address the difficulty of extracting atomic attribute values from raw texts, especially highly variable n-texts. 
+
+3. On-demand table extraction. They extract tables in response to individual user queries rather than an overall schema, which maintains a corpus to locate answers [7] or retrieve relevant pas-sages [8]. One advantage of our approach is that the pre-extracted tables enable a broad range of exact SQL-style operations, not only ad-hoc queries. 
+
+## 3 Problem Definition 
+
+We introduce the related notations. The naturally occurring text 
+
+𝑊 is a vanilla word sequence. A span [19] is a subsequence of its words, with P ( 𝑊 ) denoting the span space .
+
+Definition 3.1 ( Value in Text ). From the input text, a valid value for the extracted table is a list of non-overlapping spans. The value space of the given 𝑊 , A ( 𝑊 ), is 
+
+{⟨ 𝑎 1, 𝑎 2, . . . ⟩ | ∀ 𝑖, 𝑎 𝑖 ∈ P ( 𝑊 ); ∀𝑖 < 𝑗, 𝑎 𝑖 precedes 𝑎 𝑗 }. (1) Here, a list of spans is used for a value, instead of a single span, because the mentions can be non-consecutive in the naturally occur-ring text. Our basic settings keep the raw strings as values, allowing the LLM to tokenize and recognize them. For additional specialized usage, one could further convert raw strings into normalized for-mats by post-processing [60]. For example, converting "eighteen" to the numerical "18" for actual storing. 
+
+Definition 3.2 ( Schema ). The extraction schema for naturally occurring text is a set of attributes. 
+
+𝑆 = {𝑠 1, 𝑠 2, ..., 𝑠 |𝑆 | } (2) For each attribute in the schema, its name is a string of regular naturalness [40], which contains complete words or acronyms in common usage, that are easy to understand by ordinary people and general LLMs. Meaningless or obscure symbols like "Column_1" or "REV" are not qualified. 
+
+Definition 3.3 ( Table ). A table 𝐷 of 𝑛 records can be viewed as a list, 𝐷 = [𝐻, 𝑅 1, ..., 𝑅 𝑛 ], where 𝐻 = [ℎ1, ℎ 2, ..., ℎ 𝑚 ] is the header region that consists of 𝑚 unique attribute names. R = [𝑅 1, ..., 𝑅 𝑛 ] is the non-header region , where the 𝑖 -th record 𝑅 𝑖 = [𝐴 𝑖 1, 𝐴 𝑖 2, ..., 𝐴 𝑖𝑚 ]
+
+is a list of 𝑚 values corresponding to 𝑚 attributes. Following previous works [16, 67], we define each table as a rectangular data structure with rows as records and columns as attributes. If the table follows the schema 𝑆 , its header names 𝐻 ⊆ 𝑆 .If the table is extracted from text 𝑊 , each value 𝐴 𝑖 𝑗 ∈ A ( 𝑊 ),
+
+𝑖 = [1..𝑛 ], 𝑗 = [1..𝑚 ]. We allow some values in the table to be an empty span list, i.e. |𝐴 𝑖 𝑗 | = 0, indicating not mentioned. In a valid table 𝐷 , we assume there is no entirely empty row or column to eliminate dummy structures. The table extraction (TE) task aims to output stable, task-specific predictions, not only subjectively reasonable ones, which is defined as follows. 
+
+Definition 3.4 ( Labeled Sample ). Given a schema 𝑆 , a labeled sample is a pair of text and table (𝑊 𝑙 , 𝐷 𝑙 ), where 𝐷 𝑙 is extracted from 𝑊 𝑙 and follows 𝑆 .
+
+Definition 3.5 ( Table Extraction ). Given a schema 𝑆 , labeled samples {( 𝑊 𝑙  
+
+> 1
+
+, 𝐷 𝑙 
+
+> 1
+
+), (𝑊 𝑙  
+
+> 2
+
+, 𝐷 𝑙 
+
+> 2
+
+),... }, and unlabeled texts {𝑊 𝑢  
+
+> 1
+
+,𝑊 𝑢  
+
+> 2
+
+,... },the method outputs the tables {𝐷 𝑢  
+
+> 1
+
+, 𝐷 𝑢  
+
+> 2
+
+,... }. Let { ˆ𝐷 𝑢  
+
+> 1
+
+, ˆ𝐷 𝑢  
+
+> 2
+
+, ... } be the ground truth, where ˆ 𝐷 𝑢 𝑖 is extracted from 𝑊 𝑢 𝑖 and follows 𝑆 . Given similarity metric 𝑔 𝑡𝑒 of any two tables, Table Extraction aim to maximize 𝑔 𝑡𝑒 (𝐷 𝑢 𝑖 , ˆ𝐷 𝑢 𝑖 ), ∀𝑖 .The attribute recommendation (AR) task is defined as follows. 
+
+Definition 3.6 ( Attribute Recommendation ). Given an inade-quate schema 𝑆 , labeled samples {( 𝑊 𝑙  
+
+> 1
+
+, 𝐷 𝑙 
+
+> 1
+
+), (𝑊 𝑙  
+
+> 2
+
+, 𝐷 𝑙 
+
+> 2
+
+), ... }, the un-labeled texts {𝑊 𝑢  
+
+> 1
+
+,𝑊 𝑢  
+
+> 2
+
+, ... }, and a recommendation budget 𝑘 , the method outputs new attributes 𝑆 ′ that |𝑆 ′ | = 𝑘 . Let ˆ 𝑆 ′ be the ground truth relevant set of attributes. Given a recall-based metric 𝑔 𝑎𝑟 ,Attribute Recommendation aim to maximize 𝑔 𝑎𝑟 (𝑆 ′, ˆ𝑆 ′).Note that these two tasks share the same input format, except for the recommendation budget 𝑘 . Given the input, our TEAR frame-work accomplishes the TE task as other table extraction systems. TEAR: Table Extraction with Attribute Recommendation from Texts via Large Language Models Conference acronym ’XX, June 03–05, 2018, Woodstock, NY 
+
+Under exploratory scenarios with specified 𝑘 , our framework addi-tionally fulfills the AR task in response to the user requirements. 
+
+## 4 The TEAR framework 4.1 Overview 
+
+Figure 2 provides an overview of our dual-workflow framework, which leverages the instruction-following ability of a backbone LLM to perform table extraction with attribute recommendation. 
+
+(a) Table Extraction Workflow (TEW): Given an input text, the schema, and the labeled samples, we dynamically select demonstra-tive examples from the labeled samples and insert them into the prompt for adaptive instruction. (Step a1) We employ a surrogate model to make fuzzy predictions about the target table, generating a header preview and a value preview. (Step a2) For each labeled sample, we compute three utility scores by comparing its text to the input text, its table headers to the header preview, and its table values to the value preview. (Step a3) The most pertinent examples under each score are selected and prompted to the LLM together with the static instruction to obtain the output table. 
+
+(b) Attribute Recommendation Workflow (ARW): Our ARW revisits the text to recommend attributes that are not yet present in the extracted table but are closely related to the existing schema. (Step b1) The LLM is instructed to expand the extracted table by adding new columns. (Step b2) We collect the newly expanded col-umn headers from different tables, 𝑍 , to deduplicate and consolidate them into a global attribute candidate set 𝑍 ′. (Step b3) For each candidate, we compute the semantic coherence of appending it to the heuristic schema to produce a ranked list. 
+
+## 4.2 Table Extraction Workflow 
+
+Recalling Example 1.1, we posit that demonstrative examples should bridge the gap between the LLM’s general knowledge and task specification. Therefore, we propose a Proactive Demonstration Module that first proactively forecasts what contents are likely to appear in the target table, then uses these forecasts to query the labeled pool for examples that disambiguate their extraction. Specif-ically, it forecasts a header preview indicating the likely attribute names, and a value preview suggesting plausible textual spans in the non-header region. Since previews only highlight fuzzy cues to guide example selection, their generation is inherently easier and more noise-tolerant than producing a precise, complete table. We fine-tune a lightweight surrogate model for each dataset to generate them, which demands far fewer resources than end-to-end training. 
+
+4.2.1 Proactive previews generation. For the input text 𝑊 𝑢 , we de-fine its header preview 𝐻 𝑝 ⊆ 𝑆 , and its value preview 𝑉 𝑝 ⊂ P ( 𝑊 𝑢 ).We use the labeled pool {( 𝑊 𝑙 , 𝐷 𝑙 )} to construct the training data for the surrogate model 𝑀 .Specifically, we serialize the table 𝐷 𝑙 into a sequence 𝑆𝑒𝑞 (𝐷 𝑙 ),and optimize 𝑀 to generate this sequence autoregressively from 𝑊 𝑙 
+
+with the standard cross-entropy loss [62]. To serialize a table, we introduce three special tokens: ⟨𝑚 ⟩ separates spans in each value, 
+
+⟨𝑠 ⟩ separates cells in each row, and ⟨𝑛 ⟩ separates rows. Then, the sequence representation of a cell value 𝐴 = [𝑎 1, 𝑎 2, ..., 𝑎 |𝐴 | ] is: 
+
+𝑆𝑒𝑞 (𝐴 ) = 𝑎 1 ⟨𝑚 ⟩ 𝑎 2 ⟨𝑚 ⟩ ... ⟨𝑚 ⟩ 𝑎 |𝐴 | (3) The header row sequence is: 
+
+𝑆𝑒𝑞 (𝐻 𝑙 ) = ℎ𝑙  
+
+> 1
+
+⟨𝑠 ⟩ ℎ𝑙  
+
+> 2
+
+⟨𝑠 ⟩... ⟨𝑠 ⟩ ℎ𝑙 𝑚 (4) The 𝑖 -th data row sequence is: 
+
+𝑆𝑒𝑞 (𝑅 𝑙 𝑖 ) = 𝑆𝑒𝑞 (𝐴 𝑙 𝑖 1) ⟨ 𝑠 ⟩ 𝑆𝑒𝑞 (𝐴 𝑙 𝑖 2) ⟨ 𝑠 ⟩... ⟨𝑠 ⟩ 𝑆𝑒𝑞 (𝐴 𝑙 𝑖𝑚 ) (5) The entire table sequence is: 
+
+𝑆𝑒𝑞 (𝐷 𝑙 ) = 𝑆𝑒𝑞 (𝐻 𝑙 ) ⟨ 𝑛 ⟩ 𝑆𝑒𝑞 (𝑅 𝑙 
+
+> 1
+
+) ⟨ 𝑛 ⟩ 𝑆𝑒𝑞 (𝑅 𝑙 
+
+> 2
+
+) ⟨ 𝑛 ⟩ ... ⟨𝑛 ⟩ 𝑆𝑒𝑞 (𝑅 𝑙 𝑛 ) (6) During inference, given a new input text 𝑊 𝑢 , we obtain the predicted table sequence 𝑀 (𝑊 𝑢 ). Instead of reconstructing the full table, we probe it to obtain only 𝐻 𝑝 and 𝑉 𝑝 : for 𝐻 𝑝 , 𝑀 (𝑊 𝑢 ) is truncated at the first ⟨𝑛 ⟩ and split by ⟨𝑠 ⟩; for 𝑉 𝑝 , the sequence after the first ⟨𝑛 ⟩ is split by all special tokens. This yields coarse but informative previews that guide the subsequent example retrieval. 
+
+4.2.2 Extraction demonstration. Given the input text 𝑊 𝑢 and the generated previews 𝐻 𝑝 and 𝑉 𝑝 , we dynamically retrieve examples from the labeled pool based on three utility measures: header utility 
+
+𝑠𝑐 ℎ , value utility 𝑠𝑐 𝑣 , and semantic utility 𝑠𝑐 𝑠 .
+
+Header utility. Samples whose table headers are similar to 𝐻 𝑝 
+
+illustrate how to structure and populate attributes for the target table. We define the header utility of a labeled sample whose table 
+
+𝐷 𝑙 has headers 𝐻 𝑙 as 
+
+𝑠𝑐 ℎ (𝐻 𝑝 , 𝐷 𝑙 ) = |𝐻 𝑝 ∩ 𝐻 𝑙 | + | 𝐻 𝑙 \ 𝐻 𝑝 |/(| 𝑆 | + 1). (7) The first term prioritizes samples that directly contain the antic-ipated headers; the second term, always less than 1, breaks ties by favoring samples with more additional headers, which provide broader contextual information. If 𝐻 𝑝 = ∅, meaning no header is previewed, Equation 7 reduces to |𝐻 𝑙 |/(| 𝑆 | + 1), defaulting to retrieving samples with richer headers. 
+
+Value utility. Samples whose table value spans are similar to 
+
+𝑉 𝑝 demonstrate how salient mentions or descriptive phrases are mapped into table cells. Let 𝑉 𝑙 = ∪𝑖 ∈ [ 1..𝑛 ],𝑗 ∈ [ 1..𝑚 ]𝐴 𝑙 𝑖 𝑗 be the union of all spans in the labeled table 𝐷 𝑙 . We define the value utility as 
+
+𝑠𝑐 𝑣 (𝑉 𝑝 , 𝐷 𝑙 ) = F1 (𝑉 𝑝 , 𝑉 𝑙 ; chrF 𝛽 ), (8) where F1 (·) is the standard F1-score (Equation 20) between two sets and chrF 𝛽 [51, 52] is a widely used metric that measures pattern matching between two strings: chrF 𝛽 = (1 + 𝛽 2) chrP · chrR 
+
+𝛽 2chrP + chrR , (9) with chrP and chrR denoting character n-gram precision and recall, where we set 𝛽 by the previous default [53]. If 𝑉 𝑝 = ∅, meaning no value span is previewed, we will fall back to treating the original text 𝑊 𝑢 as a single long span in place of 𝑉 𝑝 in Equation 8. 
+
+Semantic utility. Samples whose texts are overall semantically similar to 𝑊 𝑢 offer a comprehensive demonstration in style and content. We compute the semantic utility by the standard dense retrieval practice in RAG [21], where a deep embedding model [41], 
+
+𝐸𝑚𝑏 (·) , is applied for normalized vectorization: 
+
+𝑠𝑐 𝑠 (𝑊 𝑢 ,𝑊 𝑙 ) = 𝐸𝑚𝑏 (𝑊 𝑢 )T · 𝐸𝑚𝑏 (𝑊 𝑙 ). (10) Conference acronym ’XX, June 03–05, 2018, Woodstock, NY Tong Li, Shuye Ding, Jiachuan Wang, Yongqi Zhang, Shuangyin Li, Lei Chen, and Bo Li Proactive Demonstration Module 
+
+LLM 
+
+(a) Table Extraction Workflow 
+
+Step b1: Discovery Mechanism 
+
+pseudo-table  𝑫 𝒖+  
+
+> containing attribute proposals Z
+
+(b) Attribute Recommendation Workflow 
+
+Step a1: Proactive Previews Generation 
+
+Step a2: Extraction Demonstration 
+
+text 
+
+𝑾 𝒖  𝑺 
+
+schema 
+
+Step a3: Extraction Prompting 
+
+labeled samples 
+
+(𝑾 𝒍 , 𝑫 𝒍 )
+
+𝑿 𝒕𝒆 
+
+𝑾 𝒖  𝑯 𝒑  […],[…]  𝑽 𝒑  
+
+> EI: Your task is to extract a table following the schema.
+
+𝑺 
+
+text 
+
+𝑾 𝒖  𝑺 
+
+schema  labeled samples 
+
+(𝑾 𝒍 , 𝑫 𝒍 )
+
+extracted table Du
+
+extracted table Du 
+
+> DI: Your task is to expand new columns.
+
+𝑾 𝒖 
+
+new attributes  𝑺′ 
+
+Step b2: Hybrid Integration Strategy 
+
+diveristy checking 
+
+𝟏 + 𝜹 
+
+𝑃 ∗
+
+attribute candidates 
+
+header preview 
+
+𝑯 𝒑  […],[…]  𝑽 𝒑 
+
+value preview 
+
+> Surrogate Model
+
+text 
+
+𝑾 𝒖  
+
+> rank select
+> top-𝑘 𝑡𝑒
+
+labeled samples 
+
+(𝑾 𝒍 , 𝑫 𝒍 )
+
+Step b3: Schema Coherence Score  
+
+> SP: Here is a schema ... the attributes are:
+
+𝑺   
+
+> Victim status, Victim name, Victim age,
+> 𝑖 = 1
+> Victim
+> Sus
+> Accident
+> 0.64
+> 0.15
+> 0.21 0.01 0.02
+
+token probability 
+
+> ,
+> _type
+> _direction
+
+𝒔𝒄𝒔(“Victim vehicle”, 𝑺) 
+
+= 0.64 ×0.10 ×0.92=0.059   
+
+> _job
+> _vehicle
+> ,
+> 0.24
+> 0.10
+> 0.92
+> 𝑖 = 2 𝑖 = 3
+> 0.05
+
+𝑿 𝒂𝒓 
+
+(𝑾 𝒍 , 𝑫 𝒍− , 𝑫 𝒍+ )  
+
+> select top-𝑘 ar
+> compute utilities partition
+> rank
+
+LLM 
+
+LLM 
+
+contextualized analysis 
+
+∈ 𝑺  ∈ 𝒁  ∈ 𝒁 ′  
+
+> JI: Your task is to judge if the given elements are equivalent. low-diversity set
+> breadth-first
+> greedy
+> iteration
+
+header 
+
+utility sc h
+
+value 
+
+utility sc v
+
+semantic 
+
+utility  sc s
+
+𝑾 𝒍 
+
+𝑯 𝒑  […],[…]  𝑽 𝒑 
+
+𝑾 𝒖 
+
+𝑫 𝒍 
+
+LLM 
+
+Figure 2: Overview of TEAR. The LLM instructions are simplified for brevity, and the complete version is in the Appendix A.1. 
+
+4.2.3 Extraction prompting. For simplicity, we retrieve an equal number of examples under each utility type. The number 𝑘 𝑡𝑒 is a hyperparameter affected by the backbone LLM’s capability and can be tuned via validation performance. Let Xℎ , X𝑣 , X𝑠 be the top-𝑘 𝑡𝑒 samples indices according to 𝑠𝑐 ℎ , 𝑠𝑐 𝑣 , 𝑠𝑐 𝑠 , respectively. The 
+
+Proactive Demonstration Module outputs demonstration set: 
+
+𝑋 𝑡𝑒 = {( 𝑊 𝑙 𝑖 , 𝐷 𝑙 𝑖 )} 𝑖 ∈ X ℎ ∪X 𝑣 ∪X 𝑠 . (11) We then use a natural language template with reasonable instruc-tional phrases and formatting markers to wrap the text, schema, aux-iliary previews, and retrieved demonstrations into a single prompt, the Extraction Instruction (EI). Figure 2 shows a conceptualized template, while a complete instantiation is in Appendix A.1. The final table extraction is then performed as 
+
+𝐷 𝑢 = 𝐿𝐿𝑀 (EI (𝑊 𝑢 , 𝑆, 𝐻 𝑝 , 𝑉 𝑝 , 𝑋 𝑡𝑒 )) . (12) The above equation emphasizes what to populate the template, instead of the particular languages of EI. 
+
+## 4.3 Attribute Recommendation Workflow 
+
+We formulate the Attribute Recommendation (AR) task to support the emerging exploratory scenarios for n-texts, where the user pro-vides only a heuristic schema as an initial direction, and the system is responsible for interacting with the texts to return a ranked list of new attributes. Importantly, AR does not produce a conclusive attribute set, but rather exhibits a prioritized list serving as an au-tomatic, intelligent summary of text-driven attributes. We have identified three essential abilities that an effective LLM-based AR method should possess (as in the Introduction), and our ARW in-stantiates corresponding components, as depicted in Figure 2(b). Briefly, it comprises three core components: a Discovery Mecha-nism that proposes new attributes from input texts via adaptive demonstration, a Hybrid Integration Strategy that efficiently resolves duplicates among generated proposals, and a Schema Coherence Score that ranks candidates by their relevance to the user’s initial schema. We detail each component in the following subsections. 
+
+4.3.1 Discovery Mechanism. To discover new attributes from an input text, we continue the idea of adaptive instruction, demon-strating the desired behavior through examples. Our Discovery Mechanism places attributes back into their naive context as col-umn headers, and guides the LLM to expand the extracted table with new columns by drawing analogies to existing ones. By framing open-ended discovery as table expansion, we ground the LLM’s un-derstanding of attributes in the structure of table columns, thereby preserving their original semantics more faithfully. The input to the mechanism is the text 𝑊 𝑢 and the extracted table 
+
+𝐷 𝑢 , and the output is a pseudo-table 𝐷 𝑢 + which contains columns as new attribute proposals. A demonstrative example for this step TEAR: Table Extraction with Attribute Recommendation from Texts via Large Language Models Conference acronym ’XX, June 03–05, 2018, Woodstock, NY 
+
+takes the form (text 𝑊 𝑙 , known table 𝐷 𝑙 − , new table 𝐷 𝑙 +), which is constructed by splitting the columns of the sample table part 𝐷 𝑙 .
+
+Example 4.1. Suppose a labeled sample 𝐷 𝑙 has columns: “Victim name”, “Victim status”. To create a discovery example for an input text whose 𝐷 𝑢 has only a column “Victim name”, we split 𝐷 𝑙 into 
+
+𝐷 𝑙 − of column “Victim name”, and 𝐷 𝑙 + of “Victim status”. Note that although the attributes in the demonstrative “new" table belong to the existing schema 𝑆 , we do not reveal 𝑆 to the LLM. This allows us to reuse the same labeled pool originally col-lected for 𝑆 to effectively demonstrate an open-ended discovery task. When retrieving the examples, we also update the previews with the header and value views derived from 𝐷 𝑢 . Let ˜ Xℎ and ˜ X𝑣 
+
+be the indices of the updated retrieved samples. The discovery demonstration set is 
+
+𝑋 𝑎𝑟 = {( 𝑊 𝑙 𝑖 , 𝐷 𝑙 − 
+
+> 𝑖
+
+, 𝐷 𝑙 + 
+
+> 𝑖
+
+)} 𝑖 ∈ ˜Xℎ ∪ ˜X𝑣 ∪X 𝑠 . (13) Like the EI, we then construct the Discovery Instruction (DI), and the pseudo-table extraction is performed as: 
+
+𝐷 𝑢 + = 𝐿𝐿𝑀 (DI (𝑊 𝑢 , 𝐷 𝑢 , 𝑋 𝑎𝑟 )) . (14) 
+
+4.3.2 Hybrid Integration Strategy. There can be duplicates among individual discoveries. For instance, conceptually equivalent at-tributes may appear as "Hospital name" in one pseudo-table and "Medical center name" in another. LLMs are adept at detecting such duplicates through semantic reasoning over attribute names and their textual contexts. [14, 65]. We solicit a binary judgement 
+
+{True , False } from the LLM over a small set of proposals at each time. This constrained format could effectively prevent the LLM from drifting into verbose or open-ended reasoning [36, 48], thereby preserving controllability. The input of the strategy are schema 𝑆 and proposals 𝑍 = ∪𝑖 𝐻 𝑢 + 
+
+> 𝑖
+
+\
+
+𝑆 , and the output is a deduplicated subset 𝑍 ′ ⊆ 𝑍 . As 𝑍 grows, efficiency further draws our attention, as plainly invoking the LLM on all possible combinations becomes prohibitive. Therefore, we first introduce a lightweight diversity checking to identify a few plausible proposal subsets, and only submit those low-diversity subsets to the LLM for contextualized analysis .
+
+Diversity checking. For a group of attributes 𝑝 ⊆ 𝑍 ∪ 𝑆 , we com-pute its diversity as the maximum Vendi Score [15, 42] over its subset: 
+
+𝑑𝑖𝑣 (𝑝 ) = max  
+
+> 𝑞 ⊆𝑝
+
+𝑣𝑑𝑠 (𝑞 ), (15) where 𝑣𝑑𝑠 (𝑞 ) ∈ [ 1, |𝑞 |] is a continuous number that estimates the effective number of unique elements in 𝑞 . The collection of low-diversity subsets 𝑃 ∗ is defined as: 
+
+𝑃 ∗ = {𝑝 ⊆ 𝑍 ∪ 𝑆 || 𝑝 | > 1, 𝑑𝑖𝑣 (𝑝 ) < 1 + 𝛿 },
+
+1 + 𝛿 = min     
+
+> ∀𝑠 𝑖 ,𝑠 𝑗 ∈𝑆,𝑠 𝑖 ≠𝑠 𝑗
+
+𝑑𝑖𝑣 ({ 𝑠 𝑖 , 𝑠 𝑗 }) . (16) Here, 1 + 𝛿 is the minimum diversity between any two distinct schema attributes. If 𝑑𝑖𝑣 (𝑝 ) < 1 + 𝛿 , 𝑝 approximates only a sin-gle attribute under the schema’s semantic granularity, and thus may accommodate duplicates. We could use a bottom-up search with pruning to find 𝑃 ∗ given that 𝑑𝑖𝑣 (·) is monotonic [42](see Appendix A.3). 
+
+Contextualized analysis. For each proposal 𝑧 involved in some low-diversity subset, we obtain its context (𝑧 ) by prompting the LLM to produce a concise definition [72], based on its native texts and pseudo-tables (Detailed in Appendix A.4). Then, for each 𝑝 ∈ 𝑃 ∗,a Judge Instruction (JI) is prompted to the LLM, 
+
+𝑟𝑠𝑝 = 𝐿𝐿𝑀 (JI (𝑆, {( 𝑧, context (𝑧 ))} 𝑧 ∈𝑝 )) , 𝑟𝑠𝑝 ∈ { True , False }. (17) If the LLM responds that 𝑝 is duplicated, then we check whether 
+
+𝑝 contains a known attribute or not. If so, all other proposals are deemed naive repetitions of that known attribute and will be elimi-nated. If not, we choose the proposal in 𝑝 with the highest Schema Coherence Score (Section 4.3.3) and discard the rest. We could use earlier judgment to remove some proposals, so not every 𝑝 ∈ 𝑃 ∗ requires contextualized analysis. We hence design a breadth-first greedy iteration scheduling that dynamically updates 
+
+𝑃 ∗ to reduce LLM calls. As in Algorithm 1, each outer iteration selects a cover 𝑄 ⊂ 𝑃 ∗ of all remaining elements, and the inner loop sequentially submits 𝑄 to the LLM. This breadth-first design prunes confirmed duplicates early, shrinking 𝑃 ∗ and avoiding unnecessary exploration of nested sets that do not contain genuine duplicates. 
+
+Complexity Analysis. We now briefly summarize the compu-tational complexity of the Hybrid Integration Strategy, and refer to Appendix A.3 for detailed discussions and the Table 3 for the experiment report. In diversity checking, the number of candidate sets examined by a bottom-up search scales linearly with the out-put size |𝑃 ∗ |. In contextualized analysis, let |𝐵 | be the number of elements at the start of an iteration, and 𝑁 ′ be the number of true duplicates. The number of LLM calls in that iteration is bounded by (ln |𝐵 | + 1)(| 𝐵 | − 𝑁 ′). More duplicates yield a smaller bound and likely earlier True responses for more aggressive pruning. This property is beneficial: when duplicates are abundant, the algorithm eliminates large groups with few calls; when scarce, it degrades gracefully to exhaustive iteration. Even when the resource can-not afford the exhaustive iteration, early termination incurs little penalty since there are fewer duplicates in the first place. 
+
+4.3.3 Schema Coherence Score. It is necessary to prioritize at-tributes that meaningfully extend the user’s heuristic schema. For example, while “Reporter name” may be informative in a news arti-cle, it adds little value when the schema is designed to extract facts about criminal incidents rather than newsroom staffing. To quantify this notion of relevance, we introduce a Schema Coherence Score, which estimates how naturally an attribute candidate completes the description of the existing schema. Based on the language modeling principles [24, 49, 59], we compute this score as the conditional probability of the candidate’s name given the known schema. This formulation captures holistic coherence with the schema context. Formally, let 𝑧 be a candidate. We tokenize 𝑧 and append an end-of-name separator 𝑏 0 (a comma by default): 
+
+𝑡𝑘𝑛 (𝑧 ) = 𝑇𝑜𝑘𝑒𝑛𝑖𝑧𝑒𝑟 (𝑧 ) + 𝑇𝑜𝑘𝑒𝑛𝑖𝑧𝑒𝑟 (𝑏 0). (18) We then prepend a Schema Prefix (SP) that enumerates the known attributes as the condition. As in Figure 2(Step b3), the score is 
+
+𝑠𝑐𝑠 (𝑧, 𝑆 ) = Π𝑖 𝑃𝑟𝑜𝑏 (𝑡𝑘𝑛 𝑖 (𝑧 )| SP (𝑆 ) + 𝑡𝑘𝑛 :𝑖 −1 (𝑧 )) , (19) where 𝑡𝑘𝑛 𝑖 (𝑧 ) is the 𝑖 -th token and 𝑡𝑘𝑛 :𝑖 −1 (𝑧 ) denote the tokens before it. Computing this score requires no decoding, only a single Conference acronym ’XX, June 03–05, 2018, Woodstock, NY Tong Li, Shuye Ding, Jiachuan Wang, Yongqi Zhang, Shuangyin Li, Lei Chen, and Bo Li 
+
+Algorithm 1 breadth-first greedy iteration of 𝑃 ∗
+
+Require: attribute proposals 𝑍 , schema 𝑆 , low-diversity set 𝑃 ∗
+
+Ensure: attribute candidates 𝑍 ′ 
+
+> 1:
+
+𝑍 ′ = ∅, 𝐵 ← 𝑍 ∪ 𝑆  
+
+> 2:
+
+while |𝐵 | > 0 ∧ | 𝑃 ∗ | > 0 do ⊲ Outer loop  
+
+> 3:
+
+𝐵 ′ ← 𝐵, 𝑄 ← ∅  
+
+> 4:
+
+while |𝐵 ′ | > 0 do ⊲ Find a greedy cover of elements.  
+
+> 5:
+
+𝑞 = arg max 𝑞 ∈𝑃 ∗ 𝑞 ∩ 𝐵 ′ 
+
+> 6:
+
+𝑄 ← 𝑄 ∪ { 𝑞 }, 𝐵 ′ ← 𝐵 ′ \ 𝑞  
+
+> 7:
+
+end while  
+
+> 8:
+
+for 𝑞 ′ ∈ 𝑄 do ⊲ Inner loop  
+
+> 9:
+
+𝑞 ← 𝑞 ′ ∩ 𝐵  
+
+> 10:
+
+if |𝑞 | = 1 then 𝑍 ′ ← 𝑍 ′ ∪ 𝑞  
+
+> 11:
+
+else  
+
+> 12:
+
+Obtain 𝑟𝑠𝑝 for 𝑞 by Equation 17.  
+
+> 13:
+
+if 𝑟𝑠𝑝 then  
+
+> 14:
+
+if 𝑞 ∩ 𝑆 = ∅ then  
+
+> 15:
+
+𝑍 ′ ← 𝑍 ′ ∪ { arg max 𝑧 ∈𝑞 𝑠𝑐𝑠 (𝑧, 𝑆 )}  
+
+> 16:
+
+end if ⊲ Exclude elements and sets.  
+
+> 17:
+
+𝐵 ← 𝐵 \ 𝑞 , 𝑃 ∗ ← { 𝑝 ∈ 𝑃 ∗ |𝑝 ∩ 𝑞 = ∅}  
+
+> 18:
+
+else 𝑃 ∗ ← 𝑃 ∗ \ { 𝑞 } 
+
+> 19:
+
+end if  
+
+> 20:
+
+end if  
+
+> 21:
+
+end for  
+
+> 22:
+
+end while  
+
+> 23:
+
+𝑍 ′ ← 𝑍 ′ \ 𝑆 
+
+forward pass through the LLM, making it substantially more effi-cient than generating language responses. Eventually, ARW ranks each 𝑧 ∈ 𝑍 ′ by 𝑠𝑐𝑠 (𝑧, 𝑆 ) and presents the top-𝑘 to the user. 
+
+## 5 Evaluation 
+
+Given that previous evaluation methodologies are unsuitable for our focus, we introduce new datasets and applicable metrics. 
+
+## 5.1 Datasets and Splits 
+
+The input texts of existing table extraction datasets (Appendix A.5) are table descriptions or specialized documents that cannot re-flect the distribution of n-texts. To verify our focus, we present two real-world datasets, which together provide a total of 3,375 (text, table) pairs: • Incidents. The texts are gun-violence news re-ports, and tables capture victims, suspects, and accidents, with attributes such as “Victim name”, “Suspect name”, and “Accident ad-dress”. • Weather. The texts are weather forecasts for multiple coun-tries, and tables include attributes such as “Weather frequency” and “Wind speed”. Both texts are news reports scraped by the CACAPO project [63], gathered without any extraction task in mind, and therefore exhibit realistic linguistic variability. The ground truth schema is derived from human responses to the 5W1H aspects (who, what, when, etc.) of each text, reflecting genuine text-driven needs instead of being arbitrarily carved. The original release contains some attribute annotations but lacks complete tables (values are not aligned to form multiple records). We hired university students to annotate complete tables while correcting errors (Appendix A.6). true table  ෡𝑫                                                
+
+> Victim age Victim status
+> 15-year-old injured
+> eighteen life-threatening
+> Victim gender Victim age Victim status
+> male eighteen life-threatening
+> \15-year-old injured
+> female eighteen badly injured
+> predicted table 𝑫
+> 𝑅 1
+> 𝑅 2
+> 𝑅 3
+> ෠𝑅 1
+> ෠𝑅 2
+> 0.1 10.1
+> 0.2 0.1 1
+> pairwise 𝒇 𝒌
+> ℎ1ℎ2ℎ3
+> ෠ℎ1
+> ෠ℎ2
+> ℎ1ℎ2ℎ3෠ℎ1෠ℎ2
+> \10
+> \01
+> pairwise 𝒇 𝒗
+> መ𝐴 11
+> መ𝐴 12
+> 𝐴 21 𝐴 22 𝐴 23
+> 0.1 10.2
+> 0.8 .2 0.42
+> pairwise DF1
+> ෠𝑅 1
+> ෠𝑅 2
+> 𝑅 1𝑅 2𝑅 3
+> (4) structured-F1 (2) DF1( 𝑅 2, ෠ 𝑅 1)
+> 010
+> 000.1
+> pairwise 𝒇 𝒗
+> መ𝐴 21
+> መ𝐴 22
+> 𝐴 31 𝐴 32 𝐴 33
+> (3) DF1( 𝑅 3, ෠ 𝑅 2)(1) Header matching.
+
+Figure 3: Evaluation example. 
+
+Besides the novel news datasets, we further adapt existing con-versational texts, MultiWoz2.4 [70], to our focus: • Conversation. The texts are multi-topic, multi-turn human-human dialogues around services such as attractions, hotels, and restaurants. The dialogue states cover salient contents and can be converted to text-driven attributes, whose values may change as people change their re-quests or make clarifications. For table extraction, we sample 1000 texts and set ground truth labels as the final agreed-upon attribute values, while value drifts introduce intrinsic semantic noise. We use Conversation as a controlled stress test on verbosity and noise that does not diminish the contribution of the new datasets. The reason is that the dialogues have natural language patterns yet are oriented to a closed service ontology; thus, it is less variable than the new datasets, of which a statistical examination is in Appendix A.7. Table 1 summarizes the statistics, and the table annotations will be released. To reflect the application need under data scarcity, we randomly reserve 300 samples as the labeled set for all methods. For TE, we report performance using the full schema (Section 6.2). For AR, we further create three exploratory levels: we first identify low-frequency attributes that appear in <15% of samples, which non-experts would likely miss during heuristic schema design. We then randomly drop such attributes so that the heuristic schema lacks 20%, 35%, or 50% of all attributes. The absent attributes are completely hidden from the system, and the system is also unaware of the exploratory level (Section 6.3). We also evaluate the extracted table under these exploratory settings, comparing it against the table following the full schema (Section 6.4). 
+
+## 5.2 Metrics 
+
+5.2.1 Table extraction metrics. Let 𝐷 be the predicted table with headers 𝐻 and records R, and ˆ 𝐷 be ground truth with ˆ 𝐻 and ˆ R. We introduce table extraction metrics with the example in Figure 3. 
+
+header-F1. Previous work use header-F1=F1( 𝐻, ˆ𝐻 ; 𝑓 ) to evaluate whether the system correctly identifies the attributes mentioned in the text. Here, F1 is the standard F1-score between two sets, and 
+
+𝑓 is a given similarity function for comparing two elements (e.g., TEAR: Table Extraction with Attribute Recommendation from Texts via Large Language Models Conference acronym ’XX, June 03–05, 2018, Woodstock, NY 
+
+Table 1: Benchmark statistics. 
+
+#Token #Record #Column |𝑆 | | ˆ𝑆 ′ |
+
+Datasets #Text Avg. Max. Avg. Max. Avg. Max. #Attr. Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 Incidents 1,369 24.1 97 1.6 6 3.1 10 28 22 18 14 6 10 14 Weather 2,006 22.3 95 1.3 5 2.9 7 19 15 12 9 4 7 10 Conversation 1,000 303 938 1 1 8.3 24 35 28 23 18 7 12 17 exact match, or soft string similarity). Formally, P(𝑋, 𝑌 ; 𝑓 ) = 1
+
+|𝑋 |∑︁ 𝑥 ∈𝑋 
+
+max   
+
+> 𝑦 ∈𝑌
+
+𝑓 (𝑥, 𝑦 ),
+
+R(𝑋, 𝑌 ; 𝑓 ) = 1
+
+|𝑌 |∑︁ 𝑦 ∈𝑌 
+
+max   
+
+> 𝑥 ∈𝑋
+
+𝑓 (𝑥, 𝑦 ),
+
+F1 (𝑋, 𝑌 ; 𝑓 ) = 2/( P(𝑋, 𝑌 ; 𝑓 )−1 + R(𝑋, 𝑌 ; 𝑓 )−1).
+
+(20) 
+
+Example 5.1. The header regions are ˆ 𝐻 ={Victim age, Victim sta-tus}, 𝐻 ={Victim gender, Victim age, Victim status}. Given extract match 𝑓 , P (𝐻, ˆ𝐻 ; 𝑓 )=0.67, R (𝐻, ˆ𝐻 ; 𝑓 )=1, header-F1=F1 (𝐻, ˆ𝐻 ; 𝑓 )=0.8. 
+
+structured-F1. To evaluate whether the values are correctly ex-tracted and aligned into a table, existing works largely follow the approach of Wu et al. [67], flattening a table into (header, index, value) triples. For instance, the table in Figure 1(a) uses team names as the logical index, yielding triples such as “(Losses, Hawks, 12)”. However, n-texts rarely provide a natural index column, and forcing one arbitrarily distorts the table’s native semantics. We therefore adopt a more fundamental view of a table: a set of records , where each record is a self-contained header-to-value dictionary. Under this view, comparing a predicted table to the ground truth reduces to matching two sets, for which standard F1 naturally solves. Cru-cially, this formulation respects the integrity of each record, and alignment is resolved through record matching, rather than an externally imposed index. We thus propose structured-F1 :structured-F1=F1( R, ˆR; DF1) , (21) where DF1 (Dictionary F1) measures the similarity between two records. Specifically, each record 𝑅 𝑖 is a dictionary mapping head-ers to values, with domain dom (𝑅 𝑖 ) = 𝐻 and 𝑅 𝑖 (ℎ𝑗 ) = 𝐴 𝑖 𝑗 . DF1 computes the similarity between 𝑅 𝑖 and ˆ 𝑅 𝑗 in two steps: it first aligns headers using a similarity function 𝑓 𝑘 , then aggregates the corresponding value similarities via 𝑓 𝑣 . Formally, DP (𝑅 𝑖 , ˆ𝑅 𝑗 ; 𝑓 𝑘 , 𝑓 𝑣 ) = 1
+
+|𝑅 𝑖 |∑︁ ℎ∈𝐻 
+
+𝑓 𝑣 
+
+
+
+𝑅 𝑖 (ℎ), ˆ𝑅 𝑗 (arg max  
+
+> ˆℎ∈ˆ𝐻
+
+𝑓 𝑘 (ℎ, ˆℎ)) 
+
+
+
+,
+
+DR (𝑅 𝑖 , ˆ𝑅 𝑗 ; 𝑓 𝑘 , 𝑓 𝑣 ) = 1
+
+| ˆ𝑅 𝑗 |∑︁ ˆℎ∈ ˆ𝐻 
+
+𝑓 𝑣 
+
+
+
+𝑅 𝑖 (arg max  
+
+> ℎ∈𝐻
+
+𝑓 𝑘 (ℎ, ˆℎ)) , ˆ𝑅 𝑗 ( ˆℎ)
+
+
+
+,
+
+DF1 (𝑅 𝑖 , ˆ𝑅 𝑗 ; 𝑓 𝑘 , 𝑓 𝑣 ) = 2/( DP (𝑅 𝑖 , ˆ𝑅 𝑗 ; 𝑓 𝑘 , 𝑓 𝑣 )−1 + DR (𝑅 𝑖 , ˆ𝑅 𝑗 ; 𝑓 𝑘 , 𝑓 𝑣 )−1).
+
+(22) 
+
+Example 5.2. (1) We first compute the matched header to be invariant to the column order. (2) The matched position (bolded) is applied to aggregate the value similarity. For 𝑅 2 and ˆ 𝑅 1, the empty value is ignored: DP=1, DR=1, and DF1 (𝑅 2, ˆ𝑅 1)=1. (3) For 𝑅 3 and ˆ 𝑅 2,DP=(0+1+0.1)/3=0.37, DR=(1+0.1)/2=0.55, so DF1 (𝑅 3, ˆ𝑅 2)=0.42. (4) After computing for all 6 record pairs, P( R, ˆ R)=(0.8+1+0.42)/3=0.74, R( R, ˆ R)=(1+0.42)/2=0.71, structured-F1=0.73. The complexity of structured-F1 is not higher than the previous evaluation (Appendix A.8). We use the same three string similari-ties as existing works: Extract Match (EM), chrF 𝛽 (chrf) [52], and rescaled BERTScore (BS) [74]. For values with multiple spans in-dicating multiple mentions, the string similarity is first computed span-wise and aggregated via F1. 
+
+5.2.2 Attribute Recommendation Metrics. We evaluate AR quality using recall, as is standard in recommendation tasks. Let 𝑆 ′ = 𝑍 ′ [:
+
+𝑘 ] denote the top-𝑘 attribute candidates. To aggregate performance across different 𝑘 , we compute the recall curve R (𝑍 ′ [: 𝑘 ], ˆ𝑆 ′, 𝑓 ) as a function of 𝑘 , and report the Area Under the Curve (recall-AUC) as the overall metric. When comparing curves of different lengths, shorter curves are padded with their final value to ensure consistent normalization. A strong recommendation list reaches higher recall earlier, leading to a larger recall-AUC. For the similarity function 𝑓 ,we use only chrf and BS because asking for an exact match under open-ended discovery is overly stringent for practical use. 
+
+## 6 Experiments 
+
+We conduct experiments to answer the following questions: 
+
+Q1 : How is the table extraction performance of TEAR ? 
+
+Q2 : How is the attribute recommendation performance of TEAR ? 
+
+Q3 : How do text-driven new attributes benefit table extraction? 
+
+Q4 : How efficient is TEAR? 
+
+Q5 : How are the ablation results of TEAR? 
+
+## 6.1 Setup 
+
+6.1.1 Baselines. For table extraction, we compare baselines from both the supervised and the ICL paradigms. Note that some other ICL approaches rely on knowledge about the specialized documents (e.g., external KGs [26] or type recognizing s [25]) to decompose extraction into subtasks and design dedicated instructions, making them difficult to apply to n-texts. 1. TRE [67] is one of the best supervised methods, which aug-ments the sequence generation model with special table relation embeddings. We use its official implementation. 1.2. MapMake [1] is a recent ICL method. We implement the one-shot version by selecting the labeled sample with the most headers and carefully writing the required reasoning steps. 3. RAG [41, 73]. We implement a strong baseline of dense RAG that could also dynamically choose examples to contrast with our Proactive Demonstration Module. As for the novel attribute recommendation task, there lacks ex-isting methods, and we compare against three strong baselines that all prompt the LLM with retrieved examples to obtain attribute pro-posals, and then adopt different integration and ranking strategies.  
+
+> 1https://github.com/shirley-wu/text_to_table Conference acronym ’XX, June 03–05, 2018, Woodstock, NY Tong Li, Shuye Ding, Jiachuan Wang, Yongqi Zhang, Shuangyin Li, Lei Chen, and Bo Li
+
+Table 2: Table extraction performance (%). The best results within each backbone are bolded, and the best in the same row are underlined. 
+
+Llama-3-8B-Instruct Qwen2.5-14B-Instruct Llama-3-70B-Instruct Dataset Metric sim. TRE MapMake RAG TEAR MapMake RAG TEAR MapMake RAG TEAR Inci-dents header-F1 EM 86.7 ±0.8 47.4 ±0.8 81.5 ±0.1 87.8 ±0.3 68.1 ±0.3 83.3 ±0.1 89.1 ±0.4 68.1 ±0.2 86.8 ±0.0 90.3 ±0.1 chrf 91.2 ±0.7 54.8 ±0.9 87.9 ±0.1 92.5 ±0.3 74.9 ±0.2 88.2 ±0.0 92.8 ±0.2 74.3 ±0.3 91.6 ±0.0 93.9 ±0.1 BS 91.9 ±0.7 55.3 ±0.9 88.5 ±0.1 93.1 ±0.3 75.8 ±0.2 88.9 ±0.0 93.4 ±0.2 75.0 ±0.1 92.3 ±0.0 94.5 ±0.1 struc-tured-F1 EM 64.5 ±0.1 25.7 ±0.4 61.2 ±0.2 69.1 ±0.2 40.9 ±0.4 62.0 ±0.0 70.6 ±0.1 44.8 ±0.3 69.8 ±0.0 73.3 ±0.0 chrf 74.9 ±0.5 34.1 ±0.3 73.6 ±0.1 79.4 ±0.1 54.1 ±0.2 76.8 ±0.0 82.0 ±0.2 56.5 ±0.1 80.0 ±0.0 82.4 ±0.1 BS 78.8 ±0.4 42.5 ±0.2 76.8 ±0.1 82.9 ±0.1 60.5 ±0.4 74.9 ±0.0 82.4 ±0.2 61.9 ±0.2 81.5 ±0.0 84.6 ±0.1 Wea-ther header-F1 EM 79.1 ±0.5 52.2 ±1.3 77.3 ±0.0 80.3 ±0.4 66.1 ±0.0 80.4 ±0.1 82.6 ±0.2 74.3 ±0.0 83.9 ±0.1 84.1 ±0.1 chrf 84.9 ±0.3 58.9 ±1.3 83.5 ±0.0 85.6 ±0.1 73.8 ±0.1 85.7 ±0.1 87.2 ±0.1 80.1 ±0.2 88.0 ±0.1 88.4 ±0.1 BS 89.6 ±0.3 68.3 ±0.9 88.7 ±0.0 90.1 ±0.0 82.1 ±0.0 89.9 ±0.1 91.3 ±0.1 86.7 ±0.0 91.9 ±0.1 92.2 ±0.1 struc-tured-F1 EM 44.1 ±0.5 25.6 ±0.4 46.2 ±0.1 51.0 ±0.4 39.3 ±0.3 50.7 ±0.1 53.9 ±0.4 43.2 ±0.3 54.9 ±0.1 56.3 ±0.1 chrf 63.7 ±0.3 42.1 ±0.8 65.4 ±0.1 70.1 ±0.2 62.0 ±0.3 71.3 ±0.0 73.4 ±0.2 64.5 ±0.2 72.1 ±0.1 73.3 ±0.0 BS 63.0 ±0.3 42.2 ±1.3 64.3 ±0.1 67.9 ±0.4 57.2 ±0.1 66.4 ±0.0 69.1 ±0.5 62.5 ±0.2 70.2 ±0.1 71.5 ±0.0 Conver-sation header-F1 EM 90.0 ±0.5 52.7 ±2.0 84.6 ±0.1 88.7 ±0.2 76.3 ±0.1 87.4 ±0.0 90.7 ±0.1 78.9 ±0.0 86.8 ±0.0 90.1 ±0.1 chrf 94.7 ±0.3 62.2 ±1.9 91.9 ±0.1 94.5 ±0.1 85.3 ±0.2 93.4 ±0.0 95.3 ±0.0 86.3 ±0.1 93.4 ±0.0 95.1 ±0.1 BS 94.3 ±0.3 61.5 ±1.9 91.3 ±0.1 93.9 ±0.0 84.4 ±0.1 92.8 ±0.0 94.9 ±0.1 85.9 ±0.1 92.9 ±0.0 94.6 ±0.1 struc-tured-F1 EM 80.9 ±0.6 44.4 ±1.9 76.9 ±0.1 82.4 ±0.1 66.2 ±0.1 81.1 ±0.0 85.1 ±0.2 69.4 ±0.0 80.8 ±0.0 84.6 ±0.1 chrf 85.4 ±0.5 49.3 ±1.9 81.2 ±0.1 86.1 ±0.1 71.5 ±0.1 85.1 ±0.0 88.3 ±0.2 74.8 ±0.1 84.6 ±0.0 87.8 ±0.1 BS 87.0 ±0.3 53.6 ±2.1 83.8 ±0.2 88.4 ±0.1 75.8 ±0.2 87.6 ±0.0 90.3 ±0.1 77.8 ±0.0 86.7 ±0.0 89.7 ±0.2 
+
+4. Corpus Frequency Ranking (CFR) integrates and ranks at-tribute proposals according to their global frequency in the corpus. The intuition is that attributes mentioned more frequently across texts are more important. 5. Maximum Schema Similarity (MSS) ranks proposals by their maximum semantic similarity to the known schema attributes, 
+
+𝑠𝑖𝑚 (𝑧, 𝑆 ) = max 𝑠 ∈𝑆 𝐸𝑚𝑏 (context (𝑧 )) · 𝐸𝑚𝑏 (context (𝑠 )) . The moti-vation is that newly discovered attributes should be semantically closer to those already known. 6. Direct LLM Reasoning (DIRECT) prompts an LLM to rank the proposals as the most suitable for extending the known schema, considering relevance and usefulness. 
+
+6.1.2 Implementation. For all compared methods, we employ two instruction-tuned open-source LLMs: Llama-3-8B-Instruct 2, Qwen2.5-14B-Instruct 3, and Llama-3-70B-Instruct 4. We choose medium-sized, open-source LLMs to reflect realistic deployment scenarios where large proprietary models may be too expensive or inaccessible. No-tably, the challenges addressed in this work stem from the gap between the generalized capabilities acquired through pretraining and the specialized competencies required for the table extraction task, which cannot be overcome solely by switching to a larger or more capable LLM. The deep embedding model 𝐸𝑚𝑏 (·) is SFR-Embedding-Mistral 5 [41], a state-of-the-art open-source embedder. The surrogate model 𝑀 (·) is BART-Large 6 [30]. For the Schema Pre-fix that ends with an enumeration of known attributes, we randomly sample 10 different permutations, use them to calculate 𝑠𝑐𝑠 (·) , and 
+
+> 2https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct
+> 3https://huggingface.co/Qwen/Qwen2.5-14B-Instruct
+> 4https://huggingface.co/meta-llama/Meta-Llama-3-70B-Instruct
+> 5https://huggingface.co/Salesforce/SFR-Embedding-Mistral
+> 6https://huggingface.co/facebook/bart-large
+
+take the maximum score for each candidate. We will elaborate on the robustness of this implementation in Section 6.3. During validation, 100 samples are held out for early stopping and method tuning, and the remaining samples are used for train-ing and retrieval. At inference, the validation set is also added for retrieval. The final number of shots is 𝑘 𝑡𝑒 =𝑘 𝑎𝑟 =5 for Incidents and Weather, 3 for Conversation; the final LLM decoding uses tempera-ture 𝑇 𝑙𝑙𝑚 =5 and top-𝑝 𝑙𝑙𝑚 =0.5. All the experiments are conducted on a server equipped with Intel(R) Xeon(R) Gold 6240 CPU and one NVIDIA A800 (80GB Memory) for Llama-8B and Qwen, two NVIDIA A800s for Llama-70B. Each experiment is repeated 3 times with different random seeds, and we report the average and stan-dard deviation. Our code is available at ... 7.
+
+## 6.2 Q1: Table Extraction Results 
+
+The TE performance is in Table 2 with the following key obser-vations. (1) TEAR is consistently the best. This demonstrates that our method effectively selects more informative demonstrations by leveraging both textual and tabular characteristics. Among the baselines, RAG dynamically retrieves demonstrations, which is bet-ter than MapMake that uses fixed demonstrations, showing the critical role of adaptive demonstrations. (2) ICL paradigm methods exhibit a clear advantage over the supervised method, especially on structured-F1 that evaluates values. This agrees with the intuition that while patterns in header regions are relatively limited and are easier to learn via supervised training, the values in n-texts vary considerably with the input text, requiring a stronger generaliza-tion capability for correct extraction. Furthermore, larger LLMs are overall better, and this gap is more pronounced for MapMake and RAG. This indicates that providing well-selected examples with our  
+
+> 7The official repository is being prepared as part of the CR version. TEAR: Table Extraction with Attribute Recommendation from Texts via Large Language Models Conference acronym ’XX, June 03–05, 2018, Woodstock, NY
+
+TEARcan particularly boost the performance of relatively weaker LLMs. (3) The results also indicate that our new benchmarks are more challenging for the studied extraction systems than Conver-sation, as it is reported to have generally lower results, and the performance gap between different methods is larger. This aligns with our claim that the variability of n-texts is a more urgent chal-lenge for existing systems, instead of the verbosity or value drifts characterized by Conversation. 
+
+## 6.3 Q2: Attribute Recommendation Results 
+
+The attribute recommendation performance is shown in Figure 4. (1) The results confirm the viability of using LLMs for AR. Partic-ularly, on the Weather dataset, where the recall-AUC reaches an exceptionally high level in some cases, indicating that the LLM-recommended attributes semantically encompass nearly all ground-truth attributes. (2) Our method achieves the best overall perfor-mance. Under all comparisons, TEAR is the best on 48 out of 54 comparisons. (3) After our method, the baselines do not have an obvious second best, and the LLM inference, global frequency, and semantic similarity have their own advanced cases. (4) Trends across exploratory levels differ for different datasets. Recall that Levels 1 to 3 aim to discovering the remaining 20%, 35%, and 50% of attributes. On Weather, performance improves from Level 3 to Level 1, indicating that a more complete initial schema makes the task easier. In contrast, Level 1 is the hardest for Incidents. Examining the schema splits, we find that this is due to a few low-frequency attributes (e.g., “Number of rounds fired”) that are particularly difficult to discover precisely; consequently, the task becomes increasingly harder as the schema grows more complete. 
+
+## 6.4 Q3: Table Extraction with Text-Driven Attributes 
+
+We simulate the process of users expanding the schema with rec-ommended attributes for table extraction, in order to demonstrate the effect of exploratory schema design on the overall informa-tion extraction system. Specifically, we take 𝑍 ′ [: 𝑘 ] ∩ ˆ𝑆 ′ as the user-accepted text-driven attributes (the "checked" attributes in Fig-ure 1(c)). We numerically estimate 𝑘 by the elbow point [57] of the 
+
+𝑠𝑐𝑠 (·) , which reflects a realistic scenario where users only navigate top-ranked attributes instead of the complete list. Moreover, using set intersection to select attributes (i.e., only adopting a recom-mendation if its name exactly matches the ground truth) is a very conservative simulation. In practice, users would typically accept a recommendation as long as it is semantically close to their interests and appropriately formulated. Under each exploratory scenario, we first evaluate table extraction performance by running TEW. We then execute the ARW, update, and run TEW again to obtain the updated performance, denoted as TEAR*. Both results are compared against the ground-truth table following the complete schema. Re-sults using Qwen are in Figure 5; those with Llama (Appendix A.9) exhibit similar trends. It shows that TEAR consistently outperforms the baselinem, and the interactive pipeline TEAR* achieves addi-tional performance gains. Notably, on the Incidents dataset, while other methods degrade as the exploratory level increases, TEAR* 
+
+Table 3: Hybrid Integration Strategy efficiency.                                                                                            
+
+> Inci. |𝑍 ||𝑃 ∗|l. t.(ms) #Calls True False
+> 1207 ±3182 ±15 417 ±10 81 ±729 ±652 ±42203 ±4130 ±1413 ±879 ±623 ±256 ±73218 ±13 157 ±20 422 ±11 91 ±623 ±268 ±6Wea. |𝑍 ||𝑃 ∗|l. t.(ms) #Calls True False
+> 1279 ±910 ±3312 ±09±24±15±12238 ±4380 ±124 437 ±3198 ±51 30 ±3167 ±53 3212 ±21 315 ±122 428 ±5163 ±40 33 ±5130 ±36 Con. |𝑍 ||𝑃 ∗|l. t.(ms) #Calls True False
+> 194 ±4156 ±31 615 ±210 ±06±24±12128 ±2173 ±7426 ±413 ±28±15±13134 ±7235 ±79 724 ±325 ±811 ±514 ±6
+
+maintains stable performance and even shows improvement in some settings, highlighting the benefits of text-driven attributes. 
+
+## 6.5 Q4: Efficiency 
+
+Figure 6 compares efficiency, where time is measured by running the LLM on a local research server, applying no acceleration, and the Input and Output tokens per text are counted only for LLM methods, For TE, the efficiency order is TRE>RAG>Ours>MapMake. For AR, results are averaged over three exploratory levels, and the efficiency order is CFR>MSS>DIRECT>Ours. The overhead of LLM methods primarily arises from the internals of the backbone, not the methods themselves. Compared to the high cost of fine-tuning or the extensive annotation effort required for supervised extraction models, our approach achieves strong performance with signifi-cantly lower demand for labels or computational resources. We further evaluate the efficiency of the Hybrid Integration Strategy in Table 3, where 1,2,3 are exploratory levels. Here, |𝑍 |
+
+is #attribute proposals, |𝑃 ∗ | is #low-diversity sets, l. is the size of the largest low-diversity set affecting pruning search iterations, t. 
+
+is the pruning time. |𝑃 ∗ | is efficiently small, showing that many proposals are actually far from others and can be quickly excluded from duplicate analysis. And thanks to our breadth-first greedy scheduling (Algorithm 1), the number of LLM calls is even less. 
+
+## 6.6 Q5: Ablation Studies 
+
+6.6.1 Labeled Pool Size, Split and Intialization. We vary the size, split, and initialization of the labeled pool and report the structured-F1 with Llama3-8B in Figure 7 and Figure 8, while other LLMs and metrics have the same pattern. In Figure 7, we reserve a subset of 200 test samples and progressively enlarge the labeled pools. The upward trend in Incidents gradually saturates, while Weather exhibits continued improvement, indicating a higher demand for labels. In Figure 8, we use the same reserved test set and sample three different pools, which lead to similar results, demonstrating the robustness of TEAR against initialization. We further compare our default setting, where the same pool is used for learning 𝑀 
+
+and retrieval, with its disjoint setting, where the pool is split for learning and retrieval. The disjoint setting consistently underper-forms our default setting, verifying that allocating a standalone retrievable set is unnecessary under data scarcity. Conference acronym ’XX, June 03–05, 2018, Woodstock, NY Tong Li, Shuye Ding, Jiachuan Wang, Yongqi Zhang, Shuangyin Li, Lei Chen, and Bo Li Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 40 60 80 
+
+> Incidents
+
+chrf BS 
+
+Llama-3-8B-Instruct 
+
+Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 40 60 80 
+
+chrf BS 
+
+Qwen2.5-14B-Instruct 
+
+Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 40 60 80 
+
+chrf BS 
+
+Llama-3-70B-Instruct 
+
+Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 40 60 80 
+
+> Weather
+
+chrf BS 
+
+Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 40 60 80 
+
+chrf BS 
+
+Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 40 60 80 
+
+chrf BS 
+
+Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 40 60 80 
+
+> Conversation
+
+chrf BS 
+
+Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 40 60 80 
+
+chrf BS 
+
+Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 40 60 80 
+
+chrf BS 
+
+DIRECT CFR MSS Ours 
+
+Figure 4: Attribute recommendation recall-AUC (%). 60 80 
+
+> header-f1
+
+EM chrf BS 
+
+Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 
+
+Incidents EM chrf BS 
+
+Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 
+
+Weather 
+
+40 60 80 
+
+> structured-f1
+
+EM chrf BS 
+
+Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 
+
+EM chrf BS 
+
+Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 
+
+MapMake-Qwen TRE RAG-Qwen TEAR-Qwen TEAR*-Qwen 
+
+Figure 5: Table extraction with text-driven attributes with Qwen backbone. Incidents Weather Conversation 
+
+0246
+
+TE Runtime (10 3 s) & Latency (s) 
+
+Incidents Weather Conversation 
+
+02468
+
+TE Input (10 3) & Output (10 2)
+
+Incidents Weather Conversation 
+
+01234
+
+AR Runtime (10 3 s) & Latency (s) 
+
+Incidents Weather Conversation 
+
+01234
+
+AR Input (10 3) & Output (10 2)
+
+0246802460123450.00 0.25 0.50 0.75 1.00 1.25 
+
+TRE (left) TRE (right) RAG (left) RAG (right) MapMake (left) MapMake (right) TEW (left) TEW (right) DIRECT (left) DIRECT (right) CFR (left) CFR (right) MSS (left) MSS (right) ARW (left) ARW (right) 
+
+Figure 6: Efficiency comparison with Llama3-8B. Patterns for other LLMs are similar. 200 300 500 700 1000          
+
+> 50 60 70 80 90
+> structured-f1
+> 62.1 68.7 66.6 69.8 69.6 73.1 77.7 78.5 80.0 80.7 77.0 82.0 80.0 82.2 82.1
+
+Incidents           
+
+> 200 300 500 700 1000
+> 40 50 60 70 80
+> structured-f1
+> 48.0 51.5 53.1 54.3 58.4 68.0 69.7 72.1 72.1 75.1 65.4 67.0 68.3 69.1 73.3
+
+Weather   
+
+> EM chrf BS
+
+Figure 7: Labeled pool size ablation with Llama3-8B. 
+
+6.6.2 Proactive Demonstration Module. We ablate the demonstra-tions retrieved by each utility score, and the extraction performance EM chrf BS 40 50 60 70 80 90 structured-f1   
+
+> 68.7 77.7 81.8 67.1 77.9 80.1 67.3 77.8 79.7
+
+Incidents 
+
+pool 1 pool 2 pool 3 Disjoint EM chrf BS 40 50 60 70 80 90 structured-f1 
+
+> 51.5 69.8 65.8 50.3 70.6 66.2 48.0 69.9 65.1
+
+Weather 
+
+Figure 8: Different labeled pools with Llama3-8B. TEAR: Table Extraction with Attribute Recommendation from Texts via Large Language Models Conference acronym ’XX, June 03–05, 2018, Woodstock, NY EM chrf BS 40 50 60 70 80             
+
+> structured-f1
+> 58.4 70.8 74.2 64.6 74.8 79.0 60.3 71.3 74.6 68.8 78.7 82.1
+> Incidents
+> EM chrf BS
+> structured-f1
+> 44.0 63.6 63.0 48.8 67.7 66.4 45.0 65.0 63.5 51.9 70.3 68.7
+> Weather
+> Semantic Header Value Union
+
+Figure 9: Retrieve utility scores ablation with Llama3-8B. 0 1 3 5 730 40 50 60 70 80 90 structured-f1                          
+
+> Incidents
+> 29.8 65.6 67.9 68.8 68.4 38.9 75.8 78.1 78.7 78.7 46.0 79.5 81.2 82.1 82.2 0135730 40 50 60 70 structured-f1
+> Weather
+> 30.4 51.2 51.5 51.9 52.2 48.5 69.1 69.9 70.3 70.3 51.8 68.2 68.5 68.7 68.8 12310 3 per text 12310 3 per text
+> BS EM chrf Input Tokens
+
+Figure 10: Retrieve shots ablation with Llama3-8B. Table 4: Influence of Hybrid Integration Strategy. 
+
+Qwen Δ chrf Δ BS Ratio (%) 
+
+Incidents Level 1 0.009 ±0.004 0.005 ±0.011 16.4 ±1.9 
+
+Incidents Level 2 0.007 ±0.001 0.002 ±0.007 12.9 ±0.5 
+
+Incidents Level 3 0.005 ±0.006 0.003 ±0.006 12.4 ±1.3 
+
+Weather Level 1 0.001 ±0.001 0.001 ±0.000 1.3 ±0.1 
+
+Weather Level 2 0.002 ±0.015 -0.007 ±0.009 13.9 ±0.6 
+
+Weather Level 3 -0.001 ±0.002 0.005 ±0.003 17.1 ±0.1 
+
+Conversation Level 1 0.002 ±0.001 0.002 ±0.001 8.4 ±3.3 
+
+Conversation Level 2 0.001 ±0.000 0.001 ±0.000 8.3 ±2.7 
+
+Conversation Level 3 0.001 ±0.000 0.001 ±0.000 12.0 ±5.2 
+
+is in Figure 9, showing that the header and value utilities derived by previews are more beneficial than the plain text semantic, and the union of three utilities is the best. We also ablate the number of retrieved examples, 𝑘 𝑡𝑒 , in Figure 10. Results show that only 1 shot could greatly boost the performance, and the performance reaches a high level after a few shots. The results of other backbones show similar patterns. 
+
+6.6.3 Hybrid Integration Strategy. We report the end-to-end im-provement of Hybrid Integration Strategy and the Ratio of removed attribute proposals. Results with Qwen are in Table 4, and those of other models are similar. It shows that Qwen removes an average of 11% proposals while maintaining comparable recall-AUC, and that ratio for Llama3-8B is 15%, and Llama3-70B 7%. Moreover, we find that the duplicates predominantly occur among low-coherence proposals, which are at the tail of the recommendation list. This explains why integration brings only modest improvement on recall-AUC ( Δs). For each setting, we also sample 30 cases and expose the same context to a human, in order to evaluate the alignment between the LLM’s judgment on duplicates with human’s. Results are shown in Figure 12. Based on Cohen’s Kappa [27], Llama3-8B (𝜅 =0.43-0.46) and Llama3-70 ( 𝜅 =0.57-0.79) achieve moderate agree-ment, and Qwen ( 𝜅 =0.73-0.87) achieves substantial agreement. It is hence a pragmatic design to appoint an LLM as the agent for attribute proposal deduplication. 
+
+6.6.4 Semantic Coherence Score. To illustrate the quality of the highest-ranked attributes, namely when the budget 𝑘 is small, we further plot the recall curves for the top-k recommendations with Qwen in Figure 11, and those with Llama (Appendix A.9) show sim-ilar patterns. In contrast to the baselines, the results show that our Schema Coherence Score consistently pushes high-quality candi-dates toward the top of the list, substantially improving early recall, which is ideal for practical short-list applications. This difference is especially evident on the Weather dataset under Levels 1 and 2. We further study the effect of varying the schema attribute per-mutations succeeding the SP, shown as the shaded region (e.g., there will be 6 possible permutations for 3 attributes). This sensitivity arises because LLMs tend to attend more strongly to nearby context, the last few attributes, during next-token prediction. To mitigate this sensitivity, our full implementation (coherence-M) samples 10 random permutations and retains the maximum score for each can-didate, as detailed in the implementation. This strategy successfully avoids underperforming orders and captures each candidate’s peak coherence across multiple contextualizations. 
+
+6.6.5 Manual Evaluation on Structured-F1. We conduct a human evaluation on 200 predictions across all benchmarks. Human evalu-ators are asked to compare the original prediction with a minimally perturbed version introducing a single semantic difference: either single-value corruption or value swap of two cells. The direction of structured-F1 change aligns closely with human preference (accu-racy 90%, 95%, 92.5% for sim.=EM, chrf, BS.). 
+
+## 7 Conclusion 
+
+We introduce TEAR, a framework that leverages LLM in-context learning for table extraction with attribute recommendation. In the Table Extraction Workflow, we propose a Proactive Demonstration Module to customize demonstrative examples for each input, ad-dressing the ineffectiveness of heuristic instructions by dynamically adapting to the high variability of n-texts. In the Attribute Recom-mendation Workflow, we design a Discovery Mechanism, a Hybrid Integration Strategy, and a Schema Coherence Score to openly dis-cover, consolidate, and present a ranked list of text-driven new attributes to the user, overcoming the limitations of fixed heuristic schemas. This recommendation capability is the most distinctive feature of our method, tackling the exploratory schema design challenge of naturally occurring texts. We further establish the evaluation benchmarks on n-texts, including two new datasets, ap-propriate metrics, and a discussion of baselines. Experiments with three open-source LLMs show that TEAR achieves state-of-the-art performance on both tasks, and the recommended attributes effec-tively enhance table extraction in exploratory scenarios. 
+
+## 8 Discussion 
+
+1. AR feedback loop. We clarify that AR does not have an in-herent convergence point that iterative refinement could reach because the open-ended candidate space is exhaustive if contin-uously prompted. As the first to establish the task, we focus on single-round quality, which provides known attributes to the system at the beginning. Multi-round interaction would require modeling the relationships among attributes provided across rounds and a more complex benchmark, which could be pursued in future work. Conference acronym ’XX, June 03–05, 2018, Woodstock, NY Tong Li, Shuye Ding, Jiachuan Wang, Yongqi Zhang, Shuangyin Li, Lei Chen, and Bo Li 0 10 20 30 0.2 0.4 0.6 0.8 
+
+> Recall (chrf)
+
+Level 1 
+
+Incidents    
+
+> 010 20 30 0.2 0.4 0.6 0.8
+
+Level 2 
+
+Incidents    
+
+> 010 20 30 0.2 0.4 0.6 0.8
+
+Level 3 
+
+Incidents    
+
+> 010 20 30 0.2 0.4 0.6 0.8
+
+Level 1 
+
+Weather    
+
+> 010 20 30 0.2 0.4 0.6 0.8
+
+Level 2 
+
+Weather    
+
+> 010 20 30 0.2 0.4 0.6 0.8
+
+Level 3 
+
+Weather    
+
+> 010 20 30 0.2 0.4 0.6 0.8
+> Recall (BS)
+
+Level 1    
+
+> 010 20 30 0.2 0.4 0.6 0.8
+
+Level 2    
+
+> 010 20 30 0.2 0.4 0.6 0.8
+
+Level 3    
+
+> 010 20 30 0.2 0.4 0.6 0.8
+
+Level 1    
+
+> 010 20 30 0.2 0.4 0.6 0.8
+
+Level 2    
+
+> 010 20 30 0.2 0.4 0.6 0.8
+
+Level 3 CFR MSS coherence-M coherence |S′|
+
+Figure 11: Recommendation recall of different ranking methods with Qwen. False True False True 
+
+> Human
+
+9 35 13 
+
+Incidents False True 
+
+10 18 11 
+
+Weather False True 
+
+11 40 15 
+
+Incidents False True 
+
+15 20 13 
+
+Weather False True 
+
+11 21 16 
+
+Incidents False True 
+
+7 06 17 
+
+Weather 
+
+Llama8 Qwen Llama70 
+
+Figure 12: Agreements between LLMs and humans. 2. LLMs as core components. Leveraging LLMs offers advantages for our tasks and is a common, well-established choice in recent works. Our contribution then lies in closing the gap between an LLM’s general capability and the task-specific competence, which is a gap that a stronger LLM or better prompts alone cannot close. 
+
+3. Design choices. Our design choices are based on standard ma-chine learning, established prior works, or empirical data statis-tics. Our contribution is not the scripted LLM instructions, but the data-driven components and the framework. 
+
+## References 
+
+[1] Naman Ahuja, Fenil Bardoliya, Chitta Baral, and Vivek Gupta. 2025. Map&Make: Schema Guided Text to Table Generation. arXiv preprint arXiv:2505.23174 (2025). [2] Simran Arora, Brandon Yang, Sabri Eyuboglu, Avanika Narayan, Andrew Ho-jel, Immanuel Trummer, and Christopher Ré. 2023. Language Models Enable Simple Systems for Generating Structured Views of Heterogeneous Data Lakes. 
+
+Proceedings of the VLDB Endowment 17, 2 (2023), 92–105. [3] Hamed Babaei Giglou, Jennifer D’Souza, and Sören Auer. 2023. LLMs4OL: Large language models for ontology learning. In International semantic web conference .Springer, 408–427. [4] Junwei Bao, Duyu Tang, Nan Duan, Zhao Yan, Yuanhua Lv, Ming Zhou, and Tiejun Zhao. 2018. Table-to-Text: Describing Table Region with Natural Language. In AAAI . https://www.aaai.org/ocs/index.php/AAAI/AAAI18/paper/download/ 16138/16782 [5] Chengliang Chai, Jiajun Li, Yuhao Deng, Yuanhao Zhong, Ye Yuan, Guoren Wang, and Lei Cao. 2025. Doctopus: Budget-aware structural table extraction from unstructured documents. Proceedings of the VLDB Endowment 18, 11 (2025), 3695–3707. [6] Hanzhu Chen, Xu Shen, Qitan Lv, Jie Wang, Xiaoqi Ni, and Jieping Ye. 2024. SAC-KG: Exploiting Large Language Models as Skilled Automatic Constructors for Domain Knowledge Graph. In Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) . 4345–4360. [7] Jiarui Chen, Shuangyin Li, and Yuncheng Jiang. 2024. A Decomposed-Distilled Sequential Framework for Text-to-Table Task with LLMs. In Pacific Rim Interna-tional Conference on Artificial Intelligence . Springer, 403–410. [8] Kaiwen Chen and Nick Koudas. 2024. Unstructured data fusion for schema and data extraction. Proceedings of the ACM on Management of Data 2, 3 (2024), 1–26. [9] Zhijia Chen, Weiyi Meng, and Eduard Dragut. 2022. Web Record Extraction with Invariants. Proceedings of the VLDB Endowment 16, 4 (2022), 959–972. [10] Christina Christodoulakis, Eric B Munson, Moshe Gabel, Angela Demke Brown, and Renée J Miller. 2020. Pytheas: Pattern-based Table Discovery in CSV Files. 
+
+Proc. VLDB Endow. 13, 11 (2020), 2075–2089. [11] Xu Chu, Yeye He, Kaushik Chakrabarti, and Kris Ganjam. 2015. Tegra: Table extraction by global record alignment. In Proceedings of the 2015 ACM SIGMOD international conference on management of data . 1713–1728. [12] Vasek Chvatal. 1979. A greedy heuristic for the set-covering problem. Mathe-matics of operations research 4, 3 (1979), 233–235. [13] Steven Coyne and Yuyang Dong. 2024. Large language models as generaliz-able text-to-table systems. In Proceedings of the 30th Annual Conference of the Association for Natural Language Processing (NLP2024) . 3243–3252. [14] Haixing Dai, Zhengliang Liu, Wenxiong Liao, Xiaoke Huang, Yihan Cao, Zihao Wu, Lin Zhao, Shaochen Xu, Fang Zeng, Wei Liu, et al. 2025. AugGPT: Leveraging ChatGPT for Text Data Augmentation. IEEE Transactions on Big Data 11, 03 (2025), 907–918. [15] Dan Dan Friedman and Adji Bousso Dieng. 2023. The Vendi Score: A Diversity Evaluation Metric for Machine Learning. Transactions on machine learning research (2023). [16] Zheye Deng, Chunkit Chan, Weiqi Wang, Yuxi Sun, Wei Fan, Tianshi Zheng, Yauwai Yim, and Yangqiu Song. 2024. Text-Tuple-Table: Towards Information Integration in Text-to-Table Generation via Global Tuple Extraction. In Proceed-ings of the 2024 Conference on Empirical Methods in Natural Language Processing .9300–9322. [17] Haoyu Dong, Mengkang Hu, Qinyu Xu, Haochen Wang, and Yue Hu. 2024. OpenTE: Open-Structure Table Extraction From Text. In ICASSP 2024-2024 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP) . IEEE, 10306–10310. [18] Qingxiu Dong, Lei Li, Damai Dai, Ce Zheng, Jingyuan Ma, Rui Li, Heming Xia, Jingjing Xu, Zhiyong Wu, Baobao Chang, et al. 2024. A survey on in-context learning. In Proceedings of the 2024 conference on empirical methods in natural language processing . 1107–1128. [19] Ronald Fagin, Benny Kimelfeld, Frederick Reiss, and Stijn Vansummeren. 2015. Document spanners: A formal approach to information extraction. Journal of the ACM (JACM) 62, 2 (2015), 1–51. [20] Ronald Fagin, Benny Kimelfeld, Frederick Reiss, and Stijn Vansummeren. 2016. A relational framework for information extraction. ACM SIGMOD Record 44, 4 (2016), 5–16. [21] Wenqi Fan, Yujuan Ding, Liangbo Ning, Shijie Wang, Hengyun Li, Dawei Yin, Tat-Seng Chua, and Qing Li. 2024. A survey on rag meeting llms: Towards retrieval-augmented large language models. In Proceedings of the 30th ACM SIGKDD conference on knowledge discovery and data mining . 6491–6501. [22] Saiping Guan, Xiaolong Jin, Yuanzhuo Wang, and Xueqi Cheng. 2019. Link prediction on n-ary relational data. In The world wide web conference . 583–593. [23] Mazhar Hameed, Gerardo Vitagliano, Fabian Panse, and Felix Naumann. 2025. Repairing Raw Data Files with TASHEEH. ACM SIGMOD Record 54, 1 (2025), 90–99. [24] Fred Jelinek, Robert L Mercer, Lalit R Bahl, and James K Baker. 1977. Perplexity—a measure of the difficulty of speech recognition tasks. The journal of the Acoustical Society of America 62, S1 (1977), S63–S63. [25] Peiwen Jiang, Haitong Jiang, Ruhui Ma, Yvonne Jie Chen, and Jinhua Cheng. 2025. TST: A Schema-Based Top-Down and Dynamic-Aware Agent of Text-to-Table Tasks. In Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) . 16951–16966. [26] Peiwen Jiang, Xinbo Lin, Zibo Zhao, Ruhui Ma, Yvonne Chen, and Jinhua Cheng. 2024. TKGT: Redefinition and a new way of text-to-table tasks based on real world demands and knowledge graphs augmented LLMs. In Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing . 16112–16126. [27] J Richard Landis and Gary G. Koch. 1977. The measurement of observer agreement for categorical data. Biometrics 33 1 (1977), 159–74. https://api.semanticscholar. org/CorpusID:11077516 TEAR: Table Extraction with Attribute Recommendation from Texts via Large Language Models Conference acronym ’XX, June 03–05, 2018, Woodstock, NY 
+
+[28] Rémi Lebret, David Grangier, and Michael Auli. 2016. Neural text generation from structured data with application to the biography domain. In Proceedings of the 2016 conference on empirical methods in natural language processing . 1203–1213. [29] Jessica Nina Lester, Tom Muskett, and Michelle O’Reilly. 2017. Naturally occurring data versus researcher-generated data. In A practical guide to social interaction research in autism spectrum disorders . Springer, 87–116. [30] Mike Lewis, Yinhan Liu, Naman Goyal, Marjan Ghazvininejad, Abdelrahman Mohamed, Omer Levy, Veselin Stoyanov, and Luke Zettlemoyer. 2020. BART: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension. In Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics . 7871–7880. [31] Tong Li, Jiachuan Wang, Yongqi Zhang, Shuangyin Li, and Lei Chen. 2025. Adapt-ing Pretrained Language Models for Citation Classification via Self-Supervised Contrastive Learning. In Proceedings of the 31st ACM SIGKDD Conference on Knowledge Discovery and Data Mining V. 2 . 1541–1552. [32] Tong Li, Zhihao Wang, Liangying Shao, Xuling Zheng, Xiaoli Wang, and Jinsong Su. 2023. A Sequence-to-Sequence&Set Model for Text-to-Table Generation. In 
+
+Findings of the Association for Computational Linguistics: ACL 2023 . 5358–5370. [33] Chen Liang, Hongliang Li, Changhao Guan, Qingbin Liu, Jian Liu, Jinan Xu, and Zhe Zhao. 2023. Novel slot detection with an incremental setting. In Findings of the Association for Computational Linguistics: EMNLP 2023 . 737–746. [34] Elizabeth D Liddy. 2001. Natural language processing. (2001). [35] Yupian Lin, Tong Ruan, Jingping Liu, and Haofen Wang. 2023. A survey on neural data-to-text generation. IEEE Transactions on Knowledge and Data Engineering 
+
+36, 4 (2023), 1431–1449. [36] Nelson F Liu, Kevin Lin, John Hewitt, Ashwin Paranjape, Michele Bevilacqua, Fabio Petroni, and Percy Liang. 2024. Lost in the middle: How language models use long contexts. Transactions of the Association for Computational Linguistics 
+
+12 (2024), 157–173. [37] Yu Liu, Quanming Yao, and Yong Li. 2021. Role-aware modeling for n-ary relational knowledge bases. In Proceedings of the web conference 2021 . 2660–2671. [38] Shayne Longpre, Le Hou, Tu Vu, Albert Webson, Hyung Won Chung, Yi Tay, Denny Zhou, Quoc V Le, Barret Zoph, Jason Wei, et al. 2023. The flan collection: Designing data and methods for effective instruction tuning. In International Conference on Machine Learning . PMLR, 22631–22648. [39] Haoran Luo, Yuhao Yang, Tianyu Yao, Yikai Guo, Zichen Tang, Wentai Zhang, Shiyao Peng, Kaiyang Wan, Meina Song, Wei Lin, et al. 2024. Text2nkg: Fine-grained n-ary relation extraction for n-ary relational knowledge graph construc-tion. Advances in Neural Information Processing Systems 37 (2024), 27417–27439. [40] Kyle Luoma and Arun Kumar. 2025. Snails: Schema naming assessments for improved llm-based sql inference. Proceedings of the ACM on Management of Data 3, 1 (2025), 1–26. [41] Rui Meng, Ye Liu, Shafiq Rayhan Joty, Caiming Xiong, Yingbo Zhou, and Semih Yavuz. 2024. Sfrembedding-mistral: enhance text retrieval with transfer learning. 
+
+Salesforce AI Research Blog 3 (2024), 6. [42] Mikhail Mironov and Liudmila Prokhorenkova. [n. d.]. Measuring Diversity: Axioms and Challenges. In Forty-second International Conference on Machine Learning .[43] Benjamin Newman, Yoonjoo Lee, Aakanksha Naik, Pao Siangliulue, Raymond Fok, Juho Kim, Daniel S Weld, Joseph Chee Chang, and Kyle Lo. 2024. ArxivDI-GESTables: Synthesizing Scientific Literature into Tables using Language Models. In Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing . 9612–9631. [44] Jekaterina Novikova, Ondrej Dušek, and Verena Rieser. 2017. The E2E Dataset: New Challenges for End-to-End Generation. In Proceedings of the 18th Annual Meeting of the Special Interest Group on Discourse and Dialogue . Saarbrücken, Germany. https://arxiv.org/abs/1706.09254 arXiv:1706.09254. [45] Jekaterina Novikova, Oliver Lemon, and Verena Rieser. 2016. Crowd-sourcing NLG Data: Pictures Elicit Better Data.. In Proceedings of the 9th International Natural Language Generation conference . 265–273. [46] Liu Pai, Wenyang Gao, Wenjie Dong, Lin Ai, Ziwei Gong, Songfang Huang, Li Zongsheng, Ehsan Hoque, Julia Hirschberg, and Yue Zhang. 2024. A survey on open information extraction from rule-based model to large language model. 
+
+Findings of the association for computational linguistics: EMNLP 2024 (2024), 9586– 9608. [47] Baolin Peng, Chunyuan Li, Pengcheng He, Michel Galley, and Jianfeng Gao. 2023. Instruction tuning with gpt-4. arXiv preprint arXiv:2304.03277 (2023). [48] Hao Peng, Xiaozhi Wang, Jianhui Chen, Weikai Li, Yunjia Qi, Zimu Wang, Zhili Wu, Kaisheng Zeng, Bin Xu, Lei Hou, et al. 2023. When does in-context learn-ing fall short and why? a study on specification-heavy tasks. arXiv preprint arXiv:2311.08993 (2023). [49] Fabio Petroni, Tim Rocktäschel, Sebastian Riedel, Patrick Lewis, Anton Bakhtin, Yuxiang Wu, and Alexander Miller. 2019. Language models as knowledge bases?. In Proceedings of the 2019 conference on empirical methods in natural language processing and the 9th international joint conference on natural language processing (EMNLP-IJCNLP) . 2463–2473. [50] Michał Pietruszka, Michał Turski, Łukasz Borchmann, Tomasz Dwojak, Gabriela Nowakowska, Karolina Szyndler, Dawid Jurkiewicz, and Łukasz Garncarek. 2024. Stable: Table generation framework for encoder-decoder models. In Proceedings of the 18th Conference of the European Chapter of the Association for Computational Linguistics (Volume 1: Long Papers) . 2454–2472. [51] Maja Popović. 2011. Morphemes and POS tags for n-gram based evaluation metrics. In Proceedings of the Sixth Workshop on Statistical Machine Translation .104–107. [52] Maja Popović. 2015. chrF: character n-gram F-score for automatic MT evaluation. In Proceedings of the tenth workshop on statistical machine translation . 392–395. [53] Maja Popović. 2016. chrF deconstructed: beta parameters and n-gram weights. In Proceedings of the First Conference on Machine Translation: Volume 2, Shared Task Papers . 499–504. [54] Nitesh Pradhan, Manasi Gyanchandani, Rajesh Wadhvani, et al. 2015. A Review on Text Similarity Technique used in IR and its Application. International Journal of Computer Applications 120, 9 (2015), 29–34. [55] Yunjia Qi, Hao Peng, Xiaozhi Wang, Bin Xu, Lei Hou, and Juanzi Li. 2024. Adelie: Aligning large language models on information extraction. In Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing . 7371–7387. [56] Colin Raffel, Noam Shazeer, Adam Roberts, Katherine Lee, Sharan Narang, Michael Matena, Yanqi Zhou, Wei Li, and Peter J Liu. 2020. Exploring the limits of transfer learning with a unified text-to-text transformer. Journal of machine learning research 21, 140 (2020), 1–67. [57] Ville Satopaa, Jeannie Albrecht, David Irwin, and Barath Raghavan. 2011. Finding a" kneedle" in a haystack: Detecting knee points in system behavior. In 2011 31st international conference on distributed computing systems workshops . IEEE, 166– 171. [58] Yuan Kui Shen and David R Karger. 2007. U-REST: an unsupervised record extraction system. In Proceedings of the 16th international conference on World Wide Web . 1347–1348. [59] Damien Sileo, Wout Vossen, and Robbe Raymaekers. 2022. Zero-shot recommen-dation as language modeling. In European conference on information retrieval .Springer, 223–230. [60] Mukul Singh, José Cambronero, Sumit Gulwani, Vu Le, Carina Negreanu, Arjun Radhakrishna, and Gust Verbruggen. 2025. Datavinci: Learning syntactic and semantic string repairs. Proceedings of the ACM on Management of Data 3, 1 (2025), 1–26. [61] Mukul Singh, Gust Verbruggen, Vu Le, and Sumit Gulwani. 2024. Tabularis Revilio: Converting Text to Tables. In Proceedings of the 33rd ACM International Conference on Information and Knowledge Management . 4056–4060. [62] Ilya Sutskever, Oriol Vinyals, and Quoc V Le. 2014. Sequence to sequence learning with neural networks. Advances in neural information processing systems 27 (2014). [63] Chris van der Lee, Chris Emmery, Sander Wubben, and Emiel Krahmer. 2020. The CACAPO dataset: A multilingual, multi-domain dataset for neural pipeline and end-to-end data-to-text generation. In Proceedings of the 13th International Conference on Natural Language Generation . 68–79. [64] Sam Wiseman, Stuart M Shieber, and Alexander M Rush. 2017. Challenges in data-to-document generation. arXiv preprint arXiv:1707.08052 (2017). [65] Sam Witteveen and Martin Andrews. 2019. Paraphrasing with Large Language Models. In Proceedings of the 3rd Workshop on Neural Generation and Translation .215–220. [66] Wilson Wong, Wei Liu, and Mohammed Bennamoun. 2012. Ontology learning from text: A look back and into the future. ACM computing surveys (CSUR) 44, 4 (2012), 1–36. [67] Xueqing Wu, Jiacheng Zhang, and Hang Li. 2022. Text-to-Table: A New Way of In-formation Extraction. In Proceedings of the 60th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers) . 2518–2533. [68] Yuxia Wu, Lizi Liao, Xueming Qian, and Tat-Seng Chua. 2022. Semi-supervised new slot discovery with incremental clustering. In Findings of the Association for Computational Linguistics: EMNLP 2022 . 6207–6218. [69] Yanan Wu, Zhiyuan Zeng, Keqing He, Hong Xu, Yuanmeng Yan, Huixing Jiang, and Weiran Xu. 2021. Novel slot detection: A benchmark for discovering unknown slot types in the task-oriented dialogue system. In Proceedings of the 59th Annual Meeting of the Association for Computational Linguistics and the 11th International Joint Conference on Natural Language Processing (Volume 1: Long Papers) . 3484– 3494. [70] Fanghua Ye, Jarana Manotumruksa, and Emine Yilmaz. 2022. MultiWOZ 2.4: A Multi-Domain Task-Oriented Dialogue Dataset with Essential Annotation Corrections to Improve State Tracking Evaluation. In Proceedings of the 23rd Annual Meeting of the Special Interest Group on Discourse and Dialogue , Oliver Lemon, Dilek Hakkani-Tur, Junyi Jessy Li, Arash Ashrafzadeh, Daniel Hernández Garcia, Malihe Alikhani, David Vandyke, and Ondřej Dušek (Eds.). Association for Computational Linguistics, Edinburgh, UK, 351–360. doi:10.18653/v1/2022.sigdial-1.34 [71] Gongsheng Yuan, Jiaheng Lu, Zhengtong Yan, and Sai Wu. 2023. A survey on mapping semi-structured data and graph data to relational data. Comput. Surveys 
+
+55, 10 (2023), 1–38. [72] Bowen Zhang and Harold Soh. 2024. Extract, Define, Canonicalize: An LLM-based Framework for Knowledge Graph Construction. In Proceedings of the 2024 Conference acronym ’XX, June 03–05, 2018, Woodstock, NY Tong Li, Shuye Ding, Jiachuan Wang, Yongqi Zhang, Shuangyin Li, Lei Chen, and Bo Li           
+
+> Conference on Empirical Methods in Natural Language Processing . 9820–9836. [73] Jiahua Zhang, Meijuan Tan, Jing Zhang, Xiaolu Zhang, Jun Zhou, and Chen-liang Li. 2025. Retrieval augmentation for text-to-table generation. Information Processing & Management 62, 4 (2025), 104135. [74] Tianyi Zhang, Varsha Kishore, Felix Wu, Kilian Q Weinberger, and Yoav Artzi. [n. d.]. BERTScore: Evaluating Text Generation with BERT. In International Conference on Learning Representations .[75] Zikang Zhang, Wangjie You, Tianci Wu, Xinrui Wang, Juntao Li, and Min Zhang. 2025. A survey of generative information extraction. In Proceedings of the 31st International Conference on Computational Linguistics . 4840–4870. [76] Wang Zhao, Dongxiao Gu, Xuejie Yang, Meihuizi Jia, Changyong Liang, Xiaoyu Wang, and Oleg Zolotarev. 2024. MedT2T: An adaptive pointer constrain gener-ating method for a new medical text-to-table task. Future Generation Computer Systems 161 (2024), 586–600. [77] Shaowen Zhou, Bowen Yu, Aixin Sun, Cheng Long, Jingyang Li, Haiyang Yu, Jian Sun, and Yongbin Li. 2022. A survey on neural open information extraction: Current status and future directions. arXiv preprint arXiv:2205.11725 (2022). [78] Jun Zhu, Zaiqing Nie, Ji-Rong Wen, Bo Zhang, and Wei-Ying Ma. 2006. Simultane-ous record detection and attribute labeling in web data extraction. In Proceedings of the 12th ACM SIGKDD international conference on Knowledge discovery and data mining . 494–503.
+
+## A Appendix A.1 LLM instructions 
+
+Here are the instruction templates. Under the attribute recommen-dation setting, the attributes for validation and testing are excluded from the schema and hidden from the LLM. Extraction Instruction (EI) Your task is to analyze the given text, which may be about incidents, weather, or conversation, and extract the infor-mation according to the specified JSON structure below. Provide the extracted information in the JSON structure {schema in json}. Explanations about the JSON structure: - Output only the JSON data. - For each entity, there are multiple attributes. - For each attribute, its value is a list of exact substrings of the input text. You should consider every attribute listed in the above structure. If an attribute is not present or cannot be determined, do not include the attribute in the output. {dataset description} Here are some examples: {examples} Here is the input text: {text} Here are some hints: The above text is most likely to contain the attributes: { 𝐻 𝑝 }. The above text is most likely to contain the following val-ues: { 𝑉 𝑝 }. The schema of each dataset is in Table 6. The dataset descriptions are: 
+
+Incidents - There can be three types of entities mentioned in the texts: Accident, Victim, and Suspect. There is at most one Accident in the text. There can be multiple Victims or Suspects in the text. 
+
+Weather - There is one type of entity mentioned in the texts: Weather. There can be multiple Weather in the text. 
+
+Conversation - Each input text is a multi-turn dialogue, involving at most 5 entities: Attraction, Hotel, Restaurant, Taxi, and Train. You should only extract the final agreed-upon state after each turn, covering all confirmed domains and their relevant attributes. Discovery Instruction (DI) Your task is to analyze the given text and discover new information mentioned in the text. Provide the discovered information in this JSON structure : {"Accident": { "0":{ "⟨ new attribute 1 ⟩": [], "⟨new attribute 2 ⟩": [] }}, "Victim": { "0":{ TEAR: Table Extraction with Attribute Recommendation from Texts via Large Language Models Conference acronym ’XX, June 03–05, 2018, Woodstock, NY 
+
+"⟨new attribute 1 ⟩": [], "⟨new attribute 2 ⟩": [] }, "1":{...}, ... }, "Suspect": { "0":{ "⟨new attribute 1 ⟩": [], "⟨new attribute 2 ⟩": [] }, "1":{...}, ... }, }
+
+Explanations about the JSON structure: - Output only the JSON data. - For each entity, there may be multiple attributes. - For each attribute, its value is a list of exact substrings of the input text. Here are some examples: {examples} Explanations about the examples: - Given an input text and the known information, you are encouraged to discover new information for each entity. - The new information is qualified as a new attribute if and only if (1) it is relevant and important to the domain, (2) it is unique and not overlapped with the known information, and (3) it has a proper granularity level compared with the known attributes, which means it is not too high-level or low-level concepts. - The new attribute must have a meaningful name and actual values from the text. - Output qualified new attributes as many as possible. Here is the input text: {text} Here is the known information: {extracted table} For other datasets, the output formatting are altered according to their schema. Schema Prefix (SP) Here is a schema designed to document and manage de-tailed information and facts about {dataset description}. For each entity, there are multiple attributes. The attributes are unique and in consistent styles. Here are the attributes in this schema: The dataset descriptions are: 
+
+Incidents - criminal incidents or accidents, particularly those in-volving violence, such as shootings or other crimes. The attributes are organized into three main entities: the accident itself, the vic-tims, and the suspects. 
+
+Weather - weather conditions from news reports, particularly those about location, time, temperature, wind, cloud, rain, and snow. The attributes are organized into one main entity: the Weather itself 
+
+Conversation - multi-turn dialogues, particularly those booking a service. The attributes are organized into five main entities: Attrac-tion, Hotel, Restaurant, Taxi, and Train. Judge Instruction (JI) in Hybrid Integration Strategy Your task is to analyze the given schema and judge whether the given concepts are semantically similar enough to be merged as one attribute. Here is the schema: {schema} Here are the concepts to be judged: {attribute proposals} Explanation about the task: - The schema includes several unique attributes, which show the semantic granularity of attributes. - If the above concepts (1) are semantically equivalent, or (2) one is semantically contained by the others, or (3) they represent a finer granularity compared with the existing attributes, they need to be merged into one single attribute. Then, output "One". - Else, they should be at least two unique attributes, output "Two". - Output only "Two" or "One". 
+
+## A.2 Vendi Score 
+
+Vendi Score is the effective rank of the normalized similarity matrix, 
+
+𝑣𝑑𝑠 (𝑞 ) = exp (− tr ( K𝑞 ×𝑞 
+
+|𝑞 | log K𝑞 ×𝑞 
+
+|𝑞 | )) , (23) where K𝑞 ×𝑞 is the similarity matrix of size |𝑞 | × | 𝑞 | and tr (·) means trace. Vendi Score is maximized as |𝑞 | if K ( 𝑖, 𝑗 ) = 0, ∀𝑖, 𝑗 ∈ 𝑞, 𝑖 ≠ 𝑗 ,meaning every two elements are totally different, and it is mini-mized as 1 if K𝑞 ×𝑞 contains all 1s. Since 𝑞 ⊆ 𝑍 ∪ 𝑆 = 𝐵 . We could precompute and cache K𝐵 ×𝐵 and acquire submatix K𝑞 ×𝑞 from it. Given K𝑞 ×𝑞 , the computational complexity of is in 𝑂 (| 𝑞 |3) [15]. In our experiment, we set K ( 𝑎, 𝑏 ) = (chrf 𝛽 (𝑎, 𝑏 )+chrf 𝛽 (𝑏, 𝑎 ))/ 2, to reflect the pattern similarity as in Equation 9. 
+
+## A.3 Supplementary Discussion for Hybrid Integration Strategy 
+
+A.3.1 Pruned bottom-up search for low-diversity set. As established by Equation 15, if a set is in 𝑃 ∗, then all of its subsets must also be in 
+
+𝑃 ∗. In other words, the monotonicity of 𝑑𝑖𝑣 (·) means 𝑑𝑖𝑣 (𝑝 ∪ { 𝑧 }) ≥ 
+
+𝑑𝑖𝑣 (𝑝 ), ∀𝑧 ∉ 𝑝 . Leveraging this property, our algorithm computes 
+
+𝑃 ∗ in ascending order of their size, enabling efficient pruning during the process, as in Algorithm 2. Specifically, in each iteration of the outer loop, the algorithm examines all qualified sets of size len + 1. A dictionary Br maps each qualified set 𝑝 of size len to a set of candidate attributes Br [𝑝 ] ⊆ 
+
+𝑍 ∪ 𝑆 that may be added to 𝑝 to form a larger qualified set. Within the inner loop, the algorithm considers a candidate extension 𝑝 ′ =
+
+𝑝 ∪ { 𝑧 ′ } for some 𝑧 ′ ∈ Br [𝑝 ]. It first performs a fast dictionary lookup to verify that replacing any element 𝑧 ∈ 𝑝 with 𝑧 ′ yields a known qualified set. If this check succeeds, indicating that all proper subsets of 𝑝 ′ are already known to be qualified, the algorithm computes the Vendi Score 𝑣𝑑𝑠 (𝑝 ′) to decide the final answer. Conference acronym ’XX, June 03–05, 2018, Woodstock, NY Tong Li, Shuye Ding, Jiachuan Wang, Yongqi Zhang, Shuangyin Li, Lei Chen, and Bo Li 
+
+Algorithm 2 Pruned Bottom-up Search for 𝑃 ∗
+
+Require: attribute proposals 𝑍 , known attributes 𝑆 , threshold 𝛿 
+
+Ensure: 𝑃 ∗ 
+
+> 1:
+
+𝑃 ∗ = ∅, Br ← {} , len ← 1 ⊲ Initialize dictionary.  
+
+> 2:
+
+for 𝑝 ∈ 𝑍 ∪ 𝑆 do Br [𝑝 ] = 𝑍 ∪ 𝑆 \ { 𝑝 } ⊲ Start by len=1.  
+
+> 3:
+
+end for  
+
+> 4:
+
+while |Br| > 0∧len < |𝑍 | + 1 do ⊲ Outer loop.  
+
+> 5:
+
+nextBr ← {}  
+
+> 6:
+
+for 𝑝 ∈ Br, 𝑧 ′ ∈ Br [𝑒 ] do ⊲ Inner loop.  
+
+> 7:
+
+valid ← True , activeBr ← Br[ 𝑝 ] 
+
+> 8:
+
+for 𝑧 ∈ 𝑝 do : ⊲ Check all subset of length |𝑝 | 
+
+> 9:
+
+𝑝 ′ = 𝑝 \ { 𝑧 } ∪ { 𝑧 ′ } ⊲ Replace one element, |𝑝 ′ | = |𝑒 | 
+
+> 10:
+
+if 𝑝 ′ ∈ Br then  
+
+> 11:
+
+activeBr ← activeBr ∩ Br[ 𝑝 ′] ⊲ Prune.  
+
+> 12:
+
+else  
+
+> 13:
+
+valid ← 𝐹𝑎𝑙𝑠𝑒  
+
+> 14:
+
+Break  
+
+> 15:
+
+end if  
+
+> 16:
+
+end for  
+
+> 17:
+
+if valid = True then ⊲ All proper subset of 𝑝 is in 𝑃 ∗. 
+
+> 18:
+
+𝑝 ′ = 𝑝 ∪ { 𝑧 ′ } 
+
+> 19:
+
+if 𝑣𝑑𝑠 (𝑝 ′) < 1 + 𝛿 then  
+
+> 20:
+
+𝑃 ∗ ← 𝑃 ∗ ∪ { 𝑝 ′ } 
+
+> 21:
+
+nextBr [𝑝 ′] ← activeBr  
+
+> 22:
+
+end if  
+
+> 23:
+
+end if  
+
+> 24:
+
+end for  
+
+> 25:
+
+len ←len +1, Br ← nextBr ⊲ Search for the larger size  
+
+> 26:
+
+end while 
+
+A.3.2 Complexity of diversity checking. Let 𝑁 = |𝑍 ∪𝑆 | be the total number of candidate attributes, and let 𝐿 = max 𝑝 ∈𝑃 ∗ |𝑝 | denote the size of the largest low-diversity set returned by the algorithm. For 𝑖 ∈ { 1, . . . , 𝐿 }, define 𝑀 𝑖 = |{ 𝑝 ∈ 𝑃 ∗ : |𝑝 | = 𝑖 }| , with 𝑀 1 = 𝑁 .Algorithm 2 constructs 𝑃 ∗ by attempting to extend each qualified set of size 𝑖 with at most 𝑁 −𝑖 candidate attributes. The total number of examined sets is therefore bounded by 
+
+|𝑃 ′ | ≤ 
+
+> 𝐿
+
+∑︁ 
+
+> 𝑖 =1
+
+(𝑁 − 𝑖 )𝑀 𝑖 = 𝑁 
+
+> 𝐿
+
+∑︁ 
+
+> 𝑖 =1
+
+𝑀 𝑖 −
+
+> 𝐿
+
+∑︁ 
+
+> 𝑖 =1
+
+𝑖𝑀 𝑖 = 𝑁 |𝑃 ∗ | − ∑︁  
+
+> 𝑝 ∈𝑃 ∗
+
+|𝑝 |.
+
+Obviously, the number of evaluated sets scales linearly with the output size |𝑃 ∗ |, i.e., |𝑃 ′ | = 𝑂 (𝑁 |𝑃 ∗ |) . Each candidate extension incurs 𝑂 (𝑖 ) dictionary lookups, and a small fraction proceed to a Vendi Score computation, yielding an overall time complexity of 
+
+𝑂  Í 𝐿 𝑖 =1 (𝑁 − 𝑖 )𝑀 𝑖 · ( 𝑖 + 𝐶 𝑣𝑑𝑠 ).In practice, the pruning step within the inner loop further re-stricts the branch set Br [𝑝 ]: the number of viable extensions for a set 𝑝 never exceeds that of any of its subsets, and Br [𝑝 ] shrinks as 𝑝 is extended. Hence, the factor (𝑁 − 𝑖 ) can be tightened. Em-pirically, most candidate attributes are semantically distinct and do not form duplicate pairs with any other proposal; only a small fraction participate in true redundancies. Consequently, the factor is far smaller than 𝑁 , and 𝐿 remains modest (as detailed in the experimental section around Table 3). 
+
+A.3.3 Complexity of contextualized analysis. Suppose there are 𝑁 ′
+
+duplicates (i.e., elements that can potentially be eliminated by a yes 
+
+response), and |𝐵 | − 𝑁 ′ non-duplicate elements. Then there must ex-ist sets 𝑞 1, 𝑞 2, . . . , 𝑞 |𝐵 | − 𝑁 ′ in 𝑃 ∗ that together cover all elements, be-cause every duplicate must co-occur with at least one non-duplicate in some set belonging to 𝑃 ∗. Consequently, for the set cover instance defined by the collection 𝑃 ∗ and the ground set 𝐵 , the optimal solu-tion size is strictly less than |𝐵 | − 𝑁 ′. A greedy set cover algorithm achieves an approximation ratio of (ln |𝐵 | + 1) [12]. Therefore, the number of LLM calls incurred by 𝑄 is at most (ln |𝐵 | + 1)(| 𝐵 | − 𝑁 ′).Line 10 further eliminates low-diversity sets that contain only a single element, which do not submit for LLM judgment. Given the same 𝐵 and |𝑃 ∗ |, in the worst case, the algorithm ex-amines every set in 𝑃 ∗ and receives no for all queries, incurring |𝑃 ∗ |
+
+LLM calls without performing any deduplication. Such a situation is rare because each set in 𝑃 ∗ is already known to be of very low diversity, meaning it plausibly contains duplicates. The analysis above indicates that a greater number of duplicates allows an outer iteration to complete more quickly, which submits each element at least once for duplication. We prioritize preserving the breadth of the search because the ultimate effect of deduplication hinges on whether each duplicate element is eliminated. The greedy set cover actually processes larger sets earlier, which helps the algorithm eliminate confirmed duplicates with few queries and shrinks the search space for subsequent iterations. 
+
+A.3.4 Discussion of Hybrid Integration Strategy. Resolving dupli-cate attribute proposals is essential, but this step lacks ground truth and thus cannot be formulated as a rigorous optimization prob-lem. The reason is that semantic equivalence between attributes is inherently subjective and highly dependent on the context. As with any recommendation system, the user’s ultimate preference may deviate from what the history infers. For instance, given the earlier example of “Medical center name” versus “Hospital name,” it is logical for a method to infer from the existing schema that the user likely intends to merge them. Yet a user might insist on retaining both to preserve fine-grained distinctions, much like a consumer abruptly deviating from past behavior to purchase an entirely different product. Given this inherent uncertainty, our Hybrid Integration Strategy is pragmatic rather than exhaustive: we defer to the diversity metric and LLM’s judgment and perform moderate processing to consoli-date obvious duplicates, without pursuing a perfect formulation or solution. Our experiments further support this pragmatic stance (see Section 6.3(2)), which shows that pruning the most conspicuous redundancies already yields substantial gains. 
+
+## A.4 Generating Attribute Proposal Definitions 
+
+Since each attribute proposal varies in occurrence frequency, num-ber of mentions, and mention length across source texts, directly gathered raw contexts can be highly inconsistent in length and style. This variability introduces bias to the LLM and could result in overly long input that hinders reliable reasoning. To address this, we first normalize each proposal’s context into a concise definition using the LLM itself. This step produces a standardized context (𝑧 ) for every attribute proposal 𝑧 that needs to be judged by the LLM, ensuring consistent TEAR: Table Extraction with Attribute Recommendation from Texts via Large Language Models Conference acronym ’XX, June 03–05, 2018, Woodstock, NY 
+
+style and length and improving fairness. Let 𝐷 𝑢 + 
+
+> 𝑖 1
+
+, 𝐷 𝑢 + 
+
+> 𝑖 2
+
+, ... denote the pseudo-tables containing the attribute proposal 𝑧 . The LLM instruction for generating a standard context is shown below. Generating context (𝑧 ) for attribute proposal 𝑧 .Your task is to summarize the context of an attribute and write a definition for it. Provide the definition in this JSON structure: { "<name>": "<definition>", } Explanations about the JSON structure: - Output only the JSON data, where the key is the name of the attribute and the value is its definition. - { dataset description } - The name should be concise and in the same style with the examples. - The name should be of proper granularity. Note that if it is too general, it cannot accurately describe the range of values; if it is too specific, it cannot cover all the values. - The definition should precisely describe the meaning and characteristics of the attribute, enabling the reliable extraction of the attribute from other texts. - The definition should be less than 50 words. { example definition } Here is the context of the attribute to be defined: In the text 𝑊 𝑢 𝑖 1 , the 𝑧 value are: { values in 𝐷 𝑢 + 
+
+> 𝑖 1
+
+}In the text 𝑊 𝑢 𝑖 2 , the 𝑧 value are: { values in 𝐷 𝑢 + 
+
+> 𝑖 2
+
+}... Here, the "dataset description" the same as that in Extraction Intruction, and "example definitions" is the definition for known attributes in the schema, if there are any. 
+
+## A.5 Discussion of existing datasets 
+
+Table 5 summarizes all open-source datasets used in previous table extraction from text methods in contrast to ours. 
+
+## A.6 Data Annotation 
+
+We first deduplicate the original texts and remove corrupted texts. Three annotators (A, B, and C) participate in creating the table an-notations. For each dataset, the annotation proceeds in three steps. First, the three annotators read the original CACAPO documenta-tion and discussed the original attribute set to reach a consensus on the overall schema. Second, we sample 100 texts, which are independently annotated by A, B, and C. During annotation, each annotator is provided with the original attribute-value pairs and the complete table extraction schema. They are asked to fill in miss-ing values, correct errors in the original annotations, and organize the correct values into multiple records (rows) to form a complete table. Disagreements are discussed until consensus is reached. The remaining texts are then split into two parts and assigned to B and C, respectively. From each part, we sample another 100 texts for A to annotate independently. The pairwise agreement between A and B is 88%, and between A and C is 82%. Entity 30.4% Attribute 30.4% Value 39.1%   
+
+> 28.0%
+> Time
+> 28.0%
+> Weather type
+> 16.0%
+> Temperature
+> 8.0% Wind status
+> 4.0%
+> Maximum temperature 4.0%
+> Minimum temperature
+> 4.0%
+> Weather intensity Others 8.0%
+
+Figure 13: Disagreement type distributions on Weather. Entity 37.8% Attribute 32.4% Value 29.7%   
+
+> 20.0%
+> Victim number
+> 17.5%
+> Accident type
+> 12.5%
+> Victim name
+> 10.0%
+> Victim age
+> 10.0%
+> Suspect name
+> 7.5%
+> Accident address
+> 7.5%
+> Victim status 5.0%
+> Suspect number Others 10.0%
+
+Figure 14: Disagreement type distributions on Incidents. 
+
+We categorize observed pairwise disagreements into three hier-archical levels, from coarse to fine-grained: (1) Entity-level : Dis-agreements on the presence of entities, corresponding to how many rows a table should contain. (2) Attribute-level : Disagreements on which attributes are instantiated for a given entity, without any Entity-level disagreement. This corresponds to determining the non-empty columns within a table row. (3) Value-level : Dis-agreements on the value of a specific attribute, without any Entity-or Attribute-level disagreement. This corresponds to the cell con-tent. We analyze the distribution of disagreement types and the attribute-level breakdown of where disagreements occur, visualized in Figure 14 and 13. 
+
+## A.7 Variability Comparison 
+
+We also conduct a statistical examination of the variability of our new benchmark datasets with that of Conversation. We study the variability in two aspects: how an attribute is manifest in the text (Challenge 1) and which attributes are mentioned in a text (Challenge 2). 0.2 0.4 0.6    
+
+> Unique Value Ratio
+> Restaurant price range Hotel type Hotel price range 0.234 Victim number Victim gender Suspect gender
+> 0.638 Cloud status Weather frequency Weather occurring chance
+> 0.656
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Value Ambiguity
+> Hotel internet Hotel parking Hotel stars
+> 0.881 Accident type Victim gender Suspect race
+> 0.902 Weather occurring chance Cloud status Weather frequency
+> 0.918
+> Conversation Incidents Weather Average
+
+Figure 15: Attribute-level variability comparison. 
+
+To underscore Challenge 1, we compare the attribute-level vari-ability: (1) Unique Value Ratio, ∈ ( 0, 1]: #unique values / #values. Conference acronym ’XX, June 03–05, 2018, Woodstock, NY Tong Li, Shuye Ding, Jiachuan Wang, Yongqi Zhang, Shuangyin Li, Lei Chen, and Bo Li 
+
+Table 5: Comparison of datasets. “Multiple” indicates whether each table contains multiple records or a single record. Dataset Input texts Output table Comments Multiple 
+
+E2E [44, 45, 67] human-written description synthetically generated restaurant attributes table description No RotoWire [64, 67] human-written game sum-mary NBA box score table description Yes WikiTableText [4, 67] human-written table de-scription Wikipedia web tables table description No WikiBio [28, 67] filtered Wikipedia biogra-phies Wikipedia web tables specialized documents No CPL [26] Chinese private lending judgments local tabular views of a KG specialized documents Yes 
+
+Incidents (Ours) gun-violence news re-port [63] manually-annotated tables about the victim, suspect and accident naturally occurring text Yes 
+
+Weather (Ours) weather forecasts in news [63] manually-annotated tables about weather details naturally occurring text Yes Conversation dialogue around services aggregated final dialogue state naturally occurring text (partially, because the ser-vice ontology is predefined) No 
+
+Table 6: Dataset schema. Dataset Entity : Attributes 
+
+Incidents Accident : Accident type, Accident date, Accident address, Number of rounds fired, Accident number, Personnel arrived time 
+
+Victim : Victim number, Victim status, Victim gender, Victim age, Victim based, Hospital name, Victim name, Victim race, Victim occupation, Victim vehicle 
+
+Suspect : Suspect gender, Suspect number, Suspect status, Suspect age, Suspect name, Suspect description, Suspect weapon, Suspect vehicle, Suspect occupation, Suspect based, Suspect race, Prison name 
+
+Weather Weather : Temperature, Snow status, Cloud type, Sunset time, Rain status, Weather area, Time, Weather type, Wind speed, Weather compass direction, Maximum temperature, Weather frequency, Wind status, Minimum temperature, Sunrise time, Weather occurring chance, Wind direction, Location, Cloud status 
+
+Conversation Attraction : Attraction name, Attraction area, Attraction type 
+
+Hotel : Hotel name, Hotel area, Hotel type, Hotel parking, Hotel price range, Hotel internet, Hotel stars, Hotel requested day, Hotel requested people, Hotel requested stay, Hotel confirmed name, Hotel confirmed reference 
+
+Restaurant : Restaurant name, Restaurant area, Restaurant food, Restaurant price range, Restaurant requested day, Restaurant requested people, Restaurant requested time, Restaurant confirmed name, Restaurant confirmed reference 
+
+Taxi : Taxi departure, Taxi destination, Taxi leave at, Taxi arrive by 
+
+Train : Train departure, Train destination, Train day, Train leave at, Train arrive by, Train requested people, Train confirmed reference A higher score means the attribute manifests more unique values among all its mentions in the text. (2) Value Ambiguity ∈ [ 0, 1]:the normalized entropy of value distribution. A higher score indi-cates that no single value dominates the corpus, and the attribute lacks a global default interpretation. Figure 15 shows the average and the lowest scores (the “easiest”) for each dataset. The former demonstrates the general difficulty while the latter reveals the lower-bound difficulty. These statistics imply the difficulty order TEAR: Table Extraction with Attribute Recommendation from Texts via Large Language Models Conference acronym ’XX, June 03–05, 2018, Woodstock, NY 
+
+of the datasets: Weather > Incidents > Conversation, aligning with the observation in Table 2. 0.1 0.3 0.5 0.7 0.9    
+
+> Attribute Rank Quantile
+> 0.0 0.2 0.4 0.6 0.8
+> Coverage
+> Time 0.679 Wind direction 0.046 Sunrise time 0.001 Victim status 0.541 Victim based 0.031 Victim vehicle 0.002 Train destination 0.403 Hotel confirmed name 0.247 Taxi arrive by 0.072 Weather (Gini=0.638) Incidents (Gini=0.641) Conversation (Gini=0.178)
+
+Figure 16: Attribute Coverage ranked curve. 
+
+For Challenge 2, we depict the Attribute Coverage (i.e. the ratio of texts mentioning the attribute) in Figure 16. Apparently, the long-tail phenomenon of our new benchmarks is more significant with higher Gini than the Conversation dataset, reflecting the fact that Incidents and Weather contain more rare attributes. 
+
+## A.8 Discussion on Structured-F1 
+
+We discuss the computational complexity of structured-F1. Assume 
+
+𝐷 has 𝑛 rows and 𝑚 columns while ˆ 𝐷 has ˆ 𝑛 rows and ˆ 𝑚 columns. Let 𝑐 denote the amortized cost to calculate the similarity between two cell contents. To compute DF1 for some record pair, it requires 
+
+𝑂 (𝑚 ˆ𝑚𝑐 ) to get the similarity matrix between header names, as in Figure 3(1), and 𝑂 (( 𝑚 + ˆ𝑚 )𝑐 ) to average the similarity of matched values. We need to compute DF1 for all 𝑛 ˆ𝑛 record pairs, the 𝑓 𝑘 
+
+similarity matrix could be reused, so the overall complexity for structured-F1 is 𝐶 1 = 𝑂 (𝑚 ˆ𝑚𝑐 + 𝑛 ˆ𝑛 (𝑚 + ˆ𝑚 )𝑐 ).In contrast, if the table is flattened, there are 𝑚𝑛 and ˆ 𝑚 ˆ𝑛 triples. So, the complexity of comparing triples is 𝐶 2 = 𝑂 (𝑚𝑛 ˆ𝑚 ˆ𝑛𝑐 ).For a reasonable system, the size of 𝐷 resembles that of ˆ 𝐷 , thus 
+
+𝑚 ≈ ˆ𝑚 and 𝑛 ≈ ˆ𝑛 , so 𝐶 1 = 𝑂 (𝑚 2𝑐 + 2𝑛 2𝑚𝑐 ), 𝐶 2 = 𝑂 (𝑚 2𝑛 2𝑐 ). When 
+
+𝑛 2 > 1 and 𝑚 > 3, 𝐶 1 ≤ 𝐶 2 and structured-F1 is more efficient than triple F1; in other cases, 𝐶 1 ≈ 𝐶 2. In practice, the 𝑚 and 𝑛 
+
+are usually small integers, so it is fair to say our metric does not increase the evaluation complexity. 
+
+## A.9 Other Results 
+
+Figure 17 and Figure 18 are the results with Llama-3-8B. Conference acronym ’XX, June 03–05, 2018, Woodstock, NY Tong Li, Shuye Ding, Jiachuan Wang, Yongqi Zhang, Shuangyin Li, Lei Chen, and Bo Li 0 10 20 30 0.2 0.4 0.6 0.8 
+
+> Recall (chrf)
+
+Level 1 
+
+Incidents 
+
+0 10 20 30 0.2 0.4 0.6 0.8 
+
+Level 2 
+
+Incidents 
+
+0 10 20 30 0.2 0.4 0.6 0.8 
+
+Level 3 
+
+Incidents 
+
+0 10 20 30 0.2 0.4 0.6 0.8 
+
+Level 1 
+
+Weather 
+
+0 10 20 30 0.2 0.4 0.6 0.8 
+
+Level 2 
+
+Weather 
+
+0 10 20 30 0.2 0.4 0.6 0.8 
+
+Level 3 
+
+Weather 
+
+0 10 20 30 0.2 0.4 0.6 0.8 
+
+> Recall (BS)
+
+Level 1 
+
+0 10 20 30 0.2 0.4 0.6 0.8 
+
+Level 2 
+
+0 10 20 30 0.2 0.4 0.6 0.8 
+
+Level 3 
+
+0 10 20 30 0.2 0.4 0.6 0.8 
+
+Level 1 
+
+0 10 20 30 0.2 0.4 0.6 0.8 
+
+Level 2 
+
+0 10 20 30 0.2 0.4 0.6 0.8 
+
+Level 3 CFR MSS coherence-M coherence |S′|
+
+Figure 17: Recommendation recall with Llama-3-8B. 50 75 
+
+> header-f1
+
+EM chrf BS 
+
+Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 
+
+Incidents EM chrf BS 
+
+Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 
+
+Weather 
+
+25 50 75 
+
+> structured-f1
+
+EM chrf BS 
+
+Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 
+
+EM chrf BS 
+
+Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 Level 1 Level 2 Level 3 
+
+MapMake-Llama TRE RAG-Llama TEAR-Llama TEAR*-Llama 
+
+Figure 18: Table extraction with text-driven attributes, Llama backbone.
