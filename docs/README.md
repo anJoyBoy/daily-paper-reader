@@ -6,24 +6,33 @@
 </div>
 
 ## 每次日报
-- 最新运行日期：2026-09-19
-- 运行时间：2026-09-19 21:02:41 UTC
+- 最新运行日期：2026-09-20
+- 运行时间：2026-09-20 21:58:55 UTC
 - 运行状态：成功
-- 本次总论文数：1
+- 本次总论文数：4
 - 精读区：0
-- 速读区：1
+- 速读区：4
 
 ### 今日简报（AI）
-今日仅速读1篇论文，聚焦用大语言模型从辐照材料科学文本中提取符合本体规范的知识。该方向值得关注的是：LLM正被用于把非结构化科研文本转为可计算的本体化知识，适合材料信息学与文本挖掘交叉领域读者了解。建议普通读者先看这篇的摘要与方法部分，判断其提取流程能否迁移到自己关注的领域。
-- 详情：[/202609/19/README](/202609/19/README)
+2026-09-20 日报速读 4 篇 LLM 应用论文，精读 0 篇，最高分 7.0。最值得关注的是用大模型从辐照材料科学文本中抽取本体合规知识，以及用多智能体 LLM 自动完成第一性原理性能建模。建议普通读者先浏览这两篇的摘要，判断是否与自己的材料或科研自动化需求相关。
+- 详情：[/202609/20/README](/202609/20/README)
 
 ### 精读区论文标签
 - 本次无精读推荐。
 
 ### 速读区论文标签
-1. [Extracting ontology-compliant knowledge from scientific text describing irradiated materials using large language models](/202609/19/2609.17291v1-extracting-ontology-compliant-knowledge-from-scientific-text-describing-irradiated-materials-using-large-language-models)  
+1. [Extracting ontology-compliant knowledge from scientific text describing irradiated materials using large language models](/202609/20/2609.17291v1-extracting-ontology-compliant-knowledge-from-scientific-text-describing-irradiated-materials-using-large-language-models)  
+   标签：评分：7.0/10、query:llm-dm
+   evidence：用LLM从科学文本提取符合本体的结构化知识
+2. [ABSOL: Aggregated Bayesian Subsampling Orchestrated with LLMs](/202609/20/2609.15007v1-absol-aggregated-bayesian-subsampling-orchestrated-with-llms)  
    标签：评分：6.0/10、query:llm-dm
-   evidence：用LLM从科学文本抽取本体兼容知识，属LLM文本挖掘
+   evidence：LLM引导的贝叶斯网络结构学习
+3. [Rosetta: Automating First-Principles Performance Modeling Using Multi-Agent LLMs](/202609/20/2609.19376v1-rosetta-automating-first-principles-performance-modeling-using-multi-agent-llms)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：多智能体LLM自动生成第一性原理数学模型
+4. [Machine Learning for High-Entropy Catalysts: Methods and Applications](/202609/20/2609.19837v1-machine-learning-for-high-entropy-catalysts-methods-and-applications)  
+   标签：评分：6.0/10、query:chemical-llm
+   evidence：机器学习与大语言模型用于高熵催化剂
 
 
 <div class="dpr-home-promo-card">
