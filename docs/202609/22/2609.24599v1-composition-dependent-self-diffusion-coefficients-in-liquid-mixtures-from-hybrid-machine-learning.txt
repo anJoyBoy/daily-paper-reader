@@ -1,0 +1,687 @@
+Title: Composition-Dependent Self-Diffusion Coefficients in Liquid Mixtures from Hybrid Machine Learning
+
+URL Source: https://arxiv.org/pdf/2609.24599v1
+
+Published Time: Tue, 22 Sep 2026 02:57:30 GMT
+
+Number of Pages: 37
+
+Markdown Content:
+# Composition-Dependent Self-Diffusion Coefficients in Liquid Mixtures from Hybrid Machine Learning 
+
+## Jens Wagner, Thomas Specht, Hans Hasse, and Fabian Jirasek ∗
+
+Laboratory of Engineering Thermodynamics (LTD), RPTU Kaiserslautern, Germany 
+
+E-mail: fabian.jirasek@rptu.de 
+
+Phone: +49 (0)631 - 205 4685 
+
+Abstract 
+
+Self-diffusion coefficients are key descriptors of molecular mobility, yet experimental data remain scarce, highlighting the need for reliable prediction methods. In previous work, we introduced the hybrid Enhanced Stokes–Einstein (ESE) model, which ad-vanced the state of the art in the physically consistent prediction of self-diffusion coeffi-cients of solutes at infinite dilution in pure solvents by integrating the Stokes–Einstein equation with machine learning (ML). Here, we extend this approach to concentration-dependent self-diffusion coefficients and multicomponent solvents with HADES. This hybrid architecture leverages a deep-set neural network to connect pure-component and mixture prediction within a single framework. HADES predicts self-diffusion co-efficients in liquid mixtures with any number of components at any composition and temperature. The only required inputs are SMILES-encoded molecular structures of the components and the pure-component viscosities, making the method broadly ap-plicable. Trained and evaluated on a comprehensive dataset of 2526 data points for 600 systems, HADES significantly outperforms benchmark prediction methods. The 
+
+1arXiv:2609.24599v1 [physics.chem-ph] 21 Sep 2026 trained model and its source code are fully disclosed, and the application is available via an interactive website https://ml-prop.mv.rptu.de/. 
+
+# Introduction 
+
+Self-diffusion coefficients in liquids quantify molecular mobility and are essential in many areas of science and engineering, including mixture characterization. 1,2 They also form the basis for modeling mutual diffusion, which is central to describing transport processes. 3,4 
+
+However, experimental data on self-diffusion coefficients remain scarce. 5 Furthermore, they are often only available for solutes at infinite dilution in pure solvents, while concentration-dependent data and data for multicomponent mixtures are generally missing. Consequently, reliable prediction methods are needed to close these gaps. Existing methods 5–29 for predict-ing self-diffusion coefficients often only have a narrow scope and require input that may not be available. To address these limitations, we developed HADES, a hybrid model for predicting self-diffusion coefficients in liquid mixtures as a function of temperature, covering mixtures with any number of components over the entire concentration range — from infinite dilution to pure components. HADES builds on previous work predicting self-diffusion coefficients at infinite dilution in pure solvents, the Enhanced Stokes–Einstein (ESE) model, 30 which we augment and extend to concentration-dependent data and multicomponent mixtures. HADES also lays the basis for a future extension to mutual diffusion. The self-diffusion coefficient Di describes the Brownian motion of a molecule of com-ponent i and is defined for pure components as well as for mixtures. At infinite dilution in a binary mixture, the self-diffusion coefficient of a solute i in a pure solvent j, D∞ 
+
+> ij
+
+, is identical to the corresponding Fickian and Maxwell–Stefan mutual diffusion coefficients and plays a central role in many semi-empirical approaches for predicting mutual diffusion in mixtures. 19,31–33 At finite concentration, component i itself contributes to the mixed solvent 2in which its molecules diffuse. In the opposite limit of a pure component, where i acts as its own pure solvent, the self-diffusion coefficient reduces to the pure-component value Dpure  
+
+> i
+
+.In the present work, we classify self-diffusion and the corresponding self-diffusion coefficients into three classes according to the composition of the solvent and the concentration of the diffusing component i, as shown in Figure 1, in accordance with the available experimental data and the scope of the corresponding benchmark models discussed below. iDSolvent 
+
+Pure 
+
+Mixture 0ix →1ix =ij Dpure 
+
+> i
+
+D
+
+II.  Self -diffusion 
+
+in  mixed  solvents 
+
+at  infinite  dilution 
+
+III.  Self -diffusion 
+
+in  mixed  solvents 
+
+at  finite  concentration 0ix →0 1 ixiD
+
+I.  Self -diffusion 
+
+in  pure  solvents 
+
+Figure 1: Classification of self-diffusion coefficients into three classes I - III used throughout this work, based on the solvent composition and the mole fraction xi of the diffusing com-ponent i.While many methods for predicting self-diffusion coefficients in pure solvents exist, 5–11,21–24,26–30 
+
+there are fewer methods for predicting the concentration dependence of the self-diffusion coefficient in mixtures. 12–20,25 These methods can be classified as follows: a) Physical mod-els and their empirical extensions; 6–20 b) Data-driven models, based either on quantitative structure-property relationships (QSPR) or machine learning (ML); 21,22,24–27 and c) Hybrid models, combining ML with physically motivated models. 5,23,28–30 Suitably developed hybrid models can combine the robustness of physical models with the flexibility of data-driven models. 34,35 For a discussion of models for predicting self-diffusion coefficients in pure sol-vents, 5–11,21–24,26–29 we refer the reader to our recent work on the ESE model. 30 
+
+3For mixtures, Maxwell–Stefan (MS) theory relates the self-diffusion coefficient of a solute i
+
+at infinite dilution in a mixed solvent, D∞ 
+
+> i
+
+, to the corresponding coefficients in the pure solvents, D∞ 
+
+> ik
+
+. This relationship, given by Eq. (1), predicts the dependence of D∞ 
+
+> i
+
+on the solvent composition: 
+
+D∞ 
+
+> i
+
+= 1
+
+> N
+
+X 
+
+> k=1
+> k̸=i
+
+xk
+
+D∞
+
+> ik
+
+. (1) Here, N is the total number of components in the mixture and xk is the mole fraction of solvent component k. Eq. (1) follows directly from MS theory without assuming an ideal mixture. However, it does not account for the non-ideality of the solvent viscosity. 6 In practice, good predictions for D∞ 
+
+> i
+
+are generally obtained only for ideal or mildly non-ideal mixtures; for strongly non-ideal systems, predictions may deviate considerably from experi-mental data. 36,37 Several empirical correlations have therefore been proposed 12–16 that intro-duce mixture viscosity as an additional composition-dependent input, improving predictions in some cases. 36,37 
+
+Beyond the infinite-dilution limit, several physical and empirical models 17–20 have been proposed to predict the composition dependence of self-diffusion coefficients in mixtures at finite concentrations, Di. In a recent comparison 38 with available experimental data for 
+
+Di, the model of Liu et al., 20 which consistently extends the MS model (Eq. (1)) to finite concentrations by accounting for the contribution of the diffusing component i to the solvent through the pure-component self-diffusion coefficient Dpure  
+
+> i
+
+, was shown to give the best overall performance: 
+
+Di = 1
+
+> N
+
+X
+
+> k=1
+
+xk
+
+D∞
+
+> ik
+
+, with D∞ 
+
+> ii
+
+= Dpure  
+
+> i
+
+. (2) Despite these efforts to model the composition dependence of self-diffusion coefficients in mixed solvents, the predictive accuracy of these physical and empirical models remains limited, with substantial deviations from experimental data reported even for weakly non-4ideal mixtures. 1,36,37 
+
+ML models provide an alternative to these approaches. 39 However, only one ML model for predicting finite-concentration self-diffusion coefficients in binary mixtures has been pro-posed. 25 It uses component- and mixture-specific descriptors, including critical-component data and association energies, as input. As this model is fully data-driven, it lacks built-in physical constraints, such as monotonic increases in predicted self-diffusion coefficients with temperature, invariance to permutations of mixture components, and smooth variation with composition, which may produce unphysical results, particularly when applied outside the range of the experimental data used for training. In addition to the limitations discussed above, the practical applicability of existing models is restricted by the availability of the required input data. Physical and empirical approaches rely on self-diffusion coefficient data for D∞ 
+
+> ik
+
+and Dpure  
+
+> i
+
+, which are available ex-perimentally only for a small number of systems. 5 Extended and data-driven models require additional inputs, such as mixture viscosities and mixture-specific parameters, which further narrow their applicability. Taken together, existing approaches for predicting self-diffusion coefficients in mixtures remain limited by prediction accuracy, input-data availability, restricted scope, or a lack of built-in physical consistency. To address these limitations, we build on our hybrid ESE 30 framework to predict self-diffusion coefficients across the full composition range, from infinite dilution to pure com-ponents, introducing HADES — the Hybrid Architecture for consistent Diffusion-coefficient Estimation across Solvents. The resulting unified model predicts self-diffusion coefficients in liquid mixtures with arbitrary numbers of components at any composition. Specifically, for class II, cf. Fig. 1, rather than enforcing Eq. (1) as a hard constraint, HADES learns the composition dependence of D∞ 
+
+> i
+
+directly from data: a deliberate modeling choice that sacrifices formal consistency with MS theory in favor of improved predictive accuracy, par-ticularly for non-ideal mixtures. HADES was trained jointly on self-diffusion coefficients in 5pure and mixed solvents to provide continuous predictions across composition, requiring only the molecular structures of the components (provided as SMILES) and the pure-component viscosities. The remainder of this paper is structured as follows: First, we briefly review the ESE model as the starting point for developing HADES. Then, the HADES architecture, the experimental database, and the training and evaluation procedure are described. Finally, HADES is systematically evaluated and benchmarked against the best available prediction models for the respective classes of self-diffusion coefficients (cf. Figure 1), namely the ESE model 30 for class I, the MS model (Eq. (1)) for class II, and the Liu model 20 (Eq. (2)) for class III. 
+
+# Starting-Point: The ESE Model 
+
+The Stokes–Einstein (SE) equation 40 provides the physical foundation for predicting self-diffusion coefficients Di in a liquid solvent. It was derived considering the motion of a hard sphere (diffusing molecule i) in a continuous fluid (solvent) yielding 
+
+DSE  
+
+> i
+
+= kBT
+
+6πηr i
+
+, (3) where kB is the Boltzmann constant, T is the temperature, η is the dynamic viscosity of the solvent at the temperature T , and ri is the effective radius of the solute i, which can be estimated from the molar mass of the solute Mi, its specific density ρi, and the Avogadro constant NA using: 
+
+ri = 3
+
+s
+
+3Mi
+
+4πρ iNA
+
+f , (4) where f is an empirical correction factor that can be related to the packing fraction and is often reported to be in the range of f = 0 .6 . . . 0.8. For predictive applications in liquids, 
+
+f = 0 .64 is frequently used as a default. 10 
+
+6In previous work, 30 we introduced the hybrid Enhanced Stokes–Einstein (ESE) model for the physically consistent prediction of self-diffusion coefficients of a solute i at infinite dilution in pure solvents j, D∞,ESE  
+
+> ij
+
+, by integrating the Stokes–Einstein equation with a neural network (NN). In the ESE model, the prediction of the SE model, D∞,SE  
+
+> ij
+
+, is refined using a system-specific scaling factor, bij , to enhance its predictive capacity. This scaling factor is generated by the NN leveraging simple molecular descriptors of both the solute and solvent, Xi and Xj , respectively, which are automatically derived from the SMILES 41 strings of the components using the open-source tool RDKit. 42 The architecture of the ESE model naturally accommodates the prediction of self-diffusion coefficients in pure components by choosing j = i, such that Dpure ,ESE  
+
+> i
+
+= D∞,ESE  
+
+> ii
+
+.Importantly, the NN architecture is explicitly constrained to preserve the physical prin-ciples encoded in the SE model, ensuring that the ESE model delivers consistent predictions across temperatures while benefiting from the flexibility of the ML algorithm. Beyond the SMILES strings, the only required physico-chemical input is the solvent viscosity, ηj , at the temperature of interest T , which is also needed for applying the SE model itself, mak-ing the ESE model broadly applicable. We benchmarked the ESE model against several high-performing previously published models, 11,28,29 demonstrating its broader applicability and superior predictive performance across a wide range of systems and temperatures. For further details on the ESE model, see the following sections and the original work. 30 
+
+In this work, we extend the ESE model from self-diffusion coefficients in pure solvents to predicting concentration-dependent self-diffusion coefficients in binary, ternary, and multi-component systems. Thereby, the initial ESE model was also updated, so that we recommend using HADES instead of ESE in future applications. We distinguish here between the diffusing component i and its solvent. In ESE, this solvent is always pure, whereas it can be a mixture in HADES. Note that this mixed solvent may also contain the component i for which the self-diffusion is measured, namely, if i is not considered at infinite dilution. To account for multiple components k in the solvent, HADES 7incorporates an equivariant deep-set model (DSM), 43 which aggregates their individual con-tributions Xk into Xsolv , allowing predictions for solutes at any concentration and systems with any number of components, while guaranteeing results invariant to their permutation. As HADES at its core relies on the SE model, also the viscosity of the mixed solvent is needed, for which logarithmic mixing of the component viscosities is assumed throughout this work. Hence, the only inputs required for HADES are the SMILES strings of all components as well as the pure-component viscosities of the solvent components k at the temperature T of interest. 
+
+# Methods 
+
+## Model Architecture 
+
+Figure 2 provides a schematic overview of the architecture of HADES. The gray box shows the input. In the scheme, the index i refers to the component for which the self-diffusion coefficient is calculated. The green box shows the steps for applying the SE model, i.e., the physical part of the model. To apply the SE equation, first the viscosity of the mixture (the solvent) ηsolv is calculated from the pure-component viscosities ηk and the mole fractions of the components xk using: 
+
+ηsolv (T ) = 
+
+> N
+
+Y
+
+> k=1
+
+(ηk(T )) xk . (5) The self-diffusion coefficient DSE  
+
+> i
+
+is then calculated from Eqs. (3) and (4) using the molar mass Mi and the temperature T . To avoid additional input, we used the default value 
+
+f = 0 .64 throughout and set the specific density of component i to ρi = 1050 kg m −3 for all components. These choices (as well as the choice of Eq. (5) for calculating the solvent viscosity) were made based on preliminary tests, which showed that their influence is small, 30 
+
+as the result of the physical model, DSE  
+
+> i
+
+, is corrected by a factor bi, solv to obtain the final 8Input 
+
+> Hybrid Model i
+
+MT( ) 
+
+> 1
+
+T
+
+( ) 
+
+> N
+
+T
+
+... 
+
+Stokes -
+
+Einstein  Eq .( ) ( )
+
+# ( )
+
+> solv 1
+
+
+
+> =
+
+=  k 
+
+> Nxkk
+
+T Tx1SMILES ... SMILES N
+
+RDKit ... 1XNX
+
+Equivariant 
+
+Deep -Set Model ... 1,solv a,solv Nasolv ,solv 1=
+
+=   
+
+> Nkkkk
+
+xX a XiX,solv ib
+
+Neural 
+
+Network xSE 
+
+> i
+
+D
+
+Machine -Learning Model Physical  Model 
+
+Output iDFigure 2: Schematic overview of the HADES architecture for predicting self-diffusion coeffi-cients Di at any concentration in pure and mixed solvents. Details on the model architecture are given in Section Model Architecture. results of the self-diffusion coefficient Di:
+
+Di = DSE  
+
+> i
+
+· bi, solv . (6) The factor bi, solv is calculated in the ML part of the model (blue box in Figure 2), which is trained to compensate for errors in the physical part and explains that the strongly simpli-fying assumptions described above have no negative consequences. The ML part of HADES takes as input the SMILES strings and the mole fractions xk of all 9N mixture components. The SMILES are first processed in the open-source toolkit RDKit 42 
+
+to automatically generate the molecular descriptor vectors Xk. The molecular descriptor set used to represent the mixture components in this work, which is listed in Table 1, is the same as in the ESE model 30 and was not varied or optimized during HADES development. The molecular descriptor vectors Xk are used together with the mole fractions xk of the respective components as inputs to an equivariant DSM. 43 Unlike classical neural networks, this architecture processes inputs in parallel, enabling the model to capture interactions between them (here, between the solvent components) while ensuring that the outputs are independent of input order and can still be assigned to the corresponding inputs. 44,45 For every component, this architecture produces a solvent-specific vector ak, solv of the same dimension as Xk, which weights the component’s molecular descriptors according to their influence on the self-diffusion in the considered solvent. The component-specific descriptors are then weighted by the respective mole fractions xk and combined to obtain the solvent’s molecular descriptor Xsolv :
+
+Xsolv =
+
+> N
+
+X
+
+> k=1
+
+xk ak, solv Xk. (7) The sum aggregation in Eq. (7) guarantees that Xsolv is invariant to any permutation of the solvent components and that HADES produces predictions that vary smoothly with composition for solvents with any number of components. Table 1: Molecular descriptors included in the vector X describing the solute and solvent components as used in the HADES model. Label Molecular descriptor 
+
+M Molar mass in kg mol −1
+
+R Boolean variable indicating presence of molecular ring structures 
+
+rHet Ratio of number of heteroatoms to non-hydrogen atoms 
+
+rHal Ratio of number of halogen atoms to non-hydrogen atoms 
+
+rAcc Ratio of number of hydrogen-bond acceptors to non-hydrogen atoms 
+
+rDon Ratio of number of hydrogen-bond donors to non-hydrogen atoms Analogously to the ESE model, the solvent descriptor, Xsolv , and the descriptor of the 10 component for which the self-diffusion is to be predicted, Xi, are fed to a NN that yields the system-specific scaling factor bi, solv for the correction of the SE prediction, cf. Eq. (6). The NN is restricted to produce strictly positive outputs for bi, solv . Furthermore, because all descriptors used in the ML model are structural and temperature-independent, the temper-ature dependence of the SE model is preserved. The DSM architecture consists of an input layer, a deep-set layer with sum aggrega-tion, 43,44 and an output layer, each with 32 nodes. The Sigmoid Linear Unit (SiLU) activa-tion function was used. Details on the hyperparameter optimization are given below. The NN architecture was adopted from our previous work, 30 with the only modification being that, as in the DSM, the inter-layer activation function was SiLU. 
+
+## Experimental Database 
+
+This work is focused on organic molecular substances with molar masses below 1000 g mol −1
+
+that contain no heavier atoms than chlorine. Additionally, we also consider water. The resulting scope is consistent with the scope of the ESE model. 30 The database used in this work contains N = 2526 experimental data points of self-diffusion coefficients comprising 215 components for which the self-diffusion is reported and 48 components present in the corresponding solvents. Table 2 gives an overview. A complete list of all diffusing com-ponents and solvent components included in the database is provided in the Supporting Information. The dynamic viscosities of all solvent components at the respective tempera-tures were obtained from the Dortmund Data Bank (DDB). 46 
+
+11 Table 2: Overview of the experimental database and corresponding benchmark models for the different classes of self-diffusion coefficients (cf. Figure 1). Class  Self-diffusion coefficient System  Database  Benchmark Systems  Diffusing components Solvents  Temperature range Data points Sources I D∞
+
+> ij  Binary  474  209  42  273 K – 363 K  1011  30  ESE model 30
+> Dpure
+> i Pure  19  19  19  273 K – 363 K  56  46 II  D∞
+> i
+> Ternary  95  11  23  298 K  713  36,37,47,48  MS model (Eq. (1)) Quaternary  4 1 4 298 K  37 III  Di
+> Binary  18  17  18  293 K – 358 K  504  46  Liu model 20
+> (Eq. (2)) Ternary  3 5 3 298 K  205
+
+12 The experimental data for D∞ 
+
+> ij
+
+are the same as those used in our previous work on the ESE model, 30 mainly comprising data collected from the DDB in previous works 5,28 and measure-ments performed in our own laboratories. 28,29,49–51 Data for Dpure  
+
+> i
+
+and Di were analogously obtained from the DDB. 46 For D∞ 
+
+> i
+
+, available experimental data in the literature are limited to systems with aromatic diffusing components and are reported in four sources, 36,37,47,48 all of which were considered here. 
+
+## Training and Evaluation 
+
+HADES was trained jointly on data for D∞ 
+
+> ij
+
+, D∞ 
+
+> i
+
+, Dpure  
+
+> i
+
+, and Di (cf. Figure 1). This enables the model to learn consistent trends across different classes. We trained the model using K-fold cross-validation (CV) 52 with solvent-wise data splits, where K = 92 equals the number of distinct solvents in our database. In each fold, all data associated with one solvent (independent of solvent component concentrations and temperature) were held back as test data. The remaining data were randomly split point-wise into 80% training data and 20% validation data. This procedure was repeated until predictions for all data points in the database were obtained. During training, the weights of the DSM and the NN were optimized simultaneously to predict bi, solv (cf. Eq. (6)) by minimizing the mean squared relative error (MSRE), which is defined as the average, over all considered data points, of the squared relative error (SRE) between the predicted and experimental values: 
+
+SRE = 
+
+Dpred − Dexp 
+
+Dexp 
+
+2
+
+. (8) Weight updates were performed using the AdamW 53 optimizer. The learning rate was reduced by a factor of 0.1 after 25 epochs without improvement in the validation loss. Early stopping was applied when no improvement was observed for 50 consecutive epochs, and the model with the lowest validation loss was used for evaluation on the corresponding test set. 13 Hyperparameters were optimized using a grid search approach based on the validation loss. The final hyperparameters, together with a sensitivity analysis on their influence on the validation loss, are reported in the Supporting Information. In addition to SRE, the predictive performance was also assessed using the absolute relative error (ARE): 
+
+ARE = Dpred − Dexp 
+
+Dexp , (9) and its average over all considered data points, the mean absolute relative error (MARE). While the solvent-wise CV was used to assess predictive capability, we also provide a ’final version’ of HADES. We obtained this final version using an ensemble of ten mod-els, 54 trained by generating ten independent random point-wise splits of the full dataset (95% training, 5% validation). For each split, an individual model was initialized with a different random seed and trained separately. The ensemble prediction is obtained as the average of the individual models’ results. The final HADES ensemble is available on Zenodo (https://doi.org/10.5281/zenodo.21979762) and through the interactive MLPROP 55 
+
+(https://ml-prop.mv.rptu.de/). Training was executed on a CPU node of the HPC Elwetrisch (dual Intel Xeon Silver 4410T, 64 GB RAM), using a single CPU core. Models, training, and evaluation routines were implemented in Python 3.12.7 using PyTorch 2.2.1. 56 Typical training times per fold ranged from 8 to 10 min. To enable direct comparison with HADES in predicting self-diffusion coefficients in pure solvents, we retrained and reevaluated the ESE model using the same procedure, architecture, and hyperparameter settings as described in the original work, 30 but adopting the solvent-wise CV and database for D∞ 
+
+> ij
+
+and Dpure  
+
+> i
+
+from this work, thereby aligning the ESE training and evaluation with that of HADES. All ESE results reported here were obtained with this retrained version. 14 Results and Discussion 
+
+In the following, we evaluate the performance of HADES for predicting self-diffusion co-efficients in pure components and mixtures using test data for unseen solvents (see Sec-tion Training and Evaluation). We also compare HADES results to benchmark models. There are two classes of benchmarks: a) physics-based models that were directly taken from the literature, and b) the hybrid ESE model, which was the only data-driven or ML-based model available in a form that enabled direct benchmarking and was re-parameterized in the present work to enable a fair and unbiased comparison. A direct comparison, as carried out between HADES and ESE, is unfortunately not possible for the physics-based models, since these models require input information that differs from that required by HADES. In particular, they generally require experimental data for self-diffusion coefficients at infinite dilution and/or in pure components, but these are often unavailable. In these cases, ESE predictions were used to replace unavailable experimental input data. 
+
+## Self-Diffusion in Pure Solvents 
+
+Figure 3 compares the self-diffusion coefficients in pure solvents, D∞ 
+
+> ij
+
+and Dpure  
+
+> i
+
+, predicted by ESE and HADES with the experimental test data, in terms of the ARE (top) and SRE (bottom). The results are presented as boxplots in the left panels and as histograms with the corresponding cumulative fractions in the right panels. The results show that HADES consistently outperforms ESE in both the ARE and SRE. As an example: while only ap-proximately 21% of the data points can be predicted with an ARE < 0.05 with ESE, which is in the range of typical experimental uncertainties reported for D∞ 
+
+> ij
+
+,5 HADES achieves this level of accuracy for approximately 34% of the data points. 15 ESE HADES 0.0 0.2 0.4 0.6 ARE 0.17 0.14 0.14 0.09 Mean Median ESE HADES 0.00 0.05 0.10 0.15 SRE 0.06 0.02 0.04 0.01 0.0 0.2 0.4 0.6 0.8 1.0 ARE 050 100 150 200      
+
+> N ESE HADES 0.0 0.2 0.4 0.6 0.8 1.0 Cumulative fraction 0.0 0.1 0.2 0.3 0.4 0.5 SRE 0200 400 600
+> N
+> 0.0 0.2 0.4 0.6 0.8 1.0 Cumulative fraction
+
+Figure 3: Absolute relative error (ARE, top) and squared relative error (SRE, bottom) of the predicted self-diffusion coefficients in pure solvents, D∞ 
+
+> ij
+
+and Dpure  
+
+> i
+
+, using ESE and HADES. Left: Boxplots, with box height indicating the interquartile range (IQR) and whiskers 1.5 times the IQR. Right: Histograms (bars) with cumulative fractions (lines) showing the num-ber of data points N predicted with a certain error. The improved predictive performance of HADES for self-diffusion coefficients in pure solvents is particularly noteworthy because the ESE model was specifically designed for this prediction task. This finding indicates that the deep-set architecture chosen for HADES enables the model, unlike ESE, to exploit cross-correlations learned from self-diffusion data in mixed solvents, improving performance on the pure-solvent prediction task. 
+
+## Self-Diffusion in Mixed Solvents at Infinite Dilution 
+
+Figure 4 compares the self-diffusion coefficients in mixed solvents at infinite dilution, D∞ 
+
+> i
+
+,predicted by the MS model (Eq. (1)) and HADES with the experimental test data, in terms of the ARE and SRE. The left column of Figure 4 shows the results for all data points. Both the MS model and HADES yield generally low prediction errors and show comparable 16 performance in predicting D∞ 
+
+> i
+
+. However, the MS model requires experimental self-diffusion coefficients in the pure solvent components, D∞ 
+
+> ij
+
+, as input, whereas HADES predicts D∞
+
+> i
+
+without any experimental diffusion data. The most notable difference is the lower median ARE of the MS model, which can be attributed to the larger fraction of data points predicted with very low ARE values, as reflected in the corresponding histogram. This is reasonable, as most available D∞ 
+
+> i
+
+data are for alkane solvent mixtures, 36,37,47,48 i.e., near-ideal systems, where Eq. (1) is known to perform well in practice. The right column of Figure 4 shows the corresponding results for the subset of systems containing at least one non-alkane solvent component. For these systems, HADES shows clearly improved predictive performance over the MS model, indicating it is better suited to describe the composition dependence of self-diffusion coefficients in mixed solvents exhibiting non-ideal behavior. 17 0.0 0.1 0.2 0.3 0.4 ARE 0.06 0.01 0.07 0.04 
+
+All solvents 
+
+N = 750  
+
+> Mean Median Eq. (1) with exp. input HADES 0.00 0.02 0.04 0.06 SRE 0.01 0.00 0.01 0.00 0.0 0.1 0.2 0.3 0.4 ARE 0.13 0.11 0.09 0.06
+
+Not alkane-only solvents 
+
+N = 358                      
+
+> Mean Median Eq. (1) with exp. input HADES 0.00 0.02 0.04 0.06 SRE 0.03 0.01 0.02 0.00 0.0 0.2 0.4 0.6 0.8 1.0 ARE 0100 200 300 400
+> N Eq. (1) with exp. input HADES 0.0 0.2 0.4 0.6 0.8 1.0 Cumulative fraction 0.0 0.2 0.4 0.6 0.8 1.0 ARE 025 50 75 100
+> N Eq. (1) with exp. input HADES 0.0 0.2 0.4 0.6 0.8 1.0 Cumulative fraction 0.0 0.2 0.4 0.6 0.8 1.0 SRE 0200 400 600 800
+> N
+> 0.0 0.2 0.4 0.6 0.8 1.0 Cumulative fraction 0.0 0.2 0.4 0.6 0.8 1.0 SRE 0100 200 300 400
+> N
+> 0.0 0.2 0.4 0.6 0.8 1.0 Cumulative fraction
+
+Figure 4: Absolute relative error (ARE) and squared relative error (SRE) of the pre-dicted self-diffusion coefficients in mixed solvents at infinite dilution, D∞ 
+
+> i
+
+, using the MS model (Eq. (1)) and HADES for all systems (left column) and for the subset of systems containing at least one non-alkane solvent component (right column), with the respective number of experimental test data points N . Top: Boxplots, with box height indicating the interquartile range (IQR) and whiskers 1.5 times the IQR. Bottom: Histograms (bars) with cumulative fractions (lines) showing the number of data points N predicted with a certain error. 18 Figure 5 compares the self-diffusion coefficients in mixed solvents at infinite dilution, D∞ 
+
+> i
+
+,predicted by the MS model and HADES with the experimental test data as a function of solvent composition for four exemplary systems. The left column shows systems with alkane-only solvent mixtures, where near-ideal be-havior is expected. For these systems, the MS model accurately predicts the experimental data across the full composition range, consistent with the theoretical basis of Eq. (1), which, while exact within MS theory, is known to perform well in practice precisely for near-ideal systems. HADES performs equally well for ethylbenzene in (octane + decane), while it shows slight deviations for 4-chlorotoluene in (hexane + heptane). The right column shows results for two non-ideal systems. The MS model fails to de-scribe the composition dependence of D∞ 
+
+> i
+
+for both systems. HADES, by contrast, accurately predicts the experimental data across the full composition range, capturing both the pos-itive deviation from ideal behavior observed for benzene in (heptane + ethanol), and the pronounced negative deviation for benzaldehyde in (methanol + water). These results di-rectly illustrate the benefit of the modeling choice discussed above: by learning D∞ 
+
+> i
+
+directly from data rather than enforcing Eq. (1), HADES gains the flexibility to describe non-ideal composition dependence that Eq. (1) cannot capture. In the examples shown in Figure 5, experimental values for pure-solvent coefficients D∞
+
+> ik
+
+were used throughout for the predictions based on Eq. (1). Such experimental data are often unavailable. In principle, they could be replaced by model predictions, e.g., from HADES or ESE. For ethylbenzene in (octane + decane) and benzaldehyde in (methanol + water), where HADES accurately predicts the pure-solvent coefficients, this substitution would have little effect. For the other two systems, 4-chlorotoluene in (hexane + heptane) and benzene in (heptane + ethanol), predictions based on Eq. (1) would deteriorate because deviations in the pure-solvent coefficients would carry over to the mixed-solvent results. 19 0.0 0.2 0.4 0.6 0.8 1.0 
+
+xOctane / mol mol 1
+
+1.8 2.0 2.2 2.4 2.6 
+
+> DEthylbenzene  10 9 / m 2 s 1
+
+T = 298.15 K
+
+Ethylbenzene in Octane + Decane 
+
+Experiment Eq. (1) with exp. input HADES 
+
+0.0 0.2 0.4 0.6 0.8 1.0 
+
+xHeptane / mol mol 1
+
+2.0 2.5 3.0 3.5 
+
+> DBenzene  10 9 / m 2 s 1
+
+T = 298.15 K
+
+Benzene in Heptane + Ethanol 
+
+0.0 0.2 0.4 0.6 0.8 1.0 
+
+xHexane / mol mol 1
+
+3.2 3.4 3.6 3.8 
+
+> D4 Chlorotoluene  10 9 / m 2 s 1
+
+T = 298.15 K
+
+4-Chlorotoluene in Hexane + Heptane 
+
+0.0 0.2 0.4 0.6 0.8 1.0 
+
+xMethanol / mol mol 1
+
+0.5 1.0 1.5 2.0 
+
+> DBenzaldehyde  10 9 / m 2 s 1
+
+T = 298.15 K
+
+Benzaldehyde in Methanol + Water Figure 5: Self-diffusion coefficients in mixed solvents at infinite dilution, D∞
+
+i , as a function of solvent composition for four exemplary test systems. Left column: systems with alkane mixtures as solvents. Right column: systems with at least one non-alkane solvent component. Unfilled symbols represent experimental test data, while lines denote predictions from the MS (Eq. (1)) and HADES models. Filled symbols indicate the experimental self-diffusion coefficients at infinite dilution in the pure solvent components used for application of Eq. (1). 20 Figure 6 compares the experimental test data for the self-diffusion coefficient of benzene at infinite dilution in a ternary solvent mixture of (methanol + ethanol + water) with predictions from Eq. (1) and HADES. While Eq. (1) predicts an almost linear interpolation between the pure-solvent coefficients, HADES predicts strongly non-linear behavior. The MARE and MSRE values show that HADES predictions match the experimental test data for this non-ideal system much better than predictions from Eq. (1). 
+
+Figure 6: Self-diffusion coefficient of benzene at infinite dilution, D∞
+
+> Benzene
+
+, as a function of solvent composition in a ternary mixture of methanol (M), ethanol (E), and water (W) at 
+
+T = 298 .15 K. Left: MS model (Eq. (1)) predictions compared with experimental test data; Eq. (1) was applied using experimental self-diffusion coefficients at infinite dilution in the pure solvent components. Right: HADES predictions compared with experimental test data. Symbols represent experimental test data, while surfaces denote model predictions. Together, the results presented in Figures 4 – 6 demonstrate that HADES predicts the composition dependence of self-diffusion coefficients at infinite dilution in mixed solvents exhibiting non-ideal behavior clearly better than Eq. (1), even in the rare case where ex-perimental pure-solvent data are available for the application of Eq. (1). Furthermore, the 21 results shown in Figures 5 and 6 demonstrate that, owing to its architecture, HADES pro-vides consistent predictions over the full composition space for mixtures with any number of solvent components. 
+
+## Self-Diffusion in Mixed Solvents at Finite Concentration 
+
+Figure 7 compares the self-diffusion coefficients in mixed solvents at finite concentrations, 
+
+Di, predicted by the Liu model 20 (Eq. (2)) and HADES with the experimental test data, in terms of the ARE and SRE. The left column of Figure 7 shows the results for mixtures for which the experimental self-diffusion coefficients in the respective pure solvents, D∞ 
+
+> ij
+
+and 
+
+Dpure  
+
+> i
+
+, are available for application of the Liu model. 20 HADES performs markedly better than the benchmark model in both ARE and SRE, with the substantially lower MSRE (0.05 vs. 0.09) indicating, in particular, fewer strongly mispredicted data points. As shown by the histogram, both models predict a comparable number of data points with small ARE < 0.15 ;however, HADES is more robust, as reflected in the faster increase in the cumulative fraction at higher ARE > 0.2.The right column shows results for mixtures lacking experimental data for the pure solvent components, for which we used the re-parameterized version of ESE in applying the Liu model. 20 For these mixtures, the Liu model 20 performs markedly worse. In contrast, HADES significantly outperforms the reference model and achieves an accuracy comparable to that obtained for mixtures with available experimental data in the pure solvent components. 22 0.0 0.2 0.4 0.6 ARE 0.19 0.11 0.14 0.09 
+
+Dij and Dpure  
+
+> i
+
+available 
+
+N = 258  
+
+> Mean Median Liu with exp. input HADES 0.00 0.05 0.10 0.15 0.20 SRE 0.09 0.01 0.05 0.01 0.0 0.2 0.4 0.6 ARE 0.28 0.12 0.14 0.06
+
+Dij or Dpure  
+
+> i
+
+not available 
+
+N = 451                     
+
+> Mean Median Liu with ESE input HADES 0.00 0.05 0.10 0.15 0.20 SRE 0.19 0.01 0.06 0.00 0.0 0.2 0.4 0.6 0.8 1.0 ARE 020 40
+> N Liu with exp. input HADES 0.0 0.2 0.4 0.6 0.8 1.0 Cumulative fraction 0.0 0.2 0.4 0.6 0.8 1.0 ARE 050 100
+> N Liu with ESE input HADES 0.0 0.2 0.4 0.6 0.8 1.0 Cumulative fraction 0.0 0.2 0.4 0.6 0.8 1.0 SRE 050 100 150 200
+> N
+> 0.0 0.2 0.4 0.6 0.8 1.0 Cumulative fraction 0.0 0.2 0.4 0.6 0.8 1.0 SRE 0100 200 300
+> N
+> 0.0 0.2 0.4 0.6 0.8 1.0 Cumulative fraction
+
+Figure 7: Absolute relative error (ARE) and squared relative error (SRE) of the pre-dicted self-diffusion coefficients in mixed solvents at finite concentrations, Di, using the Liu model 20 (Eq. (2)) and HADES for mixtures for which experimental self-diffusion coeffi-cients in the pure solvent components, D∞ 
+
+> ij
+
+and Dpure  
+
+> i
+
+, are available for application of the Liu model 20 (left column) and mixtures for which such experimental data are unavailable and ESE predictions are used instead (right column), with the respective number of experimental test data points N . Top: Boxplots, with box height indicating the interquartile range (IQR) and whiskers 1.5 times the IQR. Bottom: Histograms (bars) with cumulative fractions (lines) showing the number of data points N predicted with a certain error. 23 Figure 8 compares the self-diffusion coefficients at finite concentrations, Di, predicted by the Liu model 20 and HADES with experimental test data, as a function of the mole frac-tion xi, for four exemplary binary mixtures. The left column of Figure 8 shows two mixtures for which experimental values of the self-diffusion coefficients in the pure solvent compo-nents are available. For both mixtures, the Liu model 20 fails to capture the concentration-dependent behavior of the self-diffusion coefficient in the mixture, whereas HADES predicts it remarkably well. In particular, for the highly non-ideal mixture (ethanol + water), the Liu model 20 cannot capture the pronounced decrease in DEthanol driven by strong polar interactions, while HADES accurately predicts this behavior. The right column of Figure 8 shows two mixtures for which experimental values of the self-diffusion coefficients in the pure solvent components are unavailable, so ESE predictions are used instead. The same picture emerges for these mixtures: although ESE provides adequate predictions for the self-diffusion coefficients in the pure solvents used as input to the Liu model, 20 the resulting predictions fail to capture the concentration-dependent trends in the mixtures. In contrast, HADES accurately predicts the composition dependence for both mixtures (except for one likely outlying data point in the (tetraethylene glycol + water) mixture). 24 0.0 0.2 0.4 0.6 0.8 1.0 
+
+xCyclohexane / mol mol 1
+
+1.5 2.0 2.5 3.0 3.5 4.0 4.5 
+
+> DCyclohexane  10 9 / m 2 s 1
+
+T = 298.15 K
+
+Cyclohexane + Acetone 
+
+Experiment Liu with exp. input HADES 
+
+0.0 0.1 0.2 0.3 0.4 0.5 0.6 
+
+xDimethyl sulfoxide / mol mol 1
+
+0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 
+
+> DDimethyl sulfoxide  10 9 / m 2 s 1
+
+T = 313.15 K
+
+Dimethyl sulfoxide + Ethylene glycol 
+
+Experiment Liu with ESE input HADES 
+
+0.0 0.2 0.4 0.6 0.8 1.0 
+
+xEthanol / mol mol 1
+
+0.6 0.7 0.8 0.9 1.0 1.1 1.2 
+
+> DEthanol  10 9 / m 2 s 1
+
+T = 298.15 K
+
+Ethanol + Water 
+
+0.85 0.90 0.95 1.00 
+
+xTetraethylene glycol / mol mol 1
+
+0.12 0.14 0.16 0.18 0.20 0.22 0.24 
+
+> DTetraethylene glycol  10 9 / m 2 s 1
+
+T = 343.15 K
+
+Tetraethylene glycol + Water Figure 8: Self-diffusion coefficients in mixed solvents at finite concentrations, Di, as a func-tion of the mole fraction, xi, for four exemplary binary mixtures. Left column: mixtures for which experimental self-diffusion coefficients in the pure solvent components, D∞
+
+ij and Dpure 
+
+i ,are available for application of the Liu model. 20 Right column: mixtures for which such experimental data are unavailable and ESE predictions are used instead. Unfilled symbols represent experimental test data, while lines denote predictions from the Liu 20 and HADES models. Filled symbols indicate the self-diffusion coefficients in the pure solvent components used for application of the Liu model. 20 
+
+25 Figure 9 compares the self-diffusion coefficients at finite concentrations, Di, predicted by the Liu model 20 and HADES with the experimental test data for the ternary mixture (cyclohexane + toluene + acetone). To apply the Liu model, 20 we used experimental values throughout, except for the self-diffusion coefficient of acetone at infinite dilution in toluene, for which no experimental data are available, so we used the ESE prediction. For the self-diffusion coefficient of cyclohexane (left column), the Liu model 20 generally underestimates the experimental data. HADES yields substantially improved predictions across the full composition range. For the self-diffusion coefficient of toluene (middle column), the Liu model 20 again un-derestimates the experimental test data, and HADES provides more accurate predictions. For the self-diffusion coefficient of acetone (right column), the Liu model 20 and HADES show a comparable predictive performance. However, HADES better captures the decrease in DAcetone at high acetone mole fractions. 26 Figure 9: Self-diffusion coefficients at finite concentrations, Di, as a function of composition in a ternary mixture of cyclohexane (C), toluene (T), and acetone (A) at T = 298 .15 K. Top row: predictions from the Liu model, 20 for which experimental self-diffusion data in the pure solvents were used, except for acetone at infinite dilution in toluene, for which an ESE prediction was used. Bottom row: HADES predictions. The left, middle, and right columns show the self-diffusion coefficients of cyclohexane, toluene, and acetone, respectively. Symbols represent experimental test data, while surfaces denote model predictions. 27 The results presented in Figures 7 – 9 demonstrate the improved predictive performance of HADES compared with the Liu model. 20 Together with the results from the previous sections, the results demonstrate that HADES provides compositionally consistent predictions of self-diffusion coefficients for diffusing components at arbitrary concentrations and in mixtures with any number of components. The chosen deep-set architecture enables HADES to learn from diffusion behavior in pure solvents and extrapolate to mixed solvents, and vice versa, strengthening its predictive performance for both tasks. 
+
+# Conclusions 
+
+Self-diffusion coefficients are essential for understanding molecular mobility in liquids and for modeling transport processes, yet experimental data remain scarce, particularly for composition-dependent diffusion in mixtures. Existing prediction approaches are limited in scope, require often-unavailable input data, or fail to describe non-ideal mixture behavior. HADES closes these gaps. Building on our hybrid ESE model 30 for self-diffusion at infinite dilution in pure sol-vents, HADES extends the framework to arbitrary compositions and multicomponent mix-tures through a deep-set architecture that learns a composition-dependent solvent represen-tation. Trained jointly on pure and mixed solvent data, it provides physically consistent, permutation-invariant predictions across the full composition range, from infinite dilution to pure components, requiring only SMILES strings and pure-component viscosities as input. For the infinite-dilution state of the diffusing species in mixed solvents, HADES deliberately departs from the Maxwell-Stefan mixing rule of Eq. (1), trading formal consistency for su-perior predictive accuracy in non-ideal systems. The results show this trade-off pays off: HADES matches or outperforms the best available reference models across all classes of self-diffusion coefficients within a single unified framework, without requiring any experimental diffusion data as input. 28 A particularly notable finding is the bidirectional transfer between pure- and mixed-solvent data: patterns learned from pure-solvent diffusion improve predictions in mixtures, and vice versa. This suggests that HADES captures the shared physical features of composition-dependent diffusion rather than treating pure and mixed systems as separate regimes, a property that should generalize well beyond the training data. The current implementation covers organic molecules and water, with molar masses be-low 1000 g mol −1 and no elements heavier than chlorine, reflecting the scope of available experimental data rather than any inherent limitation of the framework. Extending HADES to broader chemical spaces remains an important direction for future work, contingent on the availability of high-quality experimental data. With HADES establishing a reliable and broadly applicable prediction framework for self-diffusion, the natural next step is to extend it to mutual diffusion coefficients at finite concentration, closing the loop between molecular mobility and mixture transport that is central to process design and optimization. Looking further ahead, the HADES framework offers a promising blueprint for advancing inverse prediction tasks, such as estimating molar masses of unknown components from mea-sured self-diffusion coefficients. This capability could significantly improve our mixture anal-ysis framework based on nuclear magnetic resonance (NMR) fingerprinting techniques, 49,57–61 
+
+which we will explore in future work. 29 Conflicts of Interest 
+
+There are no conflicts of interest to declare. 
+
+# Data Availability 
+
+The final trained HADES model is available on Zenodo at https://doi.org/10.5281/ zenodo.21979762 .
+
+# Acknowledgement 
+
+We gratefully acknowledge financial support by the Carl Zeiss Foundation in the project ’Halocycles’ as well as by DFG in the frame of the Research Training Group ’WERA’ (project number 503479768), the Core Facility ’LASE-MR’ (project number 537627671) and the Emmy Noether Group of FJ (project number 528649696). Model training was carried out on the high-performance computer Elwetrisch at RPTU under the grant RPTU-MLVT. 
+
+# Supporting Information Available 
+
+Hyperparameter study; list of diffusing components; list of solvent components. 
+
+# References 
+
+(1) Bellaire, D.; Kiepfer, H.; Münnemann, K.; Hasse, H. PFG-NMR and MD Simulation Study of Self-Diffusion Coefficients of Binary and Ternary Mixtures Containing Cy-clohexane, Ethanol, Acetone, and Toluene. Journal of Chemical & Engineering Data 
+
+2020 , 65 , 793–803. 30 (2) Phuong, J.; Mross, S.; Bellaire, D.; Hasse, H.; Münnemann, K. Determination of self-diffusion coefficients in mixtures with benchtop 13 C NMR spectroscopy via polarization transfer. Magnetic Resonance in Chemistry 2024 , 62 , 386–397. (3) Wesselingh, J. A.; Krishna, R. Mass transfer in multicomponent mixtures , 1st ed.; Delft Univ. Press, Delft, 2000. (4) Bellaire, D.; Münnemann, K.; Hasse, H. Mutual diffusion coefficients from NMR imag-ing. Chemical Engineering Science 2022 , 255 , 117655. (5) Großmann, O.; Bellaire, D.; Hayer, N.; Jirasek, F.; Hasse, H. Database for liquid phase diffusion coefficients at infinite dilution at 298 K and matrix completion methods for their prediction. Digital Discovery 2022 , 1, 886–897. (6) Taylor, R.; Krishna, R. Multicomponent Mass Transfer ; John Wiley & Sons, 1993. (7) Wilke, C. R.; Chang, P. Correlation of diffusion coefficients in dilute solutions. AIChE journal 1955 , 1, 264–270. (8) Reddy, K.; Doraiswamy, L. Estimating liquid diffusivity. Industrial & Engineering Chemistry Fundamentals 1967 , 6, 77–79. (9) Tyn, M. T.; Calus, W. F. Diffusion coefficients in dilute binary liquid mixtures. Journal of Chemical and Engineering Data 1975 , 20 , 106–109. (10) Evans, R.; Deng, Z.; Rogerson, A. K.; McLachlan, A. S.; Richards, J. J.; Nilsson, M.; Morris, G. A. Quantitative Interpretation of Diffusion-Ordered NMR Spectra: Can We Rationalize Small Molecule Diffusion Coefficients? Angewandte Chemie 2013 , 125 ,3281–3284. (11) Evans, R.; Dal Poggetto, G.; Nilsson, M.; Morris, G. A. Improving the Interpretation of Small Molecule Diffusion Coefficients. Analytical Chemistry 2018 , 90 , 3987–3994. 31 (12) Glasstone, S.; Laidler, K. J.; Eyring, H. The Theory of Rate Processes: The Kinetics of Chemical Reactions, Viscosity, Diffusion and Electrochemical Phenomena ; McGraw-Hill: New York, 1941. (13) Holmes, J. T.; Olander, D. R.; Wilke, C. R. Diffusion in mixed solvents. AIChE Journal 
+
+1962 , 8, 646–649. (14) Tang, Y. P.; Himmelblau, D. M. Effective binary diffusion coefficients in mixed solvents. 
+
+AIChE Journal 1965 , 11 , 54–58. (15) Leffler, J.; Cullinan, H. T. Variation of Liquid Diffusion Coefficients with Composition. Dilute Ternary Systems. Industrial & Engineering Chemistry Fundamentals 1970 , 9,88–93. (16) Dullien, F. A. L.; Asfour, A. F. A. Concentration dependence of mutual diffusion coeffi-cients in regular binary solutions: a new predictive equation. Industrial & Engineering Chemistry Fundamentals 1985 , 24 , 1–7. (17) Carman, P. C.; Stein, L. H. Self-diffusion in mixtures. Part 1. Theory and its application to a nearly ideal binary liquid mixture. Transactions of the Faraday Society 1956 , 52 ,619. (18) Li, J.; Liu, H.; Hu, Y. A mutual-diffusion-coefficient model based on local composition. 
+
+Fluid Phase Equilibria 2001 , 187–188 , 193–208. (19) Krishna, R.; van Baten, J. M. The Darken Relation for Multicomponent Diffusion in Liquid Mixtures of Linear Alkanes: An Investigation Using Molecular Dynamics (MD) Simulations. Industrial & Engineering Chemistry Research 2005 , 44 , 6939–6947. (20) Liu, X.; Vlugt, T. J.; Bardow, A. Predictive Darken Equation for Maxwell-Stefan Dif-fusivities in Multicomponent Mixtures. Industrial & Engineering Chemistry Research 
+
+2011 , 50 , 10350–10358. 32 (21) Khajeh, A.; Rasaei, M. R. Diffusion coefficient prediction of acids in water at infinite dilution by QSPR method. Structural Chemistry 2011 , 23 , 399–406. (22) Abbasi, A.; Eslamloueyan, R. Determination of binary diffusion coefficients of hydrocar-bon mixtures using MLP and ANFIS networks based on QSPR method. Chemometrics and Intelligent Laboratory Systems 2014 , 132 , 39–51. (23) Mariani, V.; Pulga, L.; Bianchi, G. M.; Cazzoli, G. A Bayesian neural network method-ology to predict the liquid phase diffusion coefficient. International Journal of Heat and Mass Transfer 2020 , 161 , 120309. (24) Aniceto, J. P. S.; Zêzere, B.; Silva, C. M. Predictive Models for the Binary Diffusion Coefficient at Infinite Dilution in Polar and Nonpolar Fluids. Materials 2021 , 14 , 542. (25) Allers, J. P.; Keth, J.; Alam, T. M. Prediction of Self-Diffusion in Binary Fluid Mixtures Using Artificial Neural Networks. The Journal of Physical Chemistry B 2022 , 126 ,4555–4564. (26) Aniceto, J. P.; Zêzere, B.; Silva, C. M. Prediction of diffusion coefficients in aqueous systems by machine learning models. Journal of Molecular Liquids 2024 , 405 , 125009. (27) Dias, A. F.; Portugal, I.; Aniceto, J. P.; Silva, C. M. Machine Learning model for the prediction of self-diffusion coefficients in liquids, compressed gases and supercritical fluids. Chemical Engineering Journal 2024 , 495 , 153274. (28) Romero, Z.; Münnemann, K.; Hasse, H.; Jirasek, F. Improvement of Diffusion Coeffi-cient Prediction by Active Learning. The Journal of Physical Chemistry B 2025 , 129 ,9219–9228. (29) Romero, Z.; Münnemann, K.; Hasse, H.; Jirasek, F. Prediction of diffusion coefficients in mixtures with tensor completion. Physical Chemistry Chemical Physics 2026 , 28 ,16885–16896. 33 (30) Wagner, J.; Romero, Z.; Münnemann, K.; Schmitt, S.; Specht, T.; Hasse, H.; Jirasek, F. Hybrid Machine Learning for Enhanced Prediction of Diffusion Coefficients in Liquids. 2026; https://arxiv.org/abs/2603.02761 .(31) Vignes, A. Diffusion in binary solutions. Variation of diffusion coefficient with compo-sition. Industrial & Engineering Chemistry Fundamentals 1966 , 5, 189–199. (32) Kooijman, H. A.; Taylor, R. Estimation of diffusion coefficients in multicomponent liquid systems. Industrial & engineering chemistry research 1991 , 30 , 1217–1222. (33) Darken, L. S. Diffusion, mobility and their interrelation through free energy in binary metallic systems. Trans. Aime 1948 , 175 , 184–201. (34) Jirasek, F.; Hasse, H. Combining machine learning with physical knowledge in ther-modynamic modeling of fluid mixtures. Annual Review of Chemical and Biomolecular Engineering 2023 , 14 , 31–51. (35) Hasse, H.; Schmitt, S.; Jirasek, F. Artificial intelligence in thermodynamics: hybrid modeling of thermophysical properties of fluids. Current Opinion in Chemical Engi-neering 2026 , 51 , 101236. (36) Safi, A.; Nicolas, C.; Neau, E.; Chevalier, J.-L. Diffusion Coefficients of Aromatic Com-pounds at Infinite Dilution in Binary Mixtures at 298.15 K. Journal of Chemical & Engineering Data 2007 , 52 , 126–130. (37) Safi, A.; Nicolas, C.; Neau, E.; Escandell, J. Diffusion Coefficients of Organic Com-pounds at Infinite Dilution in Ternary Mixtures: Experimental Determinations and Modeling. Journal of Chemical & Engineering Data 2010 , 55 , 5449–5452. (38) Guevara-Carrion, G.; Janzen, T.; Muñoz-Muñoz, Y. M.; Vrabec, J. Mutual diffusion of binary liquid mixtures containing methanol, ethanol, acetone, benzene, cyclohexane, toluene, and carbon tetrachloride. The Journal of Chemical Physics 2016 , 144 , 124501. 34 (39) Jirasek, F.; Hasse, H. Perspective: Machine Learning of Thermophysical Properties. 
+
+Fluid Phase Equilibria 2021 , 549 , 113206. (40) Einstein, A. Über die von der molekularkinetischen Theorie der Wärme geforderte Bewegung von in ruhenden Flüssigkeiten suspendierten Teilchen. Annalen der Physik 
+
+1905 , 322 , 549–560. (41) Weininger, D. SMILES, a chemical language and information system. 1. Introduction to methodology and encoding rules. Journal of Chemical Information and Computer Sciences 1988 , 28 , 31–36. (42) RDKit: Open-Source Cheminformatics. https://www.rdkit.org , Last accessed: 13.12.2024. (43) Zaheer, M.; Kottur, S.; Ravanbakhsh, S.; Poczos, B.; Salakhutdinov, R.; Smola, A. Deep Sets. 2017; https://arxiv.org/abs/1703.06114 .(44) Soelch, M.; Akhundov, A.; van der Smagt, P.; Bayer, J. Artificial Neural Networks and Machine Learning – ICANN 2019: Theoretical Neural Computation ; Springer Interna-tional Publishing, 2019; p 444–457. (45) Wagstaff, E.; Fuchs, F. B.; Engelcke, M.; Osborne, M. A.; Posner, I. Universal Ap-proximation of Functions on Sets. Journal of Machine Learning Research 2022 , 23 ,1–56. (46) Dortmund Data Bank. https://www.ddbst.org , 2024. (47) Safi, A.; Nicolas, C.; Neau, E.; Chevalier, J.-L. Measurement and Correlation of Diffu-sion Coefficients of Aromatic Compounds at Infinite Dilution in Alkane and Cycloalkane Solvents. Journal of Chemical & Engineering Data 2007 , 52 , 977–981. (48) Safi, A.; Nicolas, C.; Neau, E.; Chevalier, J.-L. Diffusion Coefficients of Organic Com-pounds at Infinite Dilution in Mixtures Involving Associating Compounds. Experimen-35 tal Determination and Modeling by Group Contribution Methods. Journal of Chemical & Engineering Data 2008 , 53 , 444–448. (49) Wagner, J.; Romero, Z.; Münnemann, K.; Specht, T.; Jirasek, F.; Hasse, H. Thermo-dynamic modeling of poorly specified mixtures using NMR fingerprinting and group-contribution equations of state. Fluid Phase Equilibria 2025 , 596 , 114446. (50) Bellaire, D.; Großmann, O.; Münnemann, K.; Hasse, H. Diffusion coefficients at infi-nite dilution of carbon dioxide and methane in water, ethanol, cyclohexane, toluene, methanol, and acetone: A PFG-NMR and MD simulation study. The Journal of Chem-ical Thermodynamics 2022 , 166 , 106691. (51) Mross, S.; Schmitt, S.; Stephan, S.; Münnemann, K.; Hasse, H. Diffusion Coefficients in Mixtures of Poly(oxymethylene) Dimethyl Ethers with Alkanes. Industrial & Engi-neering Chemistry Research 2024 , 63 , 1662–1669. (52) Stone, M. Cross-Validatory Choice and Assessment of Statistical Predictions. Journal of the Royal Statistical Society Series B: Statistical Methodology 1974 , 36 , 111–133. (53) Loshchilov, I.; Hutter, F. Decoupled Weight Decay Regularization. 2017; https:// arxiv.org/abs/1711.05101 .(54) Dietterich, T. G. Multiple Classifier Systems ; Springer Berlin Heidelberg, 2000; p 1–15. (55) Hoffmann, M.; Specht, T.; Hayer, N.; Hasse, H.; Jirasek, F. MLPROP – An Interactive Web Interface for Thermophysical Property Prediction with Machine Learning. Chemie Ingenieur Technik 2025 , 97 , 1052–1056. (56) Paszke, A. et al. PyTorch: An Imperative Style, High-Performance Deep Learning Library. 2019; https://arxiv.org/abs/1912.01703 .(57) Specht, T.; Münnemann, K.; Hasse, H.; Jirasek, F. Automated Methods for Identifica-tion and Quantification of Structural Groups from Nuclear Magnetic Resonance Spec-36 tra Using Support Vector Classification. Journal of Chemical Information and Modeling 
+
+2021 , 61 , 143–155. (58) Specht, T.; Arweiler, J.; Stüber, J.; Münnemann, K.; Hasse, H.; Jirasek, F. Auto-mated nuclear magnetic resonance fingerprinting of mixtures. Magnetic Resonance in Chemistry 2024 , 62 , 286–297. (59) Specht, T.; Münnemann, K.; Hasse, H.; Jirasek, F. Rational method for defining and quantifying pseudo-components based on NMR spectroscopy. Physical Chemistry Chemical Physics 2023 , 25 , 10288–10300. (60) Specht, T.; Hasse, H.; Jirasek, F. Predictive Thermodynamic Modeling of Poorly Spec-ified Mixtures and Applications in Conceptual Fluid Separation Process Design. Indus-trial & Engineering Chemistry Research 2023 , 62 , 10657–10667. (61) Wagner, J.; Münnemann, K.; Specht, T.; Hasse, H.; Jirasek, F. Deep set model for the automated NMR fingerprinting of unknown mixtures. Digital Discovery 2026 , 5,1325–1339. 37
