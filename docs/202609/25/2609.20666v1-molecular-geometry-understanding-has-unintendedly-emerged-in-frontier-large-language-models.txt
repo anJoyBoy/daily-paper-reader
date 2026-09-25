@@ -1,0 +1,482 @@
+Title: Molecular Geometry Understanding Has Unintendedly Emerged in Frontier Large Language Models
+
+URL Source: https://arxiv.org/pdf/2609.20666v1
+
+Published Time: Fri, 18 Sep 2026 01:46:23 GMT
+
+Number of Pages: 28
+
+Markdown Content:
+# MOLECULAR GEOMETRY UNDERSTANDING HAS 
+
+# UNINTENDEDLY EMERGED IN FRONTIER LARGE LANGUAGE 
+
+# MODELS 
+
+Gregorii A. Semakin 1,2,∗, Timofey V. Losev 1, Ilya V. Prolomov 1,Stepan N. Ostarkov 1, Igor V. Alabugin 3, Michael G. Medvedev 1,∗
+
+> 1
+
+N. D. Zelinsky Institute of Organic Chemistry RAS, 119991 Moscow, Russia 
+
+> 2
+
+National Research University Higher School of Economics, 101000 Moscow, Russia 
+
+> 3
+
+Department of Chemistry and Biochemistry, Florida State University, Tallahassee, FL 32306, USA 
+
+{gregoriisemakin@gmail.com, medvedev.m.g@gmail.com} 
+
+# ABSTRACT 
+
+Large language models (LLMs) have already shown strong capabilities in solving complex chemical problems expressed in natural language [1, 2, 3, 4, 5, 6]. Yet, many tasks performed by chemists require understanding of 3D structures of chemical compounds and reasoning about them – abilities, which, to the best of our knowledge, were neither intended by LLM developers nor tested in contemporary models. Such understanding is essential for autonomous molecular discovery and drug development, which is one of the Holy Grails of AI application to chemistry. We tested this capability in modern LLMs on 810 geometries and DFT energies of 27 small organic molecules. Strikingly, while models released before July 2025 struggled to rank conformers by stability, many recent frontier models, including GPT-5.6 Sol [7], Kimi K3 [8], and Gemini 3.6 Flash [9] achieved competitive accuracy, outperforming the Universal Force Field [10], and GPT-6 Astra [11] and Claude Opus 5 [12] came very close to a modern GFN-FF [13] force field. Analysis of models’ explanations for their rankings suggests that they perform best for molecules with well-defined intramolecular interactions – hydrogen bonds – which are well quantified in scientific language; at the same time all models except the two newest – GPT-6 Astra and Claude Opus 5 – struggle with molecules governed by loosely defined concepts (e.g., ring strain), where force fields excel, suggesting that the scientific language itself might impose constraints on LLMs. Notably, a model’s ability to rank conformers is strongly associated with its performance on scientific, coding, and abstract-reasoning benchmarks, suggesting that it emerged unintendedly from models training on linked but conceptually different tasks. Thanks to this generalization of mere scientific knowledge into understanding molecular structures, current frontier models offer a realistic starting point for AI-driven molecular design. Autonomous molecular discovery is one of the key challenges for artificial intelligence (AI) application in chemistry [14, 15, 4]. Large language models can answer chemical questions, propose molecules, and assist with increasingly complex workflows, including the use of chemistry tools and end-to-end synthesis planning [1, 2, 3]. However, autonomous discovery requires more than manipulating chemical nomenclature, strings, and files: an AI system must infer the physical consequences of molecular structure to determine which compounds and their structures (conformations) are chemically viable. The importance of such reasoning follows from a foundational principle of chemistry: the spatial arrangement and connectivity of atoms within a molecule determine its identity and macroscopic properties [16]. In modern molecular design, this principle extends directly to molecular geometry: conformations govern steric strain and both intra- and intermolecular interactions [5, 6, 17]. If AI systems are to be entrusted with open-ended chemical research, their internal representation of chemical objects must approach (or surpass) that of human chemists. Although automated pipelines can operate on simplified molecular representations, general chemical reasoning requires an AI system to understand how atoms are arranged in space and how this arrangement affects molecular stability and other properties. arXiv:2609.20666v1 [physics.chem-ph] 17 Sep 2026 Progress in general-purpose LLMs is commonly measured through coding, scientific question-answering, and abstract reasoning [18, 19, 20]. This raises a broader possibility: gains on these tasks may transfer to inferring physical properties from three-dimensional structural input, even though such transfer was not an explicit training objective. Molecular geometry provides a stringent test for this possibility because raw coordinates should be correctly comprehended and then translated into steric interactions, intramolecular contacts, and energetic consequences. Previous studies show that LLM performance on molecular tasks depends strongly on how molecular structure is represented in text [21]. Models specifically trained on XYZ or PDB files, such as GeomLLaMA [22], nach0-pc [23], and BindGPT [24] can generate molecules and protein-binding sites without geometry-specific model architectures [25]. More recently, LLMs have satisfied complex spatial constraints in pocket-conditioned design [26]. Together, these studies reveal emerging spatial capabilities in structure-generation settings, including parsing spatial instructions, producing coordinate-based structures, and satisfying some complex three-dimensional constraints. They, however, leave an open question whether general-purpose models lacking specific training for working with chemical structures can do so. To close this gap, in this work we devised the LLMConfBench benchmark to address a fundamental question: are current LLMs able to infer conformer stability directly from their geometries? Conformer stability provides an ideal controlled test: conformers share identical composition and bonding topology, so their ranking instead demands sensitivity to subtle three-dimensional rearrangements. Within LLMConfBench, a model receives XYZ coordinates for 30 conformers of the same molecule and must return their stability ranking. To capture stochastic variance and prompt-order sensitivity, a model is required to do three independent rankings for each molecule, working with independently shuffled conformer lists. Our primary metric is reliable-pair Kendall’s τ , called Conformers Ranking Accuracy henceforth. Its value of 1 indicates perfect ranking agreement, while 0 corresponds to random guessing. The “reliable-pair” part signifies that the metric compares only conformer pairs where energy difference is larger than 2 kcal/mol to remove ambiguous near-degenerate cases and test whether LLMs recover a reliable energetic signal from raw Cartesian coordinates. The test molecules and their conformations (Fig. 1a) were extracted from the GEOM dataset, which contains about 37 million conformers for more than 450,000 molecules [27]. We selected its QM9 subset, which covers small organic compounds containing H, C, N, O, and F with no more than nine heavy atoms [28]. These small molecules provide a necessary first test of geometry understanding: if a model cannot work with those, it is very unlikely to understand molecules at all. To avert the possibility that an LLM has seen coordinates in GEOM and memorized which conformers they belong to, we randomly rotated each conformer. These rotations changed the coordinate values without altering molecular geometry. We then calculated energies of all conformers using the r 2SCAN-3c density functional theory (DFT) method [29], which provides ranking identical to that of much more sophisticated and expensive DLPNO-CCSD(T) [30] method (see the Methods). r 2SCAN-3c energies defined the reference rankings against which the model predictions were scored. All models and force fields were evaluated on the same geometries against this common reference. This separation between conformer generation and higher-level energy labelling follows the established ConfRank workflow [31, 32]. To evaluate out-of-distribution performance, we augmented the dataset with a large β-arrestin inhibitor macrocycle [33] and (2R,5R,E)-5-hydroperoxyhex-3-en-2-ol which are absent from both QM9 and CAS SciFinder (as shown in Fig. 1a). Thus, the final benchmark comprises 25 diverse molecules from GEOM-QM9 and two control cases. Each molecule is represented by 30 lowest-energy conformers (810 geometries in total), keeping the input size consistent across evaluations. The structural, energetic, and geometric data of the LLMConfBench structures are summarized in Extended Data Figs. 1 and 2 and Supplementary Table 1. Further details on the dataset structure and prompts, together with the selection, scoring, and validation procedures, as well as the conformational search details for control case structures, are provided in the Methods section and in the Supplementary Information. 2Fig. 1 | Geometry-only conformer-ranking benchmark. a , Structures of the 25 scored GEOM-QM9 molecules, shown in the same left-to-right order as in panel d, plus two additional out-of-distribution challenge molecules ( 17 and 24 ,highlighted in blue-green): a peroxide and a macrocycle from Kahsai et al. [33]. b, Visualization of the LLMConfBench protocol. c, Conformer-ranking accuracy (quantified as mean reliable-pair Kendall’s τ at the 2.0 kcal mol −1 threshold), plotted against model release date; error bars represent molecule-level 95% confidence intervals; the two 50%-opacity dots are Qwen 2.5 32B and Qwen 3 32B: Qwen 3 32B did not return an answer for molecule 24 and its accuracy was computed on 26 molecules, whereas Qwen 2.5 32B did not return answers for molecules 17 and 24 and its accuracy was computed on 25 molecules. d, per-molecule accuracies of the tested force fields and LLMs; for LLMs the accuracies are averages over three runs. Counts above the columns indicate how many times among the 3 runs the real lowest-energy conformer was among the 10 lowest conformers according to the model: black counts total misses (0 out of 3), blue counts partial recovery (1 or 2 out of 3), and purple counts stable recovery (3 out of 3). 3Table 1 | Performance of the evaluated models. Models and force fields are ordered by mean reliable-pair Kendall’s τ
+
+at the 2.0 kcal mol −1 threshold. For each molecule, scores from the three prompt presentations are averaged before aggregation across the 27 molecules – except for Qwen 2.5 32B and Qwen 3 32B, which returned 25 and 26 valid answers, respectively; SD reports variation of per-molecule means.                                                                                                                                                                 
+
+> Model or force field Year and month of introduction Mean τMedian τ
+> Standard deviation (SD) of τ
+> Count of molecules with answers ( n), out of 27 MMFF94 April 1996 0.93 0.98 0.11 27 GFN-FF April 2020 0.72 0.85 0.32 27 gpt-6-astra September 2026 0.67 0.80 0.36 27 claude-opus-5 July 2026 0.61 0.62 0.29 27 gemini-3.6-flash July 2026 0.43 0.54 0.37 27 gpt-5.6-sol July 2026 0.40 0.47 0.38 27 kimi-k3 July 2026 0.38 0.39 0.37 27 claude-sonnet-5 June 2026 0.37 0.44 0.48 27 deepseek-v4-flash-0731 July 2026 0.33 0.42 0.41 27 gemini-3-flash-preview December 2025 0.32 0.38 0.43 27 qwen3.7-max May 2026 0.32 0.27 0.33 27 qwen3.8-27b August 2026 0.31 0.40 0.36 27 muse-glimmer-30b August 2026 0.30 0.29 0.40 27 gpt-5 August 2025 0.30 0.39 0.51 27 kimi-k2-thinking November 2025 0.27 0.29 0.31 27 gemma-4-31b April 2026 0.27 0.38 0.41 27 UFF December 1992 0.23 0.28 0.62 27 qwen3.5-27b February 2026 0.19 0.25 0.34 27 qwen3.5-plus-20260420 April 2026 0.18 0.22 0.34 27 deepseek-v3.2 December 2025 0.14 0.14 0.33 27 claude-sonnet-4.5 September 2025 0.14 0.13 0.30 27 qwen3.6-27b April 2026 0.12 0.057 0.25 27 o4-mini April 2025 0.084 0.021 0.27 27 qwen3.5-35b-a3b February 2026 0.058 0.054 0.16 27 claude-sonnet-4 May 2025 0.058 0.045 0.19 27 gemini-2.5-flash June 2025 0.051 0.026 0.16 27 qwen3.6-35b-a3b April 2026 0.036 0.053 0.21 27 gemma-3-27b March 2025 0.029 0.020 0.19 27 deepseek-r1-32b January 2025 0.005 −0.005 0.12 27 qwen3-32b April 2025 0.001 0.004 0.19 26 qwen2.5-32b September 2024 0.000 −0.022 0.15 25
+
+With a benchmark at hand, we next investigated how geometry-ranking performance evolved across successive model generations. We evaluated a comprehensive cohort of 28 LLMs spanning multiple releases from major AI laboratories, including OpenAI [34, 35, 7, 11], Anthropic [36, 37, 38, 12], Google [9, 39], Moonshot AI [40, 8], DeepSeek [41, 42, 43], Alibaba [44], and Meta [45]. To ensure a controlled evaluation, inference protocols were standardized across all systems, with native reasoning capabilities set to a common effort level where supported (see Extended Data Table 1 and Supplementary Tables 2 and 3 for model identifiers, metadata, and inference settings). The cross-model comparison revealed an unexpected temporal pattern (Fig. 1c; Table 1): while models released in 2024 and early 2025 performed similarly to random, later generations began to show an ability to understand molecular structures and correctly reason about them. Across the entire cohort, mean reliable-pair Kendall’s τ was correlated with model release date ( R2 = 0 .56 , p = 4 .57 × 10 −6, n = 28 ), demonstrating that advances in general LLM capabilities have implicitly driven improvement in their understanding of three-dimensional molecular structures. Notably, several recent frontier models spontaneously outperformed the classical Universal Force Field (UFF, τ = 0 .23 ), including Gemini 3.6 Flash ( τ = 0 .43 ), GPT-5.6 Sol ( τ = 0 .40 ), Kimi K3 ( τ = 0 .38 ). Strikingly, the two most recent models, GPT-6 Astra and Claude Opus 5, achieved the highest overall performances of τ = 0 .67 and 0.61 , respectively, rivalling the GFN-FF force field ( τ = 0 .72 ). The latter two also demonstrated consistent advantages over UFF across individual molecular systems with mean paired difference of 0.44 and 0.38 , respectively (see Supplementary Table 4 for paired comparisons of all 28 models with UFF, including mean and median differences, confidence intervals, and permutation and Wilcoxon tests). 4To verify that models indeed could not match our test cases with data they could have seen in the GEOM dataset during training, we prompted them to output relative energies of all conformers and observed (see Extended Data Fig. 3) large relative mean absolute errors (the least is 1.3 kcal mol −1 for Claude Opus 5), which were also uncorrelated with models’ accuracies on the corresponding molecules. Across the structurally and functionally varied molecules shown in Fig. 1a, performance gains reflect a consistent, cohort-wide upward shift with almost no outliers (Fig. 1d). The heatmap reveals that ranking accuracy is governed by both molecular complexity and model capability. On one hand, horizontal gradient demonstrates that conformers might be systematically easier (molecules 1–6 ) or harder (molecules 22–27 ) to rank across model families, with the most demanding molecules confounding even frontier LLMs. On the other hand, a sharp vertical divide by UFF clearly separates frontier models from earlier generations. Complementing this, the presence of the true lowest-energy conformer among the top 10 conformers according to a model provides another measure of performance: within the 27-molecule cohort, GPT-6 Astra and Claude Opus 5 recovered the lowest-energy conformer in all three runs for 17 molecules, matching the GFN-FF force field on this endpoint. The molecule-level accuracy profiles in Fig. 1d reveal that while LLMs outperform UFF on molecules 2–6 (mean LLM 
+
+τ values range from 0.41 to 0.48 versus negative τ values for UFF), UFF ranks conformers accurately for molecules 
+
+20–26 where performance of all LLMs (excluding GPT-6 Astra and Claude Opus 5) drops to near zero and even reverses. Explanations provided by models together with molecular rankings provide a clear chemical rationale for this contrast. Molecules 2–6 incorporate both hydrogen-bond donors and acceptors which form distinct stabilizing intramolecular contacts – hydrogen bonds – features which humans have named and quantified, so now LLMs can identify and reason about them. Indeed, across all evaluated LLMs, hydrogen-bond mentions in explanations accompanying molecules 2–6 
+
+are 2.4-fold more abundant compared to molecules 20–26 (37.2 vs. 15.8 occurrences per 1000 words; see the Methods for how we counted them), enabling models to reason effectively using established qualitative chemical vocabulary. At the same time, failure of UFF for hydrogen-bonded molecules 2–6 is likely linked to the lack of electrostatic terms in its RDKit [46] implementation, which leads to its treating of hydrogen bonds as steric clashes. High performance of MMFF94 force field on these molecules (note that it is only 4 years “younger” than UFF but incorporates electrostatics) supports this interpretation. On the other hand, molecules 20–26 are mainly influenced by more loosely quantified chemical concepts, such as ring and torsional strain. While most LLMs correctly identify and name these concepts in explanations, their performance still collapses toward zero. This highlights a fundamental limitation: while the available vocabulary suffices for discrete polar contacts, continuous 3D strain cannot be reliably resolved through verbal reasoning available to current LLMs. At the same time, UFF, which is not restrained by the use of human-developed language, shows very high accuracy for molecules 20–26 . Ultimately, this divergence underscores fundamentally different evaluation paradigms: language models work with molecules by relying on the known principles expressed in plain language, whereas classical force fields evaluate continuous mechanical energy expressions. The case of molecule 3, where GPT-6 Astra clearly outperforms UFF, MMFF94, and GFN-FF, suggests that this alternative perspective might also be productive. Further analysis of models’ explanations (Fig. 2) confirms the hypothesis above: if a strong model mentions H-bonds frequently in its explanation for a molecule, its ranking will be accurate; but when it does not, its performance becomes variable – sometimes accurate, but often poor. Figures 2a and 2b show ranking accuracies vs. relative abundance of H-bond mentions (see the Methods for details on their computation) in individual runs of GPT-6 Astra and GPT-5: every run is denoted with a point with the shape of the molecule’s number, seeds are plotted separately. The curves show rolling averages, areas around them are their 95% confidence intervals. Figure 2c shows an overlap of rolling averages for all the tested models; full plots with individual runs are shown in Extended Data Fig. 4. As can be seen in Fig. 2c, the two strongest models – GPT-6 Astra and Claude Opus 5 – work acceptably even when H-bonds are scarcely mentioned but become more reliable in cases where these mentions are abundant. In mid-tier models (blue in Fig. 2c) this trend becomes even more pronounced, with near-random results for molecules with no H-bond mentions (implying that either the molecule cannot form any, or the model failed to identify them) and high accuracy in cases with frequent H-bond mentions. In the weakest older models, however, this trend disappears: they rank molecules poorly regardless of whether they have identified hydrogen bonds. Ability of the strongest models to rank conformers correctly without mentioning H-bonds deserves a special mention: it is possible that these models have learned to quantify concepts which humanity has not yet quantified, or that they do not report all of their reasoning [47] even when asked for it. 5Fig. 2 | Mentions of hydrogen bonds as a marker of reliable conformer ranking. a , b, Conformers Ranking Accuracy against the relative abundance of H-bond mentions in the explanation, for GPT-6 Astra and GPT-5 (same family, released 13 months apart); each point is one model run (single molecule and single seed), lines are rolling averages (LOESS fits) with 95% confidence intervals. c, Overlap of rolling averages for all 28 models, one curve per model, colored by mean τ (see color bar). Metric definition and filtering details are provided in the Methods section. The observed emergence of LLM ability to understand molecular structures led us to examine which broader model properties accompany this performance. The reported parameter count showed only a modest correlation ( R2 = 0 .26 ,
+
+p = 0 .041 , n = 16 ), as shown in Fig. 3a, indicating that model size alone does not explain the observed progress. Indeed, Qwen 3.8 27B (27.8B parameters, τ = 0 .31 ), Muse Glimmer 30B (30B, τ = 0 .30 ), and Gemma 4 31B (31B, 
+
+τ = 0 .27 ) all outperformed Qwen 3.5 Plus (397B total parameters, 17B active, τ = 0 .18 ) and DeepSeek V3.2 (671B total parameters, 37B active, τ = 0 .14 ). These comparisons show that nominal model size alone is insufficient and that training strategy, architecture, and the type and amount of data consumed determine geometry-ranking ability. By contrast, total API cost showed a stronger positive correlation with performance ( R2 = 0 .70 , p < 0.001 , n = 17 ), as shown in Fig. 3b. This cost-accuracy relationship indicates that molecular geometry ranking generally benefits from greater inference capacity, including more extensive reasoning, although API expenditure also reflects provider pricing. Despite this overall trend, the Pareto frontier revealed large differences in efficiency. At the low-cost end, DeepSeek V4 Flash 0731 achieved τ = 0 .33 for only $1.20 over the full benchmark, exceeding UFF ( τ = 0 .23 ) and even outperforming GPT-5 ( τ = 0 .30 ), which cost $18.41, or 15 times as much. At intermediate cost, Gemini 3.6 Flash reached τ = 0 .43 for $26.35 and outperformed GPT-5.6 Sol ( τ = 0 .40 ) at $48.69. At the high-cost end, GPT-6 Astra achieved the highest accuracy ( τ = 0 .67 ) for $103.23. Compared with Gemini 3.6 Flash, it cost 3.92 times as much for an increase of 0.24 in τ , revealing pronounced diminishing returns. Because model size and evaluation cost provided only partial explanations, we next turned to independent reasoning benchmarks (see Extended Data Fig. 5 for all correlations). Interestingly, LLMConfBench performance aligned strongly with GPQA Diamond, which measures graduate-level scientific reasoning [19] (Fig. 3c, R2 = 0 .63 , p < 0.001 , n = 25 ). One notable exception was a cluster of four Qwen 3.5 and 3.6 variants that deviated from the overall GPQA trend and excluding them strengthened the fit from R2 = 0 .63 to R2 = 0 .72 , shown by the dashed red line in Fig. 3c. Crucially, this group contains two types of architectures: sparse 35B A3B models and dense 27.8B models. Strikingly, the next comparably sized release, Qwen 3.8 27B, returned to the global trend, indicating that this deviation was temporary rather than a persistent family-level limitation. We hypothesize that this discrepancy stems from dual factors: for the 35B A3B variants, complex reasoning was fundamentally constrained by the limited active capacity of their sparse Mixture-of-Experts architecture, which activates only 3B out of 35B parameters per token [48]. Meanwhile, for the dense 27.8B models, such relatively low performance is closely tied to underuse of the available reasoning budget. This is directly corroborated by our trace analysis: across all benchmark tasks, Qwen 3.8 27B allocated over four times more reasoning compute than Qwen 3.6 27B (a 4.11-fold increase; 8.60M vs. 2.09M characters), demonstrating that scaling inference-time compute was critical to recovering performance [49]. 6Fig. 3 | Conformer ranking versus model scale, evaluation cost, and reasoning-benchmark performance. Reliable-pair Kendall’s τ versus a, total parameter count ( n = 16 ), b, total API cost of the benchmark evaluation ( n = 17 ), 
+
+c, GPQA Diamond ( n = 25 ), and d, ARC-AGI-2 ( n = 15 ). Solid black lines are least-squares fits: R2 = 0 .26 
+
+(p = 0 .041 ), R2 = 0 .70 (p < 0.001 ), R2 = 0 .63 (p < 0.001 ), and R2 = 0 .83 (p < 0.001 ), respectively. The dashed red line in c excludes four clustered Qwen models and provides R2 = 0 .72 (p < 0.001 , n = 21 ). Error bars are molecule-level 95% confidence intervals; horizontal lines mark random ranking, UFF, GFN-FF, and MMFF94. Colors denote model families, and marker shapes distinguish reasoning and non-reasoning configurations; 50% opacity marks the two models scored on fewer than 27 molecules (26 for Qwen 3 32B and 25 for Qwen 2.5 32B). At the same time, LLMConfBench performance showed good alignment with ARC-AGI-2, which tests abstract reasoning and generalization [20] (Fig. 3d, R2 = 0 .83 , p < 0.001 , n = 15 ). The same cross-benchmark pattern extended to ARC-AGI-1 [50] ( R2 = 0 .82 , p < 0.001 , n = 15 ; Extended Data Fig. 6a) and SciCode [18] ( R2 = 0 .73 ,
+
+p < 0.001 , n = 20 ; Extended Data Fig. 6b). Together, the four benchmarks show that conformer-ranking performance of modern LLMs has developed alongside scientific, coding, and abstract-reasoning abilities. LLMConfBench therefore appears to capture a transferable capacity to apply scientific knowledge and identify structure in unfamiliar problems. Scientific tasks involving operations far removed from language provide a stringent test of transferable reasoning. LLMConfBench asks a question that had rarely, if ever, been posed directly to general-purpose language models: can they infer energetic consequences from raw molecular geometries? The obtained results show that recent frontier models can cross this boundary, recovering a reproducible energetic ordering of conformers from Cartesian coordinates. 7There is a useful parallel with GFN-FF, designed to work across a wide range of chemical systems. Similarly, LLMs are trained across many fields of human knowledge. The fact that a language model can come close to the performance of a general physical model suggests that its capabilities may extend beyond language itself. By identifying patterns that link molecular structure to energy, the model may be capturing aspects of the physical world that are described by language, but not necessarily contained within it. One caveat applies to the cross-model comparisons: models within a family share training data, architecture, and post-training pipelines, so the individual models entering the regressions in Fig. 3 are not strictly independent observations. The associations reported here should therefore be read as descriptive of the present model landscape rather than as estimates from independent samples. This finding shifts the boundary of what language-based AI can do in chemistry. Recent progress in spatially constrained molecular generation shows that movement beyond conventional text-centred tasks has already begun [26]. Model development and evaluation should not stop at generating or manipulating three-dimensional structures, but should increasingly test whether models can infer their physical consequences. The emerging ability to treat molecular geometries as arrangements with energetic and functional consequences is central to open-ended molecular design and brings the prospect of autonomous AI-driven chemistry closer than previously assumed. 
+
+# Methods 
+
+Dataset and geometry preparation 
+
+Conformer ensembles were taken from the QM9 subset of GEOM [27]. The molecular records were shuffled, and the first 30 molecules containing at least 30 unique conformers were selected. For each molecule, the 30 lowest-energy conformers reported by GEOM were retained. Each of the resulting 900 geometries was then rigidly rotated by an independent matrix R = Rz Ry Rx, with Euler angles drawn from Uniform(0 , 2π). All selection and rotation parameters, random states, and software dependencies are fixed in the accompanying reproducible environment, which reconstructs the dataset exactly (see the Data Availability section). No atoms were added, removed, or permuted, and the atom order was held identical across all 30 conformers within each ensemble. After preparing the ensembles, single-point r 2SCAN-3c energies were obtained for all 30 ×30 = 900 geometries. Before defining the final scored cohort, we ordered the 30 molecules by increasing r 2SCAN-3c energy span, defined as the difference between the highest- and lowest-energy conformers in each ensemble, and selected every third molecule for DLPNO-CCSD(T) validation. The resulting ten-molecule subset therefore covered the full range from narrow to broad conformational energy landscapes. The observed agreement between r 2SCAN-3c and DLPNO-CCSD(T) conformer-pair orderings was perfect at the 1.5 and 2.0 kcal mol −1 thresholds (100.0% and 100.0%, respectively) and remained near-perfect at 1.0 kcal mol −1 (99.9%). We then excluded five molecules with fewer than 15 conformer pairs satisfying 
+
+|∆E| ≥ 2.0 kcal mol −1. Requiring at least 15 energetically well-separated pairs ensured that each molecule contributed enough unambiguous comparisons for an informative molecule-level ranking score not allowing τ to be determined by only a few pairs. The filtering criterion depended only on the r 2SCAN-3c energy gaps and was independent of both the DLPNO-CCSD(T) agreement and the model rankings. The GEOM-QM9 part of LLMConfBench contained 25 molecules, although prompts were generated for all 30 ensembles. We also augmented the dataset with a large β-arrestin inhibitor macrocycle and (2R,5R,E)-5-hydroperoxyhex-3-en-2-ol (they are both absent from QM9 and CAS SciFinder) to see how models perform on out-of-distribution molecules. Thus, the final dataset contained 27 molecules and 810 geometries. 
+
+Conformer generation of two added molecules 
+
+The two additional molecules (macrocycle [33] and peroxide) were generated de novo. Starting from each SMILES, hy-drogens were added and 50 conformers were embedded with RDKit 2024.03.3 using ETKDGv3 [51] ( pruneRmsThresh 
+
+0.01, maxAttempts 5, useRandomCoords off); each conformer was pre-optimized with MMFF94 where applicable (skipped for both pilots, whose SMILES carry E/Z stereochemistry), and the set was de-duplicated to a heavy-atom best RMS < 0.1 Å, retaining the 10 lowest-energy seeds. Each seed was optimized with xTB 6.7.1 (GFN2, –opt tight ,charge 0), and the lowest-energy xTB structure was passed to CREST [52] 3.0.2 (GFN2, charge 0) to produce the final ensemble. The 30 lowest-energy CREST conformers were exported as individual XYZ files annotated with xTB relative energies. For these two molecules, every exported conformer was then evaluated at the r 2SCAN-3c level with ORCA 6.1.1, and these r 2SCAN-3c relative energies served as the scoring reference. At this level, 250 conformer pairs satisfy 
+
+|∆E| ≥ 2.0 kcal mol −1 for macrocycle and 104 for peroxide (of 435 each). 8Reference energies and force-field baselines 
+
+The r 2SCAN-3c single-point calculations [29] were performed with ORCA version 6.1.1 [53] on the same fixed geometries shown to the models. The molecular identities and internal geometries were identical to those in the source GEOM ensembles; only the numerical Cartesian coordinates in the XYZ text differed because each conformer had been rigidly rotated. No geometry reoptimization, solvent model, zero-point correction, or thermal free-energy correction was applied. Within each molecule, energies were shifted so that the lowest conformer had ∆E = 0 .To contextualize model performance, UFF [10], GFN-FF [13], and MMFF94 [54] were evaluated on the same exported ensembles and used as physics baselines. Because the RDKit implementations of UFF and MMFF94 used here require a bonded topology, RDKit 2024.03.3 [46] was applied to extract the connectivity and bond orders encoded in the GEOM-QM9 SMILES string [55] associated with each ensemble and assign them to every conformer of that molecule. We deliberately retained this source connectivity instead of asking RDKit to infer bonds from the Cartesian coordinates, thereby preventing possible topology-assignment errors from affecting the UFF and MMFF94 rankings. GFN-FF single-point energies were calculated with xTB 6.7.1 [56], which determines topology directly from the Cartesian coordinates and does not use SMILES bond orders. Thus, three baselines used the same geometries, while UFF and MMFF94 additionally received the molecular connectivity required by the method. A random ranking has expected Kendall τ = 0 . The original GEOM GFN2-xTB relative energies [57] were retained only for the reference-sensitivity analysis and were not used as the primary scoring target. 
+
+Prompt construction and model evaluation 
+
+Each prompt contained the 30 conformers of one molecule in standard element-labelled XYZ text format. Cartesian coordinates were supplied to eight decimal places. Across the 30 molecular ensembles, prompts averaged approximately 29,000 characters and ranged from approximately 24,000 to 34,000 characters; the corresponding token counts varied across models because their tokenizers differed. Atom order was strictly identical across all 30 conformers within an ensemble. The user message asked for a complete ordering from most stable to least stable using geometric features such as ring strain, eclipsing interactions, nonbonded contacts, hydrogen-bond geometry, and dipole alignment. We included these examples to define an approximate domain of chemically relevant reasoning and indicate the types of geometric effects the model could consider; they did not reveal which effects were present in a particular molecule or how its conformers should be ordered. Molecule names, SMILES strings, energies, and other ranking-relevant information were not supplied. The conformers were numbered from 1 to 30 solely to allow the model to report a ranking; the prompt explicitly stated that these labels conveyed no information about the correct energetic order (see Boxes 1 and 2 for system and user prompts). 
+
+Box 1 | System prompt configuration for all evaluations. 
+
+> You are an expert in computational chemistry.
+
+Box 2 | User prompt configuration for conformer-ranking evaluation. 
+
+> You are given 30 conformers of the same molecule in XYZ format (same connectivity, different coordinates). Each structure has a fixed numeric label: 1, 2, ..., 30 in the headers [Conformer 1] ... [Conformer 30]. Labels are arbitrary identifiers -- do not assume that smaller or larger numbers, or numeric order, says anything about stability. The order of blocks below is random and MUST NOT be used as a hint for relative stability. There are no thermodynamic quantities in the files. Your task is to rank the 30 structures by estimated relative stability (most stable first, least stable last) using reasonable chemical and steric arguments based on the coordinates (e.g., ring strain, eclipsing interactions, close nonbonded contacts, hydrogen-bond donor/acceptor proximity, dipole alignment). If differences are subtle, still output a full ranking and say what is uncertain. Task: Rank from most stable to least stable. Keep the explanation tied to geometry. Output: a single JSON object only-no markdown fences, no text before or after.
+
+9Box 2 | User prompt configuration for conformer-ranking evaluation (continued). 
+
+> Because generation is sequential, put "reasoning" FIRST (step-by-step analysis of geometry, strain, contacts, uncertainty), then "ranking" LAST so the permutation follows your analysis rather than rationalizing a ranking already written. Schema (use exactly 30 entries in "ranking", each label from 1 to 30 exactly once). Use JSON **strings** for labels, e.g. "3" not bare numbers: {"reasoning": "Analyze hydrogen bonds, steric clashes, ring strain, etc. step-by-step BEFORE committing to the final order.", "ranking": ["1", "30", "..."] }Rules: "ranking" must be a permutation of {1, 2, ..., 30} (only these numeric string tokens, not the words "Conformer ..."). [Conformer k] <XYZ block>
+
+Because LLM performance can depend on where relevant information appears within a long context [58], three independently shuffled presentations were generated for each molecule using seeds 42, 43, and 44. The conformer labels and the order in which their coordinates appeared were randomized, separating geometry ranking from positional bias, and the same three presentations were reused for every model. One response was collected for each model, molecule, and presentation. Finally, we used OpenRouter as model aggregator, standardizing inference settings wherever provider interfaces allowed while leaving each provider’s default parameters unchanged. Sampling temperature was fixed at 1.0 and was not tuned separately for individual models. Constructing a complete ranking of 30 structures is a multistep task, so this setting allowed some variation in the model’s reasoning rather than forcing deterministic decoding. Research on reasoning models shows that low temperature and greedy decoding can induce looping and repetitive reasoning chains, whereas higher temperature reduces looping by promoting exploration [59]. We therefore used temperature 1.0 as a common untuned setting and evaluated each ranking independently, without aggregating the three outputs. For GPT-6 Astra, GPT-5.6 Sol, GPT-5, and o4-mini, the provider schemas did not expose a temperature parameter, so the requests used provider-defined decoding behaviour. 
+
+Output validation and resumed runs 
+
+Models were prompted to return a complete permutation of the 30 conformer labels, and outputs were parsed program-matically. API connection timeouts and truncated text responses were re-queried, and completed cases were retained when a run was resumed. Scoring used complete, valid permutations of all 30 labels. 
+
+Energy-recall test 
+
+We also conducted an energy-recall test of whether models could recover molecule-specific energetic information from training. For each of the 25 GEOM-QM9 benchmark molecules, we randomly selected one of its 30 conformers using a fixed seed of 42 and used the selected geometry across all evaluated models. Energy annotations were removed from the coordinate input, leaving only atom identities and Cartesian coordinates; no molecular name or SMILES string was supplied. This test used a single response per model and molecule. For this task, we asked 13 models (11 open-weight models, GPT-6 Astra, and Claude Opus 5) to return a single non-negative estimate of the conformer’s energy above the global ensemble minimum of the same molecule, in kcal mol −1.The prompt explicitly encouraged molecular recognition and use of information recalled from training, with steric and conformational reasoning as a fallback. We compared each estimate with the selected conformer’s reference relative energy (from original GEOM-QM9) and calculated the mean absolute error across the 25 molecules. The prompt and results are provided in Box 3 and Extended Data Fig. 3, respectively. 
+
+Box 3 | User prompt configuration for energy-recall test. 
+
+> Below are Cartesian coordinates of ONE gas-phase conformer (no SMILES, name, or energy). Estimate how many kcal/mol HIGHER this conformer is than the global minimum of the same molecule.
+
+10 Box 3 | User prompt configuration for energy-recall test (continued). 
+
+> Use whatever you can: 1. Infer the molecular formula from the atom list. 2. Reconstruct connectivity / bonding from the geometry. 3. If you recognize the compound or recall similar molecules from your training data (GEOM, QM9, literature, etc.), use that knowledge. 4. If you cannot identify it, estimate from sterics and conformational reasoning. Reply with one non-negative number in kcal/mol. Nothing else.
+
+Explanation-text H-bond quantification and LOESS trend fitting 
+
+For every explanation (one model × molecule × seed) we counted the occurrences of hydrogen-bond vocabulary — hydrogen bond, H-bond/Hbond, donor, acceptor, and H · · · O/O · · · H contacts — using a case-insensitive search, and recorded the total number of words in the same text. Restricting to the two molecule subsets with heatmap labels 2–6 
+
+(H-bond-rich acyclic molecules) and 20–26 (strained/cyclic), we summed the H-bond counts and word counts over all explanations in each group (all 28 models and three seeds pooled) and expressed the result as mentions per 1000 words, which gives 37.2 H-bond mentions per 1000 words for labels 2–6 versus 15.8 for labels 20–26. To relate this language usage to accuracy, we then fitted, independently for each model, a smooth locally weighted curve (LOESS) of conformer-ranking accuracy τ against the relative H-bond frequency X = nhbond /words , where X was rescaled to the model’s own mean after removing ±3σ outliers; the curve was fitted with tricube-weighted local quadratics over a wide bandwidth (so it is nearly a globally weighted fit), evaluated across the model’s X range with seeds pooled, and shown with a 95% confidence band. 
+
+Ranking metrics and aggregation 
+
+For a predicted ranking, let each unordered conformer pair be concordant if the predicted order matches the r 2SCAN-3c 
+
+∆E order, and discordant otherwise. Let the reliable-pair Kendall τ at the threshold δ be 
+
+τδ = Cδ − Dδ
+
+Cδ + Dδ
+
+,
+
+where Cδ and Dδ denote the counts of concordant and discordant pairs, respectively, among those with |∆E| ≥ δ. Let the primary metric be computed using conformer pairs with |∆E| ≥ 2.0 kcal mol −1.Because the three presentations probed the same underlying molecular ensemble, each response first yielded one metric value and the three run-specific values were then averaged, producing up to 27 molecule-level scores per model (26 for Qwen 3 32B and 25 for Qwen 2.5 32B). All subsequent summaries used these molecule-level scores as the unit of analysis. These molecule-level scores then formed the basis of the reported summaries. Let x1, . . . , x n be the scores of one model, where n is the number of molecules scored for that model. The reported mean, median, and sample standard deviation in Table 1 are 
+
+¯x = 1
+
+n
+
+> n
+
+X
+
+> i=1
+
+xi, s =
+
+vuut 1
+
+n − 1
+
+> n
+
+X
+
+> i=1
+
+(xi − ¯x)2.
+
+Error bars in Fig. 1c are 95% Student-t confidence intervals for the mean across molecules, 
+
+¯x ± t0.975 , n −1
+
+s
+
+√n ,
+
+where t0.975 , n −1 is the 0.975 quantile of the t distribution with n − 1 degrees of freedom ( 26 for the full 27-molecule set, 25 for Qwen 3 32B with n = 26 , and 24 for Qwen 2.5 32B with n = 25 ; t0.975 ,26 ≈ 2.056 , t0.975 ,25 ≈ 2.060 ,
+
+t0.975 ,24 ≈ 2.064 ). Figure 1d displays the molecule-level values used in these summaries. For each LLM-molecule pair, the heatmap cell is the mean τ across the three runs; UFF, MMFF94, and GFN-FF contribute one deterministic value per molecule. Summary statistics for the complete evaluated model cohort are reported in Table 1. 
+
+Paired comparisons with UFF. For paired comparisons with UFF, we defined di = τ LLM  
+
+> i
+
+− τ UFF  
+
+> i
+
+for each molecule, using the same molecule-level τ values as above (i.e. molecules with complete answers across the three runs). We 11 report the mean paired difference with a Student-t 95% confidence interval constructed exactly as for the Fig. 1c mean intervals (full cohort: n = 27 , df = 26 ; Qwen 3 32B: n = 26 , df = 25 ; Qwen 2.5 32B: n = 25 , df = 24 , because they did not provide complete answers for one and two additional molecules, respectively). Significance against no mean difference was assessed with a two-sided one-sample t-test of {di} against zero, equivalently a paired t-test of LLM and UFF molecule-level scores, with df = n − 1 (26 for the full 27-molecule set, 25 for Qwen 3 32B, and 24 for Qwen 2.5 32B). As supporting sensitivity analyses, we also report a two-sided paired (sign-flip) permutation test and a two-sided Wilcoxon signed-rank test of the molecule-level differences. A model was described as showing a significant paired advantage over UFF only when the Student-t 95% interval excluded zero; the permutation and Wilcoxon tests were not used to define this criterion. 
+
+Association with release date. Across the 28 models, mean reliable-pair τ (the Table 1 cohort mean for each model) was related to calendar release date. Each release date was taken from the curated registry reported in the Supplementary Information and converted to a numerical abscissa of fractional years since 1 January 2024, i.e. (date - 2024-01-01).days / 365.25 . Spearman’s rank correlation ρ and its two-sided p-value were computed between these dates and the 28 mean τ values. Separately, ordinary least-squares (OLS) regression of mean τ on the same abscissa yielded the reported coefficient of determination R2 and slope, the slope being already expressed as the change in τ per calendar year (no further rescaling was applied). The OLS p-value is the two-sided t-test that the fitted slope equals zero, with df = n − 2 = 26 .
+
+Cross-model regressions. External benchmark scores (GPQA Diamond, SciCode, ARC-AGI-1, and ARC-AGI-2) were taken from a frozen snapshot of the OpenRouter rankings and the Modelgrep API; for each model and benchmark the higher of the two published values was retained. The exact values used are included in the accompanying data. These external scores may be updated by their providers over time, so live values may differ from those used here. Figure 3 and Extended Data Fig. 5 relate each model’s mean reliable-pair τ at the 2.0 kcal mol −1 threshold to an external predictor by OLS, with one point per model. In each panel, R2 is the squared Pearson correlation of the fitted line, and the reported p-value is the two-sided test that the OLS slope equals zero. Display jitter used in the figures did not enter the fits. 
+
+Parameter count ( n = 16 ). Models with unpublished total parameter counts were omitted. The predictor was log 10 of total parameters in billions; the OLS fit used this log-transformed abscissa rather than raw parameter count. 
+
+Total API cost ( n = 17 ). For each model, total API cost was calculated by summing the per-call cost_total fields only over molecule-seed combinations for which a valid reliable-pair τ was obtained at the 2.0 kcal mol −1 threshold. Only models for which this total could be computed from the recorded cost fields were included. The OLS fit used the raw dollar total without log transformation. 
+
+GPQA Diamond ( n = 25 ). External scores were taken from OpenRouter rankings and the Artificial Analysis fields served by Modelgrep for the matched model identifiers, retaining the higher published value for each benchmark field. Models without a published score in either source were omitted. Predictors were used on the reported [0 , 1] scale without further transformation. 
+
+SciCode ( n = 20 ). External scores were obtained using the same OpenRouter-Modelgrep matching and higher-value rule. Models without a published score in either source were omitted, and predictors were used on the reported [0 , 1] 
+
+scale without further transformation. See Extended Data Fig. 6b for this. 
+
+Qwen-declustered comparison. For GPQA, a second OLS fit excluded the four Qwen variants forming the distinct cluster – Qwen 3.5 27B, Qwen 3.6 27B, Qwen 3.5 35B A3B, and Qwen 3.6 35B A3B – leaving n = 21 . The complete 25-model fit describes the full cohort, while the red line shows the GPQA relationship outside the cluster with 
+
+R2 = 0 .72 .
+
+ARC-AGI-1 and ARC-AGI-2 ( n = 15 each). External scores were matched to the evaluated model identifiers using the same OpenRouter-Modelgrep matching and higher-value rule as for GPQA Diamond and SciCode. Models without a published score for the corresponding ARC-AGI benchmark in either source were omitted, leaving the same 15-model cohort for both analyses. Predictors were used on the reported [0 , 1] scale without further transformation; the ARC-AGI-2 fit is shown in Fig. 3d and the ARC-AGI-1 fit in Extended Data Fig. 6a. 
+
+Coupled-cluster reference validation 
+
+DLPNO-CCSD(T) was used to validate the r 2SCAN-3c conformer ordering. The 30 initial molecular ensembles were sorted in ascending order by their r 2SCAN-3c energy span, defined as the difference between the highest- and lowest-energy conformers, and every third molecule was selected to give a ten-molecule validation subset spanning the full 12 range. All ten remained in the DLPNO-CCSD(T) validation subset; one did not enter the final 25-molecule GEOM-QM9 subset of our benchmark because it contained fewer than 15 conformer pairs satisfying |∆E| ≥ 2.0 kcal mol −1.For these structures, single-point DLPNO-CCSD(T) calculations [30] used the unchanged neutral singlet geometries, the def2-TZVP orbital basis [60], TightPNO thresholds [61], the RIJCOSX approximation [62], and the cc-pVTZ/C auxiliary basis [63] for correlation fitting. We used the following input commands in ORCA to calculate the energies (Box 4, Box 5). 
+
+Box 4 | ORCA input for r 2SCAN-3c SP calculations. 
+
+> ! r2SCAN-3c SP ! ENGRAD %pal nprocs 64 end * xyzfile 0 1 geometry.xyz
+
+Box 5 | ORCA input for DLPNO-CCSD(T) SP calculations. 
+
+> ! DLPNO-CCSD(T) def2-TZVP RIJCOSX TightPNO cc-pVTZ/C SP %pal nprocs 16 end %maxcore 4000 * xyzfile 0 1 geometry.xyz
+
+Using these energies, pairwise agreement between r 2SCAN-3c and DLPNO-CCSD(T) was evaluated across all ten validation molecules, including the molecule later excluded from the final benchmark, using the same r 2SCAN-3c energy-gap thresholds as the benchmark. There was 100% agreement on pairs with Egap ≥ 1.5 and ≥ 2.0 kcal mol −1
+
+(1691 and 1213 pairs satisfying these gaps, respectively). At each threshold δ, a pair was counted as agreeing when the two methods assigned the same relative order. Finally, model-order sensitivity was assessed by rescoring all 28 LLMs on the nine validation molecules retained in the final 27-molecule set, once against r 2SCAN-3c and once against DLPNO-CCSD(T). Agreement of the resulting model rankings was near-perfect at the 1.0 and 1.5 kcal mol −1 thresholds (Spearman’s ρ = 0 .9973 and 0.9945 ; Kendall’s 
+
+τ = 0 .98 and 0.96 , respectively) and remained high at 2.0 kcal mol −1 (ρ = 0 .9650 , τ = 0 .86 ). 
+
+# Data Availability 
+
+The data supporting this study, including the benchmark geometries, reference energies, model prompts, model rankings, recorded model explanations and available reasoning traces, and supplementary analysis results, are available at 
+
+https://github.com/TheorChemGroup/LLMConfBench .
+
+# Code Availability 
+
+The code used to construct the benchmark, evaluate model rankings, calculate summary statistics, and generate the figures is available at https://github.com/TheorChemGroup/LLMConfBench under the MIT License. 
+
+# Author Contributions 
+
+G.A.S.: Conceptualization, Methodology, Investigation, Data curation, Formal analysis, Visualization, Writing — original draft. T.V.L.: Software, Visualization. I.V.P.: Conceptualization, Writing — review and editing. S.N.O.: Methodology, Visualization, Writing — review and editing. I.V.A.: Conceptualization, Writing — review and editing. M.G.M.: Supervision, Conceptualization, Visualization, Writing — review and editing. All authors reviewed and approved the manuscript. 13 Acknowledgments 
+
+We thank Andrei Vasiliev for project management, organizational coordination, and logistical support throughout this work. Computational resources were provided in part by the HPC facilities at NRU HSE. 
+
+# Funding Statement 
+
+This work was supported by the Russian Science Foundation (grant #22-73-10124-P). 
+
+# Competing Interests Statement 
+
+The authors declare no competing interests. 
+
+# Materials and Correspondence 
+
+Correspondence and requests for materials should be addressed to Gregorii A. Semakin ( gregoriisemakin@gmail. com ) or Michael G. Medvedev ( medvedev.m.g@gmail.com ). 
+
+# References 
+
+[1] Yixiang Ruan, Chenyin Lu, Ning Xu, Yuchen He, Yixin Chen, Jian Zhang, Jun Xuan, Jianzhang Pan, Qun Fang, Hanyu Gao, Xiaodong Shen, Ning Ye, Qiang Zhang, and Yiming Mo. An automatic end-to-end chemical synthesis development platform powered by large language models. Nature Communications , 15(1):10160, 2024. [2] Andres M. Bran, Sam Cox, Oliver Schilter, Carlo Baldassari, Andrew D. White, and Philippe Schwaller. Aug-menting large language models with chemistry tools. Nature Machine Intelligence , 6(5):525–535, 2024. [3] Hao Li, He Cao, Bin Feng, Yanjun Shao, Xiangru Tang, Zhiyuan Yan, Yonghong Tian, Li Yuan, and Yu Li. Beyond chemical QA: Evaluating LLM’s chemical reasoning with modular chemical operations. In Advances in Neural Information Processing Systems , volume 38, 2025. Datasets and Benchmarks Track. [4] Hu Ding, Pengxiang Hua, and Zhen Huang. Survey on recent progress of AI for chemistry: methods, applications, and opportunities. Frontiers of Computer Science , 20:2011358, 2026. [5] Jordy Homing Lam and Vsevolod Katritch. Navigating structure-based drug discovery with emerging innovations in physics- and knowledge-based approaches. npj Drug Discovery , 2(1):29, 2025. [6] Lucy Vost, Yael Ziv, and Charlotte M. Deane. Incorporating targeted protein structure in deep learning methods for molecule generation in computational drug design. Chemical Science , 16(44):20677–20693, 2025. [7] OpenAI. Gpt-5.6: Frontier intelligence that scales with your ambition, 2026. Accessed 21 August 2026. [8] Kimi Team. Kimi k3: Open frontier intelligence, 2026. [9] Gemini Team and Google. Gemini: A family of highly capable multimodal models, 2023. [10] A. K. Rappé, C. J. Casewit, K. S. Colwell, W. A. Goddard, III, and W. M. Skiff. Uff, a full periodic table force field for molecular mechanics and molecular dynamics simulations. Journal of the American Chemical Society ,114(25):10024–10035, 1992. [11] OpenAI. GPT-6 Astra: A new generation of intelligence, 2026. Accessed 14 September 2026. [12] Anthropic. Introducing claude opus 5, 2026. Accessed 21 August 2026. [13] Sebastian Spicher and Stefan Grimme. Robust atomistic modeling of materials, organometallic, and biochemical systems. Angewandte Chemie International Edition , 59(36):15665–15673, 2020. [14] Connor W. Coley, Natalie S. Eyke, and Klavs F. Jensen. Autonomous discovery in the chemical sciences part i: Progress. Angewandte Chemie International Edition , 59(51):22858–22893, 2020. [15] Gary Tom, Stefan P. Schmid, Sterling G. Baird, Yang Cao, Kourosh Darvish, Han Hao, Stanley Lo, Sergio Pablo-García, Ella M. Rajaonson, Marta Skreta, et al. Self-driving laboratories for chemistry and materials science. 
+
+Chemical Reviews , 124(16):9633–9732, 2024. [16] A. Butlerow. Einiges über die chemische structur der körper. Zeitschrift für Chemie und Pharmacie , 4:549–560, 1861. 14 [17] Daniil A. Boiko, Thiago Reschützegger, Benjamin Sanchez-Lengeling, Samuel M. Blau, and Gabe Gomes. Advancing molecular machine learning representations with stereoelectronics-infused molecular graphs. Nature Machine Intelligence , 7:771–781, 2025. [18] Minyang Tian, Luyu Gao, Shizhuo Dylan Zhang, Xinan Chen, Cunwei Fan, Xuefei Guo, Roland Haas, Pan Ji, Kittithat Krongchon, Yao Li, et al. SciCode: A research coding benchmark curated by scientists. arXiv preprint arXiv:2407.13168 , 2024. [19] David Rein, Betty Li Hou, Asa Cooper Stickland, Jackson Petty, Richard Yuanzhe Pang, Julien Dirani, Julian Michael, and Samuel R. Bowman. GPQA: A graduate-level google-proof Q&A benchmark. arXiv preprint arXiv:2311.12022 , 2023. [20] François Chollet, Mike Knoop, Gregory Kamradt, Bryan Landers, and Henry Pinkard. ARC-AGI-2: A new challenge for frontier AI reasoning systems. arXiv preprint arXiv:2505.11831 , 2025. [21] Arun Raja, Garrett M. Morris, and Kian Ming A. Chai. Rethinking molecular text representations for LLMs: An empirical study. arXiv preprint arXiv:2606.03057 , 2026. [22] Joseph M. Cavanagh, Jonathan B. Arnold, Giovanni Battista Alteri, Andrew Gritsevskiy, and Teresa Head-Gordon. How well can frontier large language models generate structures? high quality prediction of molecular geometries with help from fine-tuning. arXiv preprint arXiv:2607.13350 , 2026. [23] Maksim Kuznetsov, Airat Valiev, Alex Aliper, Daniil Polykovskiy, Elena Tutubalina, Rim Shayakhmetov, and Zulfat Miftahutdinov. nach0-pc: Multi-task language model with molecular point cloud encoder. Proceedings of the AAAI Conference on Artificial Intelligence , 39(23):24357–24365, 2025. [24] Artem Zholus, Maksim Kuznetsov, Roman Schutski, Rim Shayakhmetov, Daniil Polykovskiy, Sarath Chandar, and Alex Zhavoronkov. BindGPT: A scalable framework for 3D molecular design via language modeling and reinforcement learning. Proceedings of the AAAI Conference on Artificial Intelligence , 39(24):26083–26091, 2025. [25] Daniel Flam-Shepherd and Alán Aspuru-Guzik. Language models can generate molecules, materials, and protein binding sites directly in three dimensions as XYZ, CIF, and PDB files. arXiv preprint arXiv:2305.05708 , 2023. [26] Thomas MacDougall, Maksim Kuznetsov, Roman Schutski, Rim Shayakhmetov, Maxim Malkov, Vladimir Aladinskiy, Alex Aliper, and Alex Zhavoronkov. Do language models dream of binding molecules? Benchmarking LLMs under spatial constraints. arXiv preprint arXiv:2607.18144 , 2026. [27] Simon Axelrod and Rafael Gómez-Bombarelli. Geom, energy-annotated molecular conformations for property prediction and molecular generation. Scientific Data , 9(1):185, 2022. [28] Raghunathan Ramakrishnan, Pavlo O. Dral, Matthias Rupp, and O. Anatole von Lilienfeld. Quantum chemistry structures and properties of 134 kilo molecules. Scientific Data , 1:140022, 2014. [29] Stefan Grimme, Andreas Hansen, Sebastian Ehlert, and Jan-Michael Mewes. r 2scan-3c: A “swiss army knife” composite electronic-structure method. The Journal of Chemical Physics , 154(6):064103, 2021. [30] Christoph Riplinger, Barbara Sandhoefer, Andreas Hansen, and Frank Neese. Natural triple excitations in local coupled cluster calculations with pair natural orbitals. The Journal of Chemical Physics , 139(13):134101, 2013. [31] Christian Hölzer, Rick Oerder, Stefan Grimme, and Jan Hamaekers. Confrank: Improving GFN-FF conformer ranking with pairwise training. Journal of Chemical Information and Modeling , 64(23):8909–8925, 2024. [32] Rick Oerder, Christian Hölzer, and Jan Hamaekers. Confrank+: Extending conformer ranking to charged molecules. Journal of Chemical Information and Modeling , 65(16):8664–8678, 2025. [33] Alem W. Kahsai, Natalia Pakharukova, Henry Y. Kwon, Kunal S. Shah, et al. Small-molecule modulation of 
+
+β-arrestins. Nature , 656(8128):770–779, 2026. [34] OpenAI. Introducing openai o3 and o4-mini, 2025. Accessed 21 August 2026. [35] OpenAI. Introducing gpt-5, 2025. Accessed 21 August 2026. [36] Anthropic. Introducing claude 4, 2025. Accessed 21 August 2026. [37] Anthropic. Introducing claude sonnet 4.5, 2025. Accessed 21 August 2026. [38] Anthropic. Introducing claude sonnet 5, 2026. Accessed 21 August 2026. [39] Gemma Team, Thomas Mesnard, Cassidy Hardin, Robert Dadashi, Surya Bhupatiraju, Shreya Pathak, Laurent Sifre, et al. Gemma: Open models based on gemini research and technology, 2024. [40] Kimi Team. Kimi k2: Open agentic intelligence, 2025. 15 [41] DeepSeek-AI, Daya Guo, Dejian Yang, Haowei Zhang, Junxiao Song, Ruibin Yuan, Xun Zhou, Bing Xue, Wanjia Zhao, et al. Deepseek-r1: Incentivizing reasoning capability in LLMs via reinforcement learning, 2025. [42] DeepSeek-AI et al. Deepseek-v3.2: Pushing the frontier of open large language models, 2025. [43] DeepSeek-AI et al. Deepseek-v4: Towards highly efficient million-token context intelligence, 2026. [44] An Yang, Anfeng Li, Baosong Yang, Beichen Zhang, Binyuan Hui, et al. Qwen3 technical report, 2025. [45] Meta Superintelligence Labs. Introducing Muse Glimmer: An open agentic model that runs on your device. Meta Research Blog, August 2026. Accessed 23 August 2026. [46] Greg Landrum. RDKit: Open-source cheminformatics. https://www.rdkit.org . Accessed 27 August 2026. [47] Yanda Chen, Joe Benton, Ansh Radhakrishnan, Jonathan Uesato, Carson Denison, John Schulman, Arushi Somani, Peter Hase, Misha Wagner, Fabien Roger, Vlad Mikulik, Samuel R. Bowman, Jan Leike, Jared Kaplan, and Ethan Perez. Reasoning models don’t always say what they think. arXiv preprint arXiv:2505.05410, 2025. [48] Samy Jelassi, Clara Mohri, David Brandfonbrener, Alex Gu, Nikhil Vyas, Nikhil Anand, David Alvarez-Melis, Yuanzhi Li, Sham M. Kakade, and Eran Malach. Mixture of parrots: Experts improve memorization more than reasoning. arXiv preprint arXiv:2410.19034, 2025. [49] Charlie Snell, Jaehoon Lee, Kelvin Xu, and Aviral Kumar. Scaling LLM test-time compute optimally can be more effective than scaling model parameters. arXiv preprint arXiv:2408.03314, 2024. [50] François Chollet. On the measure of intelligence. arXiv preprint arXiv:1911.01547 , 2019. [51] Shuzhe Wang, Jagna Witek, Gregory A. Landrum, and Sereina Riniker. Improving conformer generation for small rings and macrocycles based on distance geometry and experimental torsional-angle preferences. Journal of Chemical Information and Modeling , 60(4):2044–2058, 2020. [52] Philipp Pracht, Stefan Grimme, Christoph Bannwarth, Fabian Bohle, Sebastian Ehlert, Gereon Feldmann, Johannes Gorges, Marcel Müller, Tim Neudecker, Christoph Plett, Sebastian Spicher, Pit Steinbach, Patryk A. Wesołowski, and Felix Zeller. CREST—a program for the exploration of low-energy molecular chemical space. The Journal of Chemical Physics , 160(11):114110, 2024. [53] Frank Neese. Software update: The ORCA program system—version 6.0. WIREs Computational Molecular Science , 15(2):e70019, 2025. [54] T. A. Halgren. Merck molecular force field. i. basis, form, scope, parameterization, and performance of MMFF94. 
+
+Journal of Computational Chemistry , 17:490–519, 1996. [55] David Weininger. SMILES, a chemical language and information system. 1. introduction to methodology and encoding rules. Journal of Chemical Information and Computer Sciences , 28(1):31–36, 1988. [56] Christoph Bannwarth, Sebastian Ehlert, and Stefan Grimme. xtb – Semiempirical Extended Tight-Binding Program Package. https://github.com/grimme-lab/xtb . Version 6.7.1. [57] Christoph Bannwarth, Sebastian Ehlert, and Stefan Grimme. GFN2-xTB—an accurate and broadly parametrized self-consistent tight-binding quantum chemical method with multipole electrostatics and density-dependent dispersion contributions. Journal of Chemical Theory and Computation , 15(3):1652–1671, 2019. [58] Nelson F. Liu, Kevin Lin, John Hewitt, Ashwin Paranjape, Michele Bevilacqua, Fabio Petroni, and Percy Liang. Lost in the middle: How language models use long contexts. Transactions of the Association for Computational Linguistics , 12:157–173, 2024. [59] Charilaos Pipis, Shivam Garg, Vasilis Kontonis, Vaishnavi Shrivastava, Akshay Krishnamurthy, and Dimitris Papailiopoulos. Wait, wait, wait... why do reasoning models loop? arXiv preprint arXiv:2512.12895 , 2025. [60] Florian Weigend and Reinhart Ahlrichs. Balanced basis sets of split valence, triple zeta valence and quadruple zeta valence quality for H to Rn: Design and assessment of accuracy. Physical Chemistry Chemical Physics ,7(18):3297–3305, 2005. [61] Dimitrios G. Liakos, Manuel Sparta, Manoj K. Kesharwani, Jan M. L. Martin, and Frank Neese. Exploring the accuracy limits of local pair natural orbital coupled-cluster theory. Journal of Chemical Theory and Computation ,11(4):1525–1539, 2015. [62] Frank Neese, Frank Wennmohs, Andreas Hansen, and Ute Becker. Efficient, approximate and parallel Hartree– Fock and hybrid DFT calculations. a “chain-of-spheres” algorithm for the Hartree–Fock exchange. Chemical Physics , 356(1–3):98–109, 2009. [63] Christof Hättig. Optimization of auxiliary basis sets for RI-MP2 and RI-CC2 calculations: Core–valence and quintuple-ζ basis sets for H to Ar and QZVPP basis sets for Li to Kr. Physical Chemistry Chemical Physics ,7(1):59–66, 2005. 16 Extended Data Fig. 1 | Structural diversity of the benchmark and challenge molecules. Distribution of pairwise Tanimoto distances, 1 − Tc, across all 351 unique molecular pairs. The set comprises the 25 GEOM-QM9 benchmark molecules and two additional challenge molecules absent from QM9: the macrocycle from the study by Kahsai et al. [33] and the peroxide (2R,5R,E)-5-hydroperoxyhex-3-en-2-ol. Larger distances indicate lower molecular similarity. The distribution has a mean of 0.891, a median of 0.897, and a range of 0.621–1.000. 17 Extended Data Fig. 2 | Energetic and geometric diversity of the conformer ensembles. The 25 GEOM-QM9 molecules and two additional challenges – the Kahsai et al. [33] macrocycle and (2R,5R,E)-5-hydroperoxyhex-3-en-2-ol, both absent from QM9. a, r 2SCAN-3c conformer energies relative to each ensemble’s minimum; the red dashed line marks kBT at 298 K = 0.592 kcal mol −1. b, Every dot is a pairwise conformer energy difference in the r 2SCAN-3c ensembles; the red dashed line marks the 2.0 kcal mol −1 threshold, satisfied by 3,802 of 11,745 pairs. c, per-conformer heavy-atom RMSD (green, left axis, Å) and torsion fingerprint deviation (TFD; purple, right axis). Indices 1–27 are shared between panels and are arranged in the order shown in Fig. 1a. 18 Extended Data Table 1 | Inference settings shared across the benchmark run. Setting Value 
+
+System prompt You are an expert in computational chemistry. User prompt Geometry-only XYZ bundle; no SMILES strings or energies Temperature 1.0, except where unsupported by the provider schema Top-p, top-k, and random seed Not set; provider defaults Maximum output tokens Not set; provider default Tools and web search Disabled Enforced JSON response mode Disabled; JSON was parsed from the free response 19 Extended Data Fig. 3 | Prediction of reference conformer energies as a test of molecular memorization. Absolute errors between model-predicted relative energies and the original GEOM-QM9 reference values for one selected conformer of each of the 25 benchmark molecules, evaluated across 13 models. Cell values and colors indicate absolute errors in kcal mol −1; mean absolute errors (MAE) across molecules are shown above the columns. Models were explicitly encouraged to recognize the molecules and recall information from training. 20 Extended Data Fig. 4 | Hydrogen-bond mentions as a marker of reliable conformer ranking for all models. Lines are rolling averages (LOESS fits) with 95% confidence intervals. For Qwen 3 32B and Qwen 2.5 32B, 77 and 74 explanations, respectively, are plotted out of 78 and 75 available explanations (26 and 25 molecules, respectively, across three seeds). 21 Extended Data Fig. 5 | Conformer Ranking Accuracy vs. performance on benchmarks. Solid black lines are least-squares fits. Horizontal lines mark random ranking, UFF, GFN-FF, and MMFF94, respectively. Colors denote model families, and marker shapes distinguish reasoning and non-reasoning configurations. 22 Extended Data Fig. 6 | Conformer ranking versus abstract-reasoning and scientific-coding performance. Reliable-pair Kendall’s τ at the 2.0 kcal mol −1 threshold versus a, ARC-AGI-1 across 15 matched models and b, SciCode across 20 matched models. Solid black lines are least-squares fits, giving R2 = 0 .82 (p < 0.001 ) for ARC-AGI-1 and 
+
+R2 = 0 .73 (p < 0.001 ) for SciCode. Error bars are molecule-level 95% confidence intervals; horizontal lines mark random ranking, UFF, GFN-FF, and MMFF94. Colors denote model families, and marker shapes distinguish reasoning and non-reasoning configurations. 23 Supplementary Information 
+
+# Molecular Geometry Understanding Has Unintendedly Emerged in Frontier Large Language Models 
+
+Gregorii A. Semakin 1,2,∗, Timofey V. Losev 1, Ilya V. Prolomov 1,
+
+Stepan N. Ostarkov 1, Igor V. Alabugin 3, Michael G. Medvedev 1,∗
+
+> 1
+
+N. D. Zelinsky Institute of Organic Chemistry RAS, 119991 Moscow, Russia 
+
+> 2
+
+National Research University Higher School of Economics, 101000 Moscow, Russia 
+
+> 3
+
+Department of Chemistry and Biochemistry, Florida State University, Tallahassee, FL 32306, USA 
+
+{gregoriisemakin@gmail.com, medvedev.m.g@gmail.com} 
+
+24 Supplementary Table 1 | Structural and conformational-diversity descriptors for the LLMConfBench molecules. 
+
+Nconf is the number of conformers, Nrot is the number of rotatable bonds, and the TFD and heavy-atom RMSD columns summarize the per-conformer values shown in Extended Data Fig. 2c. Rows follow the molecule identifiers used in Fig. 1a. 
+
+ID SMILES Nconf Nrot 
+
+Mean TFD Max TFD Mean RMSD (Å) Max RMSD (Å) 
+
+1 CC#CCOC[C@@H](C)O 30 3 0.433 0.957 1.780 2.707 
+
+2 CC[C@@H](O)[C@@H](C)CCO 30 4 0.382 0.795 1.574 2.346 
+
+3 CC(=O)[C@H](C=O)[C@@H](C)O 30 3 0.464 0.903 1.820 2.816 
+
+4 C[C@@H](CO)[C@@H](O)[C@H]1CN1 30 3 0.415 0.756 1.743 2.911 
+
+5 CC(=N)OCCCCO 30 4 0.348 0.653 1.769 2.475 
+
+6 C#CC[C@](C)(O)CC=O 30 3 0.463 0.731 1.717 2.773 
+
+7 CCC[C@@H](CO)N1CC1 30 4 0.388 0.716 1.504 2.344 
+
+8 CCOC(=O)[C@@H](C)N 30 2 0.194 0.413 1.675 2.509 
+
+9 CC(C)[C@@H](O)C1(O)CC1 30 2 0.151 0.350 1.840 2.764 
+
+10 C[C@H]1CCO[C@H]1CCO 30 2 0.235 0.610 1.387 2.316 
+
+11 O=CNC[C@H](O)[C@H]1CO1 30 4 0.447 0.867 1.659 2.632 
+
+12 O=CC[C@@H]1CO[C@@H]1CO 30 3 0.355 0.719 1.369 2.009 
+
+13 CCc1ccc(CO)[nH]1 30 2 0.242 0.518 1.318 1.949 
+
+14 OCC[C@H]1C[C@@H](O)C1 30 2 0.184 0.432 1.395 2.338 
+
+15 CC(=O)C[C@@]1(O)C[C@H]1O 30 2 0.424 0.809 1.592 2.428 
+
+16 C[C@@H](CO)CCNC=O 30 5 0.428 0.865 1.738 2.788 
+
+17 C[C@@H](O)/C=C/[C@@H](C)OO 30 3 0.197 0.385 1.618 2.545 
+
+18 N#CCOCCC1CC1 30 4 0.383 0.749 1.814 2.755 
+
+19 CCN[C@@H](C#N)C(N)=O 30 3 0.456 0.876 1.629 2.463 
+
+20 C[C@@H]1C=CC[C@H](CO)C1 30 1 0.268 0.507 1.273 2.001 
+
+21 O[C@H]1C[C@H]1CCC1CC1 30 3 0.330 0.608 1.797 2.677 
+
+22 OCC[C@H]1C[C@H]2OC[C@@H]12 30 2 0.446 0.862 1.263 2.024 
+
+23 CC[C@@H](COC)N1CC1 30 4 0.364 0.701 1.496 2.489 
+
+24 CC(=O)OC1\C=C(C)/ CCC2OC2(C)CC3OC(=O)C(=C)C13 
+
+30 1 0.217 0.504 2.176 3.765 
+
+25 OCC1=CCCCOC1 30 1 0.322 0.600 1.271 1.989 
+
+26 C[C@H](C=O)COC=N 30 4 0.375 0.773 1.642 2.580 
+
+27 O=CCCC#C[C@H]1CN1 30 2 0.274 0.447 1.645 2.674 
+
+25 Supplementary Table 2 | Model identities, access routes, and dates for the frozen cohort. Release and access dates are shown in that order. Bold font denotes models run with high reasoning effort; italic font denotes models with reasoning enabled at a non-high effort setting; unformatted entries have reasoning not applicable. 
+
+Model Exact identifier Developer / provider Released / accessed GPT-6 Astra openai/gpt-6-astra OpenAI / OpenRouter 2026-09-03 / 2026-09-10–09-11 
+
+Claude Opus 5 anthropic/claude-opus-5 Anthropic / OpenRouter 2026-07-24 / 2026-07-31–08-01 
+
+Claude Sonnet 5 anthropic/claude-sonnet-5 Anthropic / OpenRouter 2026-06-30 / 2026-08-03 
+
+Claude Sonnet 4.5 anthropic/claude-sonnet-4.5 Anthropic / OpenRouter 2025-09-29 / 2026-08-18 
+
+Claude Sonnet 4 anthropic/claude-sonnet-4 Anthropic / OpenRouter 2025-05-22 / 2026-08-18 
+
+GPT-5.6 Sol openai/gpt-5.6-sol OpenAI / OpenRouter 2026-07-09 / 2026-07-31 
+
+GPT-5 openai/gpt-5 OpenAI / OpenRouter 2025-08-07 / 2026-08-17 
+
+o4-mini openai/o4-mini OpenAI / OpenRouter 2025-04-16 / 2026-08-18 
+
+Gemini 3.6 Flash google/gemini-3.6-flash Google / OpenRouter 2026-07-21 / 2026-07-31–08-03 
+
+Gemini 3 Flash google/gemini-3-flash-preview Google / OpenRouter 2025-12-17 / 2026-08-18 
+
+Gemini 2.5 Flash google/gemini-2.5-flash Google / OpenRouter 2025-06-17 / 2026-08-18 Gemma 3 27B gemma3:27b Google / Ollama 2025-03-12 / 2026-08-17 
+
+Gemma 4 31B gemma4:31b Google / Ollama 2026-04-02 / 2026-08-17 
+
+Kimi K3 moonshotai/kimi-k3 Moonshot AI / OpenRouter 2026-07-16 / 2026-07-31 
+
+Kimi K2 Thinking moonshotai/kimi-k2-thinking Moonshot AI / OpenRouter 2025-11-06 / 2026-08-16 
+
+Qwen 3.8 27B qwen3.8:27b Alibaba (Qwen) / Ollama 2026-08-14 / 2026-08-19–08-20 
+
+Qwen 3.7 Max qwen/qwen3.7-max Alibaba (Qwen) / OpenRouter 2026-05-21 / 2026-07-31 
+
+Qwen 3.6 27B qwen3.6:27b Alibaba (Qwen) / Ollama 2026-04-21 / 2026-08-16 
+
+Qwen 3.5 27B qwen3.5:27b Alibaba (Qwen) / Ollama 2026-02-24 / 2026-08-17–08-18 
+
+Qwen 3.5 Plus 2026-04-20 qwen/qwen3.5-plus-20260420 Alibaba (Qwen) / OpenRouter 2026-04-20 / 2026-07-31 Qwen 2.5 32B qwen2.5:32b Alibaba (Qwen) / Ollama 2024-09-19 / 2026-08-15 
+
+Qwen 3 32B qwen3:32b Alibaba (Qwen) / Ollama 2025-04-28 / 2026-08-16 
+
+Qwen 3.5 35B A3B qwen3.5:35b-a3b Alibaba (Qwen) / Ollama 2026-02-24 / 2026-08-16 
+
+Qwen 3.6 35B A3B qwen3.6:35b-a3b Alibaba (Qwen) / Ollama 2026-04-14 / 2026-08-17 
+
+DeepSeek V4 Flash 0731 deepseek/deepseek-v4-flash-0731 DeepSeek / OpenRouter 2026-07-31 / 2026-08-03 
+
+DeepSeek V3.2 deepseek/deepseek-v3.2 DeepSeek / OpenRouter 2025-12-01 / 2026-08-17 
+
+DeepSeek-R1 32B deepseek-r1:32b DeepSeek / Ollama 2025-01-20 / 2026-08-15 
+
+Muse Glimmer 30B muse-glimmer:30b Meta (Muse) / Ollama 2026-08-10 / 2026-08-18 
+
+Release dates refer to the public model release, not to the date of API access; they were taken from the provider’s official release announcement and cross-checked against the model page on the serving aggregator (OpenRouter) where available. Where sources conflicted, 24 February 2026 was used for both Qwen 3.5 27B (reported as 23 or 24 February 2026) and Qwen 3.5 35B A3B (reported as 24–25 February 2026). The release date for Qwen 3.7 Max was taken from OpenRouter. For Qwen 3.5 Plus, the dated snapshot identifier encodes 20260420 , and 20 April 2026 was used as its release date. These same dates are used in Fig. 1c and Fig. 3. 
+
+26 Supplementary Table 3 | Reasoning settings and parameter counts for the cohort. (T = temperature). 
+
+Model Reasoning Parameters 
+
+GPT-6 Astra Effort high; T omitted —Claude Opus 5 Effort high —Claude Sonnet 5 Effort high —Claude Sonnet 4.5 Reasoning enabled —Claude Sonnet 4 Reasoning enabled —GPT-5.6 Sol Effort high; T omitted —GPT-5 Effort high; T omitted —o4-mini Reasoning enabled; T omitted —Gemini 3.6 Flash Effort high —Gemini 3 Flash Effort high —Gemini 2.5 Flash Reasoning enabled —Gemma 3 27B No thinking 27B dense Gemma 4 31B Thinking; effort high 31B dense Kimi K3 Effort high 2,800B (104B) MoE Kimi K2 Thinking Reasoning enabled 1,100B (32B) MoE Qwen 3.8 27B Thinking; effort high 27.8B dense Qwen 3.7 Max Reasoning enabled —Qwen 3.6 27B Thinking; effort high 27.8B dense Qwen 3.5 27B Thinking; effort high 27.8B dense Qwen 3.5 Plus 20260420 Reasoning enabled 397B (17B) MoE Qwen 2.5 32B No thinking 32.8B dense Qwen 3 32B Thinking; effort high 32.8B dense Qwen 3.5 35B A3B Thinking; effort high 35B (3B) MoE Qwen 3.6 35B A3B Thinking; effort high 35B (3B) MoE DeepSeek V4 Flash 0731 Effort high 284B (13B) MoE DeepSeek V3.2 Reasoning enabled 671B (37B) MoE DeepSeek-R1 32B Thinking; effort high 32.8B dense Muse Glimmer 30B Thinking; effort high 30B dense 
+
+27 Supplementary Table 4 | Paired molecule-level comparisons with UFF for all evaluated models. Comparisons use the same 27 benchmark molecules, except for Qwen 3 32B and Qwen 2.5 32B, for which 26 and 25 molecules, respectively, were available. Differences are calculated as di = τ LLM  
+
+> i
+
+− τ UFF  
+
+> i
+
+at the 2.0 kcal mol −1 energy-gap threshold. The interval is the 95% Student-t confidence interval for the mean; pperm and pW are the two-sided paired permutation-test and Wilcoxon signed-rank p-values, respectively. 
+
+Model 
+
+Mean 
+
+di
+
+Median 
+
+di
+
+CI lower CI upper pperm pW
+
+gpt-6-astra 0.444 0.446 0.099 0.789 0.015 0.018 
+
+claude-opus-5 0.380 0.211 0.060 0.700 0.023 0.041 
+
+gemini-3.6-flash 0.202 0.328 −0.150 0.554 0.248 0.361 
+
+gpt-5.6-sol 0.168 0.387 −0.156 0.492 0.296 0.336 
+
+kimi-k3 0.151 0.133 −0.141 0.442 0.296 0.441 
+
+claude-sonnet-5 0.143 0.387 −0.183 0.468 0.382 0.397 
+
+deepseek-v4-flash-0731 0.101 0.000 −0.221 0.423 0.522 0.620 
+
+gemini-3-flash-preview 0.087 0.071 −0.263 0.437 0.609 0.714 
+
+qwen3.7-max 0.087 0.164 −0.231 0.404 0.580 0.696 
+
+qwen3.8-27b 0.085 0.123 −0.226 0.395 0.573 0.714 
+
+muse-glimmer-30b 0.075 0.154 −0.251 0.401 0.636 0.694 
+
+gpt-5 0.067 0.399 −0.296 0.430 0.703 0.732 
+
+kimi-k2-thinking 0.046 0.219 −0.250 0.343 0.751 0.897 
+
+gemma-4-31b 0.039 0.147 −0.274 0.352 0.801 0.750 
+
+qwen3.5-27b −0.036 0.139 −0.323 0.252 0.798 0.804 
+
+qwen3.5-plus-20260420 −0.048 −0.064 −0.346 0.250 0.738 0.696 
+
+deepseek-v3.2 −0.085 −0.155 −0.399 0.230 0.580 0.594 
+
+claude-sonnet-4.5 −0.088 −0.120 −0.367 0.190 0.513 0.578 
+
+qwen3.6-27b −0.107 0.023 −0.369 0.154 0.398 0.485 
+
+o4-mini −0.144 −0.067 −0.415 0.126 0.278 0.313 
+
+qwen3.5-35b-a3b −0.170 −0.215 −0.435 0.096 0.201 0.166 
+
+claude-sonnet-4 −0.170 −0.093 −0.438 0.098 0.197 0.258 
+
+gemini-2.5-flash −0.177 −0.182 −0.449 0.095 0.188 0.229 
+
+qwen3.6-35b-a3b −0.192 −0.265 −0.458 0.075 0.143 0.170 
+
+qwen2.5-32b −0.192 −0.143 −0.467 0.083 0.158 0.134 
+
+gemma-3-27b −0.199 −0.252 −0.477 0.079 0.149 0.123 
+
+qwen3-32b −0.208 −0.359 −0.501 0.086 0.154 0.143 
+
+deepseek-r1-32b −0.223 −0.323 −0.478 0.032 0.083 0.077 
+
+28

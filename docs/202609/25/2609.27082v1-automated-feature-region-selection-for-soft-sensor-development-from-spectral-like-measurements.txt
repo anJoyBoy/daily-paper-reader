@@ -1,0 +1,795 @@
+Title: Automated feature-region selection for soft-sensor development from spectral-like measurements
+
+URL Source: https://arxiv.org/pdf/2609.27082v1
+
+Published Time: Thu, 24 Sep 2026 00:22:14 GMT
+
+Number of Pages: 23
+
+Markdown Content:
+# Graphical Abstract 
+
+Automated feature-region selection for soft-sensor development from spectral-like measurements 
+
+Sebastián Espinel-Ríos, Wenchao Duan arXiv:2609.27082v1 [eess.SP] 22 Sep 2026 Highlights 
+
+Automated feature-region selection for soft-sensor development from spectral-like measurements 
+
+Sebastián Espinel-Ríos, Wenchao Duan 
+
+• Automated feature selection finds contiguous regions in spectral-like measurements. 
+
+• A latent fingerprint combines target correlation and a signal-to-noise indicator. 
+
+• Candidate intervals are derived from the fingerprint and evaluated in combination. 
+
+• Gaussian-process-based glucose soft sensors use 11–42 of 400 voltammetric channels. 
+
+• Test root mean squared error falls by 88.3–94.6% versus full-feature models. Automated feature-region selection for soft-sensor development from spectral-like measurements 
+
+Sebastián Espinel-Ríos a, ∗, Wenchao Duan b, ∗
+
+> aDepartment of Chemical and Bioprocess Engineering, University College Dublin, Dublin, Ireland
+> bCommonwealth Scientific and Industrial Research Organisation, Clayton, Australia
+
+Abstract 
+
+Sustainable production increasingly relies on process analytical chemistry and process analytical technology to sup-port monitoring, control, and automation. Techniques used in these contexts, including Raman spectroscopy, infrared spectroscopy, and electrochemical voltammetry, generate high-dimensional signals ordered along physical measure-ment axes, referred to here as spectral-like measurements . These signals can contain redundant, weakly informative, and noisy regions, complicating the development of data-driven soft sensors to map them to process variables. Se-lecting informative regions is nontrivial, as visually prominent regions are not necessarily the most predictive, while synergistic e ff ects among regions cannot be readily inferred. Here, we introduce an automated feature-region se-lection framework that identifies a parsimonious set of contiguous regions while preserving channel ordering. The framework combines channel-level target correlation and a signal-to-noise indicator into a latent information finger-print. Variable-width candidate intervals are derived from peaks in this fingerprint, and their combinations are ranked using held-out validation data. Final selection favours models using fewer channels among candidates with compa-rable predictive performance. The framework is demonstrated using cyclic voltammetric measurements of glucose acquired with a gold electrode sensor across four progressively broader nominal concentration ranges up to 350 g /L. Gaussian process regression is used within the framework to accommodate possible nonlinear relationships, account for observation noise, and quantify epistemic uncertainty. The selected models retained only 11–42 of the original 400 channels and reduced held-out test root mean squared error by 88.3–94.6% relative to full-feature Gaussian process regression benchmarks. 
+
+Keywords: soft sensors, automated feature selection, process monitoring, Gaussian process, cyclic voltammetry, glucose sensing. 
+
+1. Introduction 
+
+Sustainable production systems are central to the transition towards a biobased and circular economy. Bioproduc-tion and biorefinery systems contribute to this transition by enabling the manufacturing of chemicals, materials, and     
+
+> ∗Corresponding author
+> Email addresses: sebastian.espinelrios@ucd.ie (Sebastián Espinel-Ríos), wenchao.duan@csiro.au (Wenchao Duan)
+
+1fuels from renewable feedstocks, including lignocellulosic and starch-rich biomass [1]. In line with Industry 4.0 and Quality-by-Control (QbC), advanced process control approaches, including model predictive control and reinforce-ment learning, can improve the e ffi ciency and robustness of chemical and biotechnological processes [2, 3]. Yet their implementation requires real-time information about relevant process variables to adjust control inputs in response to disturbances and uncertainty. Consequently, their feasibility depends on the availability of reliable online mea-surements or estimates of key variables, including the concentrations of substrates, reactants, intermediates, products, and by-products. This need has motivated advances in process analytical chemistry (PAC) and in process analytical technology (PAT) for process monitoring [4, 5]. Many analytical techniques based on hardware sensors generate high-dimensional signals sampled along a physical measurement axis, such as wavenumber or applied potential. Ex-amples include Raman [6] and infrared spectroscopy [7], as well as electrochemical voltammetry [8]. Here, we refer to measurements with this ordered signal structure as spectral-like measurements .For such multivariate signals, soft sensors bridge measurements acquired by hardware sensors and process vari-ables or other quantities of interest that are not measured directly. They achieve this using mathematical models, typically calibrated using experimental data [9]. More broadly, state estimators can also perform soft-sensing tasks by using dynamic models to reconstruct system states from partial measurements [10, 11]. In this work, we focus on calibration-based soft sensors. Among the widely adopted approaches, chemometric methods based on partial least-squares (PLS) regression [12, 13] are particularly used for this purpose, as they accommodate high-dimensional, correlated measurements through a reduced set of latent variables. However, the linear formulation of conventional PLS regression can limit its predictive performance when nonlinear relationships are pronounced. In such cases, non-linear regression models, including parametric approaches such as neural networks and non-parametric approaches such as random forests and Gaussian processes (GPs), o ff er promising alternatives [13]. Nevertheless, when exper-imental datasets are limited, high input dimensionality and feature redundancy can increase data requirements and the risk of overfitting, while measurement noise can further complicate the development of data-driven soft sensors [14, 15, 16]. Motivated by these challenges, we propose an automated framework for soft-sensor development through feature-region selection in spectral-like measurements. Its goal is to identify a compact set of informative signal regions, thereby reducing input dimensionality while retaining relevant information for soft-sensor development. To this end, the framework combines channel-level assessment of target correlation and measurement quality with model-based evaluation of candidate interval combinations. Using training data, the methodology first computes a pointwise score for each measurement channel by combining the square of its Spearman rank correlation coe ffi cient with the target variable and a variance-based signal-to-noise indicator derived from replicate measurements. The resulting compos-ite scores form a profile that reveals a latent information pattern along the measurement axis, herein referred to as the information fingerprint . Promising feature intervals are automatically identified from peaks in this information fingerprint and prioritised according to the average scores of their constituent channels. Notably, each interval com-prises contiguous measurement channels, preserving the local ordering of the signal along the physical measurement 2axis. Soft-sensor models are then trained using candidate combinations of these intervals and evaluated on held-out validation data. Final selection favours parsimony, i.e., models with fewer input channels among candidates with comparable validation performance. The proposed framework avoids manual selection of peaks or intervals in spectral-like measurements, which can require application-specific domain knowledge and may overlook informative regions that are not immediately evident from visual inspection. Unlike conventional principal component analysis (PCA) [16], which constructs uncorrelated latent components from linear combinations of the full input features by maximising explained input variance without using target information, our framework retains only a compact set of contiguous regions from the original signal. It does so using a latent information fingerprint that explicitly combines target correlation with replicate-based mea-surement quality, without requiring a linear relationship between individual channels and the target variable. Unlike standard permutation feature importance [17], which evaluates feature contributions using an already fitted prediction model and does not inherently enforce contiguity along the measurement axis, our framework generates contigu-ous candidate regions from peaks in the information fingerprint before regression fitting. In conventional interval PLS [18], predefined equal-width spectral intervals are successively added or removed according to cross-validated PLS prediction performance. Our candidate intervals can vary in width, and their generation is independent of the downstream regression architecture. Although candidate interval generation is model-agnostic, Gaussian process regression (GPR) [19] is used as the downstream modelling approach in this study. With an appropriate kernel function, GPR can accommodate nonlinear relationships while providing posterior predictive distributions that quantify uncertainty in estimated target values. Its probabilistic formulation also incorporates an observation-noise term during model fitting. Furthermore, GPR off ers a practical modelling approach for limited experimental datasets [20], which is particularly relevant to process-engineering applications such as biomanufacturing, where high-quality data may be scarce [21]. Here, GPR provides a consistent basis for demonstrating how our automated feature-region selection pipeline can be integrated into soft-sensor development. A systematic comparison across regression models lies beyond the scope of this study, as the focus is on the automated identification and selection of informative contiguous regions in spectral-like measurements to support soft-sensor development in the process industries. The proposed methodology is demonstrated using an electrochemical sensing platform for glucose concentration measurements. Using cyclic voltammetric measurements of glucose standards, the framework is evaluated within progressively broader concentration windows of 0–75, 0–150, 0–250, and 0–350 g /L. Glucose provides a broadly rel-evant case study for bioprocess monitoring, as it is widely employed as a carbon source and feedstock in bioprocesses. For example, in biofuel production, high- and very-high-gravity ethanol fermentations have been investigated using initial glucose concentrations of 150–350 g /L [22, 23], whereas in biochemical production, batch fermentations for the production of succinate or butyric acid have been conducted at initial glucose concentrations ranging from 20 to 250 g /L [24, 25]. Reliable online estimation of glucose concentration could ultimately support process monitoring and closed-loop optimisation of feeding in bioprocesses. 3The remainder of this paper is structured as follows. Section 2 formulates the generalised soft-sensor development problem for spectral-like measurements. Section 3 presents the automated feature-region selection framework, includ-ing candidate interval generation, model evaluation, and parsimonious final model selection, together with the GPR approach used in this study. Section 4 describes the electrochemical glucose-sensing platform, generation of the ex-perimental dataset, and application of the framework across the investigated nominal concentration ranges, including comparison with a GPR benchmark using the full measurement signal. 
+
+2. Problem definition 
+
+Consider supervised data represented by D = (X, Y), where X ∈ Rnd ×nx and Y ∈ Rnd ×ny . Here, nd denotes the number of experimental observations, nx the number of input features, and ny the number of target variables. Each row xi ∈ Rnx of X represents a high-dimensional spectral-like measurement, while the corresponding row yi ∈ Rny of 
+
+Y contains the target variables to be inferred. A defining characteristic of a spectral-like measurement xi is that its input features are ordered along an under-lying physical measurement axis. We refer to the corresponding positions along this axis as measurement channels, collected in the vector: 
+
+ξ = ξ1, ξ 2, . . . , ξ nx
+
+ . (1) The dimension of ξ therefore matches that of xi, with each feature xi, j of xi associated with a measurement channel ξ j.Depending on the sensing technology, ξ may correspond, for example, to wavenumber in spectroscopic measurements or applied potential in voltammetric measurements. Using the complete set of input features, a general regression model MR for the data in D can be expressed as: 
+
+bY = MR (X) , (2) where bY denotes the predicted target variables. As discussed in the Introduction, the complete feature matrix for high-dimensional spectral-like measurements may contain redundant, weakly informative, or noisy measurement regions. The objective considered in this work is therefore to construct more parsimonious soft sensors from automatically selected contiguous intervals of the original ordered feature space. Let Ik denote the kth selected contiguous interval, defined as a contiguous set of ordered feature indices: 
+
+Ik = {ak, ak + 1, . . . , bk} , k = 1, . . . , nI , (3) where ak and bk denote the lower and upper indices, respectively, and nI denotes the number of final selected intervals. The collection of selected feature regions is then defined as: 
+
+E = I1, I2, . . . , InI , Ik ∩ I ℓ = ∅, k , ℓ, (4) 4with the selected intervals constrained to be non-overlapping. The reduced feature matrix Xsel containing only the features belonging to the intervals in E is Xsel ∈ Rnd ×nx,sel .
+
+Remark on notation . Let us introduce a generic selected-feature vector xsel ∈ Rnx,sel associated with a specific target variable. In the following, we focus on single-output regressors such that ny = 1; hence, Y := y ∈ Rnd . Furthermore, let by denote the corresponding prediction of the target variable obtained from xsel . The generalised regression model for a single target variable conditioned on the selected-feature vector xsel can then be written as: 
+
+by = MR (xsel ) . (5) The question addressed in this work is then how to automatically identify informative contiguous feature regions to construct E for downstream soft-sensor development. The aim is for the resulting soft-sensor model to improve or at least retain the predictive performance obtained using the complete feature space when dealing with high-dimensional ordered spectral-like measurements. 
+
+3. Automated workflow for soft-sensor development 
+
+For the methodology, the complete dataset is partitioned into training, validation, and test sets using an approxi-mately 60%, 20%, and 20% split, respectively. The partitioning is performed based on unique target-variable levels, such that all replicate measurements corresponding to a given level are assigned exclusively to a single subset, thereby avoiding replicate leakage across the training, validation, and test sets. 
+
+3.1. Point-wise scoring 
+
+Using the training set, the first step of the automated workflow quantifies the information value associated with each individual measurement channel ξ j, j = 1, . . . , nx. For a scalar target variable, let yg, g = 1, . . . , nG, denote the nG
+
+distinct target-variable levels represented in the training set; in the case study, these represent glucose concentration levels. Then, let xg,r, j denote the measured value at channel ξ j for replicate r at target-variable level yg. Considering 
+
+nR replicate measurements at each target-variable level, the mean response at channel ξ j is calculated as: ¯xg, j = 1
+
+nRnRX
+
+> r=1
+
+xg,r, j. (6) The predictive relevance of each measurement channel is quantified through the squared Spearman’s rank corre-lation coe ffi cient between the target-variable levels and their corresponding mean responses: 
+
+ρ2  
+
+> s,j
+
+= corr 2S
+
+n yg
+
+onG 
+
+> g=1
+
+, n ¯xg, j
+
+onG
+
+> g=1
+
+
+
+, (7) where corr S denotes Spearman’s rank correlation. Spearman’s rank correlation was used because of its ability to quantify whether two variables are monotonically related regardless of whether the relationship is linear or nonlinear. Squaring the coe ffi cient ensures that both positive and negative monotonic relationships contribute equally to the measure of predictive relevance. A limitation is that it does not capture general non-monotonic relationships. 5A second measurement-quality metric, RV j, is defined by comparing the variation in the mean response across target-variable levels with the average variation observed among experimental replicates for the corresponding channel 
+
+ξ j:
+
+RV j =
+
+Var 
+
+n ¯xg, j
+
+onG
+
+> g=1
+
+
+
+1
+
+nGnGX
+
+> g=1
+
+Var n xg,r, j
+
+onR
+
+> r=1
+
+ + ε, (8) where Var is the sample variance and ε is a small positive constant introduced to avoid the possibility of division by zero. A large RV j therefore indicates that the response at measurement channel ξ j varies substantially across target-variable levels relative to the average variability observed between replicate measurements. This serves as a signal-to-noise indicator. The predictive-relevance and measurement-quality metrics are subsequently combined into the point-wise com-posite score: 
+
+S j = ρ2  
+
+> s,j
+
+log 1 + RV j
+
+ . (9) Here, log denotes the natural logarithm. The resulting sequence, S = S 1, S 2, . . . , S nx
+
+, provides a fingerprint revealing a latent information pattern along the measurement axis ξ. Measurement channels presenting both a strong monotonic correlation with the target variable and substantial variation across target-variable levels relative to replicate vari-ability consequently receive higher scores. This point-wise information profile provides the basis for the subsequent identification and scoring of contiguous candidate feature regions. 
+
+3.2. Candidate interval generation from the information fingerprint 
+
+From the point-wise information-score profile as a function of measurement channel, generated from the training 
+
+set, dominant peaks are automatically identified using peak-prominence and minimum peak-distance criteria. Only peaks whose prominence reaches a prescribed fraction of the maximum point-wise information score are retained. Around each retained peak, candidate measurement-channel regions are generated using the relative-height con-cept, whereby peak widths are evaluated at di ff erent fractions of the peak prominence to define intervals of varying extent around the peak. Each candidate region is denoted as: 
+
+Cp,m = nap,m, ap,m + 1, . . . , bp,m
+
+o , (10) where p denotes the detected peak, m denotes the relative-height value used to define the candidate region, and 
+
+ap,m and bp,m are its lower and upper ordered feature indices, respectively. In the case study, peak detection and width estimation are performed using scipy.signal.find_peaks and scipy.signal.peak_widths [26]. In the case study, a minimum peak-distance criterion of 5 measurement channels is employed, and the prominence threshold is set to 0.15 times the maximum point-wise information score. Furthermore, the relative-height values 
+
+{0.25 , 0.40 , 0.50 , 0.65 , 0.75 , 0.85 } are evaluated. 6To favour local feature regions over isolated point-wise spikes, only intervals containing a prescribed minimum number of contiguous measurement channels are retained; in the case study, a minimum of 3 channels is required. This ensures that retained intervals represent local measurement-channel regions rather than isolated point-wise responses. Although isolated channels may themselves contain predictive information, here we deliberately restrict the automated selection to contiguous feature regions to preserve the structured, ordered nature of spectral-like signals. For each automatically defined interval, we compute an interval-wise score as the average point-wise score: ¯S p,m = 1
+
+Cp,m
+
+X
+
+> j∈C p,m
+
+S j. (11) This metric measures the average information richness of the candidate feature interval, as it inherently accounts for the predictive-relevance and measurement-quality contributions incorporated in S j (cf. Eq. (9)). For parsimony, among candidate intervals originating from the same detected peak but defined using di ff erent relative-height values, only the interval with the highest average information score is retained for downstream process-ing, subject to the prescribed minimum interval size. In the event of a tie, the interval containing fewer measurement channels is retained. A consistency check then verifies that the retained intervals do not overlap within each signal branch. Let A denote the index set of candidate intervals retained after the interval-wise filtering step. The retained interval collection is: nCp,m : ( p, m) ∈ A o . (12) Combinations of candidate measurement-channel regions are then generated by considering individual retained intervals and unions of retained intervals, up to a user-defined maximum cardinality Q ≤ |A| :
+
+Cq =
+
+[
+
+> (p,m)∈J
+
+Cp,m : J ⊆ A , |J| = q
+
+ , q = 1, . . . , Q. (13) The complete set of candidate feature-region combinations is 
+
+C =
+
+> Q
+
+[
+
+> q=1
+
+Cq. (14) In the case study, Q = |A| , such that all combinations of the retained intervals indexed by A are evaluated. 
+
+3.3. Ranking of soft-sensor candidates and final model selection 
+
+Let K = {1, . . . , nC } index the nC = |C| candidate feature-region combinations. Each candidate c ∈ K is used to construct a selected-feature matrix Xsel ,c, and a regression model MR,c is fitted using the training set (cf. Eq. (5)). Its predictive performance is then evaluated using the held-out validation set. Candidate models are ranked according to their validation root mean squared error (RMSE). The minimum validation RMSE among the candidate models is first identified: RMSE min val = min  
+
+> c∈K
+
+RMSE val ,c. (15) 7To favour parsimony in model selection, candidates presenting a validation RMSE within a prescribed relative tolerance τ of this minimum are considered to provide comparable predictive performance: 
+
+Ktol = nc ∈ K : RMSE val ,c ≤ (1 + τ)RMSE min val 
+
+o . (16) From this subset, the candidate containing the smallest number of input features, i.e., measurement channels, is selected: 
+
+c∗ ∈ arg min 
+
+> c∈K tol
+
+nx,sel ,c. (17) This prevents the selection of an unnecessarily complex model when only a marginal improvement in validation performance is obtained. If multiple candidates contain the same minimum number of input features, the candidate with the lowest validation RMSE is selected. The selected candidate c∗ determines the final collection of feature intervals E. In the case study, a relative tolerance of τ = 0.025 is employed. Following model selection, the regression model associated with c∗ is refitted using the combined training and validation sets and denoted by M∗
+
+> R
+
+. The held-out test set remains unused during feature and model selection and is reserved for the final evaluation of predictive performance on unseen target-variable levels. 
+
+3.4. Gaussian-process-based soft sensors 
+
+Let d = nx,sel denote the selected-feature dimension. Single-output GPR [19] models an unknown function f :
+
+Rd → R. The measured target value associated with a selected-feature vector is assumed to be a noisy observation of this function: 
+
+y = f (xsel ) + η, η ∼ N 0, σ 2
+
+> n
+
+ , (18) where σ2 
+
+> n
+
+denotes the observation-noise variance. GPR defines a probability distribution over the function f :
+
+f ∼ GP m(xsel ), k(xsel , x′
+
+> sel
+
+) , (19) where m(xsel ) is the prior mean function and k(xsel , x′
+
+> sel
+
+) is the covariance or kernel function evaluated between two arbitrary selected-feature vectors xsel and x′
+
+> sel
+
+. The prior mean and covariance functions jointly define the GP prior. For the n observations used to fit a given GPR model, let xsel ,1, . . . , xsel ,n denote the corresponding selected-feature vectors. Let us introduce the kernel matrix, which contains the pairwise kernel evaluations among the n input vectors used for model fitting: 
+
+K =
+
+
+
+k(xsel ,1, xsel ,1) · · · k(xsel ,1, xsel ,n)
+
+... . . . ...
+
+k(xsel ,n, xsel ,1) · · · k(xsel ,n, xsel ,n)
+
+
+
+∈ Rn×n. (20) In the case study, a radial basis function (RBF) kernel is used: 
+
+k xsel , x′
+
+> sel
+
+ = σ2 
+
+> f
+
+exp 
+
+"
+
+− 12
+
+xsel − x′
+
+> sel
+
+⊤
+
+M xsel − x′
+
+> sel
+
+#
+
+, (21) 8with M = diag ℓ−21 , . . . , ℓ −2
+
+> d
+
+. Here, σ2 
+
+> f
+
+denotes the signal variance and ℓ = [ℓ1, . . . , ℓ d]⊤ denotes the length-scale vector. Note that a separate length scale is fitted for each input feature, corresponding to automatic relevance determi-nation (ARD). A linear prior mean function is employed: 
+
+m (xsel ) = x⊤
+
+> sel
+
+w + b, (22) where w ∈ Rd is the weight vector and b ∈ R is a constant bias. Let y = [y1, . . . , yn]⊤ collect the n target observations and let m ∈ Rn collect the prior-mean evaluations, such that: 
+
+m = m(xsel ,1), . . . , m(xsel ,n)⊤ . (23) The Gaussian log marginal likelihood is: log p (y | Xsel , θ) = − 12 (y − m)⊤ K + σ2
+
+> n
+
+In
+
+−1
+
+(y − m)
+
+− 12 log K + σ2
+
+> n
+
+In − n
+
+2 log(2 π),
+
+(24) where In is the n-dimensional identity matrix. The trainable model parameters are collected in: 
+
+θ = hσ2
+
+> n
+
+, σ 2 
+
+> f
+
+, ℓ⊤, w⊤, bi⊤
+
+. (25) These parameters are fitted jointly by maximising the Gaussian log marginal likelihood. For a query selected-feature vector x∗
+
+> sel
+
+, let us define the covariance vector: 
+
+k∗ = hk(xsel ,1, x∗
+
+> sel
+
+), . . . , k(xsel ,n, x∗
+
+> sel
+
+)i⊤
+
+. (26) The posterior mean and variance of the function f are then given, respectively, by: 
+
+μ∗
+
+x∗
+
+> sel
+
+ = m x∗
+
+> sel
+
+ + k⊤∗
+
+K + σ2
+
+> n
+
+In
+
+−1
+
+(y − m), (27) and 
+
+s2
+
+> ∗
+
+x∗
+
+> sel
+
+ = k x∗
+
+> sel
+
+, x∗
+
+> sel
+
+ − k⊤∗
+
+K + σ2
+
+> n
+
+In
+
+−1
+
+k∗. (28) The posterior variance s2 
+
+> ∗
+
+quantifies epistemic uncertainty in the function prediction, conditional on the fitted GP parameters and the observations used for training. In the implementation, GPR models were developed using SingleTaskGP from BoTorch [27], with GPyTorch modules [28]. Model parameters are fitted using ExactMarginalLogLikelihood and fit_gpytorch_mll . The de-fault SingleTaskGP outcome transformation standardises the target observations during model fitting, and posterior quantities are subsequently returned on the original target scale. No transformation is applied to the input features. Posterior predictions are obtained without observation noise, such that the reported posterior variance only quantifies uncertainty in the function f .94. Case study: glucose soft sensing from voltammetric measurements 
+
+To demonstrate the automated soft-sensor development framework for spectral-like measurements, we apply it to voltammetric measurements of glucose. Fig. 1 provides an overview of the experimental setup and the application of the framework considered in this case study. 
+
+> Figure 1: Overview of the glucose soft-sensing case study, including the three-electrode experimental setup used to acquire spectral-like voltam-metric measurements and the automated soft-sensor development pipeline. WE: working electrode; RE: reference electrode; CE: counter electrode.
+
+4.1. Voltammetric measurements of glucose using an Au electrode 
+
+Cyclic voltammograms were recorded using an Au working electrode in 0.1 M phosphate bu ff er solution (PBS, pH 
+
+= 13) at the nominal glucose concentrations listed in Table 1. Details on the mechanism underlying the electrochemical response of glucose on gold surfaces can be found in [29, 30]. All electrochemical measurements were conducted at room temperature using a conventional 20-mL three-electrode electrochemical cell. The configuration consisted of a platinum counter electrode, an Ag /AgCl reference electrode, and a 2-mm-diameter Au working electrode (CH Instruments, Austin, TX, USA). The Au working electrode was polished with 0.05-μm alumina slurry, thoroughly rinsed with pure water, and dried at room temperature before use. Electrochemical measurements were performed using an eight-channel potentiostat (EmStat 4 LR; PalmSens, The Netherlands). Cyclic voltammograms were recorded at a scan rate of 50 mV s −1 over a potential range from -1.0 to 1.0 V, with a potential step of 0.01 V. Five replicate measurements, each comprising two voltammetric cycles, were recorded at each glucose concentration. For dataset construction, the second cycle was retained at 0 g /L and the first cycle at all other concentrations. In the experimental setup, all reagents were of high purity, analytical grade, or equivalent. Phosphoric acid and sodium hydroxide (Sigma-Aldrich) were used to prepare the 0.1 M phosphate bu ff er solution (PBS). D-( +)-Glucose 10 Table 1: Glucose concentration levels assigned to the training, validation, and test sets for each investigated nominal sensing range. All replicate measurements corresponding to a given concentration level were assigned to the same subset.          
+
+> Range [g /L] Training concentrations [g /L] Validation concentrations [g /L] Test concentrations [g /L]
+> 0–75 0, 2, 7, 9, 11, 13, 17, 19, 20, 22, 24, 28, 30, 32, 35, 37, 50, 51, 68 6, 26, 33, 39, 41, 42 4, 15, 43, 44, 46, 48, 59 0–150 0, 2, 4, 7, 9, 13, 15, 17, 19, 20, 22, 24, 26, 30, 33, 41, 42, 68, 77, 103, 120, 129, 137, 146 37, 43, 44, 48, 50, 51, 94, 111 6, 11, 28, 32, 35, 39, 46, 59, 86 0–250 0, 2, 4, 7, 13, 15, 17, 19, 22, 24, 26, 28, 35, 41, 50, 51, 68, 86, 94, 103, 120, 129, 137, 146, 164, 181, 189, 198, 207, 224, 250 6, 11, 20, 30, 42, 43, 59, 111, 172, 215, 241 9, 32, 33, 37, 39, 44, 46, 48, 77, 154, 232 0–350 0, 2, 4, 7, 9, 13, 15, 17, 19, 22, 24, 26, 28, 33, 41, 43, 51, 68, 86, 94, 103, 120, 129, 137, 146, 164, 172, 181, 189, 198, 207, 224, 259, 283, 296 6, 11, 30, 44, 48, 50, 59, 111, 154, 215, 250, 322 20, 32, 35, 37, 39, 42, 46, 77, 232, 241, 267, 348
+
+(dextrose) anhydrous (Sigma-Aldrich) was dissolved in 0.1 M PBS to prepare the analyte solutions used for electro-chemical analysis. A cyclic voltammogram contains one branch acquired as the working-electrode potential is swept towards more positive values and another acquired as the potential is swept towards more negative values. These potential sweeps alter the driving force for electron transfer and are denoted here as the oxidation and reduction branches, respectively. Because the same applied potential can be sampled on both branches while producing di ff erent current responses, the corresponding measurements are treated as distinct channels and labelled accordingly. Both sets of channels are included in each spectral-like measurement xi; thus, each channel coordinate ξ j identifies a potential–branch pair. After branch separation, each processed voltammogram contained 200 oxidation and 200 reduction channels, giving 400 measurement channels in total. In Fig. 2, we show the full cyclic voltammogram readouts, as well as the separate oxidation- and reduction-channel readouts. Notably, retaining both branches increases the input feature dimension relative to a representation containing only one current response per applied potential, providing a more challenging case study for evaluating the automated feature-selection framework for soft-sensor development. Although the voltammograms contain visually apparent peaks, it is not immediately evident which intervals or interval combinations will yield the best predictive performance, nor whether the largest current peaks are the most informative under the proposed scoring framework. In the following subsections, the automated feature-selection framework is applied across progressively broader nominal glucose concentration ranges. For reference, the glucose concentration levels assigned to the training, vali-dation, and test subsets for each nominal range are listed in Table 1. 11 A) Complete voltammetric cycle B) Oxidation branch C) Reduction branch −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 0200 400 600
+> Current  [μA]
+
+r = 1     
+
+> 0100 200 300
+> Glucose  [g/L] −1.0−0.50.00.51.0
+
+Potential [V] 
+
+> 0100 200
+> Current  [μA]
+
+r = 1     
+
+> 0100 200 300
+> Glucose  [g/L] −1.0−0.50.00.51.0
+
+Potential [V] 
+
+> 0200 400 600
+> Current  [μA]
+
+r = 1     
+
+> 0100 200 300
+> Glucose  [g/L] −1.0−0.50.00.51.0
+
+Potential [V] 
+
+> 0200 400 600
+> Current  [μA]
+
+r = 2     
+
+> 0100 200 300
+> Glucose  [g/L] −1.0−0.50.00.51.0
+
+Potential [V] 
+
+> 0100 200
+> Current  [μA]
+
+r = 2     
+
+> 0100 200 300
+> Glucose  [g/L] −1.0−0.50.00.51.0
+
+Potential [V] 
+
+> 0200 400 600
+> Current  [μA]
+
+r = 2     
+
+> 0100 200 300
+> Glucose  [g/L] −1.0−0.50.00.51.0
+
+Potential [V] 
+
+> 0200 400 600
+> Current  [μA]
+
+r = 3     
+
+> 0100 200 300
+> Glucose  [g/L] −1.0−0.50.00.51.0
+
+Potential [V] 
+
+> 0100 200
+> Current  [μA]
+
+r = 3     
+
+> 0100 200 300
+> Glucose  [g/L] −1.0−0.50.00.51.0
+
+Potential [V] 
+
+> 0200 400 600
+> Current  [μA]
+
+r = 3     
+
+> 0100 200 300
+> Glucose  [g/L] −1.0−0.50.00.51.0
+
+Potential [V] 
+
+> 0200 400 600
+> Current  [μA]
+
+r = 4     
+
+> 0100 200 300
+> Glucose  [g/L] −1.0−0.50.00.51.0
+
+Potential [V] 
+
+> 0100 200
+> Current  [μA]
+
+r = 4     
+
+> 0100 200 300
+> Glucose  [g/L] −1.0−0.50.00.51.0
+
+Potential [V] 
+
+> 0200 400 600
+> Current  [μA]
+
+r = 4     
+
+> 0100 200 300
+> Glucose  [g/L] −1.0−0.50.00.51.0
+
+Potential [V] 
+
+> 0200 400 600
+> Current  [μA]
+
+r = 5     
+
+> 0100 200 300
+> Glucose  [g/L] −1.0−0.50.00.51.0
+
+Potential [V] 
+
+> 0100 200
+> Current  [μA]
+
+r = 5     
+
+> 0100 200 300
+> Glucose  [g/L] −1.0−0.50.00.51.0
+
+Potential [V] 
+
+> 0200 400 600
+> Current  [μA]
+
+r = 5 
+
+> 0100 200 300
+> Glucose  [g/L]
+
+Figure 2: Cyclic voltammetry measurements across the 0–350 g /L nominal glucose concentration range for five experimental replicates ( r =
+
+1, . . . , 5). A) Complete cyclic voltammogram readouts. B) Oxidation-channel readouts. C) Reduction-channel readouts. Line colour denotes glucose concentration. 
+
+12 4.2. Automated soft-sensor development for the 0–75 g /L range 
+
+For the nominal glucose concentration range of 0–75 g /L, column A of Fig. 3 presents the squared Spearman’s rank correlation coe ffi cient, the measurement-quality metric, and the resulting composite information fingerprint for the oxidation and reduction channels. The retained candidate intervals are also shown. In total, the information finger-prints yielded five candidate regions: three from the oxidation branch and two from the reduction branch. Evaluating all non-empty combinations of these regions resulted in 2 5 − 1 = 31 candidate GPR models. Validation-based ranking selected a combination comprising the oxidation region from 0.53 to 0.72 V and the reduction region from 0.45 to 0.69 V, as summarised in Table 2. Together, these regions contain 42 of the original 400 measurement channels, representing an 89.5% reduction in input dimensionality. Interestingly, neither selected region coincides with the dominant current-magnitude peaks visible in the original voltammograms. This demonstrates that the proposed methodology can identify informative regions that are not immediately evident from visual inspection of the raw measurements. Moreover, although the oxidation region had the highest average fingerprint score among the retained candidates, the selected reduction region had the lowest. This result illustrates the nontrivial complementary roles of the two framework stages; that is, the information fingerprint generates data-informed candidate regions, whereas validation-based model selection identifies combinations with joint predictive value.                        
+
+> Table 2: Summary of the selected feature-region soft sensors and comparison with the corresponding full-feature benchmarks across the investigated nominal glucose concentration ranges. Ox: oxidation branch. Red: reduction branch.
+> Range [g /L] Selected potential regions [V] Channels (regions) Test RMSE [g /L] RMSE reduction [%] Selected Full-feature
+> 0–75 Ox: [0.53, 0.72]; Red: [0.45, 0.69] 42 (2) 1.84 15.70 88.3 0–150 Ox: [0.60, 0.71] 12 (1) 2.38 38.94 93.9 0–250 Ox: [0.66, 0.74]; Red: [0.08, 0.11] 11 (2) 4.09 75.64 94.6 0–350 Ox: [0.66, 0.74]; Ox: [0.27, 0.36]; Red: [0.35, 0.41] 22 (3) 9.98 101.66 90.2
+
+As shown in column A of Fig. 4, the selected model achieved a validation R2 of 0.977 and an RMSE of 1.90 g /Lduring model selection. After refitting using the combined training and validation sets, it achieved an R2 of 0.999 and an RMSE of 0.39 g /L on those data. Evaluation on the held-out test concentration levels gave an R2 of 0.990 and an RMSE of 1.84 g /L. By comparison, the full-feature GPR benchmark achieved an R2 of 1.000 and an RMSE of 0.28 g /Lon the combined training and validation data, but its test performance deteriorated to an R2 of 0.264 and an RMSE of 15.70 g /L, signalling overfitting. The selected feature-region model therefore reduced the test RMSE by 88.3%. For this concentration range, the results indicate that feature-region selection substantially improved generalisation relative to the full-feature benchmark. 13 A) 0–75 g /L B) 0–150 g /L C) 0–250 g /L D) 0–350 g /L−1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 0.00.51.0
+> ρ2
+> s
+
+Oxidation −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 0.00.51.0
+> ρ2
+> s
+
+Oxidation −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 0.00.51.0
+> ρ2
+> s
+
+Oxidation −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 0.00.51.0
+> ρ2
+> s
+
+Oxidation −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 020 40 60
+> RV
+
+Oxidation −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 020 40
+> RV
+
+Oxidation −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 010 20
+> RV
+
+Oxidation −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 010 20
+> RV
+
+Oxidation −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 02
+> S
+
+Oxidation −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 024
+> S
+
+Oxidation −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 0123
+> S
+
+Oxidation −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 012
+> S
+
+Oxidation −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 0.00.51.0
+> ρ2
+> s
+
+Reduction −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 0.00.51.0
+> ρ2
+> s
+
+Reduction −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 0.00.51.0
+> ρ2
+> s
+
+Reduction −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 0.00.51.0
+> ρ2
+> s
+
+Reduction −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 020 40
+> RV
+
+Reduction −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 020 40
+> RV
+
+Reduction −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 020 40
+> RV
+
+Reduction −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 020 40
+> RV
+
+Reduction −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 012
+> S
+
+Reduction −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 0.00.51.0
+> S
+
+Reduction −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 0.00.51.0
+> S
+
+Reduction −1.0 −0.5 0.0 0.5 1.0
+
+Potential [V] 
+
+> 0.00.51.0
+> S
+
+Reduction 
+
+Figure 3: Automated candidate feature-region generation for progressively broader nominal glucose concentration ranges: A) 0–75 g /L; B) 0– 150 g /L; C) 0–250 g /L; and D) 0–350 g /L. For each concentration range, the upper three rows show the oxidation-channel point-wise metrics: squared Spearman’s rank correlation coe ffi cient, measurement-quality metric, and composite information-score fingerprint, respectively. The lower three rows show the corresponding metrics for the reduction channel. All point-wise metrics are calculated using the training set. For all investigated ranges, dominant peaks are detected separately in the oxidation and reduction fingerprints using a shared prominence threshold based on the maximum information score across both branches. Detected peak locations are indicated by red dashed lines. Candidate intervals are generated from the corresponding peak widths, and the retained intervals are shown as blue-shaded regions. These retained intervals define the candidate feature regions subsequently evaluated in the GP train–validation model-selection pipeline. 
+
+14 A) 0–75 g /L B) 0–150 g /L C) 0–250 g /L D) 0–350 g /L
+
+Selected feature-region GPR 
+
+Full-feature GPR benchmark 
+
+Figure 4: Parity plots for the soft sensor across progressively broader nominal glucose concentration ranges: A) 0–75 g /L; B) 0–150 g /L; C) 0– 250 g /L; and D) 0–350 g /L. For each concentration range, the first two rows show the training and held-out validation performance, respectively, of the feature-region model selected through the validation-based model-selection procedure. The selected model is then refitted using the combined training and validation sets, with the third and fourth rows showing its performance on the combined training-validation data and the held-out test set, respectively. The fifth and sixth rows show the corresponding training-validation and test performance of a full-feature soft-sensor benchmark using the complete set of voltammetric read-out channels. Error bars represent one posterior standard deviation, with the fitted observation-noise contribution excluded. 
+
+15 4.3. Automated soft-sensor development for the 0–150 g /L range 
+
+The nominal glucose concentration range was next expanded to 0–150 g /L to assess the framework over a broader sensing window. Column B of Fig. 3 presents the squared Spearman’s rank correlation coe ffi cient, the measurement-quality metric, and the resulting composite information fingerprint for the oxidation and reduction channels. The retained candidate intervals are also shown. In total, the information fingerprints yielded four candidate regions: three from the oxidation branch and one from the reduction branch. Evaluating all non-empty combinations of these regions resulted in 2 4 − 1 = 15 candidate GPR models. The range-specific training subset therefore yielded one fewer candidate region than that used for the 0–75 g /L analysis. Validation-based ranking selected a single oxidation region spanning 0.60 to 0.71 V, as summarised in Table 2. This region contains 12 of the original 400 measurement channels, representing a 97.0% reduction in input dimension-ality. Notably, this region had the highest average fingerprint score among the retained candidates but did not coincide with the dominant current-magnitude peaks visible in the original voltammograms. This result further demonstrates that predictive relevance is not determined solely by the magnitude of the raw current response. As shown in column B of Fig. 4, the selected model achieved a validation R2 of 0.924 and an RMSE of 7.01 g /Lduring model selection. After refitting using the combined training and validation sets, it achieved an R2 of 0.999 and an RMSE of 1.23 g /L on those data. Evaluation on the held-out test concentration levels gave an R2 of 0.989 and an RMSE of 2.38 g /L. By comparison, the full-feature GPR benchmark achieved an R2 of 1.000 and an RMSE of 0.52 g /Lon the combined training and validation data, but its test performance deteriorated to an R2 of −1.899 and an RMSE of 38.94 g /L. The selected feature-region model therefore reduced the test RMSE by 93.9%. For this broader concen-tration range, the results again indicate that feature-region selection substantially improved generalisation relative to the full-feature benchmark. 
+
+4.4. Automated soft-sensor development for the 0–250 g /L range 
+
+The nominal glucose concentration range was expanded further to 0–250 g /L. Column C of Fig. 3 presents the squared Spearman’s rank correlation coe ffi cient, the measurement-quality metric, and the resulting composite infor-mation fingerprint for the oxidation and reduction channels. The retained candidate intervals are also shown. In total, the information fingerprints yielded six candidate regions: three from the oxidation branch and three from the reduc-tion branch. Evaluating all non-empty combinations of these regions resulted in 2 6 − 1 = 63 candidate GPR models. Compared with the five and four candidate regions obtained for the 0–75 and 0–150 g /L ranges, respectively, this result further shows that the data-derived candidate set changes as the concentration window is broadened. Validation-based ranking selected two regions: an oxidation region spanning approximately 0.66 to 0.74 V and a reduction region spanning approximately 0.08 to 0.11 V, as summarised in Table 2. Together, these regions contain 11 of the original 400 measurement channels, representing a 97.3% reduction in input dimensionality. Notably, the oxidation region overlaps with the region selected for the 0–150 g /L range. The reduction region provides comple-16 mentary predictive information. This result further illustrates how validation-based model selection identifies jointly predictive interval combinations while retaining a parsimonious input representation. As shown in column C of Fig. 4, the selected model achieved a validation R2 of 0.998 and an RMSE of 4.03 g /Lduring model selection. After refitting using the combined training and validation sets, it achieved an R2 of 0.998 and an RMSE of 3.53 g /L on those data. Evaluation on the held-out test concentration levels gave an R2 of 0.996 and an RMSE of 4.09 g /L. By comparison, the full-feature GPR benchmark achieved an R2 of 1.000 and an RMSE of 1.24 g /L on the combined training and validation data, but its test performance deteriorated to an R2 of −0.442 and an RMSE of 75.64 g /L. The selected feature-region model therefore reduced the test RMSE by 94.6%. For this broader concentration range, the results further indicate that feature-region selection substantially improved generalisation relative to the full-feature benchmark. 
+
+4.5. Automated soft-sensor development for the 0–350 g /L range 
+
+Finally, the framework was evaluated over the broadest nominal glucose concentration range of 0–350 g /L. Col-umn D of Fig. 3 presents the squared Spearman’s rank correlation coe ffi cient, the measurement-quality metric, and the resulting composite information fingerprint for the oxidation and reduction channels. The retained candidate in-tervals are also shown. In total, the information fingerprints yielded six candidate regions: three from the oxidation branch and three from the reduction branch. These regions closely correspond to those obtained for the 0–250 g /Lrange, indicating stability of the candidate locations across these two range-specific training subsets. Evaluating all non-empty combinations of these regions resulted in 2 6 − 1 = 63 candidate GPR models. Validation-based ranking selected three regions: oxidation regions with peak-width boundaries of approximately 0.66 to 0.74 V and 0.27 to 0.36 V, and a reduction region spanning approximately 0.35 to 0.41 V, as summarised in Table 2. Together, these regions contain 22 of the original 400 measurement channels, representing a 94.5% reduction in input dimensionality. Notably, the high-potential oxidation region broadly overlapped in all four investigated concentration ranges. By contrast, the selected reduction regions varied between concentration ranges, suggesting a more concentration-window-dependent complementary contribution. As shown in column D of Fig. 4, the selected model achieved a validation R2 of 0.994 and an RMSE of 7.93 g /Lduring model selection. After refitting using the combined training and validation sets, it achieved an R2 of 1.000 and an RMSE of 0.40 g /L on those data. Evaluation on the held-out test concentration levels gave an R2 of 0.992 and an RMSE of 9.98 g /L. By comparison, the full-feature GPR benchmark achieved an R2 of 1.000 and an RMSE of 0.57 g /L on the combined training and validation data, but its test performance deteriorated to an R2 of 0.187 and an RMSE of 101.66 g /L. The selected feature-region model therefore reduced the test RMSE by 90.2%. As in all previous cases, feature-region selection substantially improved generalisation relative to the full-feature benchmark. 17 5. Conclusions 
+
+In this work, we introduced an automated feature-region selection framework for developing soft sensors from spectral-like measurements, which are widely generated by common PAC and PAT methods. The ordered, high-dimensional feature spaces associated with these measurements can increase data requirements and susceptibility to overfitting. The framework constructs an information fingerprint by combining channel-level target correlation with a replicate-based signal-to-noise indicator, derives contiguous candidate intervals from this latent profile, and evaluates their combinations according to predictive performance and parsimony. Candidate interval generation is independent of the downstream regression architecture and can therefore be coupled, in principle, with di ff erent regression models. GPR was used in this study because it can represent nonlinear relationships, account for observation noise, and provide posterior uncertainty estimates while remaining suitable for small to medium-sized experimental datasets. The framework was demonstrated using cyclic voltammetric measurements of glucose acquired with an Au elec-trode. Across the four investigated concentration ranges, the selected models used between 11 and 42 of the original 400 measurement channels, representing reductions in input dimensionality of 89.5–97.3%. Relative to the cor-responding full-feature GPR benchmarks, the selected models reduced the held-out test RMSE by 88.3–94.6%. The selected regions were not consistently apparent from the magnitude of the raw measurements, demonstrating the value of combining target correlation, measurement quality, and model-based evaluation when identifying informative fea-ture regions. The near-perfect fits obtained by the full-feature models on the combined training and validation data, followed by their markedly poorer test performance, are consistent with overfitting in the 400-channel representation. Feature-region selection retained strong calibration performance while substantially improving prediction at held-out concentration levels. These results demonstrate that compact representations formed from selected contiguous regions of the original signal can improve soft-sensor generalisation. The glucose measurements in PBS provided a controlled proof of concept for the proposed framework. Adeployment-ready glucose sensor would require future work, including implementation and robustness checks us-ing online or inline measurements acquired from process broths and other process-specific matrices. That said, the principal contribution of this paper remains the automated feature-selection framework for facilitating soft-sensor de-velopment in the process industries. 
+
+CRediT authorship contribution statement Sebastián Espinel-Ríos : Conceptualization, Methodology, Software, Formal Analysis, Writing - Original Draft, Writing - Review & Editing, Visualization. Wenchao Duan : Conceptualization, Investigation, Validation, Writing -Original Draft, Writing - Review & Editing, Visualization. 
+
+Declaration of interests 
+
+The authors declare that they have no conflict of interest. 18 Data statement 
+
+Data will be made available upon reasonable request. 
+
+References 
+
+[1] F. G. Calvo-Flores, F. J. Martin-Martinez, Biorefineries: Achievements and challenges for a bio-based economy, Frontiers in Chemistry 10 (2022) 973417. doi:10.3389/fchem.2022.973417 .[2] K. Isoko, J. L. Cordiner, Z. Kis, P. Z. Moghadam, Bioprocessing 4.0: a pragmatic review and future perspectives, Digital Discovery 3 (9) (2024) 1662–1681. doi:10.1039/D4DD00127C .[3] M. Bloor, M. Mowbray, E. A. Del Rio Chanona, C. Tsay, A survey and tutorial of reinforcement learning methods in Process Systems Engineering, Computers & Chemical Engineering 206 (2026) 109515. doi:10. 1016/j.compchemeng.2025.109515 .[4] G. Gerzon, Y. Sheng, M. Kirkitadze, Process Analytical Technologies – Advances in bioprocess integration and future perspectives, Journal of Pharmaceutical and Biomedical Analysis 207 (2022) 114379. doi:10.1016/j. jpba.2021.114379 .[5] Multiway analysis in process analytical chemistry, in: Data Handling in Science and Technology, Vol. 33, Else-vier, 2024, pp. 447–464. doi:10.1016/B978-0-443-13261-2.00017-5 .[6] K. A. Esmonde-White, M. Cuellar, I. R. Lewis, The role of Raman spectroscopy in biopharmaceuticals from development to manufacturing, Analytical and Bioanalytical Chemistry 414 (2) (2022) 969–991. doi:10. 1007/s00216-021-03727-4 .[7] Y.-Y. Pu, C. O’Donnell, J. T. Tobin, N. O’Shea, Review of near-infrared spectroscopy as a process analytical technology for real-time product monitoring in dairy processing, International Dairy Journal 103 (2020) 104623. 
+
+doi:10.1016/j.idairyj.2019.104623 .[8] Y. Matos-Peralta, C. Panaritis, J. Hagler, C. Santato, G. S. Patience, Experimental methods in chemical en-gineering: Cyclic voltammetry—cv, The Canadian Journal of Chemical Engineering (2026) cjce.70519 doi: 10.1002/cjce.70519 .[9] A. S. Rathore, S. Nikita, N. G. Jesubalan, Digitization in bioprocessing: The role of soft sensors in monitoring and control of downstream processing for production of biotherapeutic products, Biosensors and Bioelectronics: X 12 (2022) 100263. doi:10.1016/j.biosx.2022.100263 .19 [10] M. McAfee, M. Kariminejad, A. Weinert, S. Huq, J. D. Stigter, D. Tormey, State Estimators in Soft Sensing and Sensor Fusion for Sustainable Manufacturing, Sustainability 14 (6) (2022) 3635. doi:10.3390/su14063635 .[11] M. Elsheikh, R. Hille, A. Tatulea-Codrean, S. Krämer, A comparative review of multi-rate moving horizon estimation schemes for bioprocess applications, Computers & Chemical Engineering 146 (2021) 107219. doi: 10.1016/j.compchemeng.2020.107219 .[12] S. Wold, M. Sjöström, L. Eriksson, PLS-regression: a basic tool of chemometrics, Chemometrics and Intelligent Laboratory Systems 58 (2) (2001) 109–130. doi:10.1016/S0169-7439(01)00155-1 .[13] A. Dürauer, A. Jungbauer, T. Scharl, Sensors and chemometrics in downstream processing, Biotechnology and Bioengineering 121 (8) (2024) 2347–2364. doi:10.1002/bit.28499 .[14] A. Borg, M. Elhabiri, S. Le Calvé, V. Portaluri, Less Is More: Practical Insights Into Multivariate Regression Models for Raman Spectroscopy in Bioprocess Monitoring, Biotechnology and Bioengineering 123 (3) (2026) 544–563. doi:10.1002/bit.70118 .[15] R. Guo, H. Liu, Semisupervised dynamic soft sensor based on complementary ensemble empirical mode decom-position and deep learning, Measurement 183 (2021) 109788. doi:10.1016/j.measurement.2021.109788 .[16] J. Peng, T. T. Khuat, K. Musial, B. Gabrys, Machine learning methods for small data and upstream biopro-cessing applications: A comprehensive review, Biotechnology Advances 87 (2026) 108749. doi:10.1016/j. biotechadv.2025.108749 .[17] L. Breiman, Random Forests, Machine Learning 45 (1) (2001) 5–32. doi:10.1023/A:1010933404324 .[18] L. Nørgaard, A. Saudland, J. Wagner, J. P. Nielsen, L. Munck, S. B. Engelsen, Interval Partial Least-Squares Regression ( i PLS): A Comparative Chemometric Study with an Example from Near-Infrared Spectroscopy, Applied Spectroscopy 54 (3) (2000) 413–419. doi:10.1366/0003702001949500 .[19] C. E. Rasmussen, C. K. I. Williams, Gaussian processes for machine learning, Adaptive computation and ma-chine learning, MIT Press, Cambridge, Mass, 2006. [20] P. Xu, X. Ji, M. Li, W. Lu, Small data machine learning in materials science, npj Computational Materials 9 (1) (2023) 42. doi:10.1038/s41524-023-01000-z .[21] J. Peng, T. T. Khuat, E. Otte, K. Musial, B. Gabrys, Learning from limited data and feedback for cell culture process monitoring: A comparative study, Chemical Engineering Journal 535 (2026) 175264. doi:10.1016/ j.cej.2026.175264 .20 [22] Q. Zhang, Y.-L. Jin, Y. Fang, H. Zhao, Adaptive evolution and selection of stress-resistant Saccharomyces cerevisiae for very high-gravity bioethanol fermentation, Electronic Journal of Biotechnology 41 (2019) 88–94. 
+
+doi:10.1016/j.ejbt.2019.06.003 .[23] S. Feng, Y. Lin, Development of dissolved carbon dioxide-driven-and-controlled repeated batch fermentation process for ethanol production, The Canadian Journal of Chemical Engineering 98 (12) (2020) 2507–2515. 
+
+doi:10.1002/cjce.23822 .[24] N. Qureshi, S. Liu, B. C. Saha, Butyric Acid Production by Fermentation: Employing Potential of the Novel Clostridium tyrobutyricum Strain NRRL 67062, Fermentation 8 (10) (2022) 491. doi:10.3390/ fermentation8100491 .[25] T. Chaleewong, P. Khunnonkwao, C. Puchongkawarin, K. Jantama, Kinetic modeling of succinate production from glucose and xylose by metabolically engineered Escherichia coli KJ12201, Biochemical Engineering Jour-nal 185 (2022) 108487. doi:10.1016/j.bej.2022.108487 .[26] P. Virtanen, R. Gommers, T. E. Oliphant, M. Haberland, T. Reddy, D. Cournapeau, E. Burovski, P. Peterson, W. Weckesser, J. Bright, S. J. van der Walt, M. Brett, J. Wilson, K. J. Millman, N. Mayorov, A. R. J. Nelson, E. Jones, R. Kern, E. Larson, C. J. Carey, ˙ I. Polat, Y. Feng, E. W. Moore, J. VanderPlas, D. Laxalde, J. Perktold, R. Cimrman, I. Henriksen, E. A. Quintero, C. R. Harris, A. M. Archibald, A. H. Ribeiro, F. Pedregosa, P. van Mulbregt, SciPy 1.0 Contributors, SciPy 1.0: Fundamental Algorithms for Scientific Computing in Python, Nature Methods 17 (2020) 261–272. doi:10.1038/s41592-019-0686-2 .[27] M. Balandat, B. Karrer, D. R. Jiang, S. Daulton, B. Letham, A. G. Wilson, E. Bakshy, BoTorch: A Framework for E ffi cient Monte-Carlo Bayesian OptimizationArXiv Version Number: 3 (2019). doi:10.48550/ARXIV. 1910.06403 .[28] J. R. Gardner, G. Pleiss, D. Bindel, K. Q. Weinberger, A. G. Wilson, GPyTorch: Blackbox Matrix-Matrix Gaussian Process Inference with GPU Acceleration, arXiv Version Number: 6 (2018). doi:10.48550/ARXIV. 1809.11165 .[29] D. W. Kirk, F. R. Foulkes, W. F. Graydon, The Electrochemical Formation of Au(I) Hydroxide on Gold in Aqueous Potassium Hydroxide, Journal of The Electrochemical Society 127 (5) (1980) 1069–1076. doi:10. 1149/1.2129819 .[30] M. Pasta, F. La Mantia, Y. Cui, Mechanism of glucose electrochemical oxidation on gold surface, Electrochimica Acta 55 (20) (2010) 5561–5568. doi:10.1016/j.electacta.2010.04.069 .21
